@@ -179,6 +179,8 @@ def _parse_detail(
     gaps: list[RawSourceGap] = []
     for chair_value in _list(chairs.get("items")):
         chair = _obj(chair_value)
+        chair_code = _text(chair.get("code"))
+        chair_title = _text(chair.get("title"))
         educational = _obj(chair.get("educationalProgram"))
         for program_value in _list(educational.get("items")):
             program = _obj(program_value)
@@ -207,6 +209,8 @@ def _parse_detail(
                     source_url=typed.requested_url,
                     locator=SourceLocator(source_url=typed.requested_url),
                     source_code=source_code,
+                    department_code=chair_code,
+                    department_name=unescape(chair_title) if chair_title else None,
                 )
             )
     if program_codes is not None and len(records) != len(program_codes):

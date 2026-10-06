@@ -7,9 +7,11 @@ from datetime import datetime
 import hashlib
 import json
 import logging
+import os
 from pathlib import Path
 import re
 import shutil
+import tempfile
 from typing import Any
 from urllib.parse import urlsplit, urlunsplit
 
@@ -22,6 +24,534 @@ CANDIDATE_MANIFEST = "ingestion_candidate_manifest.json"
 SOURCE_ARTIFACTS = "source_artifacts.jsonl"
 OBSERVATION_DATASET = "data/admission_information_source_tables.jsonl"
 REVIEW_HEADERS = ("record_key", "issue_type", "source_url", "details")
+DECISION_HEADERS = (
+    "external_key",
+    "decision",
+    "reviewed_at",
+    "target_external_key",
+)
+
+
+def _fact_candidate_key(dataset: str, source_key: str, capture_digest: str) -> str:
+    identity = hashlib.sha256(f"{dataset}\0{source_key}\0{capture_digest}".encode("utf-8")).hexdigest()
+    return f"bmstu_fact_candidate:{identity}"
+
+
+def _candidate_ref(candidate_key: str) -> dict[str, str]:
+    return {"$candidate_ref": candidate_key}
+
+
+def _resolve_candidate_refs(value: Any, targets: dict[str, str]) -> Any:
+    if isinstance(value, dict):
+        if set(value) == {"$candidate_ref"}:
+            reference = value["$candidate_ref"]
+            if reference not in targets:
+                raise IngestionError("accepted fact references a missing or rejected exact-key candidate")
+            return targets[reference]
+        return {key: _resolve_candidate_refs(child, targets) for key, child in value.items()}
+    if isinstance(value, list):
+        return [_resolve_candidate_refs(child, targets) for child in value]
+    return value
+
+
+def _source_provenance(
+    *,
+    sources: list[dict[str, Any]],
+    source_url: Any = None,
+    source_hash: Any = None,
+    captured_at: Any = None,
+    locator: Any = None,
+) -> dict[str, Any]:
+    source: dict[str, Any] | None = None
+    if isinstance(source_hash, str):
+        source = next((row for row in sources if row.get("sha256") == source_hash), None)
+    if source is None and isinstance(source_url, str):
+        safe_url = _safe_source_url(source_url)
+        source = next(
+            (row for row in sources if row.get("requested_url") == safe_url or row.get("final_url") == safe_url),
+            None,
+        )
+    if source is None and sources:
+        source = sources[0]
+    if source is None:
+        raise IngestionError("typed fact has no source-artifact provenance")
+    return {
+        "source_artifact_key": source["source_artifact_key"],
+        "source_sha256": source["sha256"],
+        "source_url": _safe_source_url(source_url) if isinstance(source_url, str) else source["requested_url"],
+        "source_retrieved_at": captured_at or source["captured_at"],
+        "source_locator": locator,
+    }
+
+
+def _build_typed_candidates(
+    *,
+    normalized: dict[str, Any],
+    sources: list[dict[str, Any]],
+    capture_digest: str,
+    existing_campaign_keys: set[str],
+    existing_funding_keys: set[str],
+    existing_quota_keys: set[str],
+) -> list[dict[str, Any]]:
+    """Project canonical parser facts into review-gated existing bundle contracts."""
+
+    candidates: list[dict[str, Any]] = []
+
+    def add(
+        dataset: str,
+        source_key: str,
+        suggested_target: str,
+        row: dict[str, Any],
+        provenance: dict[str, Any],
+    ) -> str:
+        candidate_key = _fact_candidate_key(dataset, source_key, capture_digest)
+        payload = {
+            **row,
+            "external_key": suggested_target,
+            **provenance,
+        }
+        _assert_safe_payload(payload)
+        payload_json = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+        candidates.append(
+            {
+                "external_key": candidate_key,
+                "candidate_type": "typed_record",
+                "target_dataset": dataset,
+                "source_identity": source_key,
+                "suggested_target": suggested_target,
+                "source_capture_digest": capture_digest,
+                "source_artifact_key": provenance["source_artifact_key"],
+                "review_state": "pending",
+                "payload_json": payload_json,
+                "payload_sha256": hashlib.sha256(payload_json.encode("utf-8")).hexdigest(),
+            }
+        )
+        return candidate_key
+
+    def artifact_for(
+        provenance_rows: Any = (),
+        *,
+        source_url: Any = None,
+        fallback_url: Any = None,
+        locator: Any = None,
+    ) -> dict[str, Any]:
+        attribution = next(iter(provenance_rows), {}) if isinstance(provenance_rows, (list, tuple)) else {}
+        return _source_provenance(
+            sources=sources,
+            source_url=attribution.get("url") or attribution.get("source_url") or source_url or fallback_url,
+            source_hash=attribution.get("content_sha256"),
+            captured_at=attribution.get("captured_at"),
+            locator=attribution.get("locator") or locator,
+        )
+
+    university = normalized.get("university")
+    university_candidate: str | None = None
+    if isinstance(university, dict):
+        university_key = university.get("id")
+        if isinstance(university_key, str):
+            university_candidate = add(
+                "universities.jsonl",
+                university_key,
+                university_key,
+                {
+                    "code": university_key.removeprefix("university:"),
+                    "name": university.get("name"),
+                    "city": university.get("city"),
+                    "official_site": university.get("official_site"),
+                },
+                artifact_for(source_url=university.get("official_site")),
+            )
+
+    direction_candidates: dict[str, str] = {}
+    directions = normalized.get("directions") or [normalized.get("direction")]
+    for direction in directions:
+        if not isinstance(direction, dict) or not isinstance(direction.get("id"), str):
+            continue
+        direction_key = direction["id"]
+        direction_candidates[direction_key] = add(
+            "directions.jsonl",
+            direction_key,
+            direction_key,
+            {
+                "code": direction.get("code"),
+                "name": direction.get("name"),
+                "university_key": _candidate_ref(university_candidate) if university_candidate else university.get("id"),
+            },
+            artifact_for(),
+        )
+
+    programs = [row for row in normalized.get("programs", []) if isinstance(row, dict)]
+    department_candidates: dict[str, str] = {}
+    for program in programs:
+        code, name = program.get("department_code"), program.get("department_name")
+        if not isinstance(code, str) or not code or not isinstance(name, str) or not name:
+            continue
+        department_key = f"department:bmstu:{code}"
+        if department_key in department_candidates:
+            continue
+        department_candidates[department_key] = add(
+            "departments.jsonl",
+            department_key,
+            department_key,
+            {
+                "code": code,
+                "name": name,
+                "university_key": _candidate_ref(university_candidate) if university_candidate else "university:bmstu",
+            },
+            artifact_for(program.get("provenance", []), source_url=program.get("source_url")),
+        )
+
+    program_candidates: dict[str, str] = {}
+    programs_by_id = {
+        row["id"]: row for row in programs if isinstance(row.get("id"), str)
+    }
+    for program in programs:
+        source_key = program.get("id")
+        direction_key = program.get("direction_id")
+        if not isinstance(source_key, str) or not isinstance(direction_key, str):
+            continue
+        department_key = (
+            f"department:bmstu:{program['department_code']}"
+            if isinstance(program.get("department_code"), str)
+            else None
+        )
+        row: dict[str, Any] = {
+            "code": program.get("code"),
+            "name": program.get("name"),
+            "direction_key": _candidate_ref(direction_candidates[direction_key])
+            if direction_key in direction_candidates else direction_key,
+            "study_plan_url": program.get("study_plan_url"),
+            "source_url": program.get("source_url"),
+        }
+        if department_key:
+            row["department_code"] = program["department_code"]
+            row["department_key"] = _candidate_ref(department_candidates[department_key])
+        program_candidates[source_key] = add(
+            "educational_programs.jsonl",
+            source_key,
+            source_key,
+            row,
+            artifact_for(program.get("provenance", []), source_url=program.get("source_url")),
+        )
+        if department_key and department_key in department_candidates:
+            relationship_key = f"relationship:bmstu:program-department:{source_key}:{department_key}"
+            add(
+                "relationships.jsonl",
+                relationship_key,
+                relationship_key,
+                {
+                    "relation_type": "profile_is_issued_by_department",
+                    "source_key": _candidate_ref(program_candidates[source_key]),
+                    "target_key": _candidate_ref(department_candidates[department_key]),
+                    "evidence_kind": "explicit_bmstu_program_card_relation",
+                },
+                artifact_for(program.get("provenance", []), source_url=program.get("source_url")),
+            )
+
+    curriculum_candidates: dict[str, str] = {}
+    for curriculum in normalized.get("curricula", []):
+        if not isinstance(curriculum, dict) or not isinstance(curriculum.get("id"), str):
+            continue
+        source_key = curriculum["id"]
+        program_key = curriculum.get("program_id")
+        program = programs_by_id.get(program_key) if isinstance(program_key, str) else None
+        row: dict[str, Any] = {
+            "status": "parsed_via_user_confirmed_catalog_link",
+            "program_key": _candidate_ref(program_candidates[program_key])
+            if isinstance(program_key, str) and program_key in program_candidates else program_key,
+            "education_year": curriculum.get("education_year"),
+            "profile_code": program.get("code") if program else None,
+            "study_plan_url": curriculum.get("source_url"),
+        }
+        curriculum_candidates[source_key] = add(
+            "study_plans.jsonl",
+            source_key,
+            f"study_plan:{source_key.removeprefix('curriculum:')}",
+            row,
+            artifact_for(curriculum.get("provenance", []), source_url=curriculum.get("source_url")),
+        )
+        if isinstance(program_key, str) and program_key in program_candidates:
+            plan_relation_key = f"relationship:bmstu:program-plan:{program_key}:{source_key}"
+            add(
+                "relationships.jsonl",
+                plan_relation_key,
+                plan_relation_key,
+                {
+                    "relation_type": "profile_has_profile_specific_curriculum",
+                    "source_key": _candidate_ref(program_candidates[program_key]),
+                    "target_key": _candidate_ref(curriculum_candidates[source_key]),
+                    "evidence_kind": "human_reviewed_exact_program_plan_link",
+                },
+                artifact_for(curriculum.get("provenance", []), source_url=curriculum.get("source_url")),
+            )
+        for item in curriculum.get("items", []):
+            if not isinstance(item, dict) or not isinstance(item.get("id"), str):
+                continue
+            assessment_types = item.get("assessment_types")
+            row_item: dict[str, Any] = {
+                "curriculum_key": _candidate_ref(curriculum_candidates[source_key]),
+                "record_type": "discipline",
+                "is_data_row": True,
+                "discipline": item.get("source_name"),
+                "semester": item.get("semester"),
+                "hours": item.get("hours"),
+                "credits": item.get("credits"),
+                "assessment_type": " / ".join(assessment_types) if isinstance(assessment_types, list) else assessment_types,
+                "source_document_url": curriculum.get("source_url"),
+                "study_plan_url": curriculum.get("source_url"),
+                "observed_at": curriculum.get("captured_at"),
+            }
+            provenance = artifact_for(
+                item.get("provenance", []),
+                source_url=curriculum.get("source_url"),
+                locator={"position": item.get("source_position"), "semester": item.get("semester")},
+            )
+            add(
+                "curriculum_items.jsonl",
+                item["id"],
+                item["id"],
+                row_item,
+                provenance,
+            )
+
+    for statistic in normalized.get("historical_results", []):
+        if not isinstance(statistic, dict) or not isinstance(statistic.get("external_key"), str):
+            continue
+        direction_key = statistic.get("direction_key")
+        department_key = statistic.get("department_key")
+        row = {
+            key: statistic.get(key)
+            for key in (
+                "direction_code", "direction_key", "department_code", "department_key",
+                "scope_type", "scope_label", "admission_year", "study_form", "funding_type",
+                "outcome_type", "admitted_count", "minimum_score", "maximum_score",
+                "average_score", "snapshot_date", "finality_note", "source_locator",
+            )
+            if statistic.get(key) is not None
+        }
+        if isinstance(direction_key, str) and direction_key in direction_candidates:
+            row["direction_key"] = _candidate_ref(direction_candidates[direction_key])
+        elif isinstance(direction_key, str):
+            row["direction_key"] = direction_key
+        if isinstance(row.get("funding_type"), str):
+            row["funding_type_key"] = f"funding_type:{row['funding_type']}"
+        if isinstance(department_key, str) and department_key in department_candidates:
+            row["department_key"] = _candidate_ref(department_candidates[department_key])
+        add(
+            "historical_admission_statistics.jsonl",
+            statistic["external_key"],
+            statistic["external_key"],
+            row,
+            artifact_for(source_url=statistic.get("source_url"), locator=statistic.get("source_locator")),
+        )
+
+    campaign_years = {
+        int(key.rsplit(":", 1)[-1])
+        for key in existing_campaign_keys
+        if key.startswith("campaign:bmstu:") and key.rsplit(":", 1)[-1].isdigit()
+    }
+    for envelope in normalized.get("admissions", []):
+        if not isinstance(envelope, dict):
+            continue
+        program_key = envelope.get("program_id")
+        program = programs_by_id.get(program_key) if isinstance(program_key, str) else None
+        if not program:
+            continue
+        direction_key = program.get("direction_id")
+        for offering in envelope.get("offerings", []):
+            if not isinstance(offering, dict):
+                continue
+            year = offering.get("admission_year")
+            direction_code = program.get("code", "").split("-")[0]
+            campaign_key = f"campaign:bmstu:{year}"
+            scope = offering.get("scope")
+            provenance = artifact_for(
+                offering.get("provenance", []), source_url=program.get("source_url")
+            )
+            if scope == "direction" and isinstance(year, int):
+                for passing_score in offering.get("passing_scores", []):
+                    if not isinstance(passing_score, dict) or passing_score.get("score") is None:
+                        continue
+                    funding = offering.get("funding_type")
+                    if funding not in {"budget", "paid"}:
+                        continue
+                    score_key = (
+                        f"admission_statistic:bmstu:{year}:{direction_code}:{funding}:"
+                        f"{passing_score.get('competition_type', 'general')}:{passing_score.get('score_type', 'other')}"
+                    )
+                    add(
+                        "admission_statistics.jsonl",
+                        f"{offering.get('id')}:{passing_score.get('score_type')}:{passing_score.get('competition_type')}",
+                        score_key,
+                        {
+                            "direction_code": direction_code,
+                            "direction_key": _candidate_ref(direction_candidates[direction_key])
+                            if direction_key in direction_candidates else direction_key,
+                            "admission_year": year,
+                            "admission_stage": "historical",
+                            "competition_type": passing_score.get("competition_type"),
+                            "funding_type": funding,
+                            "funding_type_key": f"funding_type:{funding}",
+                            "score": passing_score.get("score"),
+                            "status": passing_score.get("status"),
+                            "study_form": offering.get("study_form"),
+                            "source_locator": passing_score.get("provenance", {}).get("locator"),
+                        },
+                        artifact_for([passing_score.get("provenance", {})], source_url=program.get("source_url")),
+                    )
+
+            # These typed categories need an exact campaign in the imported base.
+            # Older parser summaries without that campaign remain observations.
+            if not isinstance(year, int) or year not in campaign_years:
+                continue
+            offering_key = offering.get("id")
+            if not isinstance(offering_key, str):
+                continue
+            add(
+                "program_offerings.jsonl",
+                offering_key,
+                offering_key,
+                {
+                    "campaign_key": campaign_key,
+                    "campaign_year": year,
+                    "direction_code": direction_code,
+                    "direction_key": _candidate_ref(direction_candidates[direction_key])
+                    if direction_key in direction_candidates else direction_key,
+                    "educational_program_key": _candidate_ref(program_candidates[program_key])
+                    if program_key in program_candidates else program_key,
+                    "program_name_in_document": program.get("name"),
+                    "study_form": offering.get("study_form"),
+                    "catalog_join_status": "reviewed_exact_source_key",
+                },
+                provenance,
+            )
+
+            if scope == "direction":
+                pool_facts: list[tuple[str, str, int]] = []
+                places = offering.get("places")
+                if isinstance(places, int):
+                    pool_facts.append(("general_competition", "General competition places", places))
+                for quota in offering.get("quotas", []):
+                    if isinstance(quota, dict) and isinstance(quota.get("places"), int):
+                        pool_facts.append((str(quota.get("quota_type")), str(quota.get("source_name")), quota["places"]))
+                for quota_code, source_name, count in pool_facts:
+                    quota_key = f"quota_type:{quota_code}"
+                    funding = offering.get("funding_type")
+                    funding_key = f"funding_type:{funding}"
+                    if quota_key not in existing_quota_keys or funding_key not in existing_funding_keys:
+                        continue
+                    pool_identity = hashlib.sha256((offering_key + "\0" + quota_code).encode()).hexdigest()[:16]
+                    pool_key = f"competition_pool:bmstu:{year}:parser:{pool_identity}"
+                    add(
+                        "competition_pools.jsonl",
+                        f"{offering_key}:{quota_code}",
+                        pool_key,
+                        {
+                            "linked_campaign_key": campaign_key,
+                            "campaign_year": year,
+                            "direction_code": direction_code,
+                            "direction_key": _candidate_ref(direction_candidates[direction_key])
+                            if direction_key in direction_candidates else direction_key,
+                            "funding_type": funding,
+                            "funding_type_key": funding_key,
+                            "quota_type": quota_code,
+                            "quota_type_key": quota_key,
+                            "places": count,
+                            "scope_level": "direction",
+                            "source_locators": [{"description": source_name}],
+                        },
+                        provenance,
+                    )
+
+            exams = offering.get("exams", [])
+            if scope == "direction" and exams:
+                exam_candidate_keys: dict[str, str] = {}
+                exam_code_keys: dict[str, str] = {}
+                for exam in exams:
+                    if not isinstance(exam, dict):
+                        continue
+                    subject = exam.get("subject")
+                    source_name = exam.get("source_name")
+                    if not isinstance(subject, str) or not isinstance(source_name, str):
+                        continue
+                    code = "src_" + hashlib.sha256(subject.encode("utf-8")).hexdigest()[:16]
+                    exam_key = f"exam:bmstu:source:{code[4:]}"
+                    exam_candidate = add(
+                        "exams.jsonl",
+                        f"exam:{offering_key}:{subject}",
+                        exam_key,
+                        {"code": code, "name": source_name},
+                        artifact_for([exam.get("provenance", {})], source_url=program.get("source_url")),
+                    )
+                    exam_candidate_keys[subject] = exam_candidate
+                    exam_code_keys[subject] = exam_key
+
+                def leaf(exam: dict[str, Any]) -> dict[str, Any]:
+                    return {
+                        "exam": {"exam_key": _candidate_ref(exam_candidate_keys[exam["subject"]])},
+                        "subject_code": exam.get("subject"),
+                        "minimum_score": exam.get("minimum_score"),
+                        "is_choice": exam.get("is_choice", False),
+                        "tiebreak_rank": None,
+                    }
+
+                required = [item for item in exams if isinstance(item, dict) and item.get("is_required", True) and not item.get("choice_group_id")]
+                groups: dict[str, list[dict[str, Any]]] = {}
+                representable = all(
+                    isinstance(item, dict)
+                    and (item.get("is_required", True) or item.get("choice_group_id"))
+                    and (not item.get("choice_group_id") or item.get("choice_group_min") in {None, 1})
+                    and (not item.get("choice_group_id") or item.get("choice_group_max") in {None, len(exams)})
+                    for item in exams
+                )
+                for item in exams:
+                    if isinstance(item, dict) and item.get("choice_group_id"):
+                        groups.setdefault(str(item["choice_group_id"]), []).append(item)
+                children = [leaf(item) for item in required]
+                for group in groups.values():
+                    children.append({"operator": "OR", "children": [leaf(item) for item in group]})
+                if representable and children:
+                    requirement_key = f"requirement-set:bmstu:{year}:{direction_code}:{hashlib.sha256(offering_key.encode()).hexdigest()[:16]}"
+                    add(
+                        "admission_exam_requirements.jsonl",
+                        f"requirements:{offering_key}",
+                        requirement_key,
+                        {
+                            "campaign_key": campaign_key,
+                            "direction_code": direction_code,
+                            "direction_key": _candidate_ref(direction_candidates[direction_key])
+                            if direction_key in direction_candidates else direction_key,
+                            "requirement_set_key": requirement_key,
+                            "requirement_tree": {"operator": "AND", "children": children},
+                        },
+                        provenance,
+                    )
+
+            if scope == "direction":
+                for index, tuition in enumerate(offering.get("tuition", [])):
+                    if not isinstance(tuition, dict) or tuition.get("academic_year") is None:
+                        continue
+                    tuition_key = f"tuition:bmstu:{direction_code}:{tuition['academic_year']}:{hashlib.sha256(f'{offering_key}:{index}'.encode()).hexdigest()[:12]}"
+                    add(
+                        "tuition.jsonl",
+                        f"{offering_key}:tuition:{index}",
+                        tuition_key,
+                        {
+                            "direction_code": direction_code,
+                            "direction_key": _candidate_ref(direction_candidates[direction_key])
+                            if direction_key in direction_candidates else direction_key,
+                            "direction_name": next((item.get("name") for item in directions if item.get("id") == direction_key), None),
+                            "annual_amount_rub": tuition.get("amount") if tuition.get("currency") == "RUB" else None,
+                            "currency": tuition.get("currency"),
+                            "study_year_label": tuition.get("academic_year"),
+                            "study_level_or_table_category": "undergraduate",
+                            "campus_scope": "not_separately_stated_in_source",
+                            "raw_cells": [tuition.get("amount"), tuition.get("currency"), tuition.get("period")],
+                        },
+                        artifact_for([tuition.get("provenance", {})], source_url=program.get("source_url")),
+                    )
+
+    return candidates
 
 
 def _academic_importer() -> tuple[Any, Any]:
@@ -125,7 +655,7 @@ def build_candidate_bundle(
     parse_report_path: Path,
     output_dir: Path,
 ) -> dict[str, Any]:
-    """Copy the safe base and add one unreviewed candidate that import mapping rejects."""
+    """Copy the safe base and stage source-backed typed facts behind manual review."""
 
     base = base_bundle.expanduser().resolve(strict=True)
     report_path = parse_report_path.expanduser().resolve(strict=True)
@@ -203,7 +733,7 @@ def build_candidate_bundle(
             }
         )
     candidate_key = f"bmstu_ingestion_candidate:{capture_digest}"
-    candidate = {
+    snapshot_candidate = {
         "external_key": candidate_key,
         "candidate_type": "canonical_snapshot",
         "source_capture_digest": capture_digest,
@@ -214,7 +744,22 @@ def build_candidate_bundle(
         "payload_json": normalized_json,
         "payload_sha256": hashlib.sha256(normalized_json.encode("utf-8")).hexdigest(),
     }
-    _assert_safe_payload(candidate)
+    _assert_safe_payload(snapshot_candidate)
+
+    existing_campaign_keys = {row.get("external_key", "") for row in _read_jsonl(base / "data" / "admission_campaigns.jsonl")}
+    existing_funding_keys = {row.get("external_key", "") for row in _read_jsonl(base / "data" / "funding_types.jsonl")}
+    existing_quota_keys = {row.get("external_key", "") for row in _read_jsonl(base / "data" / "quota_types.jsonl")}
+    typed_candidates = _build_typed_candidates(
+        normalized=normalized,
+        sources=safe_sources,
+        capture_digest=capture_digest,
+        existing_campaign_keys=existing_campaign_keys,
+        existing_funding_keys=existing_funding_keys,
+        existing_quota_keys=existing_quota_keys,
+    )
+
+
+    candidates = [snapshot_candidate, *typed_candidates]
 
     target = _prepare_output(output_dir)
     shutil.copytree(base, target, dirs_exist_ok=True)
@@ -227,7 +772,7 @@ def build_candidate_bundle(
     if candidate_path.exists():
         raise IngestionError("base bundle already contains an ingestion candidate dataset")
     candidate_path.parent.mkdir(parents=True, exist_ok=True)
-    _write_jsonl(candidate_path, [candidate])
+    _write_jsonl(candidate_path, candidates)
 
     review_path = target / "manual_review.csv"
     with review_path.open("r", encoding="utf-8-sig", newline="") as stream:
@@ -236,43 +781,70 @@ def build_candidate_bundle(
             raise IngestionError("base manual-review CSV has invalid headers")
         fields = list(reader.fieldnames)
         review_rows = list(reader)
-    review_rows.append(
-        {
-            "record_key": candidate_key,
-            "issue_type": "bmstu_ingestion_candidate_pending_review",
-            "source_url": safe_sources[0]["requested_url"],
-            "details": "Canonical parser output requires explicit review before importer mapping.",
-        }
-    )
+    for candidate in candidates:
+        artifact = next(
+            (source for source in safe_sources if source["source_artifact_key"] == candidate.get("source_artifact_key")),
+            safe_sources[0],
+        )
+        review_rows.append(
+            {
+                "record_key": candidate["external_key"],
+                "issue_type": "bmstu_ingestion_candidate_pending_review",
+                "source_url": artifact["requested_url"],
+                "details": "Typed source fact requires an explicit exact-key decision before importer mapping."
+                if candidate["candidate_type"] == "typed_record"
+                else "Canonical parser output requires explicit review before importer mapping.",
+            }
+        )
     with review_path.open("w", encoding="utf-8", newline="") as stream:
         writer = csv.DictWriter(stream, fieldnames=fields, extrasaction="ignore")
         writer.writeheader()
         writer.writerows(review_rows)
 
+    review_template = target / "review_decisions.csv"
+    with review_template.open("w", encoding="utf-8", newline="") as stream:
+        fields = (*DECISION_HEADERS, "suggested_target_external_key", "target_dataset", "source_external_key")
+        writer = csv.DictWriter(stream, fieldnames=fields)
+        writer.writeheader()
+        for candidate in candidates:
+            writer.writerow(
+                {
+                    "external_key": candidate["external_key"],
+                    "decision": "",
+                    "reviewed_at": "",
+                    "target_external_key": "",
+                    "suggested_target_external_key": candidate.get("suggested_target", ""),
+                    "target_dataset": candidate.get("target_dataset", "observation"),
+                    "source_external_key": candidate.get("source_identity", candidate["external_key"]),
+                }
+            )
+
     candidate_manifest = {
         "schema_version": 1,
         "base_digest": base_report["input"]["digest"],
         "capture_digest": capture_digest,
-        "candidate_keys": [candidate_key],
+        "candidate_keys": [row["external_key"] for row in candidates],
+        "typed_candidate_count": len(typed_candidates),
         "added_source_artifact_keys": [row["source_key"] for row in additions],
     }
     _write_json(target / CANDIDATE_MANIFEST, candidate_manifest)
 
     exported = _read_json(target / "validation_report.json")
     validation = exported.setdefault("validation", {})
-    validation["normalized_records"] = int(validation.get("normalized_records", 0)) + 1
+    validation["normalized_records"] = int(validation.get("normalized_records", 0)) + len(candidates)
     validation["jsonl_datasets"] = int(validation.get("jsonl_datasets", 0)) + 1
     validation["source_artifacts"] = int(validation.get("source_artifacts", 0)) + len(additions)
     validation["source_keys_unique"] = True
     exported.setdefault("notes", []).append(
-        "An ingestion candidate is pending manual review; it is not importer-mappable until materialized."
+        f"{len(typed_candidates)} typed BMSTU candidate(s) and one canonical observation are pending manual review."
     )
     _write_json(target / "validation_report.json", exported)
     with (target / "report.md").open("a", encoding="utf-8") as stream:
         stream.write(
-            "\n\n## Pending BMSTU ingestion candidate\n\n"
-            f"Capture digest: `{capture_digest}`; source artifacts: {len(safe_sources)}. "
-            "The candidate dataset is review-only and cannot be mapped by the importer. "
+            "\n\n## Pending BMSTU ingestion candidates\n\n"
+            f"Capture digest: `{capture_digest}`; source artifacts: {len(safe_sources)}; "
+            f"typed facts: {len(typed_candidates)}. Review `review_decisions.csv` and materialize only "
+            "explicitly accepted exact-key facts. "
             "Raw bodies were not copied into this bundle.\n"
         )
 
@@ -291,9 +863,72 @@ def build_candidate_bundle(
         "base_digest": base_report["input"]["digest"],
         "capture_digest": capture_digest,
         "candidate_key": candidate_key,
+        "candidate_count": len(candidates),
+        "typed_candidate_count": len(typed_candidates),
         "source_artifact_count": len(additions),
         "validation": candidate_validation,
     }
+
+
+def _merge_jsonl_rows_preserving_bytes(path: Path, updates: dict[str, dict[str, Any]]) -> None:
+    """Replace approved rows while copying every unrelated source line byte-for-byte."""
+
+    if not path.exists():
+        _write_jsonl(path, list(updates.values()))
+        return
+    raw_lines = path.read_bytes().splitlines(keepends=True)
+    output: list[bytes] = []
+    handled: set[str] = set()
+    for raw_line in raw_lines:
+        if not raw_line.strip():
+            output.append(raw_line)
+            continue
+        try:
+            original = json.loads(raw_line.decode("utf-8-sig"))
+        except (UnicodeDecodeError, json.JSONDecodeError) as error:
+            raise IngestionError(f"cannot preserve malformed existing JSONL: {path.name}") from error
+        key = original.get("external_key") if isinstance(original, dict) else None
+        replacement = updates.get(key) if isinstance(key, str) else None
+        if replacement is None:
+            output.append(raw_line)
+            continue
+        handled.add(key)
+        if replacement == original:
+            output.append(raw_line)
+            continue
+        line_ending = b"\r\n" if raw_line.endswith(b"\r\n") else b"\n" if raw_line.endswith(b"\n") else b""
+        encoded = json.dumps(replacement, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
+        output.append(encoded + line_ending)
+
+    for key, row in updates.items():
+        if key in handled:
+            continue
+        if output and not output[-1].endswith((b"\n", b"\r")):
+            output.append(b"\n")
+        encoded = json.dumps(row, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
+        output.append(encoded + b"\n")
+    path.write_bytes(b"".join(output))
+
+
+def _merge_reviewed_target_row(previous: dict[str, Any], typed_row: dict[str, Any]) -> dict[str, Any]:
+    ignored = {
+        "source_artifact_key", "source_artifact_keys", "source_sha256",
+        "source_url", "source_retrieved_at",
+    }
+    for field, value in typed_row.items():
+        if field in ignored or field == "external_key" or value is None:
+            continue
+        if previous.get(field) is not None and previous[field] != value:
+            raise IngestionError("conflicting accepted sources target the same exact external key")
+        previous[field] = value
+    artifacts = list(previous.get("source_artifact_keys", []))
+    if previous.get("source_artifact_key"):
+        artifacts.append(previous["source_artifact_key"])
+    if typed_row.get("source_artifact_key"):
+        artifacts.append(typed_row["source_artifact_key"])
+    if artifacts:
+        previous["source_artifact_keys"] = sorted(set(artifacts))
+    return previous
 
 
 def materialize_reviewed_bundle(
@@ -302,7 +937,7 @@ def materialize_reviewed_bundle(
     decisions_path: Path,
     output_dir: Path,
 ) -> dict[str, Any]:
-    """Turn explicitly accepted candidates into observation rows the importer maps."""
+    """Apply exact-key decisions to typed datasets and preserve the audit observation."""
 
     candidate = candidate_dir.expanduser().resolve(strict=True)
     decisions_file = decisions_path.expanduser().resolve(strict=True)
@@ -323,44 +958,65 @@ def materialize_reviewed_bundle(
     try:
         with decisions_file.open("r", encoding="utf-8-sig", newline="") as stream:
             reader = csv.DictReader(stream)
-            if reader.fieldnames is None or not {"external_key", "decision", "reviewed_at"} <= set(reader.fieldnames):
-                raise IngestionError("review CSV requires external_key, decision, and reviewed_at headers")
-            decisions = list(reader)
+            if reader.fieldnames is None or not set(DECISION_HEADERS) <= set(reader.fieldnames):
+                raise IngestionError(
+                    "review CSV requires external_key, decision, reviewed_at, and target_external_key headers"
+                )
+            decision_rows = list(reader)
     except (OSError, UnicodeDecodeError, csv.Error) as error:
         raise IngestionError("review decisions CSV cannot be read") from error
-    if len(decisions) != len({row.get("external_key") for row in decisions}):
+    if len(decision_rows) != len({row.get("external_key") for row in decision_rows}):
         raise IngestionError("review decisions contain duplicate candidate keys")
-    candidate_keys = {row.get("external_key") for row in candidates}
-    if {row.get("external_key") for row in decisions} != candidate_keys:
+    candidate_keys = {str(row.get("external_key")) for row in candidates}
+    if {str(row.get("external_key")) for row in decision_rows} != candidate_keys:
         raise IngestionError("each candidate must have exactly one explicit review decision")
+
     decisions_by_key: dict[str, dict[str, str]] = {}
-    for row in decisions:
-        key = row.get("external_key") or ""
-        decision = row.get("decision") or ""
-        if decision not in {"accept_observation", "reject"}:
+    candidates_by_key = {str(row["external_key"]): row for row in candidates}
+    for decision_row in decision_rows:
+        key = str(decision_row.get("external_key") or "")
+        candidate_row = candidates_by_key[key]
+        decision = decision_row.get("decision") or ""
+        allowed = {"reject", "accept_observation"} if candidate_row.get("candidate_type") == "canonical_snapshot" else {"reject", "accept_typed_fact"}
+        if decision not in allowed:
             raise IngestionError(f"unsupported review decision for {key[:80]}")
         try:
-            reviewed = datetime.fromisoformat((row.get("reviewed_at") or "").replace("Z", "+00:00"))
+            reviewed = datetime.fromisoformat((decision_row.get("reviewed_at") or "").replace("Z", "+00:00"))
         except ValueError as error:
             raise IngestionError("reviewed_at must be an ISO timestamp") from error
         if reviewed.tzinfo is None:
             raise IngestionError("reviewed_at must include a timezone")
-        decisions_by_key[key] = {"decision": decision, "reviewed_at": reviewed.isoformat()}
+        target_key = (decision_row.get("target_external_key") or "").strip()
+        if decision == "accept_typed_fact" and (not target_key or target_key != decision_row.get("target_external_key")):
+            raise IngestionError("accepted typed facts require a non-empty exact target_external_key")
+        if decision != "accept_typed_fact" and target_key:
+            raise IngestionError("target_external_key is only valid for an accepted typed fact")
+        decisions_by_key[key] = {
+            "decision": decision,
+            "reviewed_at": reviewed.isoformat(),
+            "target_external_key": target_key,
+        }
 
-    target = _prepare_output(output_dir)
-    shutil.copytree(candidate, target, dirs_exist_ok=True)
-    current_rows = _read_jsonl(target / CANDIDATE_FILE)
-    existing_observations = _read_jsonl(target / OBSERVATION_DATASET)
-    existing_keys = {row.get("external_key") for row in existing_observations}
-    accepted: list[dict[str, Any]] = []
+    accepted_typed = [
+        row for row in candidates
+        if row.get("candidate_type") == "typed_record"
+        and decisions_by_key[str(row["external_key"])]["decision"] == "accept_typed_fact"
+    ]
+    target_by_candidate = {
+        str(row["external_key"]): decisions_by_key[str(row["external_key"])]["target_external_key"]
+        for row in accepted_typed
+    }
+    rows_by_dataset: dict[str, dict[str, dict[str, Any]]] = {}
     accepted_source_keys: set[str] = set()
-    for row in current_rows:
-        key = str(row["external_key"])
-        decision = decisions_by_key[key]
+    observation_rows: list[dict[str, Any]] = []
+    current_observations = _read_jsonl(candidate / OBSERVATION_DATASET)
+    existing_observation_keys = {str(row.get("external_key")) for row in current_observations}
+
+    for row in candidates:
+        candidate_key = str(row["external_key"])
+        decision = decisions_by_key[candidate_key]
         if decision["decision"] == "reject":
             continue
-        if key in existing_keys:
-            raise IngestionError("candidate key already exists in the source observation dataset")
         payload_json = row.get("payload_json")
         payload_sha256 = row.get("payload_sha256")
         if not isinstance(payload_json, str) or not isinstance(payload_sha256, str):
@@ -369,88 +1025,178 @@ def materialize_reviewed_bundle(
             raise IngestionError("reviewed candidate payload hash does not match its contents")
         if re.search(r"(?i)olymp|олимп", payload_json):
             raise IngestionError("olympiad content is not publishable in the BMSTU bundle")
-        accepted_source_keys.update(str(value) for value in row.get("source_artifact_keys", []))
-        accepted.append(
+        artifact_key = row.get("source_artifact_key")
+        if isinstance(artifact_key, str):
+            accepted_source_keys.add(artifact_key)
+        if row.get("candidate_type") == "canonical_snapshot":
+            if candidate_key in existing_observation_keys:
+                raise IngestionError("candidate key already exists in the source observation dataset")
+            accepted_source_keys.update(value for value in row.get("source_artifact_keys", []) if isinstance(value, str))
+            observation_rows.append(
+                {
+                    "external_key": candidate_key,
+                    "candidate_type": "canonical_snapshot",
+                    "source_capture_digest": row.get("source_capture_digest"),
+                    "source_artifact_key": artifact_key,
+                    "source_artifact_keys": row.get("source_artifact_keys", []),
+                    "source_count": row.get("source_count"),
+                    "review_decision": "accept_observation",
+                    "reviewed_at": decision["reviewed_at"],
+                    "payload_json": payload_json,
+                    "payload_sha256": payload_sha256,
+                }
+            )
+            continue
+
+        dataset = row.get("target_dataset")
+        if not isinstance(dataset, str) or not dataset.endswith(".jsonl"):
+            raise IngestionError("typed candidate has no supported target dataset")
+        try:
+            typed_row = json.loads(payload_json)
+        except json.JSONDecodeError as error:
+            raise IngestionError("typed candidate payload is invalid JSON") from error
+        if not isinstance(typed_row, dict):
+            raise IngestionError("typed candidate payload must be an object")
+        typed_row = _resolve_candidate_refs(typed_row, target_by_candidate)
+        target_key = decision["target_external_key"]
+        typed_row["external_key"] = target_key
+        bucket = rows_by_dataset.setdefault(dataset, {})
+        previous = bucket.get(target_key)
+        if previous is not None:
+            _merge_reviewed_target_row(previous, typed_row)
+        else:
+            bucket[target_key] = typed_row
+
+    target_input = output_dir.expanduser()
+    if target_input.is_symlink():
+        raise IngestionError("bundle output must not be a symbolic link")
+    if target_input.exists() and (not target_input.is_dir() or any(target_input.iterdir())):
+        raise IngestionError("bundle output must be a new or empty directory")
+    target_input.parent.mkdir(parents=True, exist_ok=True)
+    target_input = target_input.resolve()
+    temporary = Path(tempfile.mkdtemp(prefix=f".{target_input.name}.review-", dir=target_input.parent))
+    if temporary.resolve().parent != target_input.parent.resolve():
+        temporary.rmdir()
+        raise IngestionError("temporary review output escaped the requested output directory")
+    shutil.copytree(candidate, temporary, dirs_exist_ok=True)
+    try:
+        for dataset, accepted_rows in rows_by_dataset.items():
+            dataset_path = temporary / "data" / dataset
+            existing = _read_jsonl(dataset_path) if dataset_path.exists() else []
+            by_key = {str(item.get("external_key")): item for item in existing}
+            replacements: dict[str, dict[str, Any]] = {}
+            for target_key, update in accepted_rows.items():
+                current = by_key.get(target_key)
+                if current is None:
+                    replacements[target_key] = {key: value for key, value in update.items() if value is not None}
+                    continue
+                merged = dict(current)
+                old_artifacts = list(current.get("source_artifact_keys", []))
+                if current.get("source_artifact_key"):
+                    old_artifacts.append(current["source_artifact_key"])
+                new_artifacts = list(update.get("source_artifact_keys", []))
+                if update.get("source_artifact_key"):
+                    new_artifacts.append(update["source_artifact_key"])
+                for field, value in update.items():
+                    if field in {"external_key", "source_artifact_key", "source_artifact_keys", "source_sha256", "source_url", "source_retrieved_at"} or value is None:
+                        continue
+                    merged[field] = value
+                if old_artifacts or new_artifacts:
+                    merged["source_artifact_keys"] = sorted(set(old_artifacts + new_artifacts))
+                if merged != current:
+                    replacements[target_key] = merged
+            _merge_jsonl_rows_preserving_bytes(dataset_path, replacements)
+
+        observation_path = temporary / OBSERVATION_DATASET
+        _merge_jsonl_rows_preserving_bytes(
+            observation_path,
+            {row["external_key"]: row for row in observation_rows},
+        )
+        (temporary / CANDIDATE_FILE).unlink()
+        (temporary / "review_decisions.csv").unlink(missing_ok=True)
+
+        decisions_manifest = [
             {
-                "external_key": key,
-                "candidate_type": row.get("candidate_type"),
-                "source_capture_digest": row.get("source_capture_digest"),
-                "source_artifact_key": row.get("source_artifact_key"),
-                "source_artifact_keys": row.get("source_artifact_keys", []),
-                "source_count": row.get("source_count"),
-                "review_decision": "accept_observation",
-                "reviewed_at": decision["reviewed_at"],
-                "payload_json": payload_json,
-                "payload_sha256": payload_sha256,
+                "external_key": row["external_key"],
+                "decision": decisions_by_key[str(row["external_key"])]["decision"],
+                "reviewed_at": decisions_by_key[str(row["external_key"])]["reviewed_at"],
+                "target_external_key": decisions_by_key[str(row["external_key"])]["target_external_key"] or None,
             }
-        )
-    _write_jsonl(target / OBSERVATION_DATASET, [*existing_observations, *accepted])
-    (target / CANDIDATE_FILE).unlink()
+            for row in candidates
+        ]
+        _write_jsonl(temporary / "review_decisions.jsonl", decisions_manifest)
 
-    decisions_manifest = [
-        {
-            "external_key": row["external_key"],
-            "decision": decisions_by_key[str(row["external_key"])]["decision"],
-            "reviewed_at": decisions_by_key[str(row["external_key"])]["reviewed_at"],
-        }
-        for row in current_rows
-    ]
-    _write_jsonl(target / "review_decisions.jsonl", decisions_manifest)
-
-    manifest_path = target / SOURCE_ARTIFACTS
-    all_artifacts = _read_jsonl(manifest_path)
-    added_keys = set(candidate_manifest.get("added_source_artifact_keys", []))
-    retained_keys = set(existing_keys)
-    retained_keys.update(accepted_source_keys)
-    retained_artifacts = [
-        row
-        for row in all_artifacts
-        if row.get("source_key") not in added_keys or row.get("source_key") in retained_keys
-    ]
-    _write_jsonl(manifest_path, retained_artifacts)
-
-    review_path = target / "manual_review.csv"
-    with review_path.open("r", encoding="utf-8-sig", newline="") as stream:
-        reader = csv.DictReader(stream)
-        fields = list(reader.fieldnames or REVIEW_HEADERS)
-        review_rows = [row for row in reader if row.get("record_key") not in candidate_keys]
-    with review_path.open("w", encoding="utf-8", newline="") as stream:
-        writer = csv.DictWriter(stream, fieldnames=fields, extrasaction="ignore")
-        writer.writeheader()
-        writer.writerows(review_rows)
-
-    exported = _read_json(target / "validation_report.json")
-    validation = exported.setdefault("validation", {})
-    validation["normalized_records"] = (
-        int(validation.get("normalized_records", 0)) - len(candidates) + len(accepted)
-    )
-    validation["jsonl_datasets"] = max(1, int(validation.get("jsonl_datasets", 1)) - 1)
-    validation["source_artifacts"] = len(retained_artifacts)
-    exported.setdefault("notes", []).append(
-        f"Review materialization accepted {len(accepted)} candidate observation(s); rejected candidates were not imported."
-    )
-    _write_json(target / "validation_report.json", exported)
-    with (target / "report.md").open("a", encoding="utf-8") as stream:
-        stream.write(
-            "\n\n## Reviewed BMSTU source observations\n\n"
-            f"Accepted observation candidates: {len(accepted)}; rejected candidates: "
-            f"{len(candidates) - len(accepted)}. No existing academic fact was overwritten.\n"
+        manifest_path = temporary / SOURCE_ARTIFACTS
+        all_artifacts = _read_jsonl(manifest_path)
+        added_keys = set(candidate_manifest.get("added_source_artifact_keys", []))
+        existing_artifact_keys = {row.get("source_key") for row in _read_jsonl(candidate / SOURCE_ARTIFACTS)} - added_keys
+        retained_keys = existing_artifact_keys | accepted_source_keys
+        _write_jsonl(
+            manifest_path,
+            [row for row in all_artifacts if row.get("source_key") not in added_keys or row.get("source_key") in retained_keys],
         )
 
-    reviewed_validation = validate_bundle(target)
-    if not reviewed_validation.get("valid"):
-        raise IngestionError("reviewed bundle failed validation")
+        review_path = temporary / "manual_review.csv"
+        with review_path.open("r", encoding="utf-8-sig", newline="") as stream:
+            reader = csv.DictReader(stream)
+            fields = list(reader.fieldnames or REVIEW_HEADERS)
+            review_rows = [row for row in reader if row.get("record_key") not in candidate_keys]
+        with review_path.open("w", encoding="utf-8", newline="") as stream:
+            writer = csv.DictWriter(stream, fieldnames=fields, extrasaction="ignore")
+            writer.writeheader()
+            writer.writerows(review_rows)
+
+        exported = _read_json(temporary / "validation_report.json")
+        typed_count = sum(len(rows) for rows in rows_by_dataset.values())
+        rejected_count = sum(decision["decision"] == "reject" for decision in decisions_by_key.values())
+        exported.setdefault("notes", []).append(
+            f"Review materialization accepted {len(observation_rows)} canonical observation(s), "
+            f"{len(accepted_typed)} typed candidate(s) into {typed_count} exact target row(s); "
+            "rejected facts were not applied."
+        )
+        exported.setdefault("validation", {})["source_artifacts"] = len(_read_jsonl(manifest_path))
+        _write_json(temporary / "validation_report.json", exported)
+        with (temporary / "report.md").open("a", encoding="utf-8") as stream:
+            stream.write(
+                "\n\n## Reviewed BMSTU source facts\n\n"
+                f"Accepted canonical observations: {len(observation_rows)}; accepted typed facts: "
+                f"{len(accepted_typed)} across {typed_count} exact target row(s); rejected candidates: "
+                f"{rejected_count}. "
+                "Existing rows were updated only at exact reviewed keys; omitted fields and rows were retained.\n"
+            )
+
+        reviewed_validation = validate_bundle(temporary)
+        if not reviewed_validation.get("valid"):
+            raise IngestionError("reviewed bundle failed validation")
+        from academic_data_service.importer.mapping import project_bundle
+
+        project_bundle(str(temporary))
+        exported["validation"]["normalized_records"] = reviewed_validation["counts"]["normalized_records"]
+        exported["validation"]["jsonl_datasets"] = reviewed_validation["counts"]["normalized_datasets"]
+        _write_json(temporary / "validation_report.json", exported)
+        reviewed_validation = validate_bundle(temporary)
+        if target_input.exists():
+            target_input.rmdir()
+        os.replace(temporary, target_input)
+    except Exception:
+        if temporary.exists():
+            shutil.rmtree(temporary)
+        raise
+
+    typed_count = sum(len(rows) for rows in rows_by_dataset.values())
+    rejected_count = sum(decision["decision"] == "reject" for decision in decisions_by_key.values())
     logger.debug(
-        "candidate review materialized candidates=%d accepted=%d rejected=%d digest=%s",
-        len(candidates),
-        len(accepted),
-        len(candidates) - len(accepted),
+        "candidate review materialized candidates=%d observations=%d typed=%d rejected=%d digest=%s",
+        len(candidates), len(observation_rows), typed_count,
+        rejected_count,
         reviewed_validation["input"]["digest"],
     )
     return {
-        "output_dir": str(target),
-        "accepted": len(accepted),
-        "rejected": len(candidates) - len(accepted),
+        "output_dir": str(target_input),
+        "accepted": len(observation_rows) + len(accepted_typed),
+        "accepted_typed": len(accepted_typed),
+        "materialized_typed_rows": typed_count,
+        "rejected": rejected_count,
         "validation": reviewed_validation,
     }
 
@@ -505,6 +1251,8 @@ def run_bundle_command(args: Any, parser: Any) -> int:
                 "base_digest": result["base_digest"],
                 "capture_digest": result["capture_digest"],
                 "candidate_key": result["candidate_key"],
+                "candidate_count": result["candidate_count"],
+                "typed_candidate_count": result["typed_candidate_count"],
                 "source_artifact_count": result["source_artifact_count"],
                 "validation": _summary(result["validation"]),
             }
@@ -517,6 +1265,7 @@ def run_bundle_command(args: Any, parser: Any) -> int:
             output = {
                 "output_dir": result["output_dir"],
                 "accepted": result["accepted"],
+                "accepted_typed": result["accepted_typed"],
                 "rejected": result["rejected"],
                 "validation": _summary(result["validation"]),
             }

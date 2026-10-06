@@ -66,8 +66,11 @@ reconciliation succeed.
 
 ## Run the fixture-first BMSTU ingestion flow
 
-The checked-in fixture corpus contains a minimal university identity page,
-redacted public BMSTU catalog/detail/API copies, and public curriculum PDFs.
+The checked-in fixture corpus contains seven sanitized snapshots: official
+catalog/detail/API pages, two public curriculum PDFs, an institution page, and
+an aggregate admission-outcomes table. HTML fixture files are checked out as
+LF on every platform; `content_sha256` and the capture digest describe those
+sanitized bytes. The six original upstream `source_sha256` pins are preserved.
 Capture and parse stay local, and raw files are written under ignored
 `artifacts/` storage:
 
@@ -83,11 +86,15 @@ uv run --no-editable --package andromeda-bmstu-parsers andromeda-bmstu ingest st
   --output artifacts/bmstu-ingestion/candidate
 ```
 
-The candidate is deliberately review-only. Copy its `external_key` from
-`ingestion_candidate_manifest.json` into a CSV with the exact headers
-`external_key,decision,reviewed_at`; use `accept_observation` or `reject` and
-an ISO timestamp with a timezone. Then materialize and inspect the reviewed
-bundle:
+Staging writes `review_decisions.csv` with one row per candidate. Review each
+candidate explicitly. For a typed fact, set `decision` to
+`accept_typed_fact`, enter the exact destination `target_external_key`, and
+verify the suggested target against the source and the existing bundle. The
+suggestion is not an automatic link. For a parser snapshot, use
+`accept_observation`; use `reject` for facts that are unsupported, ambiguous,
+or not ready. Set `reviewed_at` to an ISO timestamp with a timezone. Typed
+facts without an exact destination key are rejected. Then materialize and
+inspect the reviewed bundle:
 
 ```powershell
 uv run --no-editable --package andromeda-bmstu-parsers andromeda-bmstu ingest review `
@@ -98,14 +105,22 @@ uv run --no-editable --package andromeda-bmstu-parsers andromeda-bmstu ingest va
   --input artifacts/bmstu-ingestion/reviewed
 uv run --no-editable --package andromeda-bmstu-parsers andromeda-bmstu ingest dry-run `
   --input artifacts/bmstu-ingestion/reviewed
+uv run --no-editable --package andromeda-bmstu-parsers andromeda-bmstu ingest commit `
+  --input artifacts/bmstu-ingestion/reviewed
 ```
 
-An accepted parser snapshot is stored as a reviewed source observation. It does
-not automatically overwrite typed program, curriculum, admission, or other
-academic facts. New typed facts require a separate exact-key mapping and review.
-`ingest commit` uses the existing guarded academic importer and should only be
-run against the isolated local database described above after reviewing the
-dry-run output.
+Reviewed facts are merged sparsely into the full base bundle and pass the
+existing bundle validator and mapper before PostgreSQL. Supported typed
+destinations include institutions, directions, departments, programs, study
+plans, curriculum items, exams, admission requirements, program offerings,
+competition pools, tuition assertions, and current or historical statistics.
+The schema represents disciplines as curriculum items; it has no separate
+discipline table. Conflicting non-null values for one exact target fail closed.
+Missing or rejected candidates do not delete base rows, and unknown values do
+not overwrite known values. The committed release includes source artifacts,
+typed evidence, observations, and review decisions. `ingest commit` uses the
+existing transactional importer and should only be run against the isolated
+local database described above after inspecting the dry-run output.
 
 Live capture is opt-in (`ingest capture --mode live`). It uses direct HTTP,
 approved BMSTU/public-plan hosts, a one-second default request interval,
@@ -140,4 +155,4 @@ uv run --no-editable pytest -q
 ```
 
 See [known issues](docs/KNOWN_ISSUES.md) for unverified live-source paths and
-remaining typed-mapping work before building the site.
+source-coverage and exact-key review limitations.

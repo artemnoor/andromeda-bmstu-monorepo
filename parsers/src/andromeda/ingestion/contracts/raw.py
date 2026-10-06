@@ -83,6 +83,8 @@ class RawProgramRecord(ContractModel):
     source_url: HttpUrl
     locator: SourceLocator
     source_code: str | None = Field(default=None, min_length=1, max_length=256)
+    department_code: str | None = Field(default=None, min_length=1, max_length=128)
+    department_name: str | None = Field(default=None, min_length=1, max_length=512)
 
 
 class RawCurriculumRow(ContractModel):

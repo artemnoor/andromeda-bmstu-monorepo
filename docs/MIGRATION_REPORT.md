@@ -76,13 +76,14 @@ automatic table-to-table data conversion was attempted.
 - Live source acquisition is opt-in and bounded. It has not been exercised
   against live sites; checked-in fixtures make the capture/parse path offline
   and reproducible.
-- Candidate review currently preserves accepted parser output as source
-  observations. Typed academic facts in the existing release are carried
-  forward unchanged until exact-key field mappings are implemented and reviewed.
+- Candidate review materializes explicitly accepted facts into existing typed
+  datasets only after a reviewer supplies exact destination keys. Typed
+  updates are sparse, conflicting values fail closed, and absent rows do not
+  delete facts from the full base bundle.
 - No frontend, Directus configuration, API, production deployment, applicant
   personal data, closed source documents, live raw captures, or alternate
-  database is included. The only source document bytes are the two explicitly
-  public, contact-free curriculum regression fixtures.
+  database is included. Public, contact-free curriculum PDFs remain the only
+  document binaries; HTML/JSON source fixtures are sanitized regression inputs.
 
 ## Tests and remaining mapping work
 
@@ -90,15 +91,44 @@ The academic-data repository had no committed unit or integration tests for its
 bundle importer. The selected workspace adds offline validation/dry-run
 coverage, BMSTU ingestion fixtures, and PostgreSQL checks for a full commit,
 idempotence, rollback, release activation, and representative entity counts.
-On Python 3.11 and PostgreSQL 16, the completed workspace suite reports **15
-passed** with the dedicated test database configured. It covers offline
-ingestion and bundle review plus importer commit, idempotency, and rollback.
-The CLI also committed the checked-in bundle against a freshly migrated local
-database and returned `no_op` on a repeated commit. Alembic's autogenerate
-check found no schema drift.
+The initial monorepo verification reported **15 passed** on Python 3.11 and
+PostgreSQL 16. After the ingestion follow-up, the full suite reports **17
+passed in 223.22 seconds** from rebuilt non-editable workspace packages with
+the dedicated PostgreSQL 16 test database configured. It covers fixture
+hash/parser errors, explicit typed review,
+conflict/partial preservation, baseline and changed releases, idempotency,
+source evidence, rollback, and active-release switching. The checked-in bundle
+also validates and dry-runs; `academic-data db upgrade`, `db check`, and
+Alembic's autogenerate check succeeded at revision `de41afbb52c8`.
 
 The separate `andromeda-data` source schema suite completed with **13 passed**
 against its own disposable PostgreSQL 16 database and one pytest configuration
 warning. Those tests validate the unselected schema only. The detailed bundle
 counts, exact unresolved mappings, parser-fixture limitation, and release ID
 are in [`KNOWN_ISSUES.md`](KNOWN_ISSUES.md).
+
+## Follow-up: completed fixture-to-release path
+
+The previously observation-only candidate flow now creates typed rows for
+supported institutions, departments, programs, study plans, curriculum items,
+exams, requirements, offerings, competition pools, tuition assertions, and
+admission statistics. It preserves the canonical observation and adds source
+artifact/evidence provenance. Unknown fields and unaccepted candidates leave
+the checked-in base records intact. The updated fixture set contains seven
+snapshots; its stable capture digest and the six unchanged original source
+hashes are documented in [`INGESTION_AUDIT.md`](INGESTION_AUDIT.md).
+
+The PostgreSQL 16 test runs a real local fixture through capture, parse,
+candidate stage, explicit exact-key review, bundle validation/mapping, and
+release commit. It verifies changed historical-statistic values and linked
+evidence, a repeated-import no-op, failed-activation rollback, and a subsequent
+release activation. Other supported typed categories and the no-op database
+projection are validated in the reviewed bundle/dry-run and baseline import.
+No live parse was run. The remaining limits are the small fixture corpus,
+unverified live markup, incomplete current campaign coverage, and
+source-dependent price/campaign identity; see
+[`KNOWN_ISSUES.md`](KNOWN_ISSUES.md) for the operator workflow and limits.
+
+The documented CLI commands were also run with the checked-in fixture folder
+through `capture`, `parse`, `stage`, one exact-key typed acceptance, `validate`,
+`dry-run`, and `commit` against the disposable local database.

@@ -742,8 +742,13 @@ class _Projection:
                 record.get("linked_campaign_key") or f"campaign:bmstu:{year}",
                 required=True,
             )
-            direction_id = self.resolve_code(
-                "directions", record.get("direction_code"), field_name="competition_pool_direction"
+            direction_key = _as_text(record.get("direction_key"))
+            direction_id = (
+                self.resolve("directions", direction_key, required=True)
+                if direction_key
+                else self.resolve_code(
+                    "directions", record.get("direction_code"), field_name="competition_pool_direction"
+                )
             )
             department_id = self.resolve_code(
                 "departments",
@@ -752,6 +757,8 @@ class _Projection:
             )
             funding_code = _as_text(record.get("funding_type"))
             quota_code = _as_text(record.get("quota_type"))
+            funding_key = _as_text(record.get("funding_type_key"))
+            quota_key = _as_text(record.get("quota_type_key"))
             self.add(
                 "competition_pools",
                 record["external_key"],
@@ -761,10 +768,14 @@ class _Projection:
                     "department_id": department_id,
                     "direction_code": _as_text(record.get("direction_code")),
                     "department_code": _as_text(record.get("department_code")),
-                    "funding_type_id": self.resolve_code(
+                    "funding_type_id": self.resolve("funding_types", funding_key, required=True)
+                    if funding_key
+                    else self.resolve_code(
                         "funding_types", funding_code, field_name="competition_pool_funding_type"
                     ),
-                    "quota_type_id": self.resolve_code(
+                    "quota_type_id": self.resolve("quota_types", quota_key, required=True)
+                    if quota_key
+                    else self.resolve_code(
                         "quota_types", quota_code, field_name="competition_pool_quota_type"
                     ),
                     "year": year,
@@ -840,6 +851,7 @@ class _Projection:
 
         for _, record in self.datasets.get("historical_admission_statistics.jsonl", []):
             funding_code = _as_text(record.get("funding_type"))
+            funding_key = _as_text(record.get("funding_type_key"))
             self.add(
                 "historical_admission_statistics",
                 record["external_key"],
@@ -848,10 +860,10 @@ class _Projection:
                     "department_id": self.resolve("departments", record.get("department_key")),
                     "direction_code": _as_text(record.get("direction_code")),
                     "department_code": _as_text(record.get("department_code")),
-                    "funding_type_id": self.resolve_code(
-                        "funding_types",
-                        funding_code,
-                        field_name="historical_statistic_funding_type",
+                    "funding_type_id": self.resolve("funding_types", funding_key, required=True)
+                    if funding_key
+                    else self.resolve_code(
+                        "funding_types", funding_code, field_name="historical_statistic_funding_type"
                     ),
                     "admission_year": _as_int(
                         record.get("admission_year"), "admission_year", required=True
@@ -879,17 +891,21 @@ class _Projection:
 
         for _, record in self.datasets.get("admission_statistics.jsonl", []):
             funding_code = _as_text(record.get("funding_type"))
+            funding_key = _as_text(record.get("funding_type_key"))
+            direction_key = _as_text(record.get("direction_key"))
             self.add(
                 "admission_statistics",
                 record["external_key"],
                 {
-                    "direction_id": self.resolve_code(
-                        "directions",
-                        record.get("direction_code"),
-                        field_name="admission_statistic_direction",
+                    "direction_id": self.resolve("directions", direction_key, required=True)
+                    if direction_key
+                    else self.resolve_code(
+                        "directions", record.get("direction_code"), field_name="admission_statistic_direction"
                     ),
                     "direction_code": _as_text(record.get("direction_code")),
-                    "funding_type_id": self.resolve_code(
+                    "funding_type_id": self.resolve("funding_types", funding_key, required=True)
+                    if funding_key
+                    else self.resolve_code(
                         "funding_types", funding_code, field_name="admission_statistic_funding_type"
                     ),
                     "admission_year": _as_int(

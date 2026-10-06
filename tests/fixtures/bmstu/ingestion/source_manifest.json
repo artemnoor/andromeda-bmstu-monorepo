@@ -7,7 +7,7 @@
       "status_code": 200,
       "content_type": "text/html; charset=utf-8",
       "captured_at": "2026-09-10T11:55:25.904757+00:00",
-      "content_sha256": "6c25183777b7b145845623713759891db9c224f4253c9c6a7e77d86886abc966",
+      "content_sha256": "655f4e7ba2f1e6d12bb1381c035b37b03cb39a152348c43ff399d195d5efbb56",
       "body_path": "common.html",
       "source_sha256": "27c7a2142d586ce462b3753c6a5e5061f667f3ef7ac6a2f3ae32b642cb6261ff",
       "fixture_sanitized": true
@@ -19,7 +19,7 @@
       "status_code": 200,
       "content_type": "text/html; charset=utf-8",
       "captured_at": "2026-09-10T11:55:32.419157+00:00",
-      "content_sha256": "cf0c5d55e1865fcaf1843d4a5c75b9222a80b03238a319b911b72f1f3777665b",
+      "content_sha256": "0511222bbd7977602af43eeef945303c3d6b1749a30259aa9db6edb5357b1c9b",
       "body_path": "catalog.html",
       "source_sha256": "5d8460c5662b476f7c2d2611426134169f4926febfbf2a755fd3f6e97e889fd3",
       "fixture_sanitized": true
@@ -43,7 +43,7 @@
       "status_code": 200,
       "content_type": "text/html; charset=utf-8",
       "captured_at": "2026-09-10T11:55:37.703080+00:00",
-      "content_sha256": "10c96d3f2b26443bb882f0c04f4b4be6a9a40faf6a5a61a3c9f7454f9bcc8ccb",
+      "content_sha256": "4a586467ae73c55240dc3e10c01a75722b615ef8f83c0141f9a9e3d4211ef05d",
       "body_path": "detail.html",
       "source_sha256": "7145f212707d923433cced08977bea99eacc8604865ab1bb4877405c3d429eaf",
       "fixture_sanitized": true
@@ -70,6 +70,17 @@
       "content_sha256": "0358f9b5fb94304c3ed012f9285ec5bf7587dd272c499cd733f5ecad4dbc0047",
       "body_path": "curriculum_2.pdf",
       "source_sha256": "0358f9b5fb94304c3ed012f9285ec5bf7587dd272c499cd733f5ecad4dbc0047",
+      "fixture_sanitized": true
+    },
+    {
+      "source_kind": "bmstu_admission_information",
+      "requested_url": "https://course.bmstu.ru/edu/abiturient/",
+      "final_url": "https://course.bmstu.ru/edu/abiturient/",
+      "status_code": 200,
+      "content_type": "text/html; charset=utf-8",
+      "captured_at": "2026-09-10T11:55:43.000000+00:00",
+      "content_sha256": "16b19008e287ea41ca17486d9914916fcd512915a47bf5654794249055646541",
+      "body_path": "admission_information.html",
       "fixture_sanitized": true
     }
   ],

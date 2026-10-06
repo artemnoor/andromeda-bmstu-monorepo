@@ -72,6 +72,8 @@ def normalize_bundle(raw: RawTracerBundle) -> CanonicalSnapshot:
             education_year=program.education_year,
             study_plan_url=program.study_plan_url,
             source_url=program.source_url,
+            department_code=_nullable_text(program.department_code),
+            department_name=_nullable_text(program.department_name),
             provenance=_source_attribution(raw, str(program.source_url), ("bmstu_major_detail", "bmstu_major_catalog"), field="program", record_key=_code(program.code)),
             source_gaps=_source_gaps(raw, _code(program.code), str(program.source_url), field="program"),
         )

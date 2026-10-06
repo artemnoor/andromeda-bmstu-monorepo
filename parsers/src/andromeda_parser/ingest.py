@@ -14,6 +14,7 @@ from typing import Any, Literal
 from urllib.parse import urlsplit, urlunsplit
 
 from andromeda.ingestion.universities.bmstu.capture import BmstuSource, write_fixture
+from andromeda.ingestion.contracts.source import CapturedSources
 from andromeda.ingestion.universities.bmstu.fetch import FetchConfig, Fetcher
 from andromeda.ingestion.universities.bmstu.adapter import BmstuUniversityAdapter
 
@@ -242,9 +243,18 @@ def parse_capture(capture_dir: Path) -> ParseReport:
     capture_path = _check_capture_directory(capture_dir.expanduser())
     captured = BmstuSource._load_fixture(capture_path)
     digest = _capture_digest(captured.snapshots)
+    aggregate_snapshots = captured.by_kind("bmstu_admission_information")
+    if len(aggregate_snapshots) > 1:
+        raise IngestionError("capture contains more than one aggregate admission-information page")
+    parser_snapshots = tuple(
+        snapshot for snapshot in captured.snapshots
+        if snapshot.source_kind != "bmstu_admission_information"
+    )
     adapter = BmstuUniversityAdapter()
     try:
-        _raw, canonical = adapter.parse(captured)
+        _raw, canonical = adapter.parse(
+            CapturedSources(snapshots=parser_snapshots, source_gaps=captured.source_gaps)
+        )
     finally:
         adapter.close()
 
@@ -252,6 +262,19 @@ def parse_capture(capture_dir: Path) -> ParseReport:
         mode="json",
         exclude={"admission_benefits", "events", "campus_points"},
     )
+    if aggregate_snapshots:
+        from andromeda.ingestion.universities.bmstu.parser.campaign_2026.admission_information.parser import (
+            parse_admission_information,
+        )
+
+        aggregate = aggregate_snapshots[0]
+        parsed_aggregate = parse_admission_information(
+            aggregate.body,
+            str(aggregate.requested_url),
+        )
+        # Only aggregate typed rows cross the parser boundary; raw tables and page text
+        # stay in the local capture and never enter the candidate bundle.
+        normalized["historical_results"] = parsed_aggregate["historical_results"]
     _assert_safe_payload(normalized)
     sources = tuple(
         {

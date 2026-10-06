@@ -21,6 +21,8 @@ class Program(ContractModel):
     education_year: EducationYear
     study_plan_url: HttpUrl
     source_url: HttpUrl
+    department_code: str | None = None
+    department_name: str | None = None
     provenance: tuple[SourceAttribution, ...] = ()
     source_gaps: tuple[SourceGapReference, ...] = ()
 

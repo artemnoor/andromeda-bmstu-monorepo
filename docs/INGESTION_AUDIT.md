@@ -67,18 +67,22 @@ ORM, API, user-profile service, and optional plan-link visualizer helper.
 
 ## Fixture and runtime verification
 
-The active project contains six public regression fixtures: a minimal
+The active project contains seven public regression fixtures: a minimal
 institution-identity HTML fixture, redacted official catalog/detail HTML and
-API JSON, and two public curriculum PDFs. `source_manifest.json` records the
-upstream body hash separately from the sanitized fixture hash. Direct contacts
-and staff names were removed from the HTML/JSON copies; the public curriculum
-PDFs contain no direct contacts or signatory names. Captured live bodies stay
-outside Git, and normalized bundles contain no raw source documents. A local
-end-to-end run captured and parsed six sources into 2 programs, 2 curricula,
-101 disciplines, and 212 curriculum items with zero parser source gaps. The run
-used fixture mode and made no live requests. Its sanitized-fixture capture
-digest is `73910bcd959a80fa925227c27ace9a2122cf5fc4f47e368858b666cf2b5c01cd`.
-Live-mode behavior remains unverified against current official pages.
+API JSON, two public curriculum PDFs, and one sanitized aggregate admission
+outcomes page. `source_manifest.json` records the upstream body hash separately
+from the sanitized fixture hash. Direct contacts and staff names were removed
+from the HTML/JSON copies; the public curriculum PDFs contain no direct
+contacts or signatory names. `.gitattributes` pins fixture HTML and JSON to LF
+so a Git checkout preserves the hashed bytes. Original upstream
+`source_sha256` values are unchanged; sanitized `content_sha256` hashes
+describe checked-in bytes. Captured live bodies stay outside Git, and
+normalized bundles contain no raw source documents. A local fixture run
+captured and parsed seven sources into 2 programs, 2 curricula, 101
+disciplines, 212 curriculum items, and one aggregate historical result with
+zero parser source gaps. It made no live requests. Its capture digest is
+`dedc5d2731b78a285c42bfdcdf85d6e8e6634d729a1a975ecd7d7f00b0145afc`. Live-mode
+behavior remains unverified against current official pages.
 
 Separately, before integration, the monolith's offline BMSTU integration test
 passed in a temporary Python 3.11.9 environment: **1 passed**, with four
@@ -128,6 +132,28 @@ checkout; the retry created an isolated `.venv` under the temporary clone.
    claim that an incomplete source snapshot is a complete admission campaign.
 5. Keep olympiad and applicant-level records outside published academic bundles
    until safe source coverage and a confirmed destination contract exist.
+
+## Follow-up: reviewed typed materialization
+
+The candidate bundle now converts supported normalized parser results into
+existing typed bundle datasets. Exact-key review is required to materialize a
+typed candidate. Review suggestions do not create links automatically;
+conflicting non-null source values for the same exact target stop
+materialization. Sparse updates keep absent and unknown values, preserve
+unselected base rows, retain source evidence, and do not infer deletions from
+partial captures.
+
+The full candidate set validates and maps through the existing importer; the
+offline regression test checks typed directions/departments/programs/plans,
+curriculum items, exams, requirements, offerings, competition pools,
+statistics, and provenance. The PostgreSQL 16 lifecycle test commits the
+checked-in aggregate statistic change to a new release, confirms evidence and
+active-release switching, repeats the import as `no_op`, and injects a failure
+before activation to verify rollback. It uses only the local fixtures. Tuition
+candidate generation requires a known academic year and campaign; the current
+fixtures do not prove a new year-valid price. Fixture coverage is limited and
+no live acquisition was attempted. Reproduction commands and remaining
+coverage limits are in the root `README.md` and `docs/KNOWN_ISSUES.md`.
 
 ## Source links
 

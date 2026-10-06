@@ -1,0 +1,3 @@
+tests/fixtures/bmstu/ingestion/*.html text eol=lf
+tests/fixtures/bmstu/ingestion/*.json text eol=lf
+tests/fixtures/bmstu/ingestion/*.pdf -text
