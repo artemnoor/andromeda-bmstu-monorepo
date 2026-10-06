@@ -20,10 +20,15 @@ Original repositories were not changed.
   transactional persistence, and an atomic active-release pointer.
 - The safe `data/bmstu-2026` normalized bundle moved to `data/bmstu-2026/`.
   It contains no raw PDF/XLS/XLSX files or applicant-level rows.
-- Five local-input BMSTU parser entry points were made available through the
-  `andromeda-bmstu` CLI: catalog HTML, catalog API JSON, program cards, admission
-  information, and tuition. The shared `clean_text` and `normalize_code`
-  helpers were retained without the source-capture/network dependencies.
+- The BMSTU source adapter, parser/normalizer dependency closure, and bounded
+  source-capture policies were selectively restored from the audited legacy
+  monolith. The `andromeda-bmstu` CLI exposes fixture/live capture, offline
+  parsing, candidate staging, review, validation, dry-run, and guarded commit.
+  Five standalone local-input parsers remain available: catalog HTML, catalog
+  API JSON, program cards, admission information, and tuition.
+- Public BMSTU HTML/JSON and curriculum PDF fixtures were copied into the test
+  tree with a source manifest and hashes. They are test inputs, not part of the
+  normalized database bundle. Live raw bodies are excluded from Git.
 - HSE adapter source is kept separately in `parsers/deferred/hse/`; it is
   excluded from package discovery and execution.
 - A root `uv` workspace and lockfile cover the database package, active parser
@@ -65,26 +70,32 @@ automatic table-to-table data conversion was attempted.
 - `legacy-andromeda` ORM and Alembic history were not copied. It contains useful
   decision, proftest, event, venue, auth, and user-profile functionality, but
   those are not prerequisites for importing BMSTU academic data.
-- The broad parser adapters and HSE normalizers are not active. In the supplied
-  repositories they import old `andromeda.modules.*` public contracts and
-  `andromeda.shared.contracts.*` code that is missing from both sources. The
-  missing business contracts were not reconstructed from guesswork.
-- No parser fetcher or mass crawl runner was added. The published bundle
-  contains normalized records and source text, but no raw captured HTML/PDF
-  bodies needed to reproduce a complete fresh parser run.
-- No frontend, Directus configuration, API, production deployment, personal
-  data, source document bytes, or alternate database is included.
+- HSE normalizers remain deferred. BMSTU's required shared contracts were
+  selectively copied from the separately audited legacy monolith; no legacy
+  ORM, API, user-profile service, or optional visualization tool was restored.
+- Live source acquisition is opt-in and bounded. It has not been exercised
+  against live sites; checked-in fixtures make the capture/parse path offline
+  and reproducible.
+- Candidate review currently preserves accepted parser output as source
+  observations. Typed academic facts in the existing release are carried
+  forward unchanged until exact-key field mappings are implemented and reviewed.
+- No frontend, Directus configuration, API, production deployment, applicant
+  personal data, closed source documents, live raw captures, or alternate
+  database is included. The only source document bytes are the two explicitly
+  public, contact-free curriculum regression fixtures.
 
 ## Tests and remaining mapping work
 
 The academic-data repository had no committed unit or integration tests for its
 bundle importer. The selected workspace adds offline validation/dry-run
-coverage, an offline parser fixture, and PostgreSQL checks for a full commit,
+coverage, BMSTU ingestion fixtures, and PostgreSQL checks for a full commit,
 idempotence, rollback, release activation, and representative entity counts.
-On Python 3.11 and PostgreSQL 16, the full workspace suite completed with **8
-passed**; the CLI also committed the bundle against a freshly migrated local
-database and returned `no_op` on a repeated commit. Alembic's autogenerate check
-found no schema drift.
+On Python 3.11 and PostgreSQL 16, the completed workspace suite reports **15
+passed** with the dedicated test database configured. It covers offline
+ingestion and bundle review plus importer commit, idempotency, and rollback.
+The CLI also committed the checked-in bundle against a freshly migrated local
+database and returned `no_op` on a repeated commit. Alembic's autogenerate
+check found no schema drift.
 
 The separate `andromeda-data` source schema suite completed with **13 passed**
 against its own disposable PostgreSQL 16 database and one pytest configuration

@@ -6,8 +6,8 @@ from urllib.parse import urljoin, urlparse
 
 from bs4 import BeautifulSoup
 
-from ..source_urls import S06_API_BASE_URL, S06_CATALOG_URL
-from ..text import clean_text, normalize_code
+from ....capture import S06_API_BASE_URL, S06_CATALOG_URL
+from ..common import clean_text, normalize_code
 
 
 CATALOG_URL = "https://bmstu.ru/bachelor/majors"

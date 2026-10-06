@@ -14,6 +14,7 @@ artifacts/
 postgres-data/
 raw/
 *.pdf
+!tests/fixtures/bmstu/ingestion/*.pdf
 *.xls
 *.xlsx
 *.docx

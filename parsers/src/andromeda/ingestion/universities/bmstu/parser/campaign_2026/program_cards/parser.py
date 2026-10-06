@@ -6,7 +6,7 @@ from typing import Any
 
 from bs4 import BeautifulSoup
 
-from ..text import clean_text, normalize_code
+from ..common import clean_text, normalize_code
 from ..catalog.parser import is_head_campus
 
 

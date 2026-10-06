@@ -17,10 +17,10 @@ docs/                       architecture, migration report, known issues
 ```
 
 The academic database owns sourced academic facts and their provenance. User
-profiles and application behavior are not stored in this schema. The active
-parser command only reads local captures; it never fetches university sites.
-See [the architecture](docs/ARCHITECTURE.md) and [the migration report](docs/MIGRATION_REPORT.md)
-for scope and source decisions.
+profiles and application behavior are not stored in this schema. The ingestion
+CLI defaults to local fixtures; live capture is a separate explicit mode. See
+[the architecture](docs/ARCHITECTURE.md), [the migration report](docs/MIGRATION_REPORT.md),
+and [the ingestion audit](docs/INGESTION_AUDIT.md) for scope and source decisions.
 
 ## Set up
 
@@ -64,6 +64,55 @@ The importer is idempotent for an already committed bundle digest and mapper
 version. It activates a new release only after its transaction and
 reconciliation succeed.
 
+## Run the fixture-first BMSTU ingestion flow
+
+The checked-in fixture corpus contains a minimal university identity page,
+redacted public BMSTU catalog/detail/API copies, and public curriculum PDFs.
+Capture and parse stay local, and raw files are written under ignored
+`artifacts/` storage:
+
+```powershell
+uv run --no-editable --package andromeda-bmstu-parsers andromeda-bmstu ingest capture `
+  --mode fixture --fixture-dir tests/fixtures/bmstu/ingestion `
+  --output artifacts/bmstu-ingestion/capture
+uv run --no-editable --package andromeda-bmstu-parsers andromeda-bmstu ingest parse `
+  --input artifacts/bmstu-ingestion/capture `
+  --output artifacts/bmstu-ingestion/parsed.json
+uv run --no-editable --package andromeda-bmstu-parsers andromeda-bmstu ingest stage `
+  --base data/bmstu-2026 --parse-report artifacts/bmstu-ingestion/parsed.json `
+  --output artifacts/bmstu-ingestion/candidate
+```
+
+The candidate is deliberately review-only. Copy its `external_key` from
+`ingestion_candidate_manifest.json` into a CSV with the exact headers
+`external_key,decision,reviewed_at`; use `accept_observation` or `reject` and
+an ISO timestamp with a timezone. Then materialize and inspect the reviewed
+bundle:
+
+```powershell
+uv run --no-editable --package andromeda-bmstu-parsers andromeda-bmstu ingest review `
+  --input artifacts/bmstu-ingestion/candidate `
+  --decisions artifacts/bmstu-ingestion/review.csv `
+  --output artifacts/bmstu-ingestion/reviewed
+uv run --no-editable --package andromeda-bmstu-parsers andromeda-bmstu ingest validate `
+  --input artifacts/bmstu-ingestion/reviewed
+uv run --no-editable --package andromeda-bmstu-parsers andromeda-bmstu ingest dry-run `
+  --input artifacts/bmstu-ingestion/reviewed
+```
+
+An accepted parser snapshot is stored as a reviewed source observation. It does
+not automatically overwrite typed program, curriculum, admission, or other
+academic facts. New typed facts require a separate exact-key mapping and review.
+`ingest commit` uses the existing guarded academic importer and should only be
+run against the isolated local database described above after reviewing the
+dry-run output.
+
+Live capture is opt-in (`ingest capture --mode live`). It uses direct HTTP,
+approved BMSTU/public-plan hosts, a one-second default request interval,
+bounded retries/timeouts/body sizes, and no browser fallback. Tests never use
+live mode. DEBUG is the default; URL queries and credential-like values are
+redacted and response bodies are not logged.
+
 ## Run a BMSTU parser on a local file
 
 ```powershell
@@ -74,12 +123,11 @@ uv run --no-editable --package andromeda-bmstu-parsers andromeda-bmstu parse adm
   --output artifacts/admission-information.json
 ```
 
-Supported parsers are catalog HTML, catalog API JSON, program cards, admission
-information, and tuition pages. Inputs must be local files and provenance URLs
-must use HTTPS on `bmstu.ru` or one of its subdomains. The parser CLI emits
-JSON; it does not turn ad hoc parser output into a database release. The
-checked-in bundle remains the only import input until a reviewed bundle builder
-is added.
+Supported standalone parsers are catalog HTML, catalog API JSON, program
+cards, admission information, and tuition pages. Inputs must be local files and
+provenance URLs must use HTTPS on `bmstu.ru` or one of its subdomains. The
+standalone parser CLI emits JSON; use the review-gated ingestion flow above for
+importer-compatible bundles.
 
 ## Verify
 
@@ -91,5 +139,5 @@ uv run --no-editable --package andromeda-academic-data-db python -c "from alembi
 uv run --no-editable pytest -q
 ```
 
-See [known issues](docs/KNOWN_ISSUES.md) for unverified parser paths and next
-work before building the site.
+See [known issues](docs/KNOWN_ISSUES.md) for unverified live-source paths and
+remaining typed-mapping work before building the site.

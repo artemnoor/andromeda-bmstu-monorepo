@@ -2,16 +2,17 @@
 
 ## Current limitations
 
-- The installable parser set is intentionally a local-file subset. It does not
-  crawl sites or create a complete normalized release bundle.
-- The checked-in bundle has no raw source files. A handcrafted local HTML
-  fixture is used to smoke-test one parser; that does not verify the parsers
-  against the original official pages or PDFs.
-- The existing curriculum PDF path and older BMSTU/HSE adapter layer depend on
-  legacy public contracts absent from both supplied repositories. Those
-  adapters are not in the active build. The safe normalized bundle already
-  contains study-plan and curriculum rows, but parsing fresh documents needs
-  the missing contract source or an explicit reviewed replacement.
+- Live capture is implemented but was not run against university sites. Tests
+  use checked-in public fixtures only; a fixture pass does not establish that
+  current live pages, redirects, or every document variant will parse.
+- A reviewed parser snapshot is stored as a source observation. It is not
+  automatically promoted into typed program, curriculum, admission, or
+  statistics tables. Exact-key typed mappings and conflict handling remain
+  separate work before fresh parsed facts can update those records.
+- The checked-in normalized bundle still contains no raw source files. Redacted
+  public HTML/JSON and curriculum PDF fixtures exist under `tests/fixtures/`
+  solely for regression tests; raw live capture bodies belong under ignored
+  `artifacts/`.
 - User profiles, achievements entered by a user, exam scores, shortlist,
   olympiad benefits, authentication, recommendations, proftest, events, and
   venues are not part of the active schema. Their source implementations remain
@@ -27,30 +28,38 @@
 
 Verified locally on Python 3.11 and PostgreSQL 16:
 
-- `uv sync --locked --all-packages --group dev --no-editable` completed. The
-  non-editable install is required for this workspace on the current Windows
-  path because editable workspace imports were not exposed reliably by Python
-  3.11 under the Cyrillic user directory.
-- `uv run --no-editable pytest -q` completed with **8 passed**. This includes
-  offline bundle/parser checks and PostgreSQL integration checks against the
-  disposable Compose database.
+- The non-editable install is required for this workspace on the current
+  Windows path because editable workspace imports were not exposed reliably
+  by Python 3.11 under the Cyrillic user directory.
+- `uv sync --locked --all-packages --group dev --no-editable` completed, and
+  `docker compose -f infra/compose.yaml up -d --wait` reported the disposable
+  PostgreSQL 16 service healthy.
+- `uv run --no-editable pytest -q`, with the test-only local database
+  environment set, completed with **15 passed**. This includes offline
+  ingestion/bundle tests and PostgreSQL importer commit, idempotency, and
+  failure rollback checks.
 - A fresh database upgraded to Alembic head `de41afbb52c8`; `alembic check`
   reported no new upgrade operations. `academic-data db check` confirmed a
   PostgreSQL 16 server and the expected schema head.
 - The CLI validated the checked-in bundle as valid, with **21,911 records**
   checked, zero errors, one warning, and SHA-256
   `42616ee9348ee009fa1b297f7ef697862134835e562c7840f413643ce71d2130`.
-  Dry-run completed without writing to the database or accessing the network.
+  The separate importer dry-run completed without opening a database
+  connection or accessing the network.
 - The CLI committed release `a897c88a-9a3b-59bd-b563-3b055fe6fb42` to a fresh
   local test database. Repeating the commit returned `no_op`; the release ID
   and representative row counts remained unchanged. An injected failure before
   activation rolled back release writes, preserved the active pointer, and
   retained the failed batch audit record.
-- The checked-in parser registry exposes only `catalog-html`, `catalog-api`,
-  `program-card`, `admission-information`, and `tuition`. A hand-authored local
-  HTML fixture passed the parser smoke check. This confirms local-file parsing
-  only; it does not establish correctness against current official pages or
-  PDFs and does not test crawling.
+- The active parser registry exposes `catalog-html`, `catalog-api`,
+  `program-card`, `admission-information`, and `tuition`. The fixture ingestion
+  flow parsed six checked-in sources into 2 programs, 2 curricula, 101
+  disciplines, and 212 curriculum items with zero source gaps. No live request
+  was made; live behavior against current pages remains unverified.
+- Candidate staging, explicit review, and importer dry-run passed in the
+  ingestion tests. The reviewed fixture candidate carried the baseline's typed
+  facts unchanged and added source-artifact/observation provenance only. No
+  reviewed fresh candidate was committed to PostgreSQL.
 - Separately, the unselected `andromeda-data` source schema was tested in its
   own disposable PostgreSQL 16 database: **13 passed**, with one pytest
   configuration warning. This is source-audit evidence, not coverage of the
@@ -74,11 +83,10 @@ review items; successful import does not resolve them automatically.
 
 1. Decide the user-profile schema owner and map v1 user tables without coupling
    them to immutable academic releases.
-2. Restore or formally replace the missing shared parser contracts, then add
-   local, safe fixtures for catalog, program cards, curriculum documents, and
-   admission requirements.
-3. Build a reviewed parser-to-bundle export step that preserves source evidence
-   and exact keys; run validate and dry-run on its output before any database
-   commit.
+2. Extend the checked public fixtures to cover more admission and source
+   variants, and verify live-source behavior only under an explicitly approved
+   operational window.
+3. Add reviewed exact-key mappings from accepted parser observations into the
+   supported typed datasets; run validate and dry-run before a database commit.
 4. Specify the site/API read model and permissions only after product data
    ownership and the user-profile boundary are agreed.

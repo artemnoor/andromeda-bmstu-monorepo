@@ -1,4 +1,4 @@
-"""Run a selected BMSTU parser on a local capture; this CLI never fetches URLs."""
+"""Run local BMSTU parsers and the explicit fixture-first ingestion pipeline."""
 
 from __future__ import annotations
 
@@ -46,6 +46,40 @@ def _parser() -> argparse.ArgumentParser:
     run.add_argument("--source-url", help="clean official BMSTU URL used as provenance")
     run.add_argument("--direction-code", help="required by program-card")
     run.add_argument("--output", type=Path, help="JSON output path; stdout when omitted")
+    ingestion = commands.add_parser("ingest", help="capture, parse, review, and publish BMSTU data")
+    ingestion_actions = ingestion.add_subparsers(dest="ingest_command", required=True)
+    capture = ingestion_actions.add_parser("capture", help="capture local fixtures or opt-in live sources")
+    capture.add_argument("--mode", choices=("fixture", "live"), default="fixture")
+    capture.add_argument("--fixture-dir", type=Path, help="local source capture directory for fixture mode")
+    capture.add_argument("--output", type=Path, help="local ignored capture directory")
+    capture.add_argument("--timeout", type=float, default=30.0)
+    capture.add_argument("--retries", type=int, default=2)
+    capture.add_argument("--request-interval", type=float, default=1.0)
+    capture.add_argument("--max-body-bytes", type=int, default=30_000_000)
+    capture.add_argument("--log-level", choices=("DEBUG", "INFO", "WARNING", "ERROR"), default="DEBUG")
+    parse_capture = ingestion_actions.add_parser("parse", help="parse a frozen local capture without network access")
+    parse_capture.add_argument("--input", required=True, type=Path, help="capture directory with source_manifest.json")
+    parse_capture.add_argument("--output", type=Path, help="sanitized parser report path")
+    parse_capture.add_argument("--log-level", choices=("DEBUG", "INFO", "WARNING", "ERROR"), default="DEBUG")
+    stage = ingestion_actions.add_parser("stage", help="stage parser output as a review-only bundle")
+    stage.add_argument("--base", type=Path, default=Path("data/bmstu-2026"))
+    stage.add_argument("--parse-report", required=True, type=Path)
+    stage.add_argument("--output", required=True, type=Path)
+    stage.add_argument("--log-level", choices=("DEBUG", "INFO", "WARNING", "ERROR"), default="DEBUG")
+    review = ingestion_actions.add_parser("review", help="materialize explicit candidate review decisions")
+    review.add_argument("--input", required=True, type=Path, help="candidate bundle directory")
+    review.add_argument("--decisions", required=True, type=Path, help="CSV with external_key, decision, reviewed_at")
+    review.add_argument("--output", required=True, type=Path)
+    review.add_argument("--log-level", choices=("DEBUG", "INFO", "WARNING", "ERROR"), default="DEBUG")
+    for action, description in (
+        ("validate", "validate an importer-mappable reviewed bundle"),
+        ("dry-run", "map a reviewed bundle without opening a database"),
+        ("commit", "commit a reviewed bundle through the guarded academic importer"),
+    ):
+        command = ingestion_actions.add_parser(action, help=description)
+        command.add_argument("--input", required=True, type=Path)
+        command.add_argument("--output", type=Path, help="optional JSON report path")
+        command.add_argument("--log-level", choices=("DEBUG", "INFO", "WARNING", "ERROR"), default="DEBUG")
     return parser
 
 
@@ -94,6 +128,15 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "list":
         print("\n".join(PARSER_NAMES))
         return 0
+    if args.command == "ingest":
+        from andromeda_parser.ingest import run_capture_command, run_parse_command
+        from andromeda_parser.bundle import run_bundle_command
+
+        if args.ingest_command == "capture":
+            return run_capture_command(args, parser)
+        if args.ingest_command == "parse":
+            return run_parse_command(args, parser)
+        return run_bundle_command(args, parser)
 
     try:
         if args.input.is_symlink() or not args.input.is_file():

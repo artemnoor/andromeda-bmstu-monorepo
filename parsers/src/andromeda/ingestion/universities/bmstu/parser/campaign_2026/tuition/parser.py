@@ -5,7 +5,7 @@ from typing import Any
 
 from bs4 import BeautifulSoup
 
-from ..text import clean_text, normalize_code
+from ..common import clean_text, normalize_code
 
 
 def parse_cost_page(body: bytes, source_url: str) -> dict[str, list[dict[str, Any]]]:
