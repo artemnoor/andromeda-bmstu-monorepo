@@ -123,5 +123,6 @@ Publish only the verified source changes to the existing `andromeda-bmstu-monore
 
 ## Phase Completion Checklist
 
-- Tasks 5 and 6 satisfy their acceptance criteria.
+- Task 5 is complete: the documented CLI capture/parse/stage/review/validate/dry-run/commit workflow was executed against local fixtures and the disposable PostgreSQL 16 database; docs state the verified limits and Poppler requirement.
+- Task 6 implementation commit `491ea6f4fbb047607529b260d03156211bef6020` is published to `andromeda-public/main`; [Actions run 37531892896](https://github.com/artemnoor/andromeda-bmstu-monorepo/actions/runs/37531892896) reports `success` for every job/step. A final plan/documentation commit will receive its own CI run before completion.
 - `index.md` is updated only after GitHub Actions is green on the published final SHA.

@@ -78,5 +78,5 @@ Make the fixture parser contract portable instead of relying on a local Git auto
 ## Phase Completion Checklist
 
 - Task 1 satisfies all acceptance criteria and hash invariants: seven local snapshots reproduce capture digest `dedc5d2731b78a285c42bfdcdf85d6e8e6634d729a1a975ecd7d7f00b0145afc`; the six original `source_sha256` values pass regression assertions.
-- Git attributes report `eol=lf` for HTML/JSON and `text=unset` for PDFs; the full fixture suite passes from the rebuilt non-editable install and Linux verification remains part of the pending GitHub Actions run.
+- Git attributes report `eol=lf` for HTML/JSON and `text=unset` for PDFs. GitHub Actions run [37531892896](https://github.com/artemnoor/andromeda-bmstu-monorepo/actions/runs/37531892896) passed on Ubuntu, confirming the manifest hashes and capture digest on the Linux runner.
 - `index.md` is updated only after successful verification.

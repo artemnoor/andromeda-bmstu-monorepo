@@ -86,5 +86,6 @@ Prove that accepted facts reach typed tables and active-release changes remain s
 
 ## Phase Completion Checklist
 
-- Task 4 satisfies all acceptance criteria against PostgreSQL 16.
+- Task 4 passed against the local PostgreSQL 16 service. The full suite finished with **17 passed**; the end-to-end fixture changed a reviewed statistic, retained linked evidence and prior release rows, returned `no_op` on repeat, rolled back an injected failure, and switched the active release successfully.
+- Parser hash mismatch, conflicting accepted values, and partial-review preservation fail or retain data as expected. CI also passed this suite with PostgreSQL 16.
 - `index.md` is updated only after successful verification.

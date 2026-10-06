@@ -148,5 +148,6 @@ Make every typed mutation deliberate and prevent incomplete or conflicting obser
 
 ## Phase Completion Checklist
 
-- Tasks 2 and 3 satisfy their acceptance criteria and pass all focused tests.
+- Tasks 2 and 3 satisfy their acceptance criteria. The reviewed candidate fixture produces importer-mappable typed rows for existing supported catalog/admission datasets; explicit destination keys are required, candidate conflicts fail closed, provenance is additive, and rejected/omitted facts leave unrelated base bytes unchanged.
+- Focused tests passed, and the entire source-tree and rebuilt non-editable test suite passed locally. Ubuntu GitHub Actions run [37531892896](https://github.com/artemnoor/andromeda-bmstu-monorepo/actions/runs/37531892896) passed the same test suite.
 - `index.md` is updated only after successful verification.

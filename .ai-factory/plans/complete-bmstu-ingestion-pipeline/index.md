@@ -69,24 +69,24 @@ Authority: this follow-up request supersedes the previous plan's observation-onl
 ## Tasks
 
 ### Phase 1: Fixture integrity
-- [ ] Task 1: Make fixture hashes checkout-stable and reproduce the capture digest ([detail](phase-01-fixture-integrity.md#task-1-make-fixture-hashes-checkout-stable-and-reproduce-the-capture-digest))
+- [x] Task 1: Make fixture hashes checkout-stable and reproduce the capture digest ([detail](phase-01-fixture-integrity.md#task-1-make-fixture-hashes-checkout-stable-and-reproduce-the-capture-digest))
 
 ### Phase 2: Typed materialization and review
-- [ ] Task 2: Materialize reviewed parser facts into existing typed bundle datasets ([detail](phase-02-typed-materialization.md#task-2-materialize-reviewed-parser-facts-into-existing-typed-bundle-datasets)) (depends on 1)
-- [ ] Task 3: Enforce exact-key review, provenance, conflict, and partial-snapshot safety ([detail](phase-02-typed-materialization.md#task-3-enforce-exact-key-review-provenance-conflict-and-partial-snapshot-safety)) (depends on 2)
+- [x] Task 2: Materialize reviewed parser facts into existing typed bundle datasets ([detail](phase-02-typed-materialization.md#task-2-materialize-reviewed-parser-facts-into-existing-typed-bundle-datasets)) (depends on 1)
+- [x] Task 3: Enforce exact-key review, provenance, conflict, and partial-snapshot safety ([detail](phase-02-typed-materialization.md#task-3-enforce-exact-key-review-provenance-conflict-and-partial-snapshot-safety)) (depends on 2)
 
 ### Phase 3: Release safety verification
-- [ ] Task 4: Verify the end-to-end update lifecycle on PostgreSQL 16 ([detail](phase-03-release-verification.md#task-4-verify-the-end-to-end-update-lifecycle-on-postgresql-16)) (depends on 1–3)
+- [x] Task 4: Verify the end-to-end update lifecycle on PostgreSQL 16 ([detail](phase-03-release-verification.md#task-4-verify-the-end-to-end-update-lifecycle-on-postgresql-16)) (depends on 1–3)
 
 ### Phase 4: Documentation, CI, and publication
-- [ ] Task 5: Document the verified update workflow and truthful limitations ([detail](phase-04-docs-ci-publication.md#task-5-document-the-verified-update-workflow-and-truthful-limitations)) (depends on 4)
-- [ ] Task 6: Publish to the existing public repository and verify green GitHub Actions ([detail](phase-04-docs-ci-publication.md#task-6-publish-to-the-existing-public-repository-and-verify-green-github-actions)) (depends on 4–5)
+- [x] Task 5: Document the verified update workflow and truthful limitations ([detail](phase-04-docs-ci-publication.md#task-5-document-the-verified-update-workflow-and-truthful-limitations)) (depends on 4)
+- [x] Task 6: Publish to the existing public repository and verify green GitHub Actions ([detail](phase-04-docs-ci-publication.md#task-6-publish-to-the-existing-public-repository-and-verify-green-github-actions)) (depends on 4–5)
 
-## Commit Plan
+## Commit Plan and Outcome
 
-- **Commit 1** (after Tasks 1–3): `fix(ingestion): materialize reviewed BMSTU facts safely`
-- **Commit 2** (after Tasks 4–5): `test(docs): verify complete BMSTU release lifecycle`
-- **Commit 3** (after Task 6 if a CI-only correction is needed): `fix(ci): stabilize BMSTU fixture verification`
+- **Implementation:** `6d5fefa` — `feat(ingestion): complete reviewed BMSTU pipeline`
+- **CI correction:** `491ea6f` — `fix(ci): install Poppler for BMSTU PDF tests`
+- **Plan/result record:** this final documentation commit; its Actions run is the last completion gate.
 
 ## Definition of Done
 

@@ -94,11 +94,12 @@ Verified locally on Python 3.11 and PostgreSQL 16:
 - The documented CLI path completed with the checked-in fixtures: capture
   (7 snapshots), parse, stage, one explicitly reviewed historical statistic,
   validate, dry-run, and PostgreSQL commit. No live source was used.
-- The first GitHub Actions run for `6d5fefa` passed dependency install, bundle
-  validation/dry-run, parser registry, migration, and schema metadata checks,
-  then failed three parser-dependent tests because the Ubuntu runner lacked
-  the existing parser's required `pdftotext` executable. The CI workflow now
-  installs `poppler-utils`; verification of that correction is pending.
+- The first GitHub Actions run exposed that the Ubuntu runner lacked the
+  existing parser's `pdftotext` dependency. After adding `poppler-utils`, run
+  [`37531892896`](https://github.com/artemnoor/andromeda-bmstu-monorepo/actions/runs/37531892896)
+  completed with **success** for implementation SHA `491ea6f4fbb047607529b260d03156211bef6020`.
+  All CI steps passed, including bundle validation/dry-run, migration checks,
+  and the full PostgreSQL 16 test suite.
 
 The baseline before this follow-up had been verified separately with 15
 passing tests. The figures below describe the checked-in baseline bundle, not
