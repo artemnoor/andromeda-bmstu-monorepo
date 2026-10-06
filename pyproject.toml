@@ -1,0 +1,12 @@
+[tool.uv.workspace]
+members = ["academic-data", "parsers"]
+
+[dependency-groups]
+dev = ["pytest>=8,<9"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
+markers = [
+    "integration: requires the dedicated local PostgreSQL test database",
+]

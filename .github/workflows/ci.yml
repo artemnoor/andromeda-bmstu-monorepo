@@ -1,0 +1,50 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: academic_data_test
+          POSTGRES_USER: andromeda_test
+          POSTGRES_PASSWORD: andromeda_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U andromeda_test -d academic_data_test"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 30
+    env:
+      ACADEMIC_DATA_ENV: test
+      ACADEMIC_DATA_DATABASE_URL: postgresql+psycopg://andromeda_test:andromeda_test@localhost:5432/academic_data_test
+      UV_NO_EDITABLE: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install locked workspace
+        run: |
+          python -m pip install uv==0.11.28
+          uv sync --locked --all-packages --group dev --no-editable
+      - name: Validate and dry-run the BMSTU bundle
+        run: |
+          uv run --package andromeda-academic-data-db academic-data bundle validate --input data/bmstu-2026
+          uv run --package andromeda-academic-data-db academic-data bundle import --input data/bmstu-2026 --dry-run
+      - name: Check active parser set
+        run: uv run --package andromeda-bmstu-parsers andromeda-bmstu list
+      - name: Migrate the test database
+        run: uv run --package andromeda-academic-data-db academic-data db upgrade
+      - name: Check migration metadata
+        run: >-
+          uv run --package andromeda-academic-data-db python -c
+          "from alembic import command; from academic_data_service.cli import build_alembic_config; command.check(build_alembic_config())"
+      - name: Run unit and PostgreSQL integration tests
+        run: uv run pytest -q

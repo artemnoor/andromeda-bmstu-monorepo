@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "andromeda-bmstu-parsers"
+version = "0.1.0"
+description = "Offline BMSTU 2026 admission source parsers"
+requires-python = ">=3.11"
+dependencies = ["beautifulsoup4>=4.12,<5"]
+
+[project.scripts]
+andromeda-bmstu = "andromeda_parser.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["andromeda_parser*", "andromeda*"]
