@@ -86,7 +86,7 @@ Authority: this follow-up request supersedes the previous plan's observation-onl
 
 - **Implementation:** `6d5fefa` — `feat(ingestion): complete reviewed BMSTU pipeline`
 - **CI correction:** `491ea6f` — `fix(ci): install Poppler for BMSTU PDF tests`
-- **Plan/result record:** this final documentation commit; its Actions run is the last completion gate.
+- **Plan/result record:** `aa79e58`; Actions run `37532464710` succeeded for that exact SHA.
 
 ## Definition of Done
 

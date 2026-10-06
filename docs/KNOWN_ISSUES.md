@@ -100,6 +100,9 @@ Verified locally on Python 3.11 and PostgreSQL 16:
   completed with **success** for implementation SHA `491ea6f4fbb047607529b260d03156211bef6020`.
   All CI steps passed, including bundle validation/dry-run, migration checks,
   and the full PostgreSQL 16 test suite.
+- The plan/result commit `aa79e58f5a4a600999b4dc5375fdd5104c3d597d` was also
+  green on its matching head SHA in
+  [Actions run 37532464710](https://github.com/artemnoor/andromeda-bmstu-monorepo/actions/runs/37532464710).
 
 The baseline before this follow-up had been verified separately with 15
 passing tests. The figures below describe the checked-in baseline bundle, not
