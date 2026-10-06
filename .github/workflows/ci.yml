@@ -46,5 +46,10 @@ jobs:
         run: >-
           uv run --package andromeda-academic-data-db python -c
           "from alembic import command; from academic_data_service.cli import build_alembic_config; command.check(build_alembic_config())"
+      - name: Install Poppler for curriculum PDF parsing
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes poppler-utils
+          pdftotext -v
       - name: Run unit and PostgreSQL integration tests
         run: uv run pytest -q

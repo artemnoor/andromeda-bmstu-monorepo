@@ -27,7 +27,7 @@ Document the actual verified update path and limitations, publish the finished c
 | `docs/KNOWN_ISSUES.md` | modify | Remove the observation-only blocker once verified; list unavailable source facts and untested live capture accurately. |
 | `docs/INGESTION_AUDIT.md` | modify | Record stable fixture digest, source hash invariants, typed promotion evidence, and local fixture coverage. |
 | `docs/MIGRATION_REPORT.md` | modify | Record PostgreSQL lifecycle test results and preserve the no-new-schema decision. |
-| `.github/workflows/ci.yml` | modify only if a check is missing | Run fixture validation, bundle dry-run, migrations, and the entire PostgreSQL 16 test suite. |
+| `.github/workflows/ci.yml` | modify | Keep fixture validation, bundle dry-run, migrations, and the entire PostgreSQL 16 test suite; install `poppler-utils` because the existing curriculum parser requires `pdftotext`. |
 | `.ai-factory/plans/complete-bmstu-ingestion-pipeline/index.md` | modify | Check off tasks only after verified completion. |
 
 ## Task 5: Document the verified update workflow and truthful limitations

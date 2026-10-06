@@ -24,7 +24,10 @@ and [the ingestion audit](docs/INGESTION_AUDIT.md) for scope and source decision
 
 ## Set up
 
-Requirements: Python 3.11+, `uv` 0.11.28, and Docker Compose.
+Requirements: Python 3.11+, `uv` 0.11.28, Docker Compose, and Poppler's
+`pdftotext` executable for BMSTU study-plan PDFs. CI installs `poppler-utils`;
+local setups must make `pdftotext` available on `PATH` (the Windows parser also
+checks its configured Poppler install locations).
 
 ```powershell
 python -m pip install uv==0.11.28
