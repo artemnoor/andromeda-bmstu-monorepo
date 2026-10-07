@@ -123,4 +123,9 @@ Leave operators with a reproducible explanation of key continuity and publish th
 - All requested sequence cases and both real local PDF fixtures pass.
 - The 113-row offline release slice preserves every existing key.
 - Documentation names remaining ambiguity conditions and operator workflow.
-- Local and GitHub CI evidence identifies the tested commit.
+- Local suite: 45 passed, 5 guarded PostgreSQL skips, 1 warning (123.81 seconds).
+- GitHub Actions PostgreSQL 16 suite passed on implementation commit
+  `7ec3d890666bff0d11733aa31f703d88b31f5f56`; push run 37610424813 and PR run
+  37610468444 both completed successfully.
+- The documentation follow-up is being checked on the final PR head before
+  merge; its final Actions run is recorded in the delivery report.

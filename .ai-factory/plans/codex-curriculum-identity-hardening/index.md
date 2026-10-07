@@ -455,7 +455,7 @@ Authority: the current user request defines behavior; committed parser, importer
 
 ### Phase 3: Regression, documentation, and delivery
 - [x] Task 4: Add sequence, ambiguity, provenance, fixture, and live-plan regressions ([details](phase-03-verification.md#task-4-add-sequence-ambiguity-provenance-fixture-and-live-plan-regressions)) (depends on 1-3)
-- [ ] Task 5: Document the shipped contract and publish with green CI ([details](phase-03-verification.md#task-5-document-the-shipped-contract-and-publish-with-green-ci)) (depends on 1-4)
+- [x] Task 5: Document the shipped contract and publish with green CI ([details](phase-03-verification.md#task-5-document-the-shipped-contract-and-publish-with-green-ci)) (depends on 1-4)
 
 ## Commit Plan
 

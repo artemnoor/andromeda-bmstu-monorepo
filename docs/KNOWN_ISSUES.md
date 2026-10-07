@@ -130,8 +130,12 @@ Verified on 2026-10-07 after the identity changes:
   The five skips are `tests/test_postgres_import.py`; their guard requires a
   local PostgreSQL 16 URL for the dedicated `academic_data_test` database.
   This machine has PostgreSQL 17 only, so it was not used for destructive
-  importer tests. The repository CI job provisions PostgreSQL 16 and runs the
-  same suite; its result is recorded after the final push.
+  importer tests. GitHub Actions provisioned PostgreSQL 16; both the push run
+  [37610424813](https://github.com/artemnoor/andromeda-bmstu-monorepo/actions/runs/37610424813)
+  and PR run
+  [37610468444](https://github.com/artemnoor/andromeda-bmstu-monorepo/actions/runs/37610468444)
+  passed the complete unit and PostgreSQL integration test step on commit
+  `7ec3d890666bff0d11733aa31f703d88b31f5f56`.
 - Focused identity tests cover a five-step history (insert, reorder, mutable
   fact change, potential removal, repeated import), duplicate titles, ambiguous
   semester changes, rename review, partial source, importer provenance, both
