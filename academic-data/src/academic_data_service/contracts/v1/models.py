@@ -36,6 +36,13 @@ class LivenessRecord(ContractModel):
     service_version: str
 
 
+class HealthRecord(ContractModel):
+    status: Literal["ready"]
+    service: Literal["andromeda-academic-data"]
+    api_version: Literal["v1"]
+    active_release_key: ExternalKey
+
+
 class ReadinessRecord(ContractModel):
     status: Literal["ready", "not_ready"]
     reason_code: Literal[
@@ -327,6 +334,12 @@ class AdmissionOfferingRecord(SourcedRecord):
         return self
 
 
+class AdmissionExamRecord(SourcedRecord):
+    external_key: ExternalKey
+    code: str
+    name: str
+
+
 class CompetitionPoolRecord(SourcedRecord, TemporalFactRecord):
     external_key: ExternalKey
     campaign_key: ExternalKey
@@ -342,6 +355,17 @@ class CompetitionPoolRecord(SourcedRecord, TemporalFactRecord):
     places: int | None = Field(default=None, ge=0)
     places_by_source_row: list[dict[str, Any]] | None = None
     offering_keys: list[ExternalKey] = Field(default_factory=list)
+
+
+class PlaceQuotaRecord(SourcedRecord, TemporalFactRecord):
+    external_key: ExternalKey
+    campaign_key: ExternalKey
+    pool_key: ExternalKey | None = None
+    funding_type: str | None = None
+    quota_type: str | None = None
+    places: int = Field(ge=0)
+    scope_level: str | None = None
+    source_locators: list[dict[str, Any]] | None = None
 
 
 class RequirementLeaf(ContractModel):
@@ -548,6 +572,7 @@ class OfferingPage(PageResponse[AdmissionOfferingRecord]):
 CONTRACT_MODELS: tuple[type[BaseModel], ...] = (
     ApiDescription,
     LivenessRecord,
+    HealthRecord,
     ReadinessRecord,
     ApiFieldIssue,
     ApiError,
@@ -568,7 +593,9 @@ CONTRACT_MODELS: tuple[type[BaseModel], ...] = (
     AdmissionCampaignRecord,
     CampaignCalendarEventRecord,
     AdmissionOfferingRecord,
+    AdmissionExamRecord,
     CompetitionPoolRecord,
+    PlaceQuotaRecord,
     RequirementLeaf,
     RequirementOperatorNode,
     RequirementTreeRecord,

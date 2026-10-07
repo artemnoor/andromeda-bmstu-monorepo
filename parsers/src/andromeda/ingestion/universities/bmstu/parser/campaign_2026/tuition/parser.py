@@ -11,12 +11,21 @@ from ..common import clean_text, normalize_code
 def parse_cost_page(body: bytes, source_url: str) -> dict[str, list[dict[str, Any]]]:
     soup = BeautifulSoup(body, "html.parser")
     records: list[dict[str, Any]] = []
+    pending: list[dict[str, Any]] = []
     tables: list[dict[str, Any]] = []
     for table_no, table in enumerate(soup.find_all("table"), start=1):
         panel = table.find_parent("div", id=re.compile(r"^v-pills-\d+$"))
         panel_text = clean_text(panel.get_text(" ", strip=True)) if panel else ""
-        year_match = re.search(r"(20\d{2}\s*/\s*20\d{2})\s*учебн", panel_text, re.I)
-        year_label = re.sub(r"\s+", "", year_match.group(1)) if year_match else None
+        table_text = " ".join(
+            [
+                clean_text(table.caption.get_text(" ", strip=True)) if table.caption else "",
+                *[
+                    clean_text(cell.get_text(" ", strip=True))
+                    for cell in table.find_all(["th"], recursive=True)
+                ],
+            ]
+        )
+        year_label = _year_label(panel_text) or _year_label(table_text)
         tab_pane = table.find_parent("div", id=re.compile(r"^list-\d+$"))
         table_category = None
         if tab_pane:
@@ -49,8 +58,7 @@ def parse_cost_page(body: bytes, source_url: str) -> dict[str, list[dict[str, An
             if code and len(cells) >= 3 and row_no > 1:
                 amount = _money(cells[-1])
                 prices = [amount] if amount is not None else []
-                records.append({
-                    "external_key": f"tuition:bmstu:{code}:{_year_key([year_label] if year_label else [])}:table{table_no}:row{row_no}",
+                record = {
                     "direction_code": code,
                     "direction_name": cells[1] or None,
                     "study_year_label": year_label,
@@ -61,7 +69,26 @@ def parse_cost_page(body: bytes, source_url: str) -> dict[str, list[dict[str, An
                     "raw_cells": cells,
                     "source_url": source_url,
                     "source_locator": {"table": table_no, "row": row_no},
-                })
+                }
+                if year_label is None:
+                    pending.append(
+                        {
+                            **record,
+                            "external_key": None,
+                            "status": "pending",
+                            "gap_code": "academic_year_not_explicit_in_owning_section",
+                        }
+                    )
+                else:
+                    records.append(
+                        {
+                            **record,
+                            "external_key": (
+                                f"tuition:bmstu:{code}:{_year_key([year_label])}:"
+                                f"table{table_no}:row{row_no}"
+                            ),
+                        }
+                    )
         if rows:
             tables.append({
                 "external_key": f"tuition_source_table:bmstu:page:{table_no}",
@@ -74,6 +101,7 @@ def parse_cost_page(body: bytes, source_url: str) -> dict[str, list[dict[str, An
     visible_text = re.sub(r"\s+", " ", soup.get_text(" ", strip=True)).strip()
     return {
         "tuition_records": records,
+        "pending_tuition_observations": pending,
         "raw_tables": tables,
         "page_facts": [{"source_url": source_url, "visible_text": visible_text}],
     }
@@ -89,11 +117,22 @@ def _money(value: str) -> int | None:
     return None
 
 
-def _year_key(labels: list[str]) -> str:
+def _year_label(text: str) -> str | None:
+    matches = {
+        f"{match.group(1)}-{match.group(2)}"
+        for match in re.finditer(r"(20\d{2})\s*[/–-]\s*(20\d{2})", text)
+        if int(match.group(2)) == int(match.group(1)) + 1
+    }
+    return next(iter(matches)) if len(matches) == 1 else None
+
+
+def _year_key(labels: list[str]) -> str | None:
     if not labels:
-        return "year-unspecified"
+        return None
     match = re.search(r"(20\d{2})\s*[/–-]\s*(20\d{2})", labels[0])
-    return f"{match.group(1)}-{match.group(2)}" if match else "year-unspecified"
+    if not match or int(match.group(2)) != int(match.group(1)) + 1:
+        return None
+    return f"{match.group(1)}-{match.group(2)}"
 
 
 __all__ = ["parse_cost_page"]

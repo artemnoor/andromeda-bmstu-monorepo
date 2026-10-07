@@ -2,8 +2,9 @@
 
 This repository contains the BMSTU academic-data bundle, its PostgreSQL 16
 schema/importer, and the fixture-first parser pipeline. Published releases are
-immutable; updates are reviewed before the active pointer changes. There is no
-FastAPI runtime, website, Directus instance, or applicant profile yet.
+immutable; updates are reviewed before the active pointer changes. The first
+read-only FastAPI v1 and optional Directus viewer now consume only the active
+academic release. A public website and applicant profile are not implemented.
 
 ## Repository map
 
@@ -11,15 +12,17 @@ FastAPI runtime, website, Directus instance, or applicant profile yet.
 academic-data/       SQLAlchemy models, Alembic history, importer, read queries
 data/bmstu-2026/     reviewed normalized bundle and provenance
 parsers/             BMSTU capture, parsing, candidate, and review CLI
+services/api/        read-only FastAPI v1 composition layer
 infra/               disposable PostgreSQL 16 Compose service
 tests/               offline fixtures and PostgreSQL lifecycle checks
-docs/                architecture, operations, live check, readiness, limits
+docs/                architecture, API, Directus, operations, live check, limits
 ```
 
 Start with [architecture](docs/ARCHITECTURE.md), then follow the
 [operator workflow](docs/INGESTION_OPERATIONS.md). The [live validation
 report](docs/LIVE_VALIDATION.md) records the bounded 2026-10-07 probe and its
-source gaps. See [API readiness](docs/API_READINESS.md) and
+source gaps. See [API](docs/API.md), [Directus](docs/DIRECTUS.md),
+[API readiness](docs/API_READINESS.md), and
 [known limitations](docs/KNOWN_ISSUES.md) before building on these contracts.
 
 ## Local setup
@@ -31,7 +34,7 @@ Requirements: Python 3.11+, `uv` 0.11.28, Docker Compose, and Poppler
 python -m pip install uv==0.11.28
 $env:UV_NO_EDITABLE = "1"
 uv sync --locked --all-packages --group dev --no-editable
-docker compose -f infra/compose.yaml up -d --wait
+docker compose -p andromeda -f infra/compose.yaml up -d --wait academic-data-db
 
 $env:ACADEMIC_DATA_ENV = "test"
 $env:ACADEMIC_DATA_DATABASE_URL = "postgresql+psycopg://andromeda_test:andromeda_test@localhost:55433/academic_data_test"
@@ -43,6 +46,48 @@ The Compose database is disposable and isolated on port `55433`. Set
 `ANDROMEDA_DB_PORT` before `docker compose up` if that port is occupied, and
 use the same port in the database URL. Never point the test environment at a
 shared or production database.
+
+For a newly created empty test database only, check `academic-data release
+show` and seed the first active release from the checked-in baseline:
+
+```powershell
+uv run --package andromeda-academic-data-db academic-data bundle import `
+  --input data/bmstu-2026 --commit
+uv run --package andromeda-academic-data-db academic-data release show
+```
+
+Do not run this bootstrap over an existing active release; normal updates must
+start from the current release as described in
+[ingestion operations](docs/INGESTION_OPERATIONS.md).
+
+## Run the read-only API
+
+Provision a password for `andromeda_api_runtime` in a trusted PostgreSQL
+session, then use its restricted login for the API URL. The API reads the
+currently active release and publishes OpenAPI at `/openapi.json`:
+
+```powershell
+$env:ACADEMIC_DATA_ENV = "test"
+$env:ACADEMIC_DATA_DATABASE_URL = "postgresql+psycopg://andromeda_api_runtime:<url-encoded-password>@localhost:55433/academic_data_test"
+uv run --package andromeda-api uvicorn andromeda_api.main:app --host 127.0.0.1 --port 8000
+```
+
+See [API.md](docs/API.md) for route contracts and filters. This local command
+uses the isolated test database; do not use the test environment against a
+shared database.
+
+## Start the Directus viewer
+
+After provisioning `andromeda_directus_runtime` and setting local Directus
+secrets, start the opt-in service:
+
+```powershell
+docker compose -p andromeda -f infra/compose.yaml --profile directus up -d --wait
+```
+
+Directus binds to localhost and reads a DB-maintained projection of the active
+release. It cannot write academic facts or alter releases. See
+[DIRECTUS.md](docs/DIRECTUS.md) for role permissions and setup details.
 
 ## Validate the checked-in bundle
 

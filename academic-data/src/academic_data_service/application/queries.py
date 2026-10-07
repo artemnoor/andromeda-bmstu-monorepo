@@ -10,6 +10,7 @@ from academic_data_service.application.ports import AcademicDataReadRepository
 from academic_data_service.contracts.v1.models import (
     AdmissionCampaignRecord,
     AdmissionDocumentRecord,
+    AdmissionExamRecord,
     AdmissionOfferingRecord,
     CampaignCalendarEventRecord,
     CatalogCourseRecord,
@@ -26,6 +27,7 @@ from academic_data_service.contracts.v1.models import (
     OfficialAdmissionStatisticRecord,
     PageResponse,
     PaginationMetadata,
+    PlaceQuotaRecord,
     ReleaseMetadataRecord,
     RequirementLeaf,
     RequirementNode,
@@ -206,6 +208,23 @@ class AcademicDataQueries:
 
     def competition_pool(self, key: str) -> CompetitionPoolRecord:
         return self._competition_pool(self._required("competition_pools", key))
+
+    def place_quotas(
+        self, limit: int, cursor: str | None, campaign_key: str | None = None
+    ) -> PageResponse[PlaceQuotaRecord]:
+        filters: dict[str, Any] = {}
+        if campaign_key is not None:
+            campaign = self._required("admission_campaigns", campaign_key)
+            filters["campaign_id"] = campaign["id"]
+        return self._page(
+            "place_quota_assertions", PlaceQuotaRecord, self._place_quota, limit, cursor, filters
+        )
+
+    def exams(self, limit: int, cursor: str | None) -> PageResponse[AdmissionExamRecord]:
+        return self._page("admission_exams", AdmissionExamRecord, self._exam, limit, cursor)
+
+    def exam(self, key: str) -> AdmissionExamRecord:
+        return self._exam(self._required("admission_exams", key))
 
     def requirements(
         self, limit: int, cursor: str | None, campaign_key: str | None = None
@@ -714,6 +733,33 @@ class AcademicDataQueries:
             offering_keys=offering_keys,
             **self._temporal(row),
             **self._sourced("competition_pools", row),
+        )
+
+    def _place_quota(self, row: dict[str, Any]) -> PlaceQuotaRecord:
+        pool = (
+            self.repository.get_by_id("competition_pools", row["pool_id"])
+            if row["pool_id"] is not None
+            else None
+        )
+        return PlaceQuotaRecord(
+            external_key=row["external_key"],
+            campaign_key=self._linked_key("admission_campaigns", row["campaign_id"]),
+            pool_key=pool["external_key"] if pool else None,
+            funding_type=self._lookup_code("funding_types", row["funding_type_id"]),
+            quota_type=self._lookup_code("quota_types", row["quota_type_id"]),
+            places=row["places"],
+            scope_level=row["scope_level"],
+            source_locators=row["source_locators"],
+            **self._temporal(row),
+            **self._sourced("place_quota_assertions", row),
+        )
+
+    def _exam(self, row: dict[str, Any]) -> AdmissionExamRecord:
+        return AdmissionExamRecord(
+            external_key=row["external_key"],
+            code=row["code"],
+            name=row["name"],
+            **self._sourced("admission_exams", row),
         )
 
     def _requirement_tree(self, row: dict[str, Any]) -> RequirementTreeRecord:

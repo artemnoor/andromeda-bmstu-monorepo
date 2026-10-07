@@ -12,3 +12,24 @@ services:
       interval: 2s
       timeout: 3s
       retries: 30
+
+  directus:
+    image: directus/directus:12.4.1
+    profiles: ["directus"]
+    ports:
+      - "127.0.0.1:${DIRECTUS_PORT:-8055}:8055"
+    environment:
+      SECRET: ${DIRECTUS_SECRET:?set DIRECTUS_SECRET in the local environment}
+      DB_CLIENT: pg
+      DB_HOST: academic-data-db
+      DB_PORT: 5432
+      DB_DATABASE: academic_data_test
+      DB_USER: andromeda_directus_runtime
+      DB_PASSWORD: ${ANDROMEDA_DIRECTUS_DB_PASSWORD:?set ANDROMEDA_DIRECTUS_DB_PASSWORD in the local environment}
+      DB_SEARCH_PATH: array:directus_meta,directus_read
+      ADMIN_EMAIL: ${DIRECTUS_ADMIN_EMAIL:?set DIRECTUS_ADMIN_EMAIL in the local environment}
+      ADMIN_PASSWORD: ${DIRECTUS_ADMIN_PASSWORD:?set DIRECTUS_ADMIN_PASSWORD in the local environment}
+      LOG_LEVEL: ${LOG_LEVEL:-debug}
+    depends_on:
+      academic-data-db:
+        condition: service_healthy

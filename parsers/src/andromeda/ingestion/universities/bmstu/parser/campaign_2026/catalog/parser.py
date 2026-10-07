@@ -13,10 +13,11 @@ from ..common import clean_text, normalize_code
 CATALOG_URL = "https://bmstu.ru/bachelor/majors"
 CATALOG_API_URL = S06_API_BASE_URL
 CATALOG_KIND = "bmstu_2026_catalog"
+CATALOG_HTML_STATUS = "fallback_only"
 
 
 def parse_catalog_html(body: bytes) -> tuple[dict[str, str], ...]:
-    """Read actual major-card links from the published catalog page."""
+    """Read static major-card links when present; the official API is primary."""
     soup = BeautifulSoup(body, "html.parser")
     found: dict[str, str] = {}
     for anchor in soup.find_all("a", href=True):

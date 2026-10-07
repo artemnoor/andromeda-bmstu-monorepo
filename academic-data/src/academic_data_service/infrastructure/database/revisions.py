@@ -5,7 +5,7 @@ from __future__ import annotations
 from sqlalchemy import Engine, inspect, text
 
 VERSION_TABLE = "academic_data_alembic_version"
-SERVICE_SCHEMA_HEAD = "e91532f013ac"
+SERVICE_SCHEMA_HEAD = "f4b19a7c2d61"
 
 
 def current_schema_revision(engine: Engine) -> str | None:
