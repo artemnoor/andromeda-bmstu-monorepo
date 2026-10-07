@@ -327,6 +327,16 @@ def downgrade() -> None:
     op.execute("REVOKE andromeda_api_readonly FROM andromeda_api_runtime")
     op.execute("REVOKE andromeda_directus_readonly FROM andromeda_directus_runtime")
     op.execute(
+        """REVOKE ALL PRIVILEGES ON ALL TABLES IN SCHEMA public
+            FROM andromeda_api_readonly, andromeda_api_runtime,
+                 andromeda_directus_readonly, andromeda_directus_runtime"""
+    )
+    op.execute(
+        """REVOKE ALL PRIVILEGES ON SCHEMA public
+            FROM andromeda_api_readonly, andromeda_api_runtime,
+                 andromeda_directus_readonly, andromeda_directus_runtime"""
+    )
+    op.execute(
         "DROP TRIGGER IF EXISTS refresh_directus_read_model_after_active_release_change "
         "ON public.active_data_release"
     )
