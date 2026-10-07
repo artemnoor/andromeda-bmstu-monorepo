@@ -250,6 +250,43 @@ class BundleReader:
         item = self._file_by_path.get(relative_path)
         return item.size_bytes if item is not None else None
 
+    def release_archive(self) -> tuple[str, bytes, str]:
+        """Return a verifiable archive preserving the importer's original digest."""
+
+        max_archive_bytes = 512 * 1024 * 1024
+        if self.canonical_input_path.is_file():
+            archive = self.canonical_input_path.read_bytes()
+            if len(archive) > max_archive_bytes:
+                raise BundleInputError("bundle ZIP exceeds the release archive limit")
+            archive_sha256 = hashlib.sha256(archive).hexdigest()
+            if archive_sha256 != self.input_digest:
+                raise BundleInputError("bundle ZIP changed while its release archive was prepared")
+            return "source_zip_v1", archive, archive_sha256
+
+        if sum(item.size_bytes for item in self.files) > max_archive_bytes:
+            raise BundleInputError("bundle directory exceeds the release archive limit")
+        output = io.BytesIO()
+        tree_digest = hashlib.sha256()
+        with zipfile.ZipFile(output, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=9) as archive:
+            for item in self.files:
+                body = self.read_bytes(item.relative_path)
+                body_sha256 = hashlib.sha256(body).hexdigest()
+                tree_digest.update(item.relative_path.encode("utf-8"))
+                tree_digest.update(b"\0")
+                tree_digest.update(body_sha256.encode("ascii"))
+                tree_digest.update(b"\n")
+                info = zipfile.ZipInfo(item.relative_path, date_time=(1980, 1, 1, 0, 0, 0))
+                info.compress_type = zipfile.ZIP_DEFLATED
+                info.create_system = 3
+                info.external_attr = (stat.S_IFREG | 0o644) << 16
+                archive.writestr(info, body, compress_type=zipfile.ZIP_DEFLATED, compresslevel=9)
+        if tree_digest.hexdigest() != self.input_digest:
+            raise BundleInputError("bundle directory changed while its release archive was prepared")
+        archive_bytes = output.getvalue()
+        if len(archive_bytes) > max_archive_bytes:
+            raise BundleInputError("compressed release archive exceeds the storage limit")
+        return "directory_zip_v1", archive_bytes, hashlib.sha256(archive_bytes).hexdigest()
+
 
 def _issue(report: dict[str, Any], severity: str, code: str, message: str, **context: Any) -> None:
     item: dict[str, Any] = {"code": code, "message": message}

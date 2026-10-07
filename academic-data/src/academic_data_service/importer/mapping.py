@@ -35,6 +35,7 @@ DATASET_MAPPING_REGISTRY: dict[str, str] = {
     "admission_plan_source_rows.jsonl": "source_observations (Appendix 8.1 rows retained verbatim)",
     "admission_result_sources.jsonl": "admission_result_sources + source_observations",
     "admission_statistics.jsonl": "admission_statistics + source_observations",
+    "bmstu_rejected_candidates.jsonl": "source_observations (reviewed rejection payloads retained for re-moderation)",
     "campaign_dates.jsonl": "campaign_calendar_events + source_observations",
     "competition_pools.jsonl": "competition_pools + source_observations",
     "courses.jsonl": "catalog_courses + source_observations",
@@ -102,6 +103,13 @@ class MappingResult:
     table_rows: dict[str, list[dict[str, Any]]]
     ids_by_table: dict[str, dict[str, UUID]]
     raw_file_hashes: dict[str, str]
+    bundle_input_path: str = ""
+    expected_base_release_id: UUID | None = None
+    expected_base_source_bundle_sha256: str | None = None
+    release_context_present: bool = False
+    release_archive_format: str = ""
+    release_archive_bytes: bytes = b""
+    release_archive_sha256: str = ""
 
 
 def stable_uuid(release_id: UUID, table_name: str, external_key: str) -> UUID:
@@ -1537,6 +1545,39 @@ def project_bundle(
         else:
             confirmed_manifest = None
         digest = reader.input_digest
+        expected_base_release_id: UUID | None = None
+        expected_base_digest: str | None = None
+        release_context_present = reader.has_file("release_context.json")
+        if release_context_present:
+            try:
+                release_context = json.loads(reader.read_bytes("release_context.json"))
+            except (UnicodeDecodeError, json.JSONDecodeError) as error:
+                raise BundleInputError("release_context.json is not valid UTF-8 JSON") from error
+            if not isinstance(release_context, dict) or set(release_context) != {
+                "schema_version",
+                "base_release_id",
+                "base_source_bundle_sha256",
+            }:
+                raise BundleInputError("release_context.json has an unsupported shape")
+            if release_context.get("schema_version") != 1:
+                raise BundleInputError("release_context.json schema version is unsupported")
+            raw_base_id = release_context.get("base_release_id")
+            raw_base_digest = release_context.get("base_source_bundle_sha256")
+            if raw_base_id is None and raw_base_digest is None:
+                pass
+            elif isinstance(raw_base_id, str) and isinstance(raw_base_digest, str):
+                try:
+                    expected_base_release_id = UUID(raw_base_id)
+                except ValueError as error:
+                    raise BundleInputError("release_context.json base release ID is invalid") from error
+                if (
+                    len(raw_base_digest) != 64
+                    or any(character not in "0123456789abcdef" for character in raw_base_digest)
+                ):
+                    raise BundleInputError("release_context.json base bundle digest is invalid")
+                expected_base_digest = raw_base_digest
+            else:
+                raise BundleInputError("release_context.json base ID and digest must both be null or set")
         if not mapper_version or len(mapper_version) > 80:
             raise BundleMappingError("mapper_version must contain 1 to 80 characters")
         release_key = f"bmstu-2026:{digest}:{mapper_version}"
@@ -1554,4 +1595,9 @@ def project_bundle(
             mapper_version,
         )
         projection.reader_files = reader.files
-        return projection.run()
+        result = projection.run()
+        result.bundle_input_path = str(reader.canonical_input_path)
+        result.expected_base_release_id = expected_base_release_id
+        result.expected_base_source_bundle_sha256 = expected_base_digest
+        result.release_context_present = release_context_present
+        return result

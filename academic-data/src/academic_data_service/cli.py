@@ -10,6 +10,7 @@ import sys
 import time
 from collections.abc import Sequence
 from pathlib import Path
+from uuid import UUID
 
 from alembic import command
 from alembic.config import Config
@@ -32,6 +33,12 @@ from academic_data_service.infrastructure.database.connection import (
 from academic_data_service.infrastructure.database.models import MigrationAuditModel
 from academic_data_service.infrastructure.database.revisions import current_schema_revision
 from academic_data_service.observability.logging import configure_logging
+from academic_data_service.operations.releases import (
+    adopt_legacy_release_bundle,
+    export_release_bundle,
+    rollback_active_release,
+    release_status,
+)
 from academic_data_service.settings import SettingsError, load_settings
 
 SERVICE_ROOT = Path(__file__).resolve().parents[2]
@@ -46,6 +53,25 @@ def build_parser() -> argparse.ArgumentParser:
     actions.add_parser("check", help="verify target database, PostgreSQL version and schema head")
     actions.add_parser("upgrade", help="apply this service's Alembic revisions to head")
     add_bundle_commands(groups)
+    release = groups.add_parser("release", help="inspect and export immutable data releases")
+    release_actions = release.add_subparsers(dest="release_action", required=True)
+    release_actions.add_parser("show", help="show the active release identity and artifact status")
+    export = release_actions.add_parser("export", help="export a verified release importer bundle")
+    release_selector = export.add_mutually_exclusive_group(required=True)
+    release_selector.add_argument("--active", action="store_true")
+    release_selector.add_argument("--release-id", type=UUID)
+    export.add_argument("--output", required=True, type=Path)
+    adopt = release_actions.add_parser(
+        "adopt-bundle", help="attach a legacy bundle after exact digest verification"
+    )
+    adopt.add_argument("--release-id", required=True, type=UUID)
+    adopt.add_argument("--input", required=True, type=Path)
+    rollback = release_actions.add_parser(
+        "rollback", help="switch active pointer to a verified committed release"
+    )
+    rollback.add_argument("--to", required=True, type=UUID, dest="target_release_id")
+    rollback.add_argument("--expected-active-release-id", required=True, type=UUID)
+    rollback.add_argument("--reason", required=True)
     return parser
 
 
@@ -195,6 +221,43 @@ def main(argv: Sequence[str] | None = None) -> int:
                 )
             else:
                 print(json.dumps(result, ensure_ascii=False, sort_keys=True))
+            return 0
+
+        if arguments.command_group == "release":
+            settings = load_settings()
+            configure_logging(settings.log_level)
+            engine = create_service_engine(settings)
+            try:
+                if arguments.release_action == "show":
+                    result = release_status(engine, settings)
+                elif arguments.release_action == "export":
+                    result = export_release_bundle(
+                        engine,
+                        settings,
+                        output_path=arguments.output,
+                        release_id=arguments.release_id,
+                    )
+                elif arguments.release_action == "adopt-bundle":
+                    result = adopt_legacy_release_bundle(
+                        engine,
+                        settings,
+                        release_id=arguments.release_id,
+                        input_path=arguments.input,
+                    )
+                elif arguments.release_action == "rollback":
+                    result = rollback_active_release(
+                        engine,
+                        settings,
+                        target_release_id=arguments.target_release_id,
+                        expected_active_release_id=arguments.expected_active_release_id,
+                        reason=arguments.reason,
+                    )
+                else:
+                    parser.error("unsupported release command")
+                    return 2
+            finally:
+                engine.dispose()
+            print(json.dumps(result, ensure_ascii=False, sort_keys=True))
             return 0
 
         settings = load_settings()

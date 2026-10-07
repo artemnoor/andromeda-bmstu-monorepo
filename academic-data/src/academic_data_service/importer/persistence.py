@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import logging
+from getpass import getuser
 from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
@@ -31,8 +32,10 @@ from academic_data_service.infrastructure.database.connection import (
 )
 from academic_data_service.infrastructure.database.models import (
     ActiveDataReleaseModel,
+    DataReleaseBundleArtifactModel,
     DataReleaseModel,
     ImportBatchModel,
+    ReleaseActivationEventModel,
 )
 from academic_data_service.infrastructure.database.revisions import (
     SERVICE_SCHEMA_HEAD,
@@ -43,6 +46,11 @@ from academic_data_service.settings import Settings, SettingsError, load_setting
 logger = logging.getLogger("academic_data_service.importer")
 BATCH_SIZE = 500
 REQUIRED_IMPORT_SCHEMA_REVISION = SERVICE_SCHEMA_HEAD
+RELEASE_PUBLICATION_LOCK_KEY = int.from_bytes(
+    hashlib.sha256(b"andromeda-academic-active-release-v1").digest()[:8],
+    byteorder="big",
+    signed=True,
+)
 
 TABLE_INSERT_ORDER = (
     "source_artifacts",
@@ -133,6 +141,13 @@ def _safe_failure_code(error: Exception) -> str:
 def _validate_projection(projection: MappingResult) -> None:
     if projection.validator_report.get("valid") is not True:
         raise BundleImportError("only a successfully validated bundle can be imported")
+    if (
+        projection.release_archive_format not in {"source_zip_v1", "directory_zip_v1"}
+        or not projection.release_archive_bytes
+        or hashlib.sha256(projection.release_archive_bytes).hexdigest()
+        != projection.release_archive_sha256
+    ):
+        raise BundleImportError("release bundle archive is missing or failed its SHA-256 check")
     expected_observations = projection.report.get("source_observations_expected")
     actual_observations = len(projection.table_rows.get("source_observations", []))
     if expected_observations != actual_observations:
@@ -156,6 +171,25 @@ def _validate_projection(projection: MappingResult) -> None:
             if key in seen_keys:
                 raise BundleImportError(f"{table_name} contains duplicate external keys")
             seen_keys.add(key)
+
+
+def _prepare_release_archive(projection: MappingResult) -> None:
+    """Prepare release bytes only for a commit and reject input drift since mapping."""
+
+    if projection.release_archive_bytes:
+        return
+    if not projection.bundle_input_path:
+        raise BundleImportError("mapped bundle input path is unavailable for release archival")
+    try:
+        with BundleReader(projection.bundle_input_path) as reader:
+            if reader.input_digest != projection.input_digest:
+                raise BundleImportError("bundle changed after mapping; release archive was not prepared")
+            archive_format, archive_bytes, archive_sha256 = reader.release_archive()
+    except BundleInputError as error:
+        raise BundleImportError("bundle could not be archived safely") from error
+    projection.release_archive_format = archive_format
+    projection.release_archive_bytes = archive_bytes
+    projection.release_archive_sha256 = archive_sha256
 
 
 def _insert_projection_rows(connection: Any, projection: MappingResult) -> dict[str, int]:
@@ -333,10 +367,12 @@ def commit_projection(
     settings: Settings,
     projection: MappingResult,
     *,
+    actor: str | None = None,
     before_activation: Callable[[], None] | None = None,
 ) -> dict[str, Any]:
     """Write one release transactionally and update the active pointer last."""
 
+    _prepare_release_archive(projection)
     _validate_projection(projection)
     with engine.connect() as connection:
         identity = verify_server_identity(connection, settings)
@@ -346,42 +382,74 @@ def commit_projection(
             f"service schema must be at {REQUIRED_IMPORT_SCHEMA_REVISION} before import"
         )
 
-    lock_bytes = hashlib.sha256(
-        f"{projection.input_digest}:{projection.report['mapper_version']}".encode("ascii")
-    ).digest()[:8]
-    lock_key = int.from_bytes(lock_bytes, byteorder="big", signed=True)
+    actor_name = (actor or getuser()).strip()
+    if not actor_name or len(actor_name) > 256:
+        raise BundleImportError("operator identity must contain 1 to 256 characters")
     batch_id = uuid4()
     now = datetime.now(UTC)
     active_table = cast(Table, ActiveDataReleaseModel.__table__)
     release_table = cast(Table, DataReleaseModel.__table__)
+    archive_table = cast(Table, DataReleaseBundleArtifactModel.__table__)
+    activation_table = cast(Table, ReleaseActivationEventModel.__table__)
     batch_table = cast(Table, ImportBatchModel.__table__)
 
     try:
         with engine.begin() as connection:
             connection.execute(
-                text("SELECT pg_advisory_xact_lock(:lock_key)"), {"lock_key": lock_key}
+                text("SELECT pg_advisory_xact_lock(:lock_key)"),
+                {"lock_key": RELEASE_PUBLICATION_LOCK_KEY},
             )
+            active_release_id = connection.execute(
+                select(active_table.c.release_id)
+                .where(active_table.c.slot_key == "active")
+                .with_for_update()
+            ).scalar_one_or_none()
             existing = connection.execute(
-                select(release_table.c.id, release_table.c.status).where(
+                select(
+                    release_table.c.id,
+                    release_table.c.status,
+                    release_table.c.source_bundle_sha256,
+                ).where(
                     release_table.c.source_bundle_sha256 == projection.input_digest,
                     release_table.c.mapper_version == projection.report["mapper_version"],
                 )
             ).one_or_none()
             if existing is not None and existing.status == "committed":
-                active = connection.execute(
-                    select(active_table.c.release_id).where(active_table.c.slot_key == "active")
+                if active_release_id == existing.id:
+                    return {
+                        "outcome": "no_op",
+                        "reason": "bundle_digest_and_mapper_version_already_active",
+                        "input_digest": projection.input_digest,
+                        "release_id": str(existing.id),
+                        "release_key": projection.release_key,
+                        "active_release_id": str(active_release_id),
+                        "database_name": identity["database_name"],
+                        "schema_revision": revision,
+                        "mapping": projection.report,
+                    }
+                raise BundleImportError(
+                    "bundle was already committed as an inactive release; use explicit rollback"
+                )
+
+            expected_active_id = (
+                projection.expected_base_release_id
+                if projection.release_context_present
+                else None
+            )
+            if active_release_id != expected_active_id:
+                raise BundleImportError(
+                    "candidate base is stale: active release changed; export, diff, and review again"
+                )
+            if expected_active_id is not None:
+                active_digest = connection.execute(
+                    select(release_table.c.source_bundle_sha256).where(
+                        release_table.c.id == expected_active_id
+                    )
                 ).scalar_one_or_none()
-                return {
-                    "outcome": "no_op",
-                    "reason": "bundle_digest_and_mapper_version_already_committed",
-                    "input_digest": projection.input_digest,
-                    "release_id": str(existing.id),
-                    "release_key": projection.release_key,
-                    "active_release_id": str(active) if active else None,
-                    "database_name": identity["database_name"],
-                    "schema_revision": revision,
-                    "mapping": projection.report,
-                }
+                if active_digest != projection.expected_base_source_bundle_sha256:
+                    raise BundleImportError(
+                        "candidate base digest does not match the locked active release"
+                    )
 
             connection.execute(
                 insert(batch_table).values(
@@ -409,11 +477,25 @@ def commit_projection(
                     committed_at=None,
                 )
             )
+            connection.execute(
+                insert(archive_table).values(
+                    release_id=projection.release_id,
+                    archive_format=projection.release_archive_format,
+                    archive_bytes=projection.release_archive_bytes,
+                    archive_sha256=projection.release_archive_sha256,
+                    created_at=now,
+                )
+            )
             inserted_counts = _insert_projection_rows(connection, projection)
             reconciliation = _reconcile_database(connection, projection)
             report_payload = {
                 **projection.report,
                 "source_file_sha256": projection.raw_file_hashes,
+                "release_bundle_archive": {
+                    "format": projection.release_archive_format,
+                    "sha256": projection.release_archive_sha256,
+                    "byte_size": len(projection.release_archive_bytes),
+                },
                 "database_reconciliation": reconciliation,
                 "database_name": identity["database_name"],
                 "schema_revision": revision,
@@ -422,9 +504,7 @@ def commit_projection(
             if before_activation is not None:
                 before_activation()
 
-            previous_active = connection.execute(
-                select(active_table.c.release_id).where(active_table.c.slot_key == "active")
-            ).scalar_one_or_none()
+            previous_active = active_release_id
             connection.execute(
                 update(release_table)
                 .where(release_table.c.id == projection.release_id)
@@ -454,8 +534,22 @@ def commit_projection(
                     set_={"release_id": projection.release_id, "changed_at": now},
                 )
             )
+            connection.execute(
+                insert(activation_table).values(
+                    id=uuid4(),
+                    operation="publish",
+                    previous_release_id=previous_active,
+                    active_release_id=projection.release_id,
+                    expected_active_release_id=expected_active_id,
+                    source_bundle_sha256=projection.input_digest,
+                    actor=actor_name,
+                    reason=None,
+                    occurred_at=now,
+                )
+            )
         result = {
             "outcome": "committed",
+            "actor": actor_name,
             "input_digest": projection.input_digest,
             "release_id": str(projection.release_id),
             "release_key": projection.release_key,

@@ -13,7 +13,9 @@ from sqlalchemy import (
     ForeignKey,
     Identity,
     Index,
+    LargeBinary,
     String,
+    Text,
     UniqueConstraint,
     Uuid,
     func,
@@ -118,6 +120,72 @@ class ActiveDataReleaseModel(Base):
         unique=True,
     )
     changed_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
+class DataReleaseBundleArtifactModel(Base):
+    """Immutable importer bundle retained as the lossless release export source."""
+
+    __tablename__ = "data_release_bundle_artifacts"
+    __table_args__ = (
+        CheckConstraint(
+            "archive_format IN ('source_zip_v1', 'directory_zip_v1')",
+            name="valid_archive_format",
+        ),
+        CheckConstraint(
+            "archive_sha256 ~ '^[0-9a-f]{64}$'",
+            name="valid_archive_sha256",
+        ),
+        CheckConstraint("octet_length(archive_bytes) > 0", name="nonempty_archive"),
+    )
+
+    release_id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("data_releases.id", ondelete="RESTRICT"),
+        primary_key=True,
+    )
+    archive_format: Mapped[str] = mapped_column(String(32), nullable=False)
+    archive_bytes: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    archive_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
+class ReleaseActivationEventModel(Base):
+    """Append-only publication and rollback history for the active pointer."""
+
+    __tablename__ = "release_activation_events"
+    __table_args__ = (
+        CheckConstraint("operation IN ('publish', 'rollback')", name="valid_operation"),
+        CheckConstraint("length(trim(actor)) > 0", name="actor_present"),
+        CheckConstraint(
+            "source_bundle_sha256 ~ '^[0-9a-f]{64}$'",
+            name="valid_source_bundle_sha256",
+        ),
+        CheckConstraint(
+            "operation <> 'rollback' OR length(trim(reason)) > 0",
+            name="rollback_reason_present",
+        ),
+        Index("ix_release_activation_events_active_at", "active_release_id", "occurred_at"),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
+    operation: Mapped[str] = mapped_column(String(16), nullable=False)
+    previous_release_id: Mapped[UUID | None] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("data_releases.id", ondelete="RESTRICT")
+    )
+    active_release_id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("data_releases.id", ondelete="RESTRICT"), nullable=False
+    )
+    expected_active_release_id: Mapped[UUID | None] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("data_releases.id", ondelete="RESTRICT")
+    )
+    source_bundle_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    actor: Mapped[str] = mapped_column(String(256), nullable=False)
+    reason: Mapped[str | None] = mapped_column(Text)
+    occurred_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
 
