@@ -390,3 +390,86 @@ def run_parse_command(args: Any, parser: Any) -> int:
         )
     )
     return 0
+
+
+def run_parse_admission_plan_command(args: Any, parser: Any) -> int:
+    """Parse a user-provided, aggregate-only Appendix 8.1 PDF offline."""
+
+    configure_verbose_logging(args.log_level)
+    try:
+        source_path = args.input.expanduser()
+        if source_path.is_symlink() or not source_path.is_file():
+            raise IngestionError("admission-plan input must be an existing regular local file")
+        body = source_path.read_bytes()
+        if len(body) > 30_000_000:
+            raise IngestionError("admission-plan PDF exceeds the 30 MB parser limit")
+        if not body.startswith(b"%PDF-"):
+            raise IngestionError("admission-plan input is not a PDF document")
+        digest = hashlib.sha256(body).hexdigest()
+        if args.captured_at:
+            captured_at = datetime.fromisoformat(args.captured_at.replace("Z", "+00:00"))
+            if captured_at.tzinfo is None:
+                raise IngestionError("--captured-at must include a timezone")
+        else:
+            captured_at = datetime.now(timezone.utc)
+        captured_at_text = captured_at.isoformat()
+
+        from andromeda.ingestion.universities.bmstu.parser.campaign_2026.admissions import (
+            parse_intake_plan_pdf,
+        )
+        from andromeda.ingestion.universities.bmstu.parser.campaign_2026.admissions.authority import (
+            AUTHORITATIVE_PLAN_REFERENCE,
+        )
+
+        offers, source_rows = parse_intake_plan_pdf(body, AUTHORITATIVE_PLAN_REFERENCE)
+        # Keep only parsed aggregate fields and PDF locators. The absolute local
+        # path and the local:// pseudo-reference are never written to the report.
+        for row in [*offers, *source_rows]:
+            row.pop("source_url", None)
+        source_kind = "bmstu_user_provided_authoritative_admission_plan"
+        capture_digest = hashlib.sha256(f"{source_kind}\0{digest}".encode("utf-8")).hexdigest()
+        normalized = {
+            "authoritative_admission_plan": {
+                "campaign_year": 2026,
+                "source_sha256": digest,
+                "source_retrieved_at": captured_at_text,
+                "source_offers": offers,
+                "source_rows": source_rows,
+            }
+        }
+        source = {
+            "source_kind": source_kind,
+            "requested_url": None,
+            "final_url": None,
+            "captured_at": captured_at_text,
+            "status_code": 200,
+            "content_type": "application/pdf",
+            "sha256": digest,
+            "byte_size": len(body),
+            "local_attachment": True,
+        }
+        _assert_safe_payload({"normalized": normalized, "source": source})
+        report = ParseReport(
+            source_capture_digest=capture_digest,
+            normalized=normalized,
+            sources=(source,),
+            source_gaps=(),
+        )
+        written = write_parse_report(report, args.output)
+    except (OSError, ValueError) as error:
+        parser.error(f"admission-plan parse failed: {type(error).__name__}: {error}")
+    print(
+        json.dumps(
+            {
+                "output": str(written),
+                "capture_digest": report.source_capture_digest,
+                "source_sha256": digest,
+                "source_rows": len(source_rows),
+                "moscow_offerings": len(offers),
+                "network_requests": 0,
+            },
+            ensure_ascii=True,
+            indent=2,
+        )
+    )
+    return 0

@@ -61,6 +61,17 @@ def _parser() -> argparse.ArgumentParser:
     parse_capture.add_argument("--input", required=True, type=Path, help="capture directory with source_manifest.json")
     parse_capture.add_argument("--output", type=Path, help="sanitized parser report path")
     parse_capture.add_argument("--log-level", choices=("DEBUG", "INFO", "WARNING", "ERROR"), default="DEBUG")
+    parse_admission_plan = ingestion_actions.add_parser(
+        "parse-admission-plan",
+        help="parse a locally supplied BMSTU 2026 Appendix 8.1 PDF without network access",
+    )
+    parse_admission_plan.add_argument("--input", required=True, type=Path, help="local PDF attachment")
+    parse_admission_plan.add_argument("--output", required=True, type=Path, help="sanitized parser report path")
+    parse_admission_plan.add_argument(
+        "--captured-at",
+        help="original source capture timestamp (ISO 8601); defaults to the local parse time",
+    )
+    parse_admission_plan.add_argument("--log-level", choices=("DEBUG", "INFO", "WARNING", "ERROR"), default="DEBUG")
     stage = ingestion_actions.add_parser("stage", help="stage parser output as a review-only bundle")
     stage.add_argument("--base", type=Path, help="explicit seed bundle used only with --bootstrap")
     stage.add_argument(
@@ -163,13 +174,19 @@ def main(argv: list[str] | None = None) -> int:
         print("\n".join(PARSER_NAMES))
         return 0
     if args.command == "ingest":
-        from andromeda_parser.ingest import run_capture_command, run_parse_command
+        from andromeda_parser.ingest import (
+            run_capture_command,
+            run_parse_admission_plan_command,
+            run_parse_command,
+        )
         from andromeda_parser.bundle import run_bundle_command
 
         if args.ingest_command == "capture":
             return run_capture_command(args, parser)
         if args.ingest_command == "parse":
             return run_parse_command(args, parser)
+        if args.ingest_command == "parse-admission-plan":
+            return run_parse_admission_plan_command(args, parser)
         return run_bundle_command(args, parser)
 
     try:

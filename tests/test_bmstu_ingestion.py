@@ -7,6 +7,7 @@ import json
 import re
 import shutil
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 import fitz
@@ -36,6 +37,7 @@ from andromeda.ingestion.universities.bmstu.parser.campaign_2026.admissions.auth
     build_authoritative_intake_records,
 )
 from andromeda_parser.bundle import (
+    _remove_jsonl_rows_exact,
     build_candidate_bundle,
     dry_run_import,
     materialize_reviewed_bundle,
@@ -46,6 +48,7 @@ from andromeda_parser.ingest import (
     _RedactingFilter,
     capture_sources,
     parse_capture,
+    run_parse_admission_plan_command,
     write_parse_report,
 )
 from andromeda_parser.moderation import (
@@ -1209,6 +1212,18 @@ def test_projected_curriculum_evidence_resolves_to_the_exact_parent_pdf() -> Non
     assert "page and row are unavailable" in evidence["claim"]
 
 
+def test_mapper_v3_release_projection_keeps_legacy_evidence_counts_for_rollback() -> None:
+    legacy = project_bundle(BASE_BUNDLE, mapper_version="bmstu-2026-bundle-v3")
+    current = project_bundle(BASE_BUNDLE, mapper_version="bmstu-2026-bundle-v4")
+
+    assert len(legacy.table_rows["curriculum_evidence"]) == 8_898
+    assert len(legacy.table_rows["source_evidence"]) == 13_886
+    assert legacy.report.get("curriculum_provenance_inheritance", {}) == {}
+    assert len(current.table_rows["curriculum_evidence"]) == 14_165
+    assert len(current.table_rows["source_evidence"]) == 19_153
+    assert current.report["curriculum_provenance_inheritance"]["inherited_exact_parent_pdf"] == 5_267
+
+
 def test_candidate_rejects_applicant_and_olympiad_payloads() -> None:
     from andromeda_parser.ingest import _assert_safe_payload
 
@@ -1250,3 +1265,69 @@ def test_conflicting_reviewed_sources_fail_closed_and_unknowns_do_not_erase() ->
     assert merged["minimum_score"] == 250
     assert merged["maximum_score"] == 280
     assert merged["source_artifact_keys"] == ["source_artifact:existing", "source_artifact:new"]
+
+
+def test_local_admission_pdf_report_keeps_hash_and_strips_local_path(tmp_path: Path, monkeypatch: Any) -> None:
+    source = tmp_path / "БС.pdf"
+    body = b"%PDF-1.7\nfixture"
+    source.write_bytes(body)
+    output = tmp_path / "parse-report.json"
+
+    def parse_pdf(_body: bytes, _reference: str) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+        assert _body == body
+        return (
+            [{"external_key": "offer:exact", "source_url": str(source)}],
+            [{"source_url": "local://private/path", "source_locator": {"page": 1, "row": 2}}],
+        )
+
+    monkeypatch.setattr(
+        "andromeda.ingestion.universities.bmstu.parser.campaign_2026.admissions.parse_intake_plan_pdf",
+        parse_pdf,
+    )
+
+    class Parser:
+        @staticmethod
+        def error(message: str) -> None:
+            raise AssertionError(message)
+
+    result = run_parse_admission_plan_command(
+        SimpleNamespace(
+            input=source,
+            output=output,
+            captured_at="2026-10-03T12:50:55.107065+00:00",
+            log_level="ERROR",
+        ),
+        Parser(),
+    )
+    report = json.loads(output.read_text(encoding="utf-8"))
+    serialized = json.dumps(report, ensure_ascii=False)
+    assert result == 0
+    assert report["sources"][0]["sha256"] == hashlib.sha256(body).hexdigest()
+    assert report["sources"][0]["local_attachment"] is True
+    assert report["sources"][0]["requested_url"] is None
+    assert str(source) not in serialized
+    assert "local://private/path" not in serialized
+    assert report["normalized"]["authoritative_admission_plan"]["source_rows"][0]["source_locator"] == {
+        "page": 1,
+        "row": 2,
+    }
+
+
+def test_exact_retirement_removes_only_hash_verified_jsonl_rows(tmp_path: Path) -> None:
+    from andromeda_parser.bundle import IngestionError
+
+    target = tmp_path / "relationships.jsonl"
+    removed = {"external_key": "relationship:old", "target_key": "pool:old"}
+    retained_line = b'{ "external_key" : "relationship:keep", "target_key" : "pool:keep" }\r\n'
+    removed_line = json.dumps(removed, ensure_ascii=False).encode("utf-8") + b"\r\n"
+    target.write_bytes(retained_line + removed_line)
+    digest = hashlib.sha256(
+        json.dumps(removed, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
+
+    _remove_jsonl_rows_exact(target, {"relationship:old": digest})
+    assert target.read_bytes() == retained_line
+
+    target.write_bytes(retained_line + removed_line.replace(b"pool:old", b"pool:changed"))
+    with pytest.raises(IngestionError, match="changed since candidate preparation"):
+        _remove_jsonl_rows_exact(target, {"relationship:old": digest})

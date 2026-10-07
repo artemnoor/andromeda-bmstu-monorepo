@@ -30,6 +30,25 @@ The fixture flow makes no network requests. The separate live probe is bounded
 and read-only; the broader live capture can enumerate many catalog and order
 documents and must not be used as a routine production crawler.
 
+### User-provided aggregate admission PDF
+
+Appendix 8.1 supplied by the user is parsed offline, without fetching a URL or
+copying the original local path into the report:
+
+```powershell
+uv run --package andromeda-bmstu-parsers andromeda-bmstu ingest parse-admission-plan `
+  --input "C:\path\to\БС.pdf" `
+  --output artifacts/bmstu-ingestion/admission-plan.json `
+  --captured-at 2026-10-03T12:50:55.107065+00:00
+```
+
+`--captured-at` preserves the source artifact's original capture time; omit it
+when that time is not established. The report stores the PDF SHA-256, byte size,
+page/table/row locators and aggregate source rows. It stores neither the local
+path nor the PDF bytes. A repeat of an already accepted identical snapshot
+produces no pending candidates; after an empty diff, stop without review or
+commit.
+
 ## Stage from the current release
 
 With `ACADEMIC_DATA_ENV=test` and `ACADEMIC_DATA_DATABASE_URL` set to the local
@@ -114,6 +133,12 @@ uv run --package andromeda-bmstu-parsers andromeda-bmstu ingest remoderate `
 
 Reopened rows require an explicit new individual decision; the previous
 rejection remains in the audit history.
+
+The 2026 Appendix 8.1 result is recorded in
+[live validation](LIVE_VALIDATION.md). Its 254 new quota pools and 254 exact
+offering links were reviewed individually. Exact digests and PDF row locators
+also justified retiring 104 old direction-scoped pools and their 254 links;
+the prior immutable release remains available for verified rollback.
 
 ## Commit and rollback
 

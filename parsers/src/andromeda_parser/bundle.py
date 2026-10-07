@@ -99,10 +99,18 @@ def _build_typed_candidates(
     existing_quota_keys: set[str],
     current_curriculum_rows: list[dict[str, Any]],
     current_study_plans: list[dict[str, Any]],
-) -> tuple[list[dict[str, Any]], list[dict[str, str]]]:
+    current_directions: list[dict[str, Any]],
+    current_departments: list[dict[str, Any]],
+    current_programs: list[dict[str, Any]],
+    current_offerings: list[dict[str, Any]],
+    current_competition_pools: list[dict[str, Any]],
+    current_relationships: list[dict[str, Any]],
+    current_manual_review_rows: list[dict[str, str]],
+) -> tuple[list[dict[str, Any]], list[dict[str, str]], list[dict[str, Any]]]:
     """Project canonical parser facts into review-gated existing bundle contracts."""
 
     candidates: list[dict[str, Any]] = []
+    manual_findings: list[dict[str, Any]] = []
 
     def add(
         dataset: str,
@@ -150,6 +158,288 @@ def _build_typed_candidates(
             captured_at=attribution.get("captured_at"),
             locator=attribution.get("locator") or locator,
         )
+
+    authoritative_plan = normalized.get("authoritative_admission_plan")
+    if isinstance(authoritative_plan, dict):
+        year = authoritative_plan.get("campaign_year")
+        campaign_key = f"campaign:bmstu:{year}"
+        if not isinstance(year, int) or campaign_key not in existing_campaign_keys:
+            raise IngestionError("authoritative admission plan requires its exact campaign in the active release")
+        source_hash = authoritative_plan.get("source_sha256")
+        captured_at = authoritative_plan.get("source_retrieved_at")
+        if not isinstance(source_hash, str) or not re.fullmatch(r"[0-9a-f]{64}", source_hash):
+            raise IngestionError("authoritative admission plan has an invalid PDF SHA-256")
+        source = next((row for row in sources if row.get("sha256") == source_hash), None)
+        if source is None:
+            raise IngestionError("authoritative admission plan PDF is absent from parser provenance")
+        source_artifact_key = source["source_artifact_key"]
+        source_offers = authoritative_plan.get("source_offers")
+        source_rows = authoritative_plan.get("source_rows")
+        if not isinstance(source_offers, list) or not isinstance(source_rows, list):
+            raise IngestionError("authoritative admission plan parse output is incomplete")
+
+        from andromeda.ingestion.universities.bmstu.parser.campaign_2026.admissions.authority import (
+            AUTHORITATIVE_PLAN_REFERENCE,
+            build_authoritative_intake_records,
+        )
+
+        offers, pools, _raw_rows, findings, relationships = build_authoritative_intake_records(
+            source_offers,
+            source_rows,
+            directions=current_directions,
+            departments=current_departments,
+            programs=current_programs,
+            campaign_key=campaign_key,
+            source_url=AUTHORITATIVE_PLAN_REFERENCE,
+            source_artifact_key=source_artifact_key,
+            source_retrieved_at=captured_at,
+            source_sha256=source_hash,
+            previous_offerings=current_offerings,
+        )
+        if len(offers) != len(source_offers):
+            raise IngestionError("authoritative admission plan rows did not map one-to-one")
+
+        existing_offering_keys = {str(row.get("external_key")) for row in current_offerings}
+        if any(str(row.get("external_key")) not in existing_offering_keys for row in offers):
+            raise IngestionError(
+                "the active release does not contain every exact Appendix 8.1 offering; review offer identity first"
+            )
+
+        existing_pools = {str(row.get("external_key")): row for row in current_competition_pools}
+        pool_candidate_by_key: dict[str, str] = {}
+        for pool in pools:
+            pool_key = str(pool["external_key"])
+            current = existing_pools.get(pool_key)
+            if current is not None:
+                comparable_fields = (
+                    "campaign_year", "direction_code", "department_code", "funding_type",
+                    "quota_type", "places", "scope_level",
+                )
+                if any(current.get(field) != pool.get(field) for field in comparable_fields):
+                    provenance = artifact_for(
+                        [{"content_sha256": source_hash, "captured_at": captured_at}],
+                        locator=(pool.get("source_locators") or [None])[0],
+                    )
+                    add(
+                        "competition_pools.jsonl",
+                        pool_key,
+                        pool_key,
+                        {
+                            "linked_campaign_key": campaign_key,
+                            "campaign_year": year,
+                            "direction_code": pool.get("direction_code"),
+                            "department_code": pool.get("department_code"),
+                            "funding_type": pool.get("funding_type"),
+                            "funding_type_key": f"funding_type:{pool.get('funding_type')}",
+                            "quota_type": pool.get("quota_type"),
+                            "quota_type_key": f"quota_type:{pool.get('quota_type')}",
+                            "places": pool.get("places"),
+                            "scope_level": pool.get("scope_level"),
+                            "places_by_source_row": pool.get("places_by_source_row"),
+                            "source_locators": pool.get("source_locators"),
+                        },
+                        provenance,
+                    )
+                continue
+            if pool.get("places") is None:
+                findings.append({
+                    "record_key": pool_key,
+                    "issue_type": "authoritative_offering_quota_conflict",
+                    "source_url": AUTHORITATIVE_PLAN_REFERENCE,
+                    "details": "The same exact offering/quota identity has conflicting source values; the pool was not staged.",
+                })
+                continue
+            provenance = artifact_for(
+                [{"content_sha256": source_hash, "captured_at": captured_at}],
+                locator=(pool.get("source_locators") or [None])[0],
+            )
+            candidate_key = add(
+                "competition_pools.jsonl",
+                pool_key,
+                pool_key,
+                {
+                    "linked_campaign_key": campaign_key,
+                    "campaign_year": year,
+                    "direction_code": pool.get("direction_code"),
+                    "department_code": pool.get("department_code"),
+                    "funding_type": pool.get("funding_type"),
+                    "funding_type_key": f"funding_type:{pool.get('funding_type')}",
+                    "quota_type": pool.get("quota_type"),
+                    "quota_type_key": f"quota_type:{pool.get('quota_type')}",
+                    "places": pool.get("places"),
+                    "scope_level": pool.get("scope_level"),
+                    "places_by_source_row": pool.get("places_by_source_row"),
+                    "source_locators": pool.get("source_locators"),
+                },
+                provenance,
+            )
+            pool_candidate_by_key[pool_key] = candidate_key
+
+        def canonical_digest(value: Any) -> str:
+            encoded = json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+            return hashlib.sha256(encoded.encode("utf-8")).hexdigest()
+
+        expected_direction_rows: dict[tuple[str, str], dict[str, dict[str, Any]]] = {}
+        for pool in pools:
+            if pool.get("funding_type") not in {"budget", "paid"} or pool.get("quota_type") not in {
+                "special", "separate"
+            }:
+                continue
+            identity = (str(pool.get("direction_code") or ""), str(pool.get("quota_type")))
+            source_rows_by_digest = expected_direction_rows.setdefault(identity, {})
+            for source_row in pool.get("places_by_source_row") or []:
+                source_rows_by_digest[canonical_digest(source_row)] = source_row
+
+        for legacy in current_competition_pools:
+            direction_code = legacy.get("direction_code")
+            quota_code = legacy.get("quota_type")
+            legacy_key = str(legacy.get("external_key") or "")
+            if (
+                legacy.get("scope_level") != "direction"
+                or legacy.get("funding_type") != "budget"
+                or quota_code not in {"special", "separate"}
+                or not legacy_key.startswith(f"competition_pool:bmstu:{year}:{direction_code}:budget:")
+            ):
+                continue
+            identity = (str(direction_code or ""), str(quota_code))
+            old_rows = legacy.get("places_by_source_row") or []
+            new_rows = list(expected_direction_rows.get(identity, {}).values())
+            if not old_rows or canonical_digest(sorted(old_rows, key=lambda item: json.dumps(item, sort_keys=True))) != canonical_digest(
+                sorted(new_rows, key=lambda item: json.dumps(item, sort_keys=True))
+            ):
+                manual_findings.append({
+                    "record_key": legacy_key,
+                    "issue_type": "legacy_direction_quota_identity_not_reconciled",
+                    "source_url": "[user-provided BMSTU Appendix 8.1 PDF]",
+                    "details": "The old direction-scoped quota could not be proven to be an exact aggregation of this PDF; it was retained for individual review.",
+                    "source_artifact_key": source_artifact_key,
+                    "source_locator_json": json.dumps(
+                        {"source_locators": legacy.get("source_locators") or []},
+                        ensure_ascii=False,
+                        sort_keys=True,
+                    ),
+                })
+                continue
+
+            related_rows = [
+                row for row in current_relationships
+                if row.get("target_key") == legacy_key
+            ]
+            if any(row.get("relation_type") != "offering_competes_in_pool" for row in related_rows):
+                manual_findings.append({
+                    "record_key": legacy_key,
+                    "issue_type": "legacy_direction_quota_unexpected_relationship",
+                    "source_url": "[user-provided BMSTU Appendix 8.1 PDF]",
+                    "details": "The legacy quota has a non-offering relationship; it was retained for individual review.",
+                    "source_artifact_key": source_artifact_key,
+                    "source_locator_json": json.dumps(
+                        {"source_locators": legacy.get("source_locators") or []},
+                        ensure_ascii=False,
+                        sort_keys=True,
+                    ),
+                })
+                continue
+            stale_reviews = [
+                row for row in current_manual_review_rows
+                if row.get("record_key") == legacy_key
+                and row.get("issue_type") == "authoritative_direction_quota_conflict"
+            ]
+            replacement_keys = sorted(
+                str(pool.get("external_key")) for pool in pools
+                if pool.get("direction_code") == direction_code
+                and pool.get("quota_type") == quota_code
+                and pool.get("funding_type") == "budget"
+            )
+            provenance = artifact_for(
+                [{"content_sha256": source_hash, "captured_at": captured_at}],
+                locator={
+                    "scope": "legacy_direction_quota_rows",
+                    "direction_code": direction_code,
+                    "source_locators": legacy.get("source_locators") or [],
+                },
+            )
+            retirement_payload = {
+                "retire_existing_record": True,
+                "retirement_reason": "legacy_direction_scope_replaced_by_exact_offering_scope",
+                "retired_record_sha256": canonical_digest(legacy),
+                "retired_record_snapshot": {
+                    "external_key": legacy_key,
+                    "direction_code": direction_code,
+                    "quota_type": quota_code,
+                    "places": legacy.get("places"),
+                    "places_by_source_row": old_rows,
+                    "source_locators": legacy.get("source_locators") or [],
+                },
+                "retired_relationships": [
+                    {
+                        "external_key": row.get("external_key"),
+                        "row_sha256": canonical_digest(row),
+                        "relation_type": row.get("relation_type"),
+                        "source_key": row.get("source_key"),
+                        "target_key": row.get("target_key"),
+                    }
+                    for row in related_rows
+                ],
+                "resolved_manual_review_rows": stale_reviews,
+                "replaced_by_external_keys": replacement_keys,
+            }
+            add(
+                "competition_pools.jsonl",
+                f"retire:{legacy_key}:{source_hash}",
+                legacy_key,
+                retirement_payload,
+                provenance,
+            )
+
+        existing_pairs = {
+            (row.get("relation_type"), row.get("source_key"), row.get("target_key"))
+            for row in current_relationships
+        }
+        for relation in relationships:
+            pair = (relation.get("relation_type"), relation.get("source_key"), relation.get("target_key"))
+            if pair in existing_pairs:
+                continue
+            target_candidate = pool_candidate_by_key.get(str(relation.get("target_key")))
+            if target_candidate is None:
+                # A pre-existing exact pool can be related without re-creating
+                # its fact. New relationships are still source-backed candidates.
+                if str(relation.get("target_key")) not in existing_pools:
+                    continue
+                target_key: Any = relation.get("target_key")
+            else:
+                target_key = _candidate_ref(target_candidate)
+            locator = relation.get("source_locator")
+            add(
+                "relationships.jsonl",
+                str(relation["external_key"]),
+                str(relation["external_key"]),
+                {
+                    "relation_type": relation["relation_type"],
+                    "source_key": relation["source_key"],
+                    "target_key": target_key,
+                    "evidence_kind": relation.get("evidence_kind"),
+                    "source_url": None,
+                    "source_locator": locator,
+                },
+                artifact_for(
+                    [{"content_sha256": source_hash, "captured_at": captured_at}],
+                    locator=locator,
+                ),
+            )
+
+        offer_by_key = {str(row.get("external_key")): row for row in offers}
+        for finding in findings:
+            record_key = str(finding.get("record_key") or "")
+            source_offer = offer_by_key.get(record_key)
+            locator = source_offer.get("source_locator") if source_offer else None
+            manual_findings.append({
+                "record_key": record_key,
+                "issue_type": str(finding.get("issue_type") or "authoritative_admission_plan_review"),
+                "source_url": "[user-provided BMSTU Appendix 8.1 PDF]",
+                "details": str(finding.get("details") or "") + f" PDF SHA-256: {source_hash}.",
+                "source_artifact_key": source_artifact_key,
+                "source_locator_json": json.dumps(locator, ensure_ascii=False, sort_keys=True) if locator else "",
+            })
 
     university = normalized.get("university")
     university_candidate: str | None = None
@@ -655,7 +945,7 @@ def _build_typed_candidates(
                         artifact_for([tuition.get("provenance", {})], source_url=program.get("source_url")),
                     )
 
-    return candidates, complete_curriculum_scopes
+    return candidates, complete_curriculum_scopes, manual_findings
 
 
 def _academic_importer() -> tuple[Any, Any]:
@@ -797,6 +1087,11 @@ def build_candidate_bundle(
         raise IngestionError("olympiad content is not publishable in the BMSTU bundle")
     safe_sources: list[dict[str, Any]] = []
     artifacts: list[dict[str, Any]] = []
+    base_artifacts = _read_jsonl(base / SOURCE_ARTIFACTS)
+    artifacts_by_sha: dict[str, list[dict[str, Any]]] = {}
+    for artifact in base_artifacts:
+        if isinstance(artifact.get("sha256"), str):
+            artifacts_by_sha.setdefault(artifact["sha256"], []).append(artifact)
     for source in sources:
         if not isinstance(source, dict):
             raise IngestionError("parser report source entries must be objects")
@@ -819,12 +1114,76 @@ def build_candidate_bundle(
             raise IngestionError("source artifact timestamp is invalid") from error
         if captured.tzinfo is None:
             raise IngestionError("source artifact timestamp must include a timezone")
-        requested = _safe_source_url(source.get("requested_url"))
-        final = _safe_source_url(source.get("final_url"))
-        source_identity = hashlib.sha256(
-            f"{source_kind}\0{requested}\0{source_hash}".encode("utf-8")
-        ).hexdigest()
-        artifact_key = f"source_artifact:bmstu_capture:{source_identity}"
+        is_local_attachment = (
+            source_kind == "bmstu_user_provided_authoritative_admission_plan"
+            and source.get("local_attachment") is True
+        )
+        if is_local_attachment:
+            if source.get("requested_url") is not None or source.get("final_url") is not None:
+                raise IngestionError("local admission-plan attachment must not claim a fetched URL")
+            matching_artifacts = artifacts_by_sha.get(source_hash, [])
+            if len(matching_artifacts) > 1:
+                raise IngestionError("local attachment SHA-256 maps to multiple existing source artifacts")
+            if matching_artifacts:
+                existing_artifact = matching_artifacts[0]
+                if (
+                    existing_artifact.get("content_type") != "application/pdf"
+                    or existing_artifact.get("byte_size") != size
+                    or existing_artifact.get("source_type") not in {
+                        "user_provided_authoritative_admission_plan",
+                        source_kind,
+                    }
+                ):
+                    raise IngestionError("existing source artifact does not verify the local PDF metadata")
+                artifact_key = str(existing_artifact["source_key"])
+                captured = datetime.fromisoformat(
+                    str(existing_artifact.get("retrieved_at")).replace("Z", "+00:00")
+                )
+                if captured.tzinfo is None:
+                    raise IngestionError("existing source artifact timestamp has no timezone")
+            else:
+                artifact_key = f"source_artifact:sha256:{source_hash}"
+                artifacts.append({
+                    "source_key": artifact_key,
+                    "source_type": "user_provided_authoritative_admission_plan",
+                    "requested_url": None,
+                    "final_url": None,
+                    "retrieved_at": captured.isoformat(),
+                    "sha256": source_hash,
+                    "content_type": "application/pdf",
+                    "byte_size": size,
+                    "status_code": status,
+                    "raw_path": None,
+                    "storage_status": "omitted_by_user_request",
+                    "note": "User-provided aggregate source; raw PDF bytes remain in the local attachment workspace.",
+                })
+            requested = None
+            final = None
+        else:
+            if source.get("local_attachment") is True:
+                raise IngestionError("local attachments are supported only for the designated BMSTU admission plan")
+            requested = _safe_source_url(source.get("requested_url"))
+            final = _safe_source_url(source.get("final_url"))
+            source_identity = hashlib.sha256(
+                f"{source_kind}\0{requested}\0{source_hash}".encode("utf-8")
+            ).hexdigest()
+            artifact_key = f"source_artifact:bmstu_capture:{source_identity}"
+            artifacts.append(
+                {
+                    "source_key": artifact_key,
+                    "source_type": source_kind,
+                    "requested_url": requested,
+                    "final_url": final,
+                    "retrieved_at": captured.isoformat(),
+                    "sha256": source_hash,
+                    "content_type": source.get("content_type"),
+                    "byte_size": size,
+                    "status_code": status,
+                    "raw_path": None,
+                    "storage_status": "omitted_by_user_request",
+                    "note": "Raw source body remains in the local ignored capture workspace.",
+                }
+            )
         safe_source = {
             "source_kind": source_kind,
             "requested_url": requested,
@@ -837,22 +1196,6 @@ def build_candidate_bundle(
             "source_artifact_key": artifact_key,
         }
         safe_sources.append(safe_source)
-        artifacts.append(
-            {
-                "source_key": artifact_key,
-                "source_type": source_kind,
-                "requested_url": requested,
-                "final_url": final,
-                "retrieved_at": captured.isoformat(),
-                "sha256": source_hash,
-                "content_type": source.get("content_type"),
-                "byte_size": size,
-                "status_code": status,
-                "raw_path": None,
-                "storage_status": "omitted_by_user_request",
-                "note": "Raw source body remains in the local ignored capture workspace.",
-            }
-        )
     candidate_key = f"bmstu_ingestion_candidate:{capture_digest}"
     snapshot_candidate = {
         "external_key": candidate_key,
@@ -872,7 +1215,15 @@ def build_candidate_bundle(
     existing_quota_keys = {row.get("external_key", "") for row in _read_jsonl(base / "data" / "quota_types.jsonl")}
     base_curriculum_rows = _read_jsonl(base / "data" / "curriculum_items.jsonl")
     base_study_plans = _read_jsonl(base / "data" / "study_plans.jsonl")
-    typed_candidates, complete_curriculum_scopes = _build_typed_candidates(
+    base_directions = _read_jsonl(base / "data" / "directions.jsonl")
+    base_departments = _read_jsonl(base / "data" / "departments.jsonl")
+    base_programs = _read_jsonl(base / "data" / "educational_programs.jsonl")
+    base_offerings = _read_jsonl(base / "data" / "program_offerings.jsonl")
+    base_pools = _read_jsonl(base / "data" / "competition_pools.jsonl")
+    base_relationships = _read_jsonl(base / "data" / "relationships.jsonl")
+    with (base / "manual_review.csv").open("r", encoding="utf-8-sig", newline="") as stream:
+        base_manual_review_rows = list(csv.DictReader(stream))
+    typed_candidates, complete_curriculum_scopes, manual_findings = _build_typed_candidates(
         normalized=normalized,
         sources=safe_sources,
         capture_digest=capture_digest,
@@ -881,10 +1232,40 @@ def build_candidate_bundle(
         existing_quota_keys=existing_quota_keys,
         current_curriculum_rows=base_curriculum_rows,
         current_study_plans=base_study_plans,
+        current_directions=base_directions,
+        current_departments=base_departments,
+        current_programs=base_programs,
+        current_offerings=base_offerings,
+        current_competition_pools=base_pools,
+        current_relationships=base_relationships,
+        current_manual_review_rows=base_manual_review_rows,
     )
 
 
-    candidates = [snapshot_candidate, *typed_candidates]
+    existing_snapshot = next(
+        (
+            row
+            for row in _read_jsonl(base / OBSERVATION_DATASET)
+            if row.get("external_key") == candidate_key
+        ),
+        None,
+    )
+    if existing_snapshot is not None:
+        existing_artifact_keys = set(existing_snapshot.get("source_artifact_keys", []))
+        if existing_snapshot.get("source_artifact_key"):
+            existing_artifact_keys.add(existing_snapshot["source_artifact_key"])
+        exact_repeat = (
+            existing_snapshot.get("source_capture_digest") == capture_digest
+            and existing_snapshot.get("payload_sha256") == snapshot_candidate["payload_sha256"]
+            and existing_artifact_keys == set(snapshot_candidate["source_artifact_keys"])
+        )
+        if not exact_repeat:
+            raise IngestionError(
+                "a canonical observation already uses this capture key with different content or provenance"
+            )
+        snapshot_candidate = None
+
+    candidates = ([snapshot_candidate] if snapshot_candidate is not None else []) + typed_candidates
 
     target = _prepare_output(output_dir)
     if base_release_id is None and base_source_bundle_sha256 is not None:
@@ -923,6 +1304,19 @@ def build_candidate_bundle(
             raise IngestionError("base manual-review CSV has invalid headers")
         fields = list(reader.fieldnames)
         review_rows = list(reader)
+    manual_identities = {
+        (row.get("record_key", ""), row.get("issue_type", ""))
+        for row in review_rows
+    }
+    new_manual_findings = [
+        row for row in manual_findings
+        if (row.get("record_key", ""), row.get("issue_type", "")) not in manual_identities
+    ]
+    if new_manual_findings:
+        for optional_field in ("source_artifact_key", "source_locator_json"):
+            if optional_field not in fields:
+                fields.append(optional_field)
+        review_rows.extend(new_manual_findings)
     for candidate in candidates:
         artifact = next(
             (source for source in safe_sources if source["source_artifact_key"] == candidate.get("source_artifact_key")),
@@ -972,8 +1366,14 @@ def build_candidate_bundle(
         "complete_scopes": complete_curriculum_scopes,
         "coverage": "partial",
         "candidate_keys": [row["external_key"] for row in candidates],
+        "canonical_snapshot_pending": snapshot_candidate is not None,
         "typed_candidate_count": len(typed_candidates),
+        "retirement_candidate_count": sum(
+            json.loads(row["payload_json"]).get("retire_existing_record") is True
+            for row in typed_candidates
+        ),
         "added_source_artifact_keys": [row["source_key"] for row in additions],
+        "manual_review_findings_added": len(new_manual_findings),
     }
     _write_json(target / CANDIDATE_MANIFEST, candidate_manifest)
 
@@ -984,14 +1384,16 @@ def build_candidate_bundle(
     validation["source_artifacts"] = int(validation.get("source_artifacts", 0)) + len(additions)
     validation["source_keys_unique"] = True
     exported.setdefault("notes", []).append(
-        f"{len(typed_candidates)} typed BMSTU candidate(s) and one canonical observation are pending manual review."
+        f"{len(typed_candidates)} typed BMSTU candidate(s) and "
+        f"{int(snapshot_candidate is not None)} canonical observation(s) are pending manual review."
     )
     _write_json(target / "validation_report.json", exported)
     with (target / "report.md").open("a", encoding="utf-8") as stream:
         stream.write(
             "\n\n## Pending BMSTU ingestion candidates\n\n"
             f"Capture digest: `{capture_digest}`; source artifacts: {len(safe_sources)}; "
-            f"typed facts: {len(typed_candidates)}. Review `review_decisions.csv` and materialize only "
+            f"typed facts: {len(typed_candidates)}; canonical snapshots pending: "
+            f"{int(snapshot_candidate is not None)}. Review `review_decisions.csv` and materialize only "
             "explicitly accepted exact-key facts. "
             "Raw bodies were not copied into this bundle.\n"
         )
@@ -1013,7 +1415,13 @@ def build_candidate_bundle(
         "candidate_key": candidate_key,
         "candidate_count": len(candidates),
         "typed_candidate_count": len(typed_candidates),
+        "canonical_snapshot_pending": snapshot_candidate is not None,
+        "retirement_candidate_count": sum(
+            json.loads(row["payload_json"]).get("retire_existing_record") is True
+            for row in typed_candidates
+        ),
         "source_artifact_count": len(additions),
+        "manual_review_findings_added": len(new_manual_findings),
         "validation": candidate_validation,
     }
 
@@ -1056,6 +1464,79 @@ def _merge_jsonl_rows_preserving_bytes(path: Path, updates: dict[str, dict[str, 
         encoded = json.dumps(row, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
         output.append(encoded + b"\n")
     path.write_bytes(b"".join(output))
+
+
+def _remove_jsonl_rows_exact(path: Path, expected_digests: dict[str, str]) -> None:
+    """Remove only exact, reviewed JSONL rows and preserve all other bytes."""
+
+    if not expected_digests:
+        return
+    if not path.is_file():
+        raise IngestionError(f"reviewed retirement target is missing: {path.name}")
+    output: list[bytes] = []
+    found: set[str] = set()
+    for raw_line in path.read_bytes().splitlines(keepends=True):
+        if not raw_line.strip():
+            output.append(raw_line)
+            continue
+        try:
+            original = json.loads(raw_line.decode("utf-8-sig"))
+        except (UnicodeDecodeError, json.JSONDecodeError) as error:
+            raise IngestionError(f"cannot verify retirement rows in {path.name}") from error
+        key = original.get("external_key") if isinstance(original, dict) else None
+        if not isinstance(key, str) or key not in expected_digests:
+            output.append(raw_line)
+            continue
+        if key in found:
+            raise IngestionError(f"reviewed retirement key is duplicated in {path.name}")
+        encoded = json.dumps(original, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+        digest = hashlib.sha256(encoded.encode("utf-8")).hexdigest()
+        if digest != expected_digests[key]:
+            raise IngestionError(f"reviewed retirement row changed since candidate preparation: {key}")
+        found.add(key)
+    if found != set(expected_digests):
+        missing = sorted(set(expected_digests) - found)
+        raise IngestionError(f"reviewed retirement target is absent from {path.name}: {missing[:3]}")
+    path.write_bytes(b"".join(output))
+
+
+def _remove_exact_manual_review_rows(path: Path, expected_rows: list[dict[str, str]]) -> None:
+    """Resolve only the exact prior review rows named by an approved candidate."""
+
+    if not expected_rows:
+        return
+    if not path.is_file():
+        raise IngestionError("reviewed retirement references a missing manual-review CSV")
+    with path.open("r", encoding="utf-8-sig", newline="") as stream:
+        reader = csv.DictReader(stream)
+        fields = list(reader.fieldnames or [])
+        rows = list(reader)
+    if not fields:
+        raise IngestionError("manual-review CSV has no header")
+
+    def digest(row: dict[str, Any]) -> str:
+        encoded = json.dumps(row, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+        return hashlib.sha256(encoded.encode("utf-8")).hexdigest()
+
+    remaining = {}
+    for row in expected_rows:
+        if row.get("issue_type") != "authoritative_direction_quota_conflict":
+            raise IngestionError("retirement cannot resolve an unrelated manual-review issue")
+        key = digest(row)
+        remaining[key] = remaining.get(key, 0) + 1
+    retained: list[dict[str, str]] = []
+    for row in rows:
+        key = digest(row)
+        if remaining.get(key, 0):
+            remaining[key] -= 1
+        else:
+            retained.append(row)
+    if any(remaining.values()):
+        raise IngestionError("manual-review row changed or disappeared since candidate preparation")
+    with path.open("w", encoding="utf-8", newline="") as stream:
+        writer = csv.DictWriter(stream, fieldnames=fields, extrasaction="ignore")
+        writer.writeheader()
+        writer.writerows(retained)
 
 
 def _merge_reviewed_target_row(previous: dict[str, Any], typed_row: dict[str, Any]) -> dict[str, Any]:
@@ -1102,7 +1583,7 @@ def materialize_reviewed_bundle(
         raise IngestionError("review input contains no pending candidate dataset")
     candidates = _read_jsonl(candidate_path)
     if not candidates:
-        raise IngestionError("candidate dataset is empty")
+        raise IngestionError("no candidate facts are pending; this is a no-op and does not need review or commit")
 
     from andromeda_parser.moderation import compare_candidate_bundle
 
@@ -1195,6 +1676,8 @@ def materialize_reviewed_bundle(
         for row in accepted_typed
     }
     rows_by_dataset: dict[str, dict[str, dict[str, Any]]] = {}
+    retirement_digests_by_dataset: dict[str, dict[str, str]] = {}
+    resolved_manual_review_rows: list[dict[str, str]] = []
     accepted_source_keys: set[str] = set()
     rejected_source_keys: set[str] = set()
     rejected_archive_rows: list[dict[str, Any]] = []
@@ -1291,6 +1774,45 @@ def materialize_reviewed_bundle(
         typed_row = _resolve_candidate_refs(typed_row, target_by_candidate)
         target_key = decision["target_external_key"]
         typed_row["external_key"] = target_key
+        if typed_row.get("retire_existing_record") is True:
+            if (
+                dataset != "competition_pools.jsonl"
+                or target_key != row.get("suggested_target")
+                or typed_row.get("retirement_reason") != "legacy_direction_scope_replaced_by_exact_offering_scope"
+                or typed_row.get("retired_record_snapshot", {}).get("external_key") != target_key
+            ):
+                raise IngestionError("reviewed retirement is not an exact supported competition-pool decision")
+            retired_digest = typed_row.get("retired_record_sha256")
+            if not isinstance(retired_digest, str) or not re.fullmatch(r"[0-9a-f]{64}", retired_digest):
+                raise IngestionError("reviewed retirement has no exact prior-row digest")
+            pool_retirements = retirement_digests_by_dataset.setdefault(dataset, {})
+            if target_key in pool_retirements and pool_retirements[target_key] != retired_digest:
+                raise IngestionError("conflicting retirements target the same exact competition pool")
+            pool_retirements[target_key] = retired_digest
+            for relationship in typed_row.get("retired_relationships", []):
+                if not isinstance(relationship, dict):
+                    raise IngestionError("retirement contains an invalid relationship snapshot")
+                relation_key = relationship.get("external_key")
+                relation_digest = relationship.get("row_sha256")
+                if (
+                    not isinstance(relation_key, str)
+                    or not relation_key
+                    or not isinstance(relation_digest, str)
+                    or not re.fullmatch(r"[0-9a-f]{64}", relation_digest)
+                    or relationship.get("relation_type") != "offering_competes_in_pool"
+                    or not isinstance(relationship.get("source_key"), str)
+                    or relationship.get("target_key") != target_key
+                ):
+                    raise IngestionError("retirement relationship snapshot is incomplete or points elsewhere")
+                relation_retirements = retirement_digests_by_dataset.setdefault("relationships.jsonl", {})
+                if relation_key in relation_retirements and relation_retirements[relation_key] != relation_digest:
+                    raise IngestionError("conflicting retirements target the same exact relationship")
+                relation_retirements[relation_key] = relation_digest
+            review_rows = typed_row.get("resolved_manual_review_rows", [])
+            if not isinstance(review_rows, list) or any(not isinstance(item, dict) for item in review_rows):
+                raise IngestionError("retirement manual-review resolution is malformed")
+            resolved_manual_review_rows.extend(review_rows)
+            continue
         bucket = rows_by_dataset.setdefault(dataset, {})
         previous = bucket.get(target_key)
         if previous is not None:
@@ -1311,6 +1833,9 @@ def materialize_reviewed_bundle(
         raise IngestionError("temporary review output escaped the requested output directory")
     shutil.copytree(candidate, temporary, dirs_exist_ok=True)
     try:
+        for dataset, expected_digests in retirement_digests_by_dataset.items():
+            _remove_jsonl_rows_exact(temporary / "data" / dataset, expected_digests)
+
         for dataset, accepted_rows in rows_by_dataset.items():
             dataset_path = temporary / "data" / dataset
             existing = _read_jsonl(dataset_path) if dataset_path.exists() else []
@@ -1384,6 +1909,7 @@ def materialize_reviewed_bundle(
         )
 
         review_path = temporary / "manual_review.csv"
+        _remove_exact_manual_review_rows(review_path, resolved_manual_review_rows)
         with review_path.open("r", encoding="utf-8-sig", newline="") as stream:
             reader = csv.DictReader(stream)
             fields = list(reader.fieldnames or REVIEW_HEADERS)
@@ -1395,10 +1921,13 @@ def materialize_reviewed_bundle(
 
         exported = _read_json(temporary / "validation_report.json")
         typed_count = sum(len(rows) for rows in rows_by_dataset.values())
+        retired_pool_count = len(retirement_digests_by_dataset.get("competition_pools.jsonl", {}))
+        retired_relationship_count = len(retirement_digests_by_dataset.get("relationships.jsonl", {}))
         rejected_count = sum(decision["decision"] == "reject" for decision in decisions_by_key.values())
         exported.setdefault("notes", []).append(
             f"Review materialization accepted {len(observation_rows)} canonical observation(s), "
             f"{len(accepted_typed)} typed candidate(s) into {typed_count} exact target row(s); "
+            f"retired {retired_pool_count} exact prior pool(s) and {retired_relationship_count} exact relationship(s); "
             "rejected facts were not applied."
         )
         exported.setdefault("validation", {})["source_artifacts"] = len(_read_jsonl(manifest_path))
@@ -1407,7 +1936,8 @@ def materialize_reviewed_bundle(
             stream.write(
                 "\n\n## Reviewed BMSTU source facts\n\n"
                 f"Accepted canonical observations: {len(observation_rows)}; accepted typed facts: "
-                f"{len(accepted_typed)} across {typed_count} exact target row(s); rejected candidates: "
+                f"{len(accepted_typed)} across {typed_count} exact target row(s); retired pools: "
+                f"{retired_pool_count}; retired relationships: {retired_relationship_count}; rejected candidates: "
                 f"{rejected_count}. "
                 "Existing rows were updated only at exact reviewed keys; omitted fields and rows were retained.\n"
             )
@@ -1447,6 +1977,9 @@ def materialize_reviewed_bundle(
         "accepted_typed": len(accepted_typed),
         "unchanged_skipped": len(no_action_keys),
         "materialized_typed_rows": typed_count,
+        "retired_pools": retired_pool_count,
+        "retired_relationships": retired_relationship_count,
+        "resolved_manual_review_rows": len(resolved_manual_review_rows),
         "rejected": rejected_count,
         "validation": reviewed_validation,
     }
@@ -1546,7 +2079,10 @@ def run_bundle_command(args: Any, parser: Any) -> int:
                 "candidate_key": result["candidate_key"],
                 "candidate_count": result["candidate_count"],
                 "typed_candidate_count": result["typed_candidate_count"],
+                "canonical_snapshot_pending": result["canonical_snapshot_pending"],
+                "retirement_candidate_count": result["retirement_candidate_count"],
                 "source_artifact_count": result["source_artifact_count"],
+                "manual_review_findings_added": result["manual_review_findings_added"],
                 "validation": _summary(result["validation"]),
             }
         elif args.ingest_command == "diff":
@@ -1608,6 +2144,9 @@ def run_bundle_command(args: Any, parser: Any) -> int:
                 "accepted": result["accepted"],
                 "accepted_typed": result["accepted_typed"],
                 "rejected": result["rejected"],
+                "retired_pools": result["retired_pools"],
+                "retired_relationships": result["retired_relationships"],
+                "resolved_manual_review_rows": result["resolved_manual_review_rows"],
                 "validation": _summary(result["validation"]),
             }
         elif args.ingest_command == "validate":

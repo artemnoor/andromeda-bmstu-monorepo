@@ -22,6 +22,7 @@ from academic_data_service.importer.bundle import (
 )
 
 MAPPER_VERSION = "bmstu-2026-bundle-v4"
+LEGACY_MAPPERS_WITHOUT_PARENT_CURRICULUM_EVIDENCE = frozenset({"bmstu-2026-bundle-v3"})
 
 # Every normalized dataset is either projected to typed rows or deliberately kept
 # as an exact source observation. Unknown files fail closed in project_bundle().
@@ -1148,9 +1149,23 @@ class _Projection:
                 f"manual_review:sha256:{hashlib.sha256(identity.encode('utf-8')).hexdigest()}"
             )
             record_key = _as_text(row.get("record_key"))
-            artifact_id = self.resolve("source_artifacts", record_key)
+            artifact_key = _as_text(row.get("source_artifact_key")) or record_key
+            artifact_id = self.resolve("source_artifacts", artifact_key)
             source_url = _as_text(row.get("source_url"))
             details = _as_text(row.get("details"))
+            locator = {
+                "source_url": source_url,
+                "csv_record_key": record_key,
+            }
+            raw_locator = _as_text(row.get("source_locator_json"))
+            if raw_locator:
+                try:
+                    parsed_locator = json.loads(raw_locator)
+                except json.JSONDecodeError as error:
+                    raise BundleMappingError("manual-review source_locator_json must contain JSON") from error
+                if not isinstance(parsed_locator, dict):
+                    raise BundleMappingError("manual-review source_locator_json must be an object")
+                locator.update(parsed_locator)
             review_id = self.add(
                 "manual_review_items",
                 external_key,
@@ -1164,7 +1179,7 @@ class _Projection:
                     "candidate_keys": None,
                     "summary": details or (_as_text(row.get("issue_type")) or "Manual review item"),
                     "source_artifact_id": artifact_id,
-                    "source_locator": {"source_url": source_url, "csv_record_key": record_key},
+                    "source_locator": locator,
                 },
                 source_dataset="manual_review.csv",
                 source_record_key=external_key,
@@ -1383,7 +1398,11 @@ class _Projection:
                     artifact_keys.extend(value for value in plural if isinstance(value, str))
                 inherited_locator: dict[str, Any] | None = None
                 inherited_artifact: dict[str, Any] | None = None
-                if dataset_name == "curriculum_items.jsonl" and not artifact_keys:
+                if (
+                    dataset_name == "curriculum_items.jsonl"
+                    and not artifact_keys
+                    and self.mapper_version not in LEGACY_MAPPERS_WITHOUT_PARENT_CURRICULUM_EVIDENCE
+                ):
                     inherited = _exact_curriculum_parent_pdf(
                         record, plan_rows_by_key, artifacts_by_key
                     )
@@ -1452,7 +1471,9 @@ class _Projection:
                         )
         for review_key, row in self.manual_review_records.items():
             review_id = self.resolve("manual_review_items", review_key)
-            artifact_id = self.resolve("source_artifacts", row.get("record_key"))
+            artifact_id = self.resolve(
+                "source_artifacts", row.get("source_artifact_key") or row.get("record_key")
+            )
             if review_id is None or artifact_id is None:
                 continue
             evidence_key = _short_external_key(
@@ -1464,7 +1485,10 @@ class _Projection:
                 {
                     "source_artifact_id": artifact_id,
                     "field_path": "manual_review.csv",
-                    "locator": {"source_url": row.get("source_url")},
+                    "locator": {
+                        "source_url": row.get("source_url"),
+                        "source_locator_json": row.get("source_locator_json"),
+                    },
                     "quoted_fragment": None,
                     "claim": "Manual-review record references this source artifact",
                     "observed_at": None,

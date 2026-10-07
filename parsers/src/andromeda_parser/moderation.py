@@ -15,6 +15,7 @@ from academic_data_service.importer.bundle import BundleReader
 from .bundle import (
     CANDIDATE_FILE,
     CANDIDATE_MANIFEST,
+    OBSERVATION_DATASET,
     SOURCE_ARTIFACTS,
     _copy_import_bundle,
     _prepare_output,
@@ -159,18 +160,49 @@ def compare_candidate_bundle(candidate_dir: Path) -> dict[str, Any]:
         if not isinstance(candidate_key, str):
             raise IngestionError("candidate has no external key")
         if candidate.get("candidate_type") == "canonical_snapshot":
+            existing = current_rows_by_dataset.get(
+                Path(OBSERVATION_DATASET).name, {}
+            ).get(candidate_key)
+            if existing is None:
+                classification = "unreviewed"
+                provenance_verified = False
+                reason = "canonical observation requires explicit individual review"
+            else:
+                candidate_artifacts = sorted(
+                    key for key in candidate.get("source_artifact_keys", []) if isinstance(key, str)
+                )
+                existing_artifacts = sorted(
+                    key for key in existing.get("source_artifact_keys", []) if isinstance(key, str)
+                )
+                if existing.get("source_artifact_key") and existing["source_artifact_key"] not in existing_artifacts:
+                    existing_artifacts.append(existing["source_artifact_key"])
+                    existing_artifacts.sort()
+                same_snapshot = (
+                    existing.get("source_capture_digest") == candidate.get("source_capture_digest")
+                    and existing.get("payload_sha256") == candidate.get("payload_sha256")
+                    and existing_artifacts == candidate_artifacts
+                )
+                provenance_verified = bool(candidate_artifacts) and all(
+                    key in artifact_hashes for key in candidate_artifacts
+                )
+                classification = "unchanged" if same_snapshot and provenance_verified else "conflicting"
+                reason = (
+                    "identical accepted source snapshot and exact artifacts are already in this release"
+                    if classification == "unchanged"
+                    else "an observation with this capture identity exists but its payload or provenance differs"
+                )
             results.append(
                 {
                     "candidate_key": candidate_key,
                     "candidate_type": "canonical_snapshot",
-                    "classification": "unreviewed",
-                    "moderation_state": candidate.get("review_state", "pending"),
+                    "classification": classification,
+                    "moderation_state": "accepted" if classification == "unchanged" else candidate.get("review_state", "pending"),
                     "target_dataset": None,
                     "target_external_key": None,
                     "changed_fields": [],
                     "bulk_eligible": False,
-                    "provenance_verified": False,
-                    "reason": "canonical observation requires explicit individual review",
+                    "provenance_verified": provenance_verified,
+                    "reason": reason,
                 }
             )
             continue
@@ -411,17 +443,22 @@ def write_diff_report(report: dict[str, Any], *, json_path: Path, csv_path: Path
         "reason",
         "source_artifact_key",
         "source_sha256",
+        "source_identity",
+        "candidate_type",
+        "identity_status",
+        "suggested_existing_keys",
+        "payload_sha256",
+        "provenance_verified",
     )
     with csv_path.open("w", encoding="utf-8", newline="") as stream:
         writer = csv.DictWriter(stream, fieldnames=fields)
         writer.writeheader()
         for row in report["records"]:
-            writer.writerow(
-                {
-                    **row,
-                    "changed_fields": ";".join(row.get("changed_fields", [])),
-                }
-            )
+            flattened = {**row, "changed_fields": ";".join(row.get("changed_fields", []))}
+            for field, value in flattened.items():
+                if isinstance(value, (dict, list)):
+                    flattened[field] = json.dumps(value, ensure_ascii=False, sort_keys=True)
+            writer.writerow({field: flattened.get(field) for field in fields})
 
 
 def write_review_template(

@@ -38,22 +38,39 @@ This was parsed locally; it was not fetched from the live site. The public
 official index, but this exact PDF download URL was not independently
 verified. No access protection was bypassed.
 
-The PDF parser extracted **127 Moscow offering rows** and **165 source-table
-rows**. The corrected authority mapping produced **508 offering-scoped pools**
-and **508 exact offering-to-pool relations**: 127 each for budget general
-competition, paid general competition, special quota and separate quota. An
-explicit zero remains zero. Different counts under the same direction now
-remain separate facts; this parse produced **zero quota conflicts**. The
-authority output still has **26 review entries**: 21 offerings without one
-exact program-catalog match, plus five entries about composite department
-cells and the current lack of a many-department offering relation. No values
-were written to the active release.
+The offline PDF parser extracted **127 Moscow offering rows** and **165
+source-table rows**. The authority mapping produced **508 offering-scoped
+pools** (127 each for budget general competition, paid general competition,
+special quota and separate quota) and **508 exact offer-to-pool links**. An
+explicit zero remains zero; different values under one direction remain
+separate facts. The original parse had **zero exact offering/quota conflicts**.
 
-The Appendix parser/authority output is not yet wired into the standard
-`ingest stage` command. These counts prove the bounded local PDF parse and
-mapping behavior, not publication or completeness of the live admissions
-source. Do not promote its records until the source artifact has been added to
-a candidate bundle and the exact-key review is complete.
+On 2026-10-08 the facts were staged from the verified active-release archive,
+diffed, reviewed individually, validated, dry-run projected and committed to
+the local PostgreSQL 16 test database. The new release is
+`25a4fb23-71be-530a-b627-7edbf093e17a`, key
+`bmstu-2026:3f0d9872fb948e9484e7df32abe9a5cf81ec475fff0a66cdcc3c6af473d4ec35:bmstu-2026-bundle-v4`.
+There were 254 new special/separate quota pools and 254 new exact offering
+links; the other 254 general-competition pools were already canonical and
+were confirmed against the same PDF. The release now contains 1,090 pools and
+3,478 source relationships. Directus exposes **127 special + 127 separate**
+offering pools, and all **508** budget/paid general and quota pool records
+have evidence linked to the supplied PDF artifact.
+
+The same exact PDF rows showed that **104** old direction-scoped quota pools
+and their **254** offering links were stale scope. Their prior row digests and
+relationship digests were checked before individual retirement decisions;
+**80** stale conflict-review rows were resolved. The old release was not
+rewritten. The remaining Appendix-specific gaps are **21** offerings without
+one exact program-catalog match and **five** combined-department findings.
+These records remain visible for review and no program/dept link was guessed.
+
+This is a local user-provided document result, not a fresh live fetch. No
+public download URL for these exact bytes was verified, so the source artifact
+has no URL and its raw PDF bytes remain omitted. Directus displays the exact
+SHA-256 and page/table/row locators. The completed import was re-exported and
+reconciled; the exact same PDF staged again as **zero candidates**. Its diff
+was empty, so no second release was committed.
 
 ## Remaining source gaps
 
@@ -70,9 +87,9 @@ a candidate bundle and the exact-key review is complete.
 - The selected admissions page exposed no requirements PDF link matching the
   bounded selector. Exam-rule coverage remains unverified live.
 - The bounded live probe did not fetch an aggregate places/quota PDF; the order
-  index remained metadata-only. The separately supplied Appendix 8.1 was
-  parsed locally as described above, but still needs candidate-bundle wiring
-  and manual review before its data can be published.
+  index remained metadata-only. Quota values currently come from the
+  user-provided PDF above and have not been independently checked against a
+  current public download of the same document.
 - Date text was observed but not validated across education levels, tracks,
   and the full official campaign calendar.
 

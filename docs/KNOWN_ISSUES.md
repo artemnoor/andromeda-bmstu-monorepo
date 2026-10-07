@@ -53,19 +53,29 @@ Previous: [Directus UX](DIRECTUS_UX.md) · Next: [Ingestion audit](INGESTION_AUD
   owning section. They remain pending and no canonical tuition row was
   produced. The parser does not infer a year or emit `year-unspecified` keys.
 - The bounded live sample found no requirements PDF link and did not fetch an
-  aggregate places/quota document. The separately user-provided BMSTU 2026
-  Appendix 8.1 parses to 127 Moscow offerings and 508 correctly offering-
-  scoped pools/relations, but the output is not yet wired into `ingest stage`
-  and has 26 exact-link review entries. Those counts are not active canonical
-  data. The order manifest contained 24 enabled documents, but no document
-  bodies were fetched.
-- The checked-in bundle contains 5,267 curriculum rows without direct child
-  artifact keys. Mapper v4 now associates them to the unique successful PDF
-  on the exact parent study plan when the child and parent URLs match, raising
-  the offline projection from 8,898 to 14,165 curriculum evidence bridges.
-  Page/row locators are absent for those rows, and the PDFs' stored bytes were
-  omitted. Existing immutable releases and the current Directus active view
-  are unchanged; a reviewed successor import is required to show the links.
+  aggregate places/quota document. The user-provided 2026 Appendix 8.1 was
+  parsed locally and published through the normal candidate/review/validate/
+  commit path to the isolated PostgreSQL test release
+  `25a4fb23-71be-530a-b627-7edbf093e17a`. It adds 254 offering-scoped
+  special/separate quota pools and 254 exact offering links, while retaining
+  PDF zero values and source locators. The release has 1,090 competition
+  pools, 3,478 source relationships and 480 open manual-review entries. The
+  parser's 21 unresolved exact program joins and five combined-department
+  findings remain open. The order manifest still lists 24 enabled documents
+  whose bodies were not fetched.
+- The previous active v3 database projection lacked 5,267 curriculum evidence
+  bridges that the verified bundle could now resolve. Mapper behavior is
+  versioned: v3 keeps its historical 8,898 curriculum and 13,886 total
+  evidence rows; v4 adds the 5,267 exact-parent-PDF curriculum bridges,
+  yielding 14,165 and 19,662. The new release reconciles at v4, and the older
+  v3 releases remain exportable and rollback-verifiable under v3 semantics.
+  These inherited locators identify the exact plan PDF but do not contain
+  page/row positions.
+- The attached PDF has no independently verified download URL. Directus
+  exposes its exact SHA-256, byte size, and page/table/row evidence locators;
+  the source artifact has `storage_status=omitted_by_user_request`, so the PDF
+  itself cannot be opened or downloaded from Directus. No public live URL was
+  inferred. See [live validation](LIVE_VALIDATION.md) for publication counts.
 - The probe compared against an isolated PostgreSQL 16 test release seeded
   from the checked-in bundle. No production database was queried. The broader
   live capture command remains unsuitable for unattended/mass refresh until

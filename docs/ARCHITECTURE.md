@@ -61,15 +61,16 @@ trees. Disciplines are represented as `curriculum_items`; there is no separate
 discipline table. Unresolved references remain visible in reconciliation and
 review output rather than being guessed or hidden.
 
-Mapper v4 also attaches curriculum-item evidence through an exact parent
-study-plan key when the child row has no direct artifact key. It requires an
-exact child/parent document-URL match and exactly one successful, hashed
-BMSTU study-plan PDF among that plan's declared artifacts. HTML and JSON
-metadata artifacts are excluded. The evidence locator identifies the parent
-plan document but explicitly leaves page/row unavailable where the source
-bundle has no such locator. This does not verify a plan-to-program link, alter
-any canonical key, or rewrite a published release; a successor release must
-be imported to expose the added evidence.
+Mapper v4 attaches curriculum-item evidence through an exact parent study-plan
+key when the child row has no direct artifact key. It requires an exact
+child/parent document-URL match and exactly one successful, hashed BMSTU
+study-plan PDF among that plan's declared artifacts. HTML and JSON metadata
+artifacts are excluded. The evidence locator identifies the parent plan
+document but leaves page/row unavailable where the source bundle has no such
+locator. Mapper v3 keeps its prior projection semantics so older immutable
+releases still reconcile and remain eligible for verified rollback. The v4
+successor materialized 5,267 additional curriculum evidence bridges without
+rewriting the v3 releases.
 
 ## Review and partial sources
 
