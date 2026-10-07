@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime
-from typing import Self
+from typing import Literal, Self
 
 from pydantic import Field, HttpUrl, model_validator
 
@@ -33,6 +33,12 @@ class CurriculumItem(ContractModel):
     credits: Credits | None = None
     assessment_types: tuple[AssessmentType, ...] | None = None
     source_position: SourcePosition | None = None
+    parsed_position: int | None = Field(default=None, strict=True, ge=1, le=100_000)
+    source_page: int | None = Field(default=None, strict=True, ge=1, le=10_000)
+    printed_row_no: int | None = Field(default=None, strict=True, ge=1, le=10_000)
+    chair_code: str | None = Field(default=None, min_length=1, max_length=128)
+    source_part: str | None = Field(default=None, min_length=1, max_length=128)
+    identity_status: Literal["exact", "ambiguous"] = "exact"
     lecture_hours: HourCount | None = None
     practice_hours: HourCount | None = None
     lab_hours: HourCount | None = None
@@ -45,7 +51,10 @@ class CurriculumItem(ContractModel):
     @model_validator(mode="after")
     def validate_item(self) -> Self:
         expected_suffix = f":{self.discipline_id}:{self.semester if self.semester is not None else 'unassigned'}"
-        if not self.id.startswith("curriculum-item:program:") or not self.id.endswith(expected_suffix):
+        if not self.id.startswith("curriculum-item:program:") or not (
+            self.id.endswith(expected_suffix)
+            or self.id.endswith(f"{expected_suffix}:row:{self.parsed_position}")
+        ):
             logger.error("contract_semantic_violation model=CurriculumItem field=id")
             raise ValueError("curriculum item id must derive from its discipline and semester")
         if self.assessment_types is not None and not self.assessment_types:
@@ -76,7 +85,17 @@ class Curriculum(ContractModel):
             logger.error("contract_semantic_violation model=Curriculum field=id")
             raise ValueError("curriculum id must derive from program and education year")
         identities = [(item.discipline_id, item.semester) for item in self.items]
-        if len(identities) != len(set(identities)):
+        seen: set[tuple[str, int | None]] = set()
+        duplicated: set[tuple[str, int | None]] = set()
+        for identity in identities:
+            if identity in seen:
+                duplicated.add(identity)
+            seen.add(identity)
+        if any(
+            item.identity_status != "ambiguous"
+            for item in self.items
+            if (item.discipline_id, item.semester) in duplicated
+        ):
             logger.error("contract_semantic_violation model=Curriculum field=items")
             raise ValueError("curriculum cannot contain duplicate discipline/semester items")
         return self

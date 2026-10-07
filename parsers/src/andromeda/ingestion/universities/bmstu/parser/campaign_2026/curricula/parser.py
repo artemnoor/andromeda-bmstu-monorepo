@@ -5,6 +5,7 @@ from hashlib import sha256
 from typing import Any
 
 from ..common import normalize_code
+from ....curriculum_identity import reconcile_curriculum_rows
 
 
 def parse_curriculum_document(
@@ -58,39 +59,47 @@ def _attach_exact_identity(
         parsed["identity_gap"] = "exact_study_plan_external_key_unresolved"
         return parsed
 
-    keys: set[str] = set()
+    source_rows: list[dict[str, Any]] = []
     for position, item in enumerate(items, start=1):
-        # The source parser's row_no is a printed row number and can repeat
-        # between semesters. The global order of parsed data rows is the
-        # existing importer identity convention and remains independent of
-        # mutable facts such as title, hours, semester, and assessment.
-        external_key = f"curriculum_item:{plan_key}:row:{position}"
-        if external_key in keys:
-            parsed["identity_status"] = "source_gap"
-            parsed["identity_gap"] = "duplicate_curriculum_identity"
-            for row in items:
-                row.pop("external_key", None)
-            return parsed
-        keys.add(external_key)
-        item["external_key"] = external_key
-        item["curriculum_key"] = plan_key
-        item["source_position"] = position
-        item["source_url"] = share_url
+        item["parsed_position"] = position
         item["source_sha256"] = parsed["source_sha256"]
+        item["source_url"] = share_url
         item["source_locator"] = {
-            "row": position,
+            "page": item.get("source_page"),
             "printed_row_no": item.get("row_no"),
+            "parsed_position": position,
             "semester": item.get("semester"),
             "source_url": share_url,
         }
-        item["identity_status"] = "exact"
+        source_rows.append({
+            **item,
+            "printed_row_no": item.get("row_no"),
+            "parsed_position": position,
+        })
+    reconciled = reconcile_curriculum_rows(plan_key, source_rows, [])
+    for item, resolution in zip(items, reconciled.rows, strict=True):
+        item["external_key"] = resolution.canonical_external_key
+        item["curriculum_key"] = plan_key
+        item["source_position"] = item["parsed_position"]
+        identity = {
+            key: resolution.metadata.get(key)
+            for key in ("algorithm", "signals", "duplicate_title_semester")
+            if resolution.metadata.get(key) is not None
+        }
+        if resolution.metadata.get("source_identity_key") is not None:
+            identity["source_identity_id"] = resolution.metadata["source_identity_key"]
+        if resolution.status == "ambiguous":
+            identity["status"] = "ambiguous"
+            item["suggested_existing_keys"] = list(resolution.suggested_existing_keys)
+        item["source_row"] = {"identity": identity}
+        item["identity_status"] = resolution.status
 
-    if any(item.get("identity_status") == "source_gap" for item in items):
-        parsed["identity_status"] = "source_gap"
-        parsed["identity_gap"] = "one_or_more_curriculum_rows_missing_identity"
-    else:
+    if all(item.get("identity_status") != "ambiguous" for item in items):
         parsed["identity_status"] = "exact"
         parsed.pop("identity_gap", None)
+    else:
+        parsed["identity_status"] = "requires_review"
+        parsed["identity_gap"] = "curriculum_rows_need_exact_source_identity_review"
     return parsed
 
 

@@ -94,6 +94,13 @@ class RawCurriculumRow(ContractModel):
     hours: int = Field(strict=True, ge=0, le=2_000)
     credits: str | float | int | None = None
     assessment: str | None = None
+    chair: str | None = Field(default=None, min_length=1, max_length=128)
+    course_block: str | None = Field(default=None, min_length=1, max_length=128)
+    source_part: str | None = Field(default=None, min_length=1, max_length=128)
+    source_page: int | None = Field(default=None, strict=True, ge=1, le=10_000)
+    parsed_position: int | None = Field(default=None, strict=True, ge=1, le=100_000)
+    printed_row_no: int | None = Field(default=None, strict=True, ge=1, le=10_000)
+    source_sha256: str | None = Field(default=None, pattern=r"^[a-f0-9]{64}$")
     source_position: int | None = Field(default=None, strict=True, ge=1, le=10_000)
     source_url: HttpUrl
     locator: SourceLocator

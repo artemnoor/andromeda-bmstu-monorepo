@@ -214,6 +214,14 @@ def _json_list(value: Any, field_name: str) -> list[Any] | None:
     return value
 
 
+def _json_object(value: Any, field_name: str) -> dict[str, Any] | None:
+    if value is None:
+        return None
+    if not isinstance(value, dict):
+        raise BundleMappingError(f"{field_name} must be a JSON object or null")
+    return value
+
+
 class _Projection:
     def __init__(
         self,
@@ -669,7 +677,7 @@ class _Projection:
                     "department_name": _as_text(record.get("department")),
                     "faculty_name": _as_text(record.get("faculty")),
                     "chair_name": _as_text(record.get("chair")),
-                    "source_row": None,
+                    "source_row": _json_object(record.get("source_row"), "source_row"),
                     "source_document_url": _as_text(record.get("source_document_url")),
                     "study_plan_url": _as_text(record.get("study_plan_url")),
                     "download_url": _as_text(record.get("download_url")),

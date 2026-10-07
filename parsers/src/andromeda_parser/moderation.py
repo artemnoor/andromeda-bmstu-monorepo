@@ -42,6 +42,9 @@ SAFE_BULK_FIELDS: dict[str, frozenset[str]] = {
     # A finality annotation is source metadata. Counts, scores, fees, dates,
     # places, requirements, program links, and curriculum values stay individual.
     "historical_admission_statistics.jsonl": frozenset({"finality_note"}),
+    # Exact identity metadata is derived from an exact plan and exact source row;
+    # a verified source artifact is still required for safe grouped review.
+    "curriculum_items.jsonl": frozenset({"source_row"}),
 }
 
 
@@ -230,6 +233,11 @@ def compare_candidate_bundle(candidate_dir: Path) -> dict[str, Any]:
             classification = "conflicting"
             changed_fields = []
             reason = "payload external key differs from the candidate target key"
+        elif candidate.get("identity_status") == "ambiguous":
+            classification = "ambiguous"
+            current = None
+            changed_fields = sorted(_semantic_fields(proposed))
+            reason = candidate.get("identity_reason") or "curriculum row identity requires an individual exact-key review"
         else:
             current = current_rows_by_dataset.get(dataset, {}).get(target_key)
             if current is None:
@@ -274,6 +282,8 @@ def compare_candidate_bundle(candidate_dir: Path) -> dict[str, Any]:
                 "target_dataset": dataset,
                 "target_external_key": target_key,
                 "source_identity": candidate.get("source_identity"),
+                "identity_status": candidate.get("identity_status"),
+                "suggested_existing_keys": candidate.get("suggested_existing_keys", []),
                 "source_artifact_key": source_key,
                 "source_sha256": source_hash,
                 "payload_sha256": candidate.get("payload_sha256"),
@@ -295,10 +305,27 @@ def compare_candidate_bundle(candidate_dir: Path) -> dict[str, Any]:
         for item in complete_datasets
     ):
         raise IngestionError("candidate manifest complete_datasets must be a list of dataset filenames")
+    complete_scopes = candidate_manifest.get("complete_scopes", [])
+    if not isinstance(complete_scopes, list) or not all(
+        isinstance(scope, dict)
+        and scope.get("dataset") == "curriculum_items.jsonl"
+        and scope.get("field") == "curriculum_key"
+        and isinstance(scope.get("value"), str)
+        and bool(scope.get("value"))
+        for scope in complete_scopes
+    ):
+        raise IngestionError("candidate manifest complete_scopes contains an invalid curriculum scope")
     candidate_targets = {
         (row.get("target_dataset"), row.get("target_external_key"))
         for row in results
         if row.get("target_dataset") is not None
+    }
+    protected_by_ambiguous: set[tuple[str, str]] = {
+        ("curriculum_items.jsonl", key)
+        for row in results
+        if row.get("classification") == "ambiguous"
+        for key in row.get("suggested_existing_keys", [])
+        if isinstance(key, str)
     }
     with BundleReader(candidate_root) as reader:
         for dataset in complete_datasets:
@@ -318,6 +345,27 @@ def compare_candidate_bundle(candidate_dir: Path) -> dict[str, Any]:
                         }
                     )
                     counts["potentially_removed"] += 1
+        for scope in complete_scopes:
+            for external_key, row in current_rows_by_dataset.get("curriculum_items.jsonl", {}).items():
+                if row.get("curriculum_key") != scope["value"]:
+                    continue
+                target = ("curriculum_items.jsonl", external_key)
+                if target in candidate_targets or target in protected_by_ambiguous:
+                    continue
+                results.append(
+                    {
+                        "candidate_key": None,
+                        "candidate_type": "current_record",
+                        "classification": "potentially_removed",
+                        "moderation_state": "needs_individual_review",
+                        "target_dataset": "curriculum_items.jsonl",
+                        "target_external_key": external_key,
+                        "changed_fields": [],
+                        "bulk_eligible": False,
+                        "reason": "complete exact study-plan PDF scope omits this key; no deletion is automatic",
+                    }
+                )
+                counts["potentially_removed"] += 1
 
     context = {}
     context_path = candidate_root / "release_context.json"
@@ -328,7 +376,7 @@ def compare_candidate_bundle(candidate_dir: Path) -> dict[str, Any]:
         "base_release_id": context.get("base_release_id"),
         "base_source_bundle_sha256": context.get("base_source_bundle_sha256"),
         "candidate_manifest_digest": candidate_manifest.get("capture_digest"),
-        "coverage": "complete only for explicitly declared complete_datasets; all other omissions are unobserved_partial",
+        "coverage": "omissions are checked only for explicitly declared complete_datasets or exact complete_scopes; all others are unobserved_partial",
         "counts": dict(sorted(counts.items())),
         "bulk_eligible_count": sum(row.get("bulk_eligible") is True for row in results),
         "records": sorted(

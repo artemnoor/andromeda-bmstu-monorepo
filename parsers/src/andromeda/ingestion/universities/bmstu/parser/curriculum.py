@@ -284,7 +284,25 @@ def _study_plan_records(
     text = _pdf_layout_text(resource.body)
     if not text or "ПЛАН УЧЕБНОГО ПРОЦЕССА" not in text:
         return []
-    lines = text.splitlines()
+    page_lines = [page.splitlines() for page in text.split("\f")]
+    lines = [line for page in page_lines for line in page]
+    line_pages = [page_no for page_no, page in enumerate(page_lines, start=1) for _line in page]
+    block_by_line: list[str | None] = []
+    part_by_line: list[str | None] = []
+    active_block: str | None = None
+    active_part: str | None = None
+    for line in lines:
+        stripped = line.strip()
+        normalized = _normalized_text(stripped)
+        block_match = re.match(r"^(Б\s*\d{1,2})\b", stripped, re.IGNORECASE)
+        if block_match:
+            active_block = re.sub(r"\s+", "", block_match.group(1)).upper()
+        if "обязательная часть" in normalized:
+            active_part = "Обязательная часть"
+        elif "вариативная часть" in normalized:
+            active_part = "Вариативная часть"
+        block_by_line.append(active_block)
+        part_by_line.append(active_part)
     plan_header = _plan_header(lines)
     direction_code = plan_header.get("direction_code") or context.get("direction_code")
     profile_code = plan_header.get("program_profile_code") or context.get("profile_code")
@@ -334,6 +352,7 @@ def _study_plan_records(
     semester_weeks = sections[0][3]
     number_re = re.compile(r"-?\d+(?:[.,]\d+)?")
     records: list[dict[str, Any]] = []
+    parsed_position = 0
     summary_semesters = _study_plan_semester_summary(lines)
     overall_totals = _study_plan_overall_totals(lines, semester_starts[0])
     summary_record = {
@@ -490,6 +509,9 @@ def _study_plan_records(
                 "faculty": faculty,
                 "department": department,
                 "chair": chair,
+                "course_block": block_by_line[line_index],
+                "source_part": part_by_line[line_index],
+                "source_page": line_pages[line_index],
                 "qualification": plan_header.get("qualification"),
                 "education_year": plan_header.get("education_year") or context.get("year"),
                 "form": form,
@@ -523,10 +545,12 @@ def _study_plan_records(
                         control = " ".join(value for value in tokens[4:] if not number_re.fullmatch(value)) or None
                 else:
                     control = " ".join(value for value in tokens[4:] if not number_re.fullmatch(value)) or None
+                parsed_position += 1
                 records.append(_record(source, captured_at, "StudyPlan", {
                     **base,
                     "course": (semester + 1) // 2,
                     "semester": semester,
+                    "parsed_position": parsed_position,
                     "credits": semester_numbers[0],
                     "hours": semester_numbers[1],
                     "audited_hours_semester": semester_numbers[2],
@@ -542,8 +566,10 @@ def _study_plan_records(
                 }))
                 emitted += 1
             if not emitted:
+                parsed_position += 1
                 records.append(_record(source, captured_at, "StudyPlan", {
                     **base,
+                    "parsed_position": parsed_position,
                     "course": None,
                     "semester": None,
                     "credits": total_values[0],

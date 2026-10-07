@@ -17,6 +17,10 @@ from urllib.parse import urlsplit, urlunsplit
 from uuid import UUID
 
 from andromeda_parser.ingest import IngestionError, _assert_safe_payload
+from andromeda.ingestion.universities.bmstu.curriculum_identity import (
+    observation_identity_key,
+    reconcile_curriculum_rows,
+)
 
 
 logger = logging.getLogger("andromeda.ingestion.bundle")
@@ -93,7 +97,9 @@ def _build_typed_candidates(
     existing_campaign_keys: set[str],
     existing_funding_keys: set[str],
     existing_quota_keys: set[str],
-) -> list[dict[str, Any]]:
+    current_curriculum_rows: list[dict[str, Any]],
+    current_study_plans: list[dict[str, Any]],
+) -> tuple[list[dict[str, Any]], list[dict[str, str]]]:
     """Project canonical parser facts into review-gated existing bundle contracts."""
 
     candidates: list[dict[str, Any]] = []
@@ -250,6 +256,7 @@ def _build_typed_candidates(
             )
 
     curriculum_candidates: dict[str, str] = {}
+    complete_curriculum_scopes: list[dict[str, str]] = []
     for curriculum in normalized.get("curricula", []):
         if not isinstance(curriculum, dict) or not isinstance(curriculum.get("id"), str):
             continue
@@ -285,10 +292,76 @@ def _build_typed_candidates(
                 },
                 artifact_for(curriculum.get("provenance", []), source_url=curriculum.get("source_url")),
             )
-        for item in curriculum.get("items", []):
-            if not isinstance(item, dict) or not isinstance(item.get("id"), str):
-                continue
+        profile_code = program.get("code") if program else None
+        education_year = curriculum.get("education_year")
+        exact_plan_matches = [
+            row for row in current_study_plans
+            if row.get("profile_code") == profile_code
+            and row.get("education_year") == education_year
+            and isinstance(row.get("external_key"), str)
+        ]
+        generated_plan_key = f"study_plan:{source_key.removeprefix('curriculum:')}"
+        identity_plan_key = (
+            exact_plan_matches[0]["external_key"]
+            if len(exact_plan_matches) == 1
+            else generated_plan_key
+        )
+        base_items = [
+            row for row in current_curriculum_rows
+            if row.get("curriculum_key") == identity_plan_key
+        ]
+        incoming_identity_rows: list[dict[str, Any]] = []
+        items = [item for item in curriculum.get("items", []) if isinstance(item, dict)]
+        for item in items:
+            provenance_rows = item.get("provenance", [])
+            provenance = provenance_rows[0] if isinstance(provenance_rows, list) and provenance_rows else {}
+            locator = {
+                "page": item.get("source_page"),
+                "printed_row_no": item.get("printed_row_no"),
+                "parsed_position": item.get("parsed_position") or item.get("source_position"),
+                "semester": item.get("semester"),
+            }
+            incoming_identity_rows.append({
+                "discipline": item.get("source_name"),
+                "semester": item.get("semester"),
+                "chair": item.get("chair_code"),
+                "course_block": item.get("course_block"),
+                "source_part": item.get("source_part"),
+                "source_page": item.get("source_page"),
+                "printed_row_no": item.get("printed_row_no"),
+                "parsed_position": locator["parsed_position"],
+                "source_position": item.get("source_position"),
+                "source_sha256": provenance.get("content_sha256"),
+                "source_locator": locator,
+                "identity_status": (
+                    "ambiguous" if len(exact_plan_matches) > 1 else item.get("identity_status")
+                ),
+            })
+        reconciled = reconcile_curriculum_rows(identity_plan_key, incoming_identity_rows, base_items)
+        for item, identity_row, resolution in zip(items, incoming_identity_rows, reconciled.rows, strict=True):
             assessment_types = item.get("assessment_types")
+            observation_key = observation_identity_key(
+                identity_plan_key, identity_row, source_sha256=identity_row.get("source_sha256")
+            )
+            if resolution.status == "ambiguous":
+                target_key = observation_key
+                stable_identity = {
+                    "algorithm": "bmstu-curriculum-identity-v1",
+                    "status": "ambiguous",
+                    "signals": resolution.metadata.get("signals"),
+                    "suggested_existing_keys": list(resolution.suggested_existing_keys),
+                    "reason": resolution.reason,
+                }
+            else:
+                target_key = resolution.canonical_external_key
+                stable_identity = {
+                    key: resolution.metadata.get(key)
+                    for key in ("algorithm", "source_identity_key", "signals", "duplicate_title_semester")
+                    if resolution.metadata.get(key) is not None
+                }
+                stable_identity["source_identity_id"] = stable_identity.pop("source_identity_key")
+            if not isinstance(target_key, str):
+                raise IngestionError("curriculum identity resolver produced no exact or observation key")
             row_item: dict[str, Any] = {
                 "curriculum_key": _candidate_ref(curriculum_candidates[source_key]),
                 "record_type": "discipline",
@@ -298,22 +371,52 @@ def _build_typed_candidates(
                 "hours": item.get("hours"),
                 "credits": item.get("credits"),
                 "assessment_type": " / ".join(assessment_types) if isinstance(assessment_types, list) else assessment_types,
+                "chair": item.get("chair_code"),
+                "course_block": item.get("course_block"),
+                "source_part": item.get("source_part"),
+                "source_row": {"identity": stable_identity},
                 "source_document_url": curriculum.get("source_url"),
                 "study_plan_url": curriculum.get("source_url"),
                 "observed_at": curriculum.get("captured_at"),
             }
-            provenance = artifact_for(
+            item_provenance = artifact_for(
                 item.get("provenance", []),
                 source_url=curriculum.get("source_url"),
-                locator={"position": item.get("source_position"), "semester": item.get("semester")},
+                locator=identity_row.get("source_locator"),
             )
             add(
                 "curriculum_items.jsonl",
-                item["id"],
-                item["id"],
+                observation_key,
+                target_key,
                 row_item,
-                provenance,
+                item_provenance,
             )
+            candidates[-1]["identity_status"] = resolution.status
+            candidates[-1]["identity_reason"] = resolution.reason
+            candidates[-1]["suggested_existing_keys"] = list(resolution.suggested_existing_keys)
+
+        curriculum_source_url = curriculum.get("source_url")
+        safe_curriculum_source_url = (
+            _safe_source_url(curriculum_source_url) if isinstance(curriculum_source_url, str) else None
+        )
+        source_document_captured = any(
+            source.get("source_kind") == "bmstu_curriculum_document"
+            and safe_curriculum_source_url in {source.get("requested_url"), source.get("final_url")}
+            for source in sources
+        )
+        normalized_source_gaps = normalized.get("source_gaps", [])
+        source_scope_has_gap = not isinstance(normalized_source_gaps, list) or any(
+            isinstance(gap, dict)
+            and isinstance(gap.get("source_url"), str)
+            and _safe_source_url(gap["source_url"]) == safe_curriculum_source_url
+            for gap in normalized_source_gaps
+        )
+        if items and source_document_captured and not source_scope_has_gap:
+            complete_curriculum_scopes.append({
+                "dataset": "curriculum_items.jsonl",
+                "field": "curriculum_key",
+                "value": identity_plan_key,
+            })
 
     for statistic in normalized.get("historical_results", []):
         if not isinstance(statistic, dict) or not isinstance(statistic.get("external_key"), str):
@@ -552,7 +655,7 @@ def _build_typed_candidates(
                         artifact_for([tuition.get("provenance", {})], source_url=program.get("source_url")),
                     )
 
-    return candidates
+    return candidates, complete_curriculum_scopes
 
 
 def _academic_importer() -> tuple[Any, Any]:
@@ -767,13 +870,17 @@ def build_candidate_bundle(
     existing_campaign_keys = {row.get("external_key", "") for row in _read_jsonl(base / "data" / "admission_campaigns.jsonl")}
     existing_funding_keys = {row.get("external_key", "") for row in _read_jsonl(base / "data" / "funding_types.jsonl")}
     existing_quota_keys = {row.get("external_key", "") for row in _read_jsonl(base / "data" / "quota_types.jsonl")}
-    typed_candidates = _build_typed_candidates(
+    base_curriculum_rows = _read_jsonl(base / "data" / "curriculum_items.jsonl")
+    base_study_plans = _read_jsonl(base / "data" / "study_plans.jsonl")
+    typed_candidates, complete_curriculum_scopes = _build_typed_candidates(
         normalized=normalized,
         sources=safe_sources,
         capture_digest=capture_digest,
         existing_campaign_keys=existing_campaign_keys,
         existing_funding_keys=existing_funding_keys,
         existing_quota_keys=existing_quota_keys,
+        current_curriculum_rows=base_curriculum_rows,
+        current_study_plans=base_study_plans,
     )
 
 
@@ -862,6 +969,7 @@ def build_candidate_bundle(
         "capture_digest": capture_digest,
         "source_gaps": report.get("source_gaps", []),
         "complete_datasets": [],
+        "complete_scopes": complete_curriculum_scopes,
         "coverage": "partial",
         "candidate_keys": [row["external_key"] for row in candidates],
         "typed_candidate_count": len(typed_candidates),

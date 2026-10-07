@@ -33,11 +33,10 @@ The complete sanitized report is in ignored local storage at
 - The HTML catalog returned no recognized links while the official API returned
   a sample. No browser automation was added; the HTML parser is a deferred
   fallback and the API is the primary source.
-- The selected plan's exact positional key convention is importer-compatible
-  and matches its 113 existing rows. This proves repeatability and exact
-  comparison for the sampled plan/document, not every BMSTU PDF layout. A PDF
-  reorder can change positional keys and must go through exact-key diff and
-  human review; no title-based reconciliation is performed.
+- The saved probe used the previous positional key convention and matched its
+  113 existing rows. This proves exact comparison for the sampled plan/document,
+  not every BMSTU PDF layout. The follow-up identity implementation and its
+  offline evidence are recorded below; it did not repeat the live fetch.
 - The tuition page did not state an academic year in the same owning section
   as the sampled values. All 154 rows remain pending/source-gap observations;
   no current date or campaign convention was used to guess a year.
@@ -53,6 +52,23 @@ No live value was written to PostgreSQL or published. A bounded sample does
 not demonstrate complete live parser coverage. To reproduce this check, use
 the guarded `ingest probe` command in
 [INGESTION_OPERATIONS.md](INGESTION_OPERATIONS.md).
+
+## Curriculum identity follow-up
+
+No additional live requests were made for the identity change. The ignored
+report above contains the prior comparison counts but not the raw 113 parsed
+rows or the source PDF. The new resolver was tested against the checked-in
+release slice for the same exact plan: all 113 current canonical keys were
+matched, none were new or ambiguous, and no field values or releases were
+rewritten. This is an offline regression against the saved current bundle,
+not a fresh 113-row live parser run.
+
+Both checked-in curriculum PDF fixtures were parsed twice: `curriculum.pdf`
+produced 89 rows and `curriculum_2.pdf` produced 123 rows. Their deterministic
+identity keys, source hashes, PDF page, printed row number, and parsed order
+locators are asserted by tests. Exact-identity gaps remain for title changes
+and repeated indistinguishable rows because the PDFs do not provide an
+official discipline identifier. Those candidates require human review.
 
 See also: [known limitations](KNOWN_ISSUES.md),
 [architecture](ARCHITECTURE.md), [API readiness](API_READINESS.md).

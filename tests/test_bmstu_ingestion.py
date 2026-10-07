@@ -18,6 +18,7 @@ from academic_data_service.importer.bundle import validate_bundle
 from academic_data_service.importer.mapping import BundleMappingError, project_bundle
 from andromeda.ingestion.universities.bmstu.capture import BmstuSource
 from andromeda.ingestion.universities.bmstu.fetch import FetchConfig, Fetcher
+from andromeda.ingestion.universities.bmstu.curriculum_identity import reconcile_curriculum_rows
 from andromeda.ingestion.universities.bmstu.source_models import FetchedResource
 from andromeda.ingestion.pdf_policy import PdfResourceError, validate_page_count, validate_pdf_payload
 from andromeda.ingestion.universities.bmstu.parser.campaign_2026.curricula.parser import (
@@ -271,6 +272,7 @@ def test_real_curriculum_fixtures_have_stable_exact_item_keys_and_pdf_provenance
         "name": "fixture profile",
         "study_plan_external_key": "study_plan:program:bmstu:01.03.02:ИУ9:01.03.02-01:source:1-1",
     }
+    expected_counts = {"curriculum.pdf": 89, "curriculum_2.pdf": 123}
     for name in ("curriculum.pdf", "curriculum_2.pdf"):
         body = (FIXTURE_DIR / name).read_bytes()
         kwargs = {
@@ -287,87 +289,125 @@ def test_real_curriculum_fixtures_have_stable_exact_item_keys_and_pdf_provenance
         assert first["identity_status"] == "exact"
         assert first_keys == repeated_keys
         plan_key = profile["study_plan_external_key"]
-        assert first_keys == [
-            f"curriculum_item:{plan_key}:row:{position}"
-            for position in range(1, len(first_keys) + 1)
-        ]
+        assert len(first_keys) == expected_counts[name]
+        assert all(key.startswith(f"curriculum_item:{plan_key}:identity:") for key in first_keys)
         assert len(first_keys) == len(set(first_keys))
         assert all(item["source_sha256"] == hashlib.sha256(body).hexdigest() for item in first["items"])
-        assert all(item["source_locator"]["row"] == item["source_position"] for item in first["items"])
+        assert all(item["source_locator"]["printed_row_no"] == item["row_no"] for item in first["items"])
+        assert all(item["source_locator"]["parsed_position"] == item["source_position"] for item in first["items"])
+        assert all(item["source_row"]["identity"]["source_identity_id"] for item in first["items"])
 
 
 def test_curriculum_external_key_survives_mutable_fact_changes() -> None:
-    source_items = [
-        {
-            "row_no": 12,
-            "discipline": "Математический анализ",
-            "hours": 108,
-            "semester": 1,
-            "assessment_type": "Экз",
-        },
-        {
-            "row_no": 12,
-            "discipline": "Математический анализ",
-            "hours": 72,
-            "semester": 3,
-            "assessment_type": "Зчт",
-        },
-    ]
-    profile = {"study_plan_external_key": "study_plan:program:bmstu:01.03.02:test"}
-    original = _attach_exact_identity(
-        {"items": [dict(item) for item in source_items]},
-        body=b"stable-pdf-bytes",
-        final_url="https://bmstu.ru/plan.pdf",
-        share_url="https://bmstu.ru/plan.pdf",
-        profile=profile,
+    plan_key = "study_plan:program:bmstu:01.03.02:test"
+    previous = [{
+        "external_key": f"curriculum_item:{plan_key}:row:1",
+        "curriculum_key": plan_key,
+        "discipline": "Математический анализ",
+        "semester": 1,
+        "hours": 108,
+        "assessment_type": "Экзамен",
+    }]
+    revised = {
+        "discipline": "Математический анализ",
+        "semester": 2,
+        "hours": 144,
+        "assessment_type": "Зачёт",
+        "parsed_position": 14,
+        "source_sha256": hashlib.sha256(b"revision").hexdigest(),
+    }
+    matched = reconcile_curriculum_rows(plan_key, [revised], previous)
+    assert matched.rows[0].status == "matched"
+    assert matched.rows[0].canonical_external_key == previous[0]["external_key"]
+
+    renamed = reconcile_curriculum_rows(
+        plan_key,
+        [{**revised, "discipline": "Математический анализ II"}],
+        previous,
     )
-    changed_items = [dict(item) for item in source_items]
-    changed_items[0].update(
-        discipline="Изменённое название",
-        hours=144,
-        semester=2,
-        assessment_type="Зчт",
-    )
-    changed = _attach_exact_identity(
-        {"items": changed_items},
-        body=b"stable-pdf-bytes",
-        final_url="https://bmstu.ru/plan.pdf",
-        share_url="https://bmstu.ru/plan.pdf",
-        profile=profile,
-    )
-    assert [item["external_key"] for item in changed["items"]] == [
-        item["external_key"] for item in original["items"]
+    assert renamed.rows[0].status == "ambiguous"
+    assert renamed.rows[0].suggested_existing_keys == (previous[0]["external_key"],)
+
+
+def test_live_report_113_row_plan_reconciles_against_checked_in_release_slice() -> None:
+    plans = [
+        json.loads(line)
+        for line in (BASE_BUNDLE / "data" / "study_plans.jsonl").read_text(encoding="utf-8-sig").splitlines()
+        if line.strip()
     ]
-    assert [item["external_key"] for item in original["items"]] == [
-        f"curriculum_item:{profile['study_plan_external_key']}:row:{position}"
-        for position in (1, 2)
+    plan = next(row for row in plans if row.get("profile_code") == "01.03.02-01" and row.get("education_year") == 2026)
+    plan_key = plan["external_key"]
+    current = [
+        json.loads(line)
+        for line in (BASE_BUNDLE / "data" / "curriculum_items.jsonl").read_text(encoding="utf-8-sig").splitlines()
+        if line.strip()
     ]
-    added_items = [dict(item) for item in source_items] + [
+    current = [row for row in current if row.get("curriculum_key") == plan_key]
+    assert len(current) == 113
+    incoming = [
         {
-            "row_no": 13,
-            "discipline": "Новая дисциплина",
-            "hours": 36,
-            "semester": 1,
-            "assessment_type": "Зчт",
+            "discipline": row["discipline"],
+            "semester": row.get("semester"),
+            "hours": row.get("hours"),
+            "credits": row.get("credits"),
+            "assessment_type": row.get("assessment_type"),
+            "parsed_position": position,
+            "printed_row_no": row.get("row_no"),
+            "source_sha256": row.get("source_sha256"),
         }
+        for position, row in enumerate(current, start=1)
     ]
-    added = _attach_exact_identity(
-        {"items": added_items},
-        body=b"stable-pdf-bytes",
-        final_url="https://bmstu.ru/plan.pdf",
-        share_url="https://bmstu.ru/plan.pdf",
-        profile=profile,
+    result = reconcile_curriculum_rows(plan_key, incoming, current)
+    assert result.counts == {"matched": 113, "new": 0, "ambiguous": 0, "potentially_removed": 0}
+    assert [row.canonical_external_key for row in result.rows] == [row["external_key"] for row in current]
+
+
+def test_renamed_curriculum_candidate_is_reviewed_as_ambiguous(tmp_path: Path) -> None:
+    parse_report_path = _fixture_parse_report(tmp_path)
+    report = json.loads(parse_report_path.read_text(encoding="utf-8"))
+    curriculum = report["normalized"]["curricula"][0]
+    program = next(row for row in report["normalized"]["programs"] if row["id"] == curriculum["program_id"])
+    plans = [
+        json.loads(line)
+        for line in (BASE_BUNDLE / "data" / "study_plans.jsonl").read_text(encoding="utf-8-sig").splitlines()
+        if line.strip()
+    ]
+    plan = next(row for row in plans if row.get("profile_code") == program["code"] and row.get("education_year") == curriculum["education_year"])
+    plan_rows = [
+        json.loads(line)
+        for line in (BASE_BUNDLE / "data" / "curriculum_items.jsonl").read_text(encoding="utf-8-sig").splitlines()
+        if line.strip()
+    ]
+    plan_rows = [row for row in plan_rows if row.get("curriculum_key") == plan["external_key"]]
+    selected = next(
+        item for item in curriculum["items"]
+        if len([
+            row for row in plan_rows
+            if row.get("discipline") == item["source_name"] and row.get("semester") == item.get("semester")
+        ]) == 1
+        and len(item["source_name"]) >= 8
     )
-    assert len({item["external_key"] for item in added["items"]}) == 3
-    missing_plan = _attach_exact_identity(
-        {"items": [dict(source_items[0])]},
-        body=b"stable-pdf-bytes",
-        final_url="https://bmstu.ru/plan.pdf",
-        share_url="https://bmstu.ru/plan.pdf",
-        profile={},
+    old_name = selected["source_name"]
+    selected["source_name"] = old_name[:-1] + ("я" if old_name[-1] != "я" else "о")
+    parse_report_path.write_text(json.dumps(report, ensure_ascii=False), encoding="utf-8")
+
+    candidate_dir = tmp_path / "candidate-ambiguous"
+    build_candidate_bundle(base_bundle=BASE_BUNDLE, parse_report_path=parse_report_path, output_dir=candidate_dir)
+    diff = compare_candidate_bundle(candidate_dir)
+    row = next(
+        entry for entry in diff["records"]
+        if entry.get("target_dataset") == "curriculum_items.jsonl"
+        and entry.get("classification") == "ambiguous"
+        and entry.get("suggested_existing_keys")
     )
-    assert missing_plan["identity_status"] == "source_gap"
-    assert "external_key" not in missing_plan["items"][0]
+    assert row["bulk_eligible"] is False
+    assert row["target_external_key"].startswith("curriculum_observation:")
+    assert row["suggested_existing_keys"]
+    assert not any(
+        entry.get("classification") == "potentially_removed"
+        and entry.get("target_external_key") in row["suggested_existing_keys"]
+        for entry in diff["records"]
+    )
 
 
 def test_tuition_year_identity_is_exact_or_remains_pending() -> None:
@@ -661,7 +701,7 @@ def test_candidate_bundle_requires_review_and_preserves_base_facts(tmp_path: Pat
     assert diff["counts"].get("changed", 0) > 0
     assert diff["counts"].get("new", 0) > 0
     assert diff["counts"].get("potentially_removed", 0) == 0
-    assert diff["coverage"].startswith("complete only for explicitly declared")
+    assert "complete_scopes" in diff["coverage"]
     review_template_path = tmp_path / "grouped-review-template.csv"
     template_counts = write_review_template(
         candidate_dir,
@@ -802,6 +842,17 @@ def test_candidate_bundle_requires_review_and_preserves_base_facts(tmp_path: Pat
     assert materialized["unchanged_skipped"] == len(candidate_rows) - len(review_required_keys)
     assert materialized["validation"]["valid"]
     assert validate_import_bundle(reviewed_dir)["valid"]
+    accepted_curriculum_key = accepted_targets[item_candidate["external_key"]]
+    reviewed_curriculum_rows = [
+        json.loads(line)
+        for line in (reviewed_dir / "data" / "curriculum_items.jsonl").read_text(encoding="utf-8-sig").splitlines()
+        if line.strip()
+    ]
+    accepted_curriculum_row = next(row for row in reviewed_curriculum_rows if row["external_key"] == accepted_curriculum_key)
+    assert accepted_curriculum_row["source_row"]["identity"]["source_identity_id"].startswith("curriculum-source-identity:")
+    assert accepted_curriculum_row["source_sha256"]
+    assert accepted_curriculum_row["source_retrieved_at"]
+    assert accepted_curriculum_row["source_locator"]["parsed_position"]
     audit_rows = [
         json.loads(line)
         for line in (reviewed_dir / "review_decisions.jsonl").read_text(encoding="utf-8").splitlines()

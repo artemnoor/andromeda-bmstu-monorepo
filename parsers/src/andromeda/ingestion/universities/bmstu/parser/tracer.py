@@ -287,9 +287,20 @@ def _parse_curriculum(snapshot: RawSourceSnapshot, program_code: str, source_pro
                 hours=hours,
                 credits=credits,
                 assessment=_object_text(record.get("assessment_type")),
-                source_position=semester and (_object_int(record.get("row_no")) or None),
+                chair=_object_text(record.get("chair")),
+                course_block=_object_text(record.get("course_block")),
+                source_part=_object_text(record.get("source_part")),
+                source_page=_object_int(record.get("source_page")),
+                parsed_position=_object_int(record.get("parsed_position")),
+                printed_row_no=_object_int(record.get("row_no")),
+                source_sha256=typed.content_sha256,
+                source_position=_object_int(record.get("parsed_position")),
                 source_url=typed.requested_url,
-                locator=SourceLocator(source_url=typed.requested_url, row=_object_int(record.get("row_no"))),
+                locator=SourceLocator(
+                    source_url=typed.requested_url,
+                    page=_object_int(record.get("source_page")),
+                    row=_object_int(record.get("row_no")),
+                ),
                 source_program_code=source_program_code,
             )
         )
