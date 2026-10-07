@@ -122,7 +122,7 @@ Authority: this request governs behavior; current importer/schema/parser contrac
 
 ### Phase 5: Documentation and publication
 - [x] Task 7: Document operator workflow, API/Directus readiness, live findings, and limitations ([details](phase-05-docs-ci-publication.md#task-7-document-operator-workflow-api-directus-readiness-live-findings-and-limitations)) (depends on 1–6)
-- [ ] Task 8: Verify, publish to the existing repository, and confirm green Actions ([details](phase-05-docs-ci-publication.md#task-8-verify-publish-to-the-existing-repository-and-confirm-green-actions)) (depends on 6, 7)
+- [x] Task 8: Verify, publish to the existing repository, and confirm green Actions ([details](phase-05-docs-ci-publication.md#task-8-verify-publish-to-the-existing-repository-and-confirm-green-actions)) (depends on 6, 7; CI run 37551684272 passed on published `93ca411`)
 
 ## Commit Plan
 

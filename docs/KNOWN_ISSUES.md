@@ -85,8 +85,10 @@ Verified locally on Python 3.11 and the isolated localhost PostgreSQL 16
 - Fixture hash tests preserve LF `content_sha256`/capture digest and all six
   original upstream `source_sha256` values. `git check-attr` reports LF for
   HTML/JSON fixtures and disables text conversion for PDFs.
-- The final GitHub Actions result for this follow-up is pending publication;
-  update this line with the verified run URL after pushing.
+- GitHub Actions run [37551684272](https://github.com/artemnoor/andromeda-bmstu-monorepo/actions/runs/37551684272)
+  passed every CI step on published commit
+  `93ca411490cb60808f6294affdd8b344f170c791`, including the full PostgreSQL 16
+  test suite in 10m33s.
 
 ## Operational rule
 
