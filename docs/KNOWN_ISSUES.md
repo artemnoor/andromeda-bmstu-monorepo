@@ -106,9 +106,11 @@ Verified locally on Python 3.11 and the isolated localhost PostgreSQL 16
 - Fixture hash tests preserve LF `content_sha256`/capture digest and all six
   original upstream `source_sha256` values. `git check-attr` reports LF for
   HTML/JSON fixtures and disables text conversion for PDFs.
-- GitHub Actions runs the PostgreSQL 16-backed `uv run pytest -q` workflow on
-  pushed branches. The commit checks in GitHub are authoritative for each
-  published revision; the pre-change `main` baseline was green.
+- GitHub Actions run **37588909953** passed on implementation commit
+  `4a58f1fa93eda6d51a492d219d14c3e48bd0bb1c`: **39 passed, 1 warning in
+  652.44 seconds**. The PostgreSQL 16-backed `uv run pytest -q` workflow runs
+  on pushed branches; check the current commit's GitHub checks after any later
+  documentation-only update. The pre-change `main` baseline was green.
 
 ## Operational rule
 

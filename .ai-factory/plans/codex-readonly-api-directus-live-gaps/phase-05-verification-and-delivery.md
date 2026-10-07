@@ -112,10 +112,17 @@ Make setup reproducible and publish evidence-backed changes in the existing repo
 - Final report includes changed functionality, live gaps, routes, Directus collections and privileges, tests/CI, risks, and readiness for frontend work.
 
 ### Verification
-- `uv run pytest -q`
-- `gh run list --repo artemnoor/andromeda-bmstu-monorepo --branch codex/readonly-api-directus-live-gaps --limit 5`
-- `git status --short --branch`
-- Expected result: local tests pass; required workflow is green for final SHA; intended remote contains branch/merge; working tree is clean.
+- Full local `uv run pytest -q`: 39 passed, 1 warning in 844.17 seconds.
+- Follow-up API/Directus PostgreSQL 16 integration: 1 passed after runtime ACL hardening.
+- Follow-up parser/API contract suite: 26 passed, 1 warning in 99.06 seconds.
+- Read-boundary Alembic downgrade to `e91532f013ac` and re-upgrade to
+  `f4b19a7c2d61`: passed on the isolated PostgreSQL 16 test database.
+- GitHub Actions push run **37588909953** on implementation SHA
+  `4a58f1fa93eda6d51a492d219d14c3e48bd0bb1c`: success, 39 passed, 1 warning
+  in 652.44 seconds. A documentation-only verification record follows; its
+  commit checks are required before final delivery.
+- `git status --short --branch`: clean before this verification-record update;
+  final status and checks are confirmed after it is published.
 
 ## Phase Risks and Mitigations
 - Risk: full parser/database suite takes several minutes. Mitigation: run targeted tests after each phase and the full suite once before publication, then repeat only after final code changes.

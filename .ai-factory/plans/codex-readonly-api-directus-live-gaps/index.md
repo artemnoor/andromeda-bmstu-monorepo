@@ -477,7 +477,7 @@ Authority: current explicit user request > compatible architecture baseline > hi
 
 ### Phase 5: Verification and delivery
 - [x] Task 6: Verify API, parser, roles, Directus, and ingestion on PostgreSQL 16 ([details](phase-05-verification-and-delivery.md#task-6-verify-the-complete-read-contour)) (depends on 1-5)
-- [ ] Task 7: Document the results and publish to the existing repository ([details](phase-05-verification-and-delivery.md#task-7-document-and-publish)) (depends on 1-6)
+- [x] Task 7: Document the results and publish to the existing repository ([details](phase-05-verification-and-delivery.md#task-7-document-and-publish)) (depends on 1-6)
 
 ## Commit Plan
 - **Commit 1** (after Tasks 1-3): feat: stabilize BMSTU identity and DB read roles
