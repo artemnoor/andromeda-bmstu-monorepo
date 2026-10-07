@@ -20,6 +20,7 @@ services:
       - "127.0.0.1:${DIRECTUS_PORT:-8055}:8055"
     environment:
       SECRET: ${DIRECTUS_SECRET:?set DIRECTUS_SECRET in the local environment}
+      LICENSE_KEY: ${DIRECTUS_LICENSE_KEY:-}
       DB_CLIENT: pg
       DB_HOST: academic-data-db
       DB_PORT: 5432

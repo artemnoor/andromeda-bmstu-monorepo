@@ -1,6 +1,6 @@
 # Current status and known limitations
 
-Previous: [API readiness](API_READINESS.md) · Next: [Ingestion audit](INGESTION_AUDIT.md)
+Previous: [Directus UX](DIRECTUS_UX.md) · Next: [Ingestion audit](INGESTION_AUDIT.md)
 
 ## Verified behavior
 
@@ -69,13 +69,53 @@ Previous: [API readiness](API_READINESS.md) · Next: [Ingestion audit](INGESTION
   remain out of scope. `/data-gaps` currently lists open manual-review records;
   pending observations without canonical entities are not returned by that
   endpoint.
-- The Directus POC reads `directus_read` tables, atomically refreshed from
-  allowlisted active-release SQL views because Directus 12.4.1's PostgreSQL
-  inspector excludes views. It enforces SELECT-only access but does not yet
-  provide curated relation metadata or role/policy export files. The full
-  projection refresh adds lock time and WAL per publish/rollback and has not
-  been benchmarked beyond the checked-in POC corpus. Its default admin can
-  administer Directus metadata while PostgreSQL still blocks academic writes.
+- Directus has repository-backed presentation manifests for 57 projected
+  collections, 97 virtual relations, and 14 global default tabular layouts.
+  Core mode registers 25 visible read collections plus six visible navigation
+  folders; the 32 technical collections and hidden technical folder remain
+  unregistered in Directus. A licensed mode can register the complete grouped
+  catalog, but that mode has not been runtime-smoke-tested.
+  Collection/field/preset metadata is applied through the Directus API. Because
+  Directus 12.4.1's relation endpoint attempts FK DDL even for `schema: null`,
+  the applier writes the virtual relation and reverse-alias metadata through an
+  operator connection only in `directus_meta`; after applying, restart Directus.
+  This is metadata DML, not canonical academic DDL or item writes. The applier
+  enforces a local PostgreSQL 16 target named `academic_data_test` or `*_dev`
+  and rejects the runtime role; operators should still use an isolated
+  database and keep credentials private.
+- The manifests do not define Directus users or role/policies, saved bookmarks
+  or user filters, dashboards, or project language. The default table layouts
+  only set fields and sorting. Hidden technical collections are a navigation
+  setting, not API authorization. See [Directus UX](DIRECTUS_UX.md).
+- The Directus quality group does not provide a single collection for all data
+  gaps or unresolved references. It shows manual review records and safe source
+  observation identifiers; the existing `/api/v1/data-gaps` route covers open
+  manual-review items only. Use ingestion reconciliation output for unresolved
+  references and observations that have no review record.
+- The relation metadata does not add SQL foreign keys or change the canonical
+  schema. An authenticated PostgreSQL 16 / Directus 12.4.1 API smoke verified
+  grouped collection metadata, Program→Study Plan→Curriculum Items, a
+  semester-filtered item query, Curriculum Item→Evidence→Source Artifact,
+  Campaign→Offerings, Requirement Sets→Nodes→Exams, statistics, Source
+  Evidence→Source Artifact, Active Release, and response changes after a
+  release switch. It received HTTP 403 for excluded
+  `admission_result_sources`. This was an authenticated API smoke, not a manual
+  browser review. Program→Department was asserted through a bounded scan of
+  up to 25 programs; at least one official department code resolved, but
+  complete coverage across every program remains unverified. See
+  [smoke evidence](DIRECTUS.md#smoke-checklist) for exact scope.
+- The manifest marks fields read-only and hides technical identifiers in the
+  UI, but PostgreSQL remains the actual protection: the Directus runtime can
+  read only `directus_read`, has no academic DML/DDL rights, and can create
+  Directus metadata only in `directus_meta`. No non-admin Directus role policy
+  is included. The full projection refresh still adds lock time and WAL on
+  publish/rollback and has not been benchmarked beyond the checked-in corpus.
+- Source URLs are stored and shown as values, but the manifest does not assign a
+  clickable-link interface. Russian folder/collection translations are stored
+  for `ru-RU`; a project or per-user language selection is still manual. The
+  metadata applier updates only its allowlisted settings and does not delete
+  unrelated/stale metadata or restore users and other project settings; preserve
+  `directus_meta` in database backups.
 - Applicant profiles, preferences, EGE/olympiad results, shortlists, and
   recommendations remain a separate unimplemented domain. HSE remains deferred.
 
@@ -155,5 +195,9 @@ without the normal candidate validation, exact-key review, and explicit
 commit. For the repeatable process see
 [ingestion operations](INGESTION_OPERATIONS.md).
 
-See also: [architecture](ARCHITECTURE.md),
-[live validation](LIVE_VALIDATION.md), [API readiness](API_READINESS.md).
+## See also
+
+- [Architecture](ARCHITECTURE.md)
+- [Live validation](LIVE_VALIDATION.md)
+- [API readiness](API_READINESS.md)
+- [Directus viewer](DIRECTUS.md) · [Directus UX](DIRECTUS_UX.md)

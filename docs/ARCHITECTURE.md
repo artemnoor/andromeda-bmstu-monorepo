@@ -111,6 +111,34 @@ secrets. The full projection refresh adds publish/rollback locking and WAL; it
 is intended for this bounded POC corpus and needs a scale benchmark before
 larger datasets.
 
+The Directus presentation is separately versioned in
+`infra/directus/metadata/collections.json` and `relations.json`. The applier
+preflights allowlisted projected collections and fields through the Directus
+API, then applies collection, field, and preset metadata through that API.
+Directus 12.4.1's `POST /relations` attempts physical foreign-key DDL even for
+`schema: null`; the applier instead uses an operator database connection to
+upsert virtual relation rows and explicit reverse O2M field aliases only in
+`directus_meta`. It performs no DDL and writes no academic items or schema.
+Keep `ACADEMIC_DATA_DATABASE_URL` pointed at the isolated PostgreSQL 16 test
+database when applying local metadata. Restart Directus after the metadata
+upsert so it reloads the relationship schema.
+
+Core mode registers the 25 visible read collections and their six visible
+navigation folders; the 32 technical tables remain in `directus_read` but are
+not registered as Directus collections. Licensed mode can register the full
+grouped catalog when a valid Directus license is supplied. The virtual
+relations declare how Directus traverses existing UUID links without adding
+PostgreSQL foreign keys. An authenticated API smoke on PostgreSQL 16 / Directus
+12.4.1 verified the six folders, key catalog/admission/evidence paths, filter
+query, and active-release switch; it was not a manual browser review. See
+[Directus UX](DIRECTUS_UX.md) for exact coverage and limits.
+
+The manifests cover presentation metadata only, not Directus users,
+role/policies, project language, dashboards, or arbitrary settings.
+PostgreSQL privileges remain the authority even for a Directus administrator;
+hidden or unregistered technical collections are a navigation/catalog-tier
+choice, not a database access boundary.
+
 `parsers/` contains the installable BMSTU parser and ingestion CLI. Fixture
 capture is the default; parser stages consume frozen local captures without
 network access. Direct live fetches use official-host allowlists, one-second
@@ -122,8 +150,10 @@ been validated as a safe routine update. See the
 [live validation report](LIVE_VALIDATION.md) and
 [known issues](KNOWN_ISSUES.md).
 
-See also: [operator workflow](INGESTION_OPERATIONS.md),
-[API contract](API.md), [Directus viewer](DIRECTUS.md),
-[API readiness](API_READINESS.md),
-[domain/write-boundary ADR](adr/ADR-0001-api-write-boundary-and-user-domain.md),
-[migration report](MIGRATION_REPORT.md).
+## See also
+
+- [Operator workflow](INGESTION_OPERATIONS.md)
+- [API contract and readiness](API.md) · [API readiness](API_READINESS.md)
+- [Directus viewer and UX](DIRECTUS.md) · [Directus UX](DIRECTUS_UX.md)
+- [Domain/write-boundary ADR](adr/ADR-0001-api-write-boundary-and-user-domain.md)
+- [Migration report](MIGRATION_REPORT.md)
