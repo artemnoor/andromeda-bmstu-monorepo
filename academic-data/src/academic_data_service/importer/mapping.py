@@ -5,6 +5,7 @@ from __future__ import annotations
 import csv
 import hashlib
 import json
+import re
 from collections import Counter, defaultdict
 from dataclasses import dataclass
 from datetime import date, datetime, time
@@ -20,7 +21,7 @@ from academic_data_service.importer.bundle import (
     validate_bundle,
 )
 
-MAPPER_VERSION = "bmstu-2026-bundle-v3"
+MAPPER_VERSION = "bmstu-2026-bundle-v4"
 
 # Every normalized dataset is either projected to typed rows or deliberately kept
 # as an exact source observation. Unknown files fail closed in project_bundle().
@@ -222,6 +223,57 @@ def _json_object(value: Any, field_name: str) -> dict[str, Any] | None:
     return value
 
 
+def _exact_curriculum_parent_pdf(
+    record: dict[str, Any],
+    plans_by_key: dict[str, list[dict[str, Any]]],
+    artifacts_by_key: dict[str, dict[str, Any]],
+) -> tuple[str, dict[str, Any]] | None:
+    """Resolve only a unique PDF on the exact parent plan with an exact URL match.
+
+    This creates item-to-document provenance without claiming a page/row location
+    that the bundle does not contain. HTML share pages and JSON metadata are never
+    treated as curriculum PDFs.
+    """
+
+    plan_key = record.get("curriculum_key")
+    child_url = record.get("source_document_url")
+    if not isinstance(plan_key, str) or not isinstance(child_url, str) or not child_url:
+        return None
+    plans = plans_by_key.get(plan_key, [])
+    if len(plans) != 1:
+        return None
+    plan = plans[0]
+    if plan.get("study_plan_url") != child_url:
+        return None
+    parent_artifact_keys: list[str] = []
+    singular_key = plan.get("source_artifact_key")
+    plural_keys = plan.get("source_artifact_keys")
+    if isinstance(singular_key, str):
+        parent_artifact_keys.append(singular_key)
+    if isinstance(plural_keys, list):
+        parent_artifact_keys.extend(key for key in plural_keys if isinstance(key, str))
+
+    pdf_artifacts: dict[str, dict[str, Any]] = {}
+    for artifact_key in parent_artifact_keys:
+        artifact = artifacts_by_key.get(artifact_key)
+        if artifact is None:
+            continue
+        content_type = artifact.get("content_type")
+        sha256 = artifact.get("sha256")
+        if (
+            artifact.get("source_type") == "bmstu_profile_specific_study_plan_file"
+            and isinstance(content_type, str)
+            and content_type.split(";", 1)[0].strip().casefold() == "application/pdf"
+            and artifact.get("status_code") == 200
+            and isinstance(sha256, str)
+            and re.fullmatch(r"[0-9a-fA-F]{64}", sha256)
+        ):
+            pdf_artifacts[artifact_key] = artifact
+    if len(pdf_artifacts) != 1:
+        return None
+    return next(iter(pdf_artifacts.items()))
+
+
 class _Projection:
     def __init__(
         self,
@@ -263,6 +315,7 @@ class _Projection:
         self.requirement_operator_counts: Counter[str] = Counter()
         self.row_lookup: dict[str, dict[str, dict[str, Any]]] = defaultdict(dict)
         self.manual_review_records: dict[str, dict[str, str]] = {}
+        self.curriculum_provenance_inheritance: Counter[str] = Counter()
 
     def add(
         self,
@@ -1299,6 +1352,16 @@ class _Projection:
             )
 
     def add_evidence_and_bridges(self) -> None:
+        plan_rows_by_key: dict[str, list[dict[str, Any]]] = defaultdict(list)
+        for _, plan in self.datasets.get("study_plans.jsonl", []):
+            plan_key = plan.get("external_key")
+            if isinstance(plan_key, str):
+                plan_rows_by_key[plan_key].append(plan)
+        artifacts_by_key = {
+            artifact["source_key"]: artifact
+            for artifact in self.manifest
+            if isinstance(artifact.get("source_key"), str)
+        }
         for dataset_name, rows in self.datasets.items():
             for line_number, record in rows:
                 source_key = record.get("external_key")
@@ -1318,6 +1381,23 @@ class _Projection:
                 plural = record.get("source_artifact_keys")
                 if isinstance(plural, list):
                     artifact_keys.extend(value for value in plural if isinstance(value, str))
+                inherited_locator: dict[str, Any] | None = None
+                inherited_artifact: dict[str, Any] | None = None
+                if dataset_name == "curriculum_items.jsonl" and not artifact_keys:
+                    inherited = _exact_curriculum_parent_pdf(
+                        record, plan_rows_by_key, artifacts_by_key
+                    )
+                    if inherited is None:
+                        self.curriculum_provenance_inheritance["unresolved"] += 1
+                    else:
+                        artifact_key, inherited_artifact = inherited
+                        artifact_keys.append(artifact_key)
+                        inherited_locator = {
+                            "scope": "study_plan_document",
+                            "study_plan_external_key": record.get("curriculum_key"),
+                            "page_row_locator_available": False,
+                        }
+                        self.curriculum_provenance_inheritance["inherited_exact_parent_pdf"] += 1
                 seen_artifacts: set[str] = set()
                 for artifact_key in artifact_keys:
                     if artifact_key in seen_artifacts:
@@ -1335,10 +1415,20 @@ class _Projection:
                         {
                             "source_artifact_id": artifact_id,
                             "field_path": f"data/{dataset_name}#L{line_number}",
-                            "locator": record.get("source_locator"),
+                            "locator": inherited_locator or record.get("source_locator"),
                             "quoted_fragment": None,
-                            "claim": f"Source record preserved from {dataset_name}",
-                            "observed_at": self._source_datetime(record),
+                            "claim": (
+                                "Curriculum item is associated with the PDF selected by its exact study-plan record; page and row are unavailable"
+                                if inherited_artifact is not None
+                                else f"Source record preserved from {dataset_name}"
+                            ),
+                            "observed_at": (
+                                self._source_datetime(record)
+                                or _as_datetime(record.get("observed_at"), "observed_at")
+                                or _as_datetime(inherited_artifact.get("retrieved_at"), "retrieved_at")
+                                if inherited_artifact is not None
+                                else self._source_datetime(record)
+                            ),
                             "verification_status": "source_backed",
                         },
                     )
@@ -1433,6 +1523,7 @@ class _Projection:
             "source_dataset_counts": dataset_counts,
             "source_manifest_count": len(self.manifest),
             "source_artifact_storage_statuses": dict(sorted(artifact_statuses.items())),
+            "curriculum_provenance_inheritance": dict(sorted(self.curriculum_provenance_inheritance.items())),
             "source_observations_expected": sum(dataset_counts.values())
             + len(self.manifest)
             + len(self.confirmed_plan_links)

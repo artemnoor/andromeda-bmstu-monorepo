@@ -111,6 +111,7 @@ def _release_counts(engine: Engine, release_id: UUID) -> dict[str, int]:
         "competition_pools",
         "study_plans",
         "curriculum_items",
+        "curriculum_evidence",
         "admission_requirement_sets",
         "admission_requirement_nodes",
         "admission_statistics",
@@ -364,12 +365,13 @@ def test_commit_is_idempotent_and_failed_activation_rolls_back(tmp_path: Path) -
         assert counts_before["competition_pools"] == 940
         assert counts_before["study_plans"] == 152
         assert counts_before["curriculum_items"] == 14_165
+        assert counts_before["curriculum_evidence"] == 14_165
         assert counts_before["admission_requirement_sets"] == 81
         assert counts_before["admission_requirement_nodes"] == 405
         assert counts_before["admission_statistics"] == 311
         assert counts_before["historical_admission_statistics"] == 783
         assert counts_before["source_artifacts"] == 498
-        assert counts_before["source_evidence"] == 13_886
+        assert counts_before["source_evidence"] == 19_153
         assert counts_before["source_observations"] == 23_020
         assert counts_before["source_relationships"] == 3_478
         assert counts_before["manual_review_items"] == 560

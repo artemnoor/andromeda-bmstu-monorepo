@@ -52,9 +52,20 @@ Previous: [Directus UX](DIRECTUS_UX.md) · Next: [Ingestion audit](INGESTION_AUD
 - The sampled tuition page exposed 154 rows but no academic year in each
   owning section. They remain pending and no canonical tuition row was
   produced. The parser does not infer a year or emit `year-unspecified` keys.
-- The bounded sample found no requirements PDF link and no safe aggregate
-  places/quota table. The order manifest contained 24 enabled document
-  records, but no document bodies were fetched.
+- The bounded live sample found no requirements PDF link and did not fetch an
+  aggregate places/quota document. The separately user-provided BMSTU 2026
+  Appendix 8.1 parses to 127 Moscow offerings and 508 correctly offering-
+  scoped pools/relations, but the output is not yet wired into `ingest stage`
+  and has 26 exact-link review entries. Those counts are not active canonical
+  data. The order manifest contained 24 enabled documents, but no document
+  bodies were fetched.
+- The checked-in bundle contains 5,267 curriculum rows without direct child
+  artifact keys. Mapper v4 now associates them to the unique successful PDF
+  on the exact parent study plan when the child and parent URLs match, raising
+  the offline projection from 8,898 to 14,165 curriculum evidence bridges.
+  Page/row locators are absent for those rows, and the PDFs' stored bytes were
+  omitted. Existing immutable releases and the current Directus active view
+  are unchanged; a reviewed successor import is required to show the links.
 - The probe compared against an isolated PostgreSQL 16 test release seeded
   from the checked-in bundle. No production database was queried. The broader
   live capture command remains unsuitable for unattended/mass refresh until

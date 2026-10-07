@@ -41,13 +41,19 @@ def build_authoritative_intake_records(
     source_retrieved_at: str | None,
     source_sha256: str,
     previous_offerings: list[dict[str, Any]] | None = None,
-) -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]]]:
+) -> tuple[
+    list[dict[str, Any]],
+    list[dict[str, Any]],
+    list[dict[str, Any]],
+    list[dict[str, Any]],
+    list[dict[str, Any]],
+]:
     """Join Appendix 8.1 rows without weakening its explicit-code evidence.
 
-    Returns Moscow offerings, derived competition pools, all table source rows,
-    and manual-review entries. Seat counts tied to a profile remain per-offer
-    pools; direction-wide quotas are consolidated only when their reported
-    values agree.
+    Returns Moscow offerings, derived competition pools, table source rows,
+    manual-review entries, and exact offering-to-pool relationships. The source
+    Appendix reports general and quota seat counts at offering-row grain; values
+    from different offers are never consolidated into a direction-wide pool.
     """
     direction_by_code = {clean_text(item.get("code")): item for item in directions if item.get("code")}
     department_by_code = {clean_text(item.get("code")): item for item in departments if item.get("code")}
@@ -69,6 +75,8 @@ def build_authoritative_intake_records(
 
     manual: list[dict[str, Any]] = []
     offerings: list[dict[str, Any]] = []
+    relationships: list[dict[str, Any]] = []
+    relationship_keys: set[tuple[str, str]] = set()
     source_row_key_by_locator: dict[tuple[int, int, int], str] = {}
     pools: dict[str, dict[str, Any]] = {}
 
@@ -80,34 +88,75 @@ def build_authoritative_intake_records(
             "details": re.sub(r"\s+", " ", clean_text(details)),
         })
 
-    def add_direction_quota(offer: dict[str, Any], field: str, quota_type: str) -> None:
+    def add_offering_pool(pool: dict[str, Any], offering_key: str, *, quota_type: str) -> None:
+        key = pool["external_key"]
+        locator = pool["places_by_source_row"][0]["locator"]
+        existing = pools.get(key)
+        if existing is None:
+            pools[key] = pool
+        else:
+            observed = {item["places"] for item in existing["places_by_source_row"]}
+            observed.add(pool["places"])
+            for item in pool["places_by_source_row"]:
+                if item not in existing["places_by_source_row"]:
+                    existing["places_by_source_row"].append(item)
+            for source_locator in pool["source_locators"]:
+                if source_locator not in existing["source_locators"]:
+                    existing["source_locators"].append(source_locator)
+            if len(observed) > 1:
+                existing["places"] = None
+                existing["conflicting_reported_places"] = sorted(observed)
+                review(
+                    key,
+                    "authoritative_offering_quota_conflict",
+                    f"The same exact offering/quota identity has conflicting {quota_type} values {sorted(observed)}.",
+                )
+        relation_identity = (offering_key, key)
+        if relation_identity not in relationship_keys:
+            relationship_keys.add(relation_identity)
+            relation_key = f"relationship:bmstu:offering-pool:{offering_key}:{key}"
+            relationships.append({
+                "external_key": relation_key,
+                "relation_type": "offering_competes_in_pool",
+                "source_key": offering_key,
+                "target_key": key,
+                "evidence_kind": "explicit_appendix_8_1_offering_row",
+                "source_artifact_key": pool.get("source_artifact_key"),
+                "source_url": pool.get("source_url"),
+                "source_locator": locator,
+            })
+
+    def add_offering_quota(offer: dict[str, Any], field: str, legacy_field: str, quota_type: str) -> None:
         code = offer.get("direction_code")
         amount = offer.get(field)
+        if amount is None:
+            amount = offer.get(legacy_field)
         if not code or amount is None:
             return
-        key = f"competition_pool:bmstu:2026:{code}:budget:{quota_type}"
-        pool = pools.setdefault(key, {
+        offering_key = offer["external_key"]
+        key = f"competition_pool:bmstu:2026:{offering_key}:budget:{quota_type}"
+        source_locators = offer.get("source_locators")
+        if not isinstance(source_locators, list) or not source_locators:
+            source_locators = [offer["source_locator"]]
+        pool = {
             "external_key": key,
             "campaign_year": 2026,
             "direction_code": code,
-            "department_code": None,
+            "department_code": offer.get("department_code"),
             "quota_type": quota_type,
             "funding_type": "budget",
             "places": amount,
-            "places_by_source_row": [],
-            "scope_level": "direction",
+            "places_by_source_row": [{"places": amount, "locator": offer["source_locator"]}],
+            "scope_level": "offering",
+            "program_offering_key": offering_key,
             "source_url": source_url,
-            "source_locators": [],
+            "source_locators": list(source_locators),
             "source_authority": "user_assigned_primary_source",
-        })
-        locator = offer["source_locator"]
-        pool["places_by_source_row"].append({"places": amount, "locator": locator})
-        pool["source_locators"].append(locator)
-        values = {item["places"] for item in pool["places_by_source_row"]}
-        if len(values) > 1:
-            pool["places"] = None
-            pool["conflicting_reported_places"] = sorted(values)
-            review(key, "authoritative_direction_quota_conflict", f"Appendix 8.1 reports different {quota_type} values under the same direction: {sorted(values)}.")
+            "source_artifact_key": offer.get("source_artifact_key"),
+            "source_retrieved_at": offer.get("source_retrieved_at"),
+            "source_sha256": offer.get("source_sha256"),
+        }
+        add_offering_pool(pool, offering_key, quota_type=quota_type)
 
     for source in source_offers:
         raw_department = clean_text(source.get("department_code_in_document"))
@@ -176,10 +225,15 @@ def build_authoritative_intake_records(
             "seat_scope_in_document": source.get("seat_scope_in_document"),
             "budget_places_at_department": source.get("budget_places_at_department"),
             "paid_places_at_department": source.get("paid_places_at_department"),
-            "special_quota_places_direction": source.get("special_quota_places_direction"),
-            "separate_quota_places_direction": source.get("separate_quota_places_direction"),
+            "special_quota_places_at_offering": source.get("special_quota_places_at_offering")
+            if source.get("special_quota_places_at_offering") is not None
+            else source.get("special_quota_places_direction"),
+            "separate_quota_places_at_offering": source.get("separate_quota_places_at_offering")
+            if source.get("separate_quota_places_at_offering") is not None
+            else source.get("separate_quota_places_direction"),
             "source_url": source_url,
             "source_locator": locator,
+            "source_locators": source.get("source_locators", [locator]),
             "source_row": source.get("source_row", []),
             "source_authority": "user_assigned_primary_source",
             "source_authority_note": "For values printed in the attached 2026 Appendix 8.1, this source overrides conflicting website captures.",
@@ -217,7 +271,7 @@ def build_authoritative_intake_records(
                     review(offering_key, "authoritative_seat_count_scope_unresolved", f"{field}={amount} is preserved on the offer but cannot be linked to one direction/department pool.")
                 continue
             pool_key = f"competition_pool:bmstu:2026:{offering_key}:{funding_type}:general_competition"
-            pools[pool_key] = {
+            pool = {
                 "external_key": pool_key,
                 "campaign_year": 2026,
                 "direction_code": direction_code,
@@ -235,8 +289,19 @@ def build_authoritative_intake_records(
                 "source_retrieved_at": source_retrieved_at,
                 "source_sha256": source_sha256,
             }
-        add_direction_quota(record, "special_quota_places_direction", "special")
-        add_direction_quota(record, "separate_quota_places_direction", "separate")
+            add_offering_pool(pool, offering_key, quota_type="general_competition")
+        add_offering_quota(
+            record,
+            "special_quota_places_at_offering",
+            "special_quota_places_direction",
+            "special",
+        )
+        add_offering_quota(
+            record,
+            "separate_quota_places_at_offering",
+            "separate_quota_places_direction",
+            "separate",
+        )
 
     for row in source_rows:
         locator = row.get("source_locator", {})
@@ -254,7 +319,7 @@ def build_authoritative_intake_records(
             "authoritative_moscow_row_count_differs_from_reviewed_attachment",
             f"The reviewed attachment has {EXPECTED_MOSCOW_OFFERING_ROWS} Moscow offering rows; the current parse produced {len(offerings)}. Confirm any corrected official version before loading.",
         )
-    return offerings, list(pools.values()), source_rows, manual
+    return offerings, list(pools.values()), source_rows, manual, relationships
 
 
 __all__ = [

@@ -15,7 +15,11 @@ import pytest
 from bs4 import BeautifulSoup
 
 from academic_data_service.importer.bundle import validate_bundle
-from academic_data_service.importer.mapping import BundleMappingError, project_bundle
+from academic_data_service.importer.mapping import (
+    BundleMappingError,
+    _exact_curriculum_parent_pdf,
+    project_bundle,
+)
 from andromeda.ingestion.universities.bmstu.capture import BmstuSource
 from andromeda.ingestion.universities.bmstu.fetch import FetchConfig, Fetcher
 from andromeda.ingestion.universities.bmstu.curriculum_identity import reconcile_curriculum_rows
@@ -27,6 +31,9 @@ from andromeda.ingestion.universities.bmstu.parser.campaign_2026.curricula.parse
 )
 from andromeda.ingestion.universities.bmstu.parser.campaign_2026.tuition.parser import (
     parse_cost_page,
+)
+from andromeda.ingestion.universities.bmstu.parser.campaign_2026.admissions.authority import (
+    build_authoritative_intake_records,
 )
 from andromeda_parser.bundle import (
     build_candidate_bundle,
@@ -920,6 +927,10 @@ def test_candidate_bundle_requires_review_and_preserves_base_facts(tmp_path: Pat
     assert dry_run["database_connection_opened"] is False
     assert dry_run["network_requests"] == 0
     typed_counts = dry_run["mapping"]["typed_row_counts"]
+    assert dry_run["mapping"]["mapper_version"] == "bmstu-2026-bundle-v4"
+    assert dry_run["mapping"]["curriculum_provenance_inheritance"] == {
+        "inherited_exact_parent_pdf": 5_267,
+    }
     changed_keys: dict[str, set[str]] = {}
     for candidate_row in candidate_rows:
         target_key = accepted_targets.get(candidate_row["external_key"])
@@ -943,6 +954,8 @@ def test_candidate_bundle_requires_review_and_preserves_base_facts(tmp_path: Pat
     assert typed_counts["educational_programs"] == 152
     assert typed_counts["study_plans"] == 152
     assert typed_counts["curriculum_items"] == 14_165
+    # The accepted fixture update adds a second source PDF to one existing row.
+    assert typed_counts["curriculum_evidence"] == 14_166
     assert typed_counts["admission_exams"] > 0
     assert typed_counts["program_offerings"] == 131
     assert typed_counts["competition_pools"] == 944
@@ -959,6 +972,241 @@ def test_candidate_bundle_requires_review_and_preserves_base_facts(tmp_path: Pat
         if json.loads(line)["external_key"] == "admission_statistic:bmstu:2025:01.03.02:paid:direction"
     )
     assert (updated_history["admitted_count"], updated_history["minimum_score"], updated_history["maximum_score"]) == (12, 201, 280)
+
+
+def _authoritative_offer(
+    key: str,
+    row: int,
+    *,
+    program_name: str,
+    budget: int = 10,
+    paid: int = 20,
+    special: int = 0,
+    separate: int = 2,
+) -> dict[str, Any]:
+    locator = {"page": 2, "table": 1, "row": row}
+    return {
+        "external_key": key,
+        "direction_codes_in_document": ["09.03.01"],
+        "department_code_in_document": "ИУ5",
+        "department_rows_in_document": [{"department_code_in_document": "ИУ5", "source_locator": locator}],
+        "program_name_in_document": program_name,
+        "budget_places_at_department": budget,
+        "paid_places_at_department": paid,
+        "special_quota_places_at_offering": special,
+        "separate_quota_places_at_offering": separate,
+        "source_locator": locator,
+        "source_locators": [locator],
+        "source_row": [program_name, budget, paid, special, separate],
+    }
+
+
+def _build_authoritative_test_records(offers: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], ...]:
+    department_codes = {"ИУ5"}
+    for offer in offers:
+        for row in offer.get("department_rows_in_document", []):
+            code = row.get("department_code_in_document")
+            if isinstance(code, str) and code.startswith("ИУ"):
+                department_codes.add(code)
+    departments = [
+        {"external_key": f"department:bmstu:{code}", "code": code, "name": code}
+        for code in sorted(department_codes)
+    ]
+    directions = [{"external_key": "direction:bmstu:09.03.01", "code": "09.03.01", "name": "Информатика"}]
+    programs = [
+        {
+            "external_key": f"program:bmstu:09.03.01:{index}",
+            "direction_code": "09.03.01",
+            "department_code": "ИУ5",
+            "name": offer["program_name_in_document"],
+        }
+        for index, offer in enumerate(offers, start=1)
+    ]
+    return build_authoritative_intake_records(
+        offers,
+        [],
+        directions=directions,
+        departments=departments,
+        programs=programs,
+        campaign_key="campaign:bmstu:2026",
+        source_url="local://test/appendix-8-1.pdf",
+        source_artifact_key="source_artifact:test-appendix-8-1",
+        source_retrieved_at="2026-10-07T00:00:00+00:00",
+        source_sha256="a" * 64,
+    )
+
+
+def test_appendix_8_1_quotas_keep_offering_scope_and_exact_links() -> None:
+    source_offers = [
+        _authoritative_offer("offering:test:one", 10, program_name="Информатика", special=2, separate=8),
+        _authoritative_offer("offering:test:two", 11, program_name="Информационные системы", special=6, separate=0),
+    ]
+
+    offers, pools, _source_rows, manual, relationships = _build_authoritative_test_records(source_offers)
+    repeated = _build_authoritative_test_records(source_offers)
+
+    quota_pools = [pool for pool in pools if pool["quota_type"] in {"special", "separate"}]
+    assert len(offers) == 2
+    assert len(quota_pools) == 4
+    assert all(pool["scope_level"] == "offering" for pool in quota_pools)
+    assert all(pool["department_code"] == "ИУ5" for pool in quota_pools)
+    assert all(pool["source_sha256"] == "a" * 64 for pool in quota_pools)
+    assert all(pool["source_artifact_key"] == "source_artifact:test-appendix-8-1" for pool in quota_pools)
+    assert {pool["places"] for pool in quota_pools} == {0, 2, 6, 8}
+    assert not any(row["issue_type"] == "authoritative_direction_quota_conflict" for row in manual)
+
+    quota_links = [row for row in relationships if row["target_key"] in {pool["external_key"] for pool in quota_pools}]
+    assert len(quota_links) == 4
+    assert {
+        (row["source_key"], row["target_key"])
+        for row in quota_links
+    } == {
+        (pool["program_offering_key"], pool["external_key"])
+        for pool in quota_pools
+    }
+    assert all(row["source_artifact_key"] == "source_artifact:test-appendix-8-1" for row in quota_links)
+    assert [row["external_key"] for row in pools] == [row["external_key"] for row in repeated[1]]
+    assert [(row["source_key"], row["target_key"]) for row in relationships] == [
+        (row["source_key"], row["target_key"]) for row in repeated[4]
+    ]
+
+
+def test_appendix_8_1_same_exact_pool_with_different_values_requires_review() -> None:
+    original = _authoritative_offer("offering:test:duplicate", 10, program_name="Информатика", special=2)
+    conflicting = dict(original, special_quota_places_at_offering=3)
+
+    _offers, pools, _source_rows, manual, relationships = _build_authoritative_test_records([original, conflicting])
+
+    special = next(pool for pool in pools if pool["quota_type"] == "special")
+    assert special["places"] is None
+    assert special["conflicting_reported_places"] == [2, 3]
+    assert special["places_by_source_row"] == [
+        {"places": 2, "locator": original["source_locator"]},
+        {"places": 3, "locator": conflicting["source_locator"]},
+    ]
+    assert any(
+        row["record_key"] == special["external_key"]
+        and row["issue_type"] == "authoritative_offering_quota_conflict"
+        for row in manual
+    )
+    assert sum(row["target_key"] == special["external_key"] for row in relationships) == 1
+
+
+def test_appendix_8_1_multiple_department_row_preserves_locators_without_split() -> None:
+    offer = _authoritative_offer("offering:test:merged", 10, program_name="Новая программа", special=1)
+    offer["department_code_in_document"] = "ИУ5 / ИУ6"
+    offer["department_rows_in_document"] = [
+        {"department_code_in_document": "ИУ5", "source_locator": {"page": 2, "table": 1, "row": 10}},
+        {"department_code_in_document": "ИУ6", "source_locator": {"page": 2, "table": 1, "row": 11}},
+    ]
+    offer["source_locators"] = [row["source_locator"] for row in offer["department_rows_in_document"]]
+
+    _offers, pools, _source_rows, manual, relationships = _build_authoritative_test_records([offer])
+
+    special = next(pool for pool in pools if pool["quota_type"] == "special")
+    assert special["scope_level"] == "offering"
+    assert special["department_code"] is None
+    assert special["places"] == 1
+    assert special["source_locators"] == offer["source_locators"]
+    assert any(
+        row["issue_type"] in {
+            "authoritative_offering_department_codes_composite",
+            "authoritative_offering_has_combined_department_codes",
+        }
+        for row in manual
+    )
+    assert any(row["source_key"] == offer["external_key"] and row["target_key"] == special["external_key"] for row in relationships)
+
+
+def test_curriculum_evidence_fallback_requires_exact_unique_parent_pdf() -> None:
+    record = {
+        "external_key": "curriculum_item:study-plan:row:7",
+        "curriculum_key": "study_plan:exact",
+        "source_document_url": "https://files.example/plan.pdf",
+    }
+    plan = {
+        "external_key": "study_plan:exact",
+        "study_plan_url": "https://files.example/plan.pdf",
+        "source_artifact_keys": ["artifact:html", "artifact:json", "artifact:pdf"],
+    }
+    artifacts = {
+        "artifact:html": {
+            "source_key": "artifact:html",
+            "source_type": "bmstu_profile_study_plan_link",
+            "content_type": "text/html; charset=utf-8",
+            "status_code": 200,
+            "sha256": "b" * 64,
+        },
+        "artifact:json": {
+            "source_key": "artifact:json",
+            "source_type": "bmstu_profile_study_plan_metadata",
+            "content_type": "application/json",
+            "status_code": 200,
+            "sha256": "c" * 64,
+        },
+        "artifact:pdf": {
+            "source_key": "artifact:pdf",
+            "source_type": "bmstu_profile_specific_study_plan_file",
+            "content_type": "application/pdf",
+            "status_code": 200,
+            "sha256": "d" * 64,
+            "retrieved_at": "2026-10-02T00:00:00+00:00",
+        },
+    }
+
+    resolved = _exact_curriculum_parent_pdf(record, {"study_plan:exact": [plan]}, artifacts)
+    assert resolved == ("artifact:pdf", artifacts["artifact:pdf"])
+
+    wrong_url = dict(record, source_document_url="https://files.example/another.pdf")
+    assert _exact_curriculum_parent_pdf(wrong_url, {"study_plan:exact": [plan]}, artifacts) is None
+    duplicate_parent = {"study_plan:exact": [plan, dict(plan)]}
+    assert _exact_curriculum_parent_pdf(record, duplicate_parent, artifacts) is None
+    two_pdfs = dict(artifacts, **{
+        "artifact:pdf-2": dict(artifacts["artifact:pdf"], source_key="artifact:pdf-2")
+    })
+    two_pdf_plan = dict(plan, source_artifact_keys=["artifact:pdf", "artifact:pdf-2"])
+    assert _exact_curriculum_parent_pdf(record, {"study_plan:exact": [two_pdf_plan]}, two_pdfs) is None
+    unavailable_pdf = dict(artifacts["artifact:pdf"], status_code=403)
+    assert _exact_curriculum_parent_pdf(
+        record,
+        {"study_plan:exact": [plan]},
+        dict(artifacts, **{"artifact:pdf": unavailable_pdf}),
+    ) is None
+
+
+def test_projected_curriculum_evidence_resolves_to_the_exact_parent_pdf() -> None:
+    source_rows = [
+        json.loads(line)
+        for line in (BASE_BUNDLE / "data" / "curriculum_items.jsonl").read_text(encoding="utf-8").splitlines()
+    ]
+    child = next(
+        row for row in source_rows
+        if not row.get("source_artifact_key") and not row.get("source_artifact_keys")
+    )
+    result = project_bundle(BASE_BUNDLE)
+    child_id = result.ids_by_table["curriculum_items"][child["external_key"]]
+    bridge = next(
+        row for row in result.table_rows["curriculum_evidence"]
+        if row["curriculum_item_id"] == child_id
+    )
+    evidence = next(
+        row for row in result.table_rows["source_evidence"]
+        if row["id"] == bridge["evidence_id"]
+    )
+    artifact = next(
+        row for row in result.table_rows["source_artifacts"]
+        if row["id"] == evidence["source_artifact_id"]
+    )
+
+    assert artifact["source_type"] == "bmstu_profile_specific_study_plan_file"
+    assert artifact["content_type"] == "application/pdf"
+    assert len(artifact["sha256"]) == 64
+    assert evidence["locator"] == {
+        "scope": "study_plan_document",
+        "study_plan_external_key": child["curriculum_key"],
+        "page_row_locator_available": False,
+    }
+    assert "page and row are unavailable" in evidence["claim"]
 
 
 def test_candidate_rejects_applicant_and_olympiad_payloads() -> None:

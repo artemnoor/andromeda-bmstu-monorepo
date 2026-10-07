@@ -288,8 +288,11 @@ def parse_intake_plan_pdf(body: bytes, source_url: str) -> tuple[list[dict[str, 
                         "study_duration_label": cells[6] or None if len(cells) > 6 else None,
                         "budget_places_at_department": budget_places,
                         "paid_places_at_department": _integer(cells[8]) if len(cells) > 8 else None,
-                        "special_quota_places_direction": _integer(cells[9]) if len(cells) > 9 else None,
-                        "separate_quota_places_direction": _integer(cells[10]) if len(cells) > 10 else None,
+                        # Appendix 8.1 reports these values on the program row.
+                        # Keep the source grain in the field name; they are not
+                        # direction-wide totals.
+                        "special_quota_places_at_offering": _integer(cells[9]) if len(cells) > 9 else None,
+                        "separate_quota_places_at_offering": _integer(cells[10]) if len(cells) > 10 else None,
                         "seat_scope_in_document": "multiple_department_rows" if len(member_rows) > 1 else "single_department_row",
                         "campus_scope": scope_by_row[row_no],
                         "source_url": source_url,

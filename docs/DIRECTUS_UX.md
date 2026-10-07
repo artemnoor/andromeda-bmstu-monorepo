@@ -120,6 +120,14 @@ collections remain in the quality group. The smoke verified the curriculum
 item → evidence → artifact path and the source-evidence → artifact path. Other
 entity-specific evidence bridges are configured but were not all traversed.
 
+Some curriculum rows in earlier releases have evidence only on their parent
+study plan. Mapper v4 now projects a child-to-PDF evidence bridge where the
+child resolves to one exact plan and that plan declares one successful,
+SHA-256-identified PDF. The evidence locator says it is a plan-document
+association and marks page/row as unavailable. Directus shows this only after
+a reviewed successor release is published; immutable existing releases are
+not patched in place.
+
 ## Data quality and active release
 
 There is no custom dashboard. The **05. Источники и качество данных** group is

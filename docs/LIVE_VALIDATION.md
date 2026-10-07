@@ -28,6 +28,33 @@ The complete sanitized report is in ignored local storage at
 | [BMSTU admission information](https://course.bmstu.ru/edu/abiturient/) | HTTP 200 | 783 aggregate historical-statistic rows matched by exact key with zero compared changes. No explicit year was found in the owning tuition sections: 0 canonical live tuition rows, 154 pending observations, and no `year-unspecified` external keys. The page contained date mentions on 25 July, 19 August, and 20 August 2026; this sample is not a complete campaign calendar. |
 | [Admission order index](https://priem.bmstu.ru/lists/orders.json) | HTTP 200 | Manifest metadata listed 24 enabled documents. Zero document bodies were fetched; no applicant-level data was read. |
 
+## User-provided Appendix 8.1 — local parse, 2026-10-08
+
+The user supplied a copy of the BMSTU 2026 first-year intake plan, Appendix
+8.1. Its SHA-256 is
+`553f0c31af6038441770aabdf86acd79c77000cbe5fcb193991f6cf4054597d0`.
+This was parsed locally; it was not fetched from the live site. The public
+[BMSTU admissions page](https://isot.bmstu.ru/edu/abiturient/) is the observed
+official index, but this exact PDF download URL was not independently
+verified. No access protection was bypassed.
+
+The PDF parser extracted **127 Moscow offering rows** and **165 source-table
+rows**. The corrected authority mapping produced **508 offering-scoped pools**
+and **508 exact offering-to-pool relations**: 127 each for budget general
+competition, paid general competition, special quota and separate quota. An
+explicit zero remains zero. Different counts under the same direction now
+remain separate facts; this parse produced **zero quota conflicts**. The
+authority output still has **26 review entries**: 21 offerings without one
+exact program-catalog match, plus five entries about composite department
+cells and the current lack of a many-department offering relation. No values
+were written to the active release.
+
+The Appendix parser/authority output is not yet wired into the standard
+`ingest stage` command. These counts prove the bounded local PDF parse and
+mapping behavior, not publication or completeness of the live admissions
+source. Do not promote its records until the source artifact has been added to
+a candidate bundle and the exact-key review is complete.
+
 ## Remaining source gaps
 
 - The HTML catalog returned no recognized links while the official API returned
@@ -42,9 +69,10 @@ The complete sanitized report is in ignored local storage at
   no current date or campaign convention was used to guess a year.
 - The selected admissions page exposed no requirements PDF link matching the
   bounded selector. Exam-rule coverage remains unverified live.
-- No safe aggregate places/quota table was identified. Raw places/price hints
-  on a program card were not mapped to campaign/program facts. The order index
-  remained metadata-only.
+- The bounded live probe did not fetch an aggregate places/quota PDF; the order
+  index remained metadata-only. The separately supplied Appendix 8.1 was
+  parsed locally as described above, but still needs candidate-bundle wiring
+  and manual review before its data can be published.
 - Date text was observed but not validated across education levels, tracks,
   and the full official campaign calendar.
 
