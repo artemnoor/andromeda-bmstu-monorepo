@@ -175,7 +175,11 @@ class BmstuSource:
         )
         return CapturedSources(tuple(snapshots), source_gaps=tuple(self._capture_gaps))
 
-    def _fetch_public_documents(self, public_url: str) -> tuple[RawSourceSnapshot, ...]:
+    def _fetch_public_documents(
+        self, public_url: str, *, max_documents: int | None = None
+    ) -> tuple[RawSourceSnapshot, ...]:
+        if max_documents is not None and max_documents < 1:
+            raise ValueError("max_documents must be positive")
         if not _is_supported_public_plan_url(public_url):
             selection_logger.warning("study_plan_host_rejected plan_url=%s", public_url)
             self._capture_gaps.append(source_fetch_gap("bmstu_curriculum_metadata", public_url, "unsupported_source_host"))
@@ -212,7 +216,17 @@ class BmstuSource:
             self._capture_gaps.append(source_fetch_gap("bmstu_curriculum_document", public_url, "document_missing"))
             return (metadata_snapshot,)
         snapshots = [metadata_snapshot]
-        for direct_url in dict.fromkeys(direct_urls):
+        unique_direct_urls = list(dict.fromkeys(direct_urls))
+        if max_documents is not None and len(unique_direct_urls) > max_documents:
+            self._capture_gaps.append(
+                source_fetch_gap(
+                    "bmstu_curriculum_document",
+                    public_url,
+                    "additional_documents_not_probed",
+                )
+            )
+            unique_direct_urls = unique_direct_urls[:max_documents]
+        for direct_url in unique_direct_urls:
             if not _is_supported_download_url(direct_url):
                 selection_logger.warning("study_plan_download_host_rejected plan_url=%s", public_url)
                 self._capture_gaps.append(source_fetch_gap("bmstu_curriculum_document", public_url, "download_host_rejected"))

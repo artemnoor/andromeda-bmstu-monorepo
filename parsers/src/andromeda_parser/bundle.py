@@ -8,12 +8,13 @@ import hashlib
 import json
 import logging
 import os
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 import re
 import shutil
 import tempfile
 from typing import Any
 from urllib.parse import urlsplit, urlunsplit
+from uuid import UUID
 
 from andromeda_parser.ingest import IngestionError, _assert_safe_payload
 
@@ -649,11 +650,28 @@ def _base_validation(base_bundle: Path) -> tuple[Any, dict[str, Any]]:
     return validate_bundle, report
 
 
+def _copy_import_bundle(base: Path, target: Path) -> None:
+    """Copy a validated directory or ZIP using BundleReader's safe path index."""
+
+    try:
+        from academic_data_service.importer.bundle import BundleReader
+    except ImportError as error:
+        raise IngestionError("bundle copying requires the academic-data package") from error
+    with BundleReader(base) as reader:
+        for relative_path in reader._file_names():
+            path = PurePosixPath(relative_path)
+            destination = target.joinpath(*path.parts)
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            destination.write_bytes(reader.read_bytes(relative_path))
+
+
 def build_candidate_bundle(
     *,
     base_bundle: Path,
     parse_report_path: Path,
     output_dir: Path,
+    base_release_id: str | None = None,
+    base_source_bundle_sha256: str | None = None,
 ) -> dict[str, Any]:
     """Copy the safe base and stage source-backed typed facts behind manual review."""
 
@@ -762,7 +780,24 @@ def build_candidate_bundle(
     candidates = [snapshot_candidate, *typed_candidates]
 
     target = _prepare_output(output_dir)
-    shutil.copytree(base, target, dirs_exist_ok=True)
+    if base_release_id is None and base_source_bundle_sha256 is not None:
+        raise IngestionError("base release digest cannot be set without a release ID")
+    if base_release_id is not None:
+        try:
+            UUID(base_release_id)
+        except ValueError as error:
+            raise IngestionError("base release ID must be a UUID") from error
+        if base_source_bundle_sha256 != base_report["input"]["digest"]:
+            raise IngestionError("active release digest does not match the exported base bundle")
+    _copy_import_bundle(base, target)
+    _write_json(
+        target / "release_context.json",
+        {
+            "schema_version": 1,
+            "base_release_id": base_release_id,
+            "base_source_bundle_sha256": base_source_bundle_sha256,
+        },
+    )
     artifacts_path = target / SOURCE_ARTIFACTS
     existing_artifacts = _read_jsonl(artifacts_path)
     existing_keys = {row.get("source_key") for row in existing_artifacts}
@@ -822,7 +857,12 @@ def build_candidate_bundle(
     candidate_manifest = {
         "schema_version": 1,
         "base_digest": base_report["input"]["digest"],
+        "base_release_id": base_release_id,
+        "base_source_bundle_sha256": base_source_bundle_sha256,
         "capture_digest": capture_digest,
+        "source_gaps": report.get("source_gaps", []),
+        "complete_datasets": [],
+        "coverage": "partial",
         "candidate_keys": [row["external_key"] for row in candidates],
         "typed_candidate_count": len(typed_candidates),
         "added_source_artifact_keys": [row["source_key"] for row in additions],
@@ -936,6 +976,7 @@ def materialize_reviewed_bundle(
     candidate_dir: Path,
     decisions_path: Path,
     output_dir: Path,
+    actor: str | None = None,
 ) -> dict[str, Any]:
     """Apply exact-key decisions to typed datasets and preserve the audit observation."""
 
@@ -955,6 +996,20 @@ def materialize_reviewed_bundle(
     if not candidates:
         raise IngestionError("candidate dataset is empty")
 
+    from andromeda_parser.moderation import compare_candidate_bundle
+
+    diff = compare_candidate_bundle(candidate)
+    candidates_by_key = {str(row["external_key"]): row for row in candidates}
+    no_action_keys = {
+        str(row["candidate_key"])
+        for row in diff["records"]
+        if isinstance(row.get("candidate_key"), str)
+        and row["classification"] == "unchanged"
+        and row.get("provenance_verified") is True
+        and not candidates_by_key[str(row["candidate_key"])].get("prior_rejection_event_ids")
+    }
+    review_required_keys = set(candidates_by_key) - no_action_keys
+
     try:
         with decisions_file.open("r", encoding="utf-8-sig", newline="") as stream:
             reader = csv.DictReader(stream)
@@ -968,11 +1023,31 @@ def materialize_reviewed_bundle(
     if len(decision_rows) != len({row.get("external_key") for row in decision_rows}):
         raise IngestionError("review decisions contain duplicate candidate keys")
     candidate_keys = {str(row.get("external_key")) for row in candidates}
-    if {str(row.get("external_key")) for row in decision_rows} != candidate_keys:
-        raise IngestionError("each candidate must have exactly one explicit review decision")
+    actionable_rows = []
+    for decision_row in decision_rows:
+        key = str(decision_row.get("external_key"))
+        if key in no_action_keys:
+            if any(
+                (decision_row.get(field) or "").strip()
+                for field in ("decision", "reviewed_at", "target_external_key", "reviewed_by")
+            ):
+                raise IngestionError("unchanged verified facts must not be resubmitted for review")
+            continue
+        actionable_rows.append(decision_row)
+    decision_rows = actionable_rows
+    decision_keys = {str(row.get("external_key")) for row in decision_rows}
+    if decision_keys != review_required_keys:
+        raise IngestionError(
+            "review CSV must contain exactly the candidates that require review; "
+            "unchanged verified facts are omitted"
+        )
 
     decisions_by_key: dict[str, dict[str, str]] = {}
-    candidates_by_key = {str(row["external_key"]): row for row in candidates}
+    from getpass import getuser
+
+    default_actor = (actor or getuser()).strip()
+    if not default_actor or len(default_actor) > 256:
+        raise IngestionError("review actor must contain 1 to 256 characters")
     for decision_row in decision_rows:
         key = str(decision_row.get("external_key") or "")
         candidate_row = candidates_by_key[key]
@@ -986,6 +1061,9 @@ def materialize_reviewed_bundle(
             raise IngestionError("reviewed_at must be an ISO timestamp") from error
         if reviewed.tzinfo is None:
             raise IngestionError("reviewed_at must include a timezone")
+        reviewer = (decision_row.get("reviewed_by") or default_actor).strip()
+        if not reviewer or len(reviewer) > 256:
+            raise IngestionError("reviewed_by must contain 1 to 256 characters")
         target_key = (decision_row.get("target_external_key") or "").strip()
         if decision == "accept_typed_fact" and (not target_key or target_key != decision_row.get("target_external_key")):
             raise IngestionError("accepted typed facts require a non-empty exact target_external_key")
@@ -995,11 +1073,13 @@ def materialize_reviewed_bundle(
             "decision": decision,
             "reviewed_at": reviewed.isoformat(),
             "target_external_key": target_key,
+            "reviewed_by": reviewer,
         }
 
     accepted_typed = [
         row for row in candidates
         if row.get("candidate_type") == "typed_record"
+        and str(row["external_key"]) not in no_action_keys
         and decisions_by_key[str(row["external_key"])]["decision"] == "accept_typed_fact"
     ]
     target_by_candidate = {
@@ -1008,15 +1088,19 @@ def materialize_reviewed_bundle(
     }
     rows_by_dataset: dict[str, dict[str, dict[str, Any]]] = {}
     accepted_source_keys: set[str] = set()
+    rejected_source_keys: set[str] = set()
+    rejected_archive_rows: list[dict[str, Any]] = []
+    review_events: list[dict[str, Any]] = []
     observation_rows: list[dict[str, Any]] = []
+    decided_candidates: list[dict[str, Any]] = []
     current_observations = _read_jsonl(candidate / OBSERVATION_DATASET)
     existing_observation_keys = {str(row.get("external_key")) for row in current_observations}
 
     for row in candidates:
         candidate_key = str(row["external_key"])
-        decision = decisions_by_key[candidate_key]
-        if decision["decision"] == "reject":
+        if candidate_key in no_action_keys:
             continue
+        decision = decisions_by_key[candidate_key]
         payload_json = row.get("payload_json")
         payload_sha256 = row.get("payload_sha256")
         if not isinstance(payload_json, str) or not isinstance(payload_sha256, str):
@@ -1027,7 +1111,46 @@ def materialize_reviewed_bundle(
             raise IngestionError("olympiad content is not publishable in the BMSTU bundle")
         artifact_key = row.get("source_artifact_key")
         if isinstance(artifact_key, str):
-            accepted_source_keys.add(artifact_key)
+            (rejected_source_keys if decision["decision"] == "reject" else accepted_source_keys).add(artifact_key)
+        if row.get("candidate_type") == "canonical_snapshot":
+            for source_key in row.get("source_artifact_keys", []):
+                if isinstance(source_key, str):
+                    (rejected_source_keys if decision["decision"] == "reject" else accepted_source_keys).add(source_key)
+        try:
+            proposed_value = json.loads(payload_json)
+        except json.JSONDecodeError as error:
+            raise IngestionError("reviewed candidate payload is invalid JSON") from error
+        source_sha256 = proposed_value.get("source_sha256") if isinstance(proposed_value, dict) else None
+        event_core = {
+            "candidate_key": candidate_key,
+            "decision": decision["decision"],
+            "reviewed_at": decision["reviewed_at"],
+            "reviewed_by": decision["reviewed_by"],
+            "target_dataset": row.get("target_dataset"),
+            "target_external_key": decision["target_external_key"] or None,
+            "source_identity": row.get("source_identity"),
+            "source_artifact_key": artifact_key,
+            "source_sha256": source_sha256,
+            "source_value_json": payload_json,
+            "candidate_payload_sha256": payload_sha256,
+        }
+        event_id = hashlib.sha256(
+            json.dumps(event_core, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
+        ).hexdigest()
+        review_events.append({"event_id": event_id, **event_core})
+        decided_candidates.append(row)
+        if decision["decision"] == "reject":
+            rejection = {
+                **row,
+                "external_key": f"rejected_candidate:{event_id}",
+                "candidate_reference": candidate_key,
+                "rejection_event_id": event_id,
+                "reviewed_at": decision["reviewed_at"],
+                "reviewed_by": decision["reviewed_by"],
+                "review_state": "rejected",
+            }
+            rejected_archive_rows.append(rejection)
+            continue
         if row.get("candidate_type") == "canonical_snapshot":
             if candidate_key in existing_observation_keys:
                 raise IngestionError("candidate key already exists in the source observation dataset")
@@ -1117,20 +1240,36 @@ def materialize_reviewed_bundle(
 
         decisions_manifest = [
             {
+                "event_id": event["event_id"],
                 "external_key": row["external_key"],
-                "decision": decisions_by_key[str(row["external_key"])]["decision"],
-                "reviewed_at": decisions_by_key[str(row["external_key"])]["reviewed_at"],
-                "target_external_key": decisions_by_key[str(row["external_key"])]["target_external_key"] or None,
+                "candidate_key": event["candidate_key"],
+                **{
+                    key: value
+                    for key, value in event.items()
+                    if key not in {"event_id", "candidate_key"}
+                },
             }
-            for row in candidates
+            for row, event in zip(decided_candidates, review_events, strict=True)
         ]
-        _write_jsonl(temporary / "review_decisions.jsonl", decisions_manifest)
+        decision_history = _read_jsonl(temporary / "review_decisions.jsonl") if (temporary / "review_decisions.jsonl").is_file() else []
+        seen_event_ids = {row.get("event_id") for row in decision_history}
+        decision_history.extend(event for event in decisions_manifest if event.get("event_id") not in seen_event_ids)
+        _write_jsonl(temporary / "review_decisions.jsonl", decision_history)
+
+        rejected_path = temporary / "data" / "bmstu_rejected_candidates.jsonl"
+        existing_rejected = _read_jsonl(rejected_path) if rejected_path.is_file() else []
+        known_rejections = {row.get("rejection_event_id") for row in existing_rejected}
+        existing_rejected.extend(
+            row for row in rejected_archive_rows if row.get("rejection_event_id") not in known_rejections
+        )
+        if existing_rejected:
+            _write_jsonl(rejected_path, existing_rejected)
 
         manifest_path = temporary / SOURCE_ARTIFACTS
         all_artifacts = _read_jsonl(manifest_path)
         added_keys = set(candidate_manifest.get("added_source_artifact_keys", []))
         existing_artifact_keys = {row.get("source_key") for row in _read_jsonl(candidate / SOURCE_ARTIFACTS)} - added_keys
-        retained_keys = existing_artifact_keys | accepted_source_keys
+        retained_keys = existing_artifact_keys | accepted_source_keys | rejected_source_keys
         _write_jsonl(
             manifest_path,
             [row for row in all_artifacts if row.get("source_key") not in added_keys or row.get("source_key") in retained_keys],
@@ -1167,7 +1306,10 @@ def materialize_reviewed_bundle(
 
         reviewed_validation = validate_bundle(temporary)
         if not reviewed_validation.get("valid"):
-            raise IngestionError("reviewed bundle failed validation")
+            error_codes = ", ".join(
+                str(item.get("code", "unknown")) for item in reviewed_validation.get("errors", [])[:8]
+            )
+            raise IngestionError(f"reviewed bundle failed validation: {error_codes or 'see validation report'}")
         from academic_data_service.importer.mapping import project_bundle
 
         project_bundle(str(temporary))
@@ -1195,6 +1337,7 @@ def materialize_reviewed_bundle(
         "output_dir": str(target_input),
         "accepted": len(observation_rows) + len(accepted_typed),
         "accepted_typed": len(accepted_typed),
+        "unchanged_skipped": len(no_action_keys),
         "materialized_typed_rows": typed_count,
         "rejected": rejected_count,
         "validation": reviewed_validation,
@@ -1241,11 +1384,53 @@ def run_bundle_command(args: Any, parser: Any) -> int:
     configure_verbose_logging(args.log_level)
     try:
         if args.ingest_command == "stage":
-            result = build_candidate_bundle(
-                base_bundle=args.base,
-                parse_report_path=args.parse_report,
-                output_dir=args.output,
+            if args.base is not None and not args.bootstrap:
+                parser.error("--base requires --bootstrap; normal updates export the active release")
+            from academic_data_service.infrastructure.database.connection import (
+                create_service_engine,
             )
+            from academic_data_service.operations.releases import (
+                export_release_bundle,
+                release_status,
+                require_empty_active_slot,
+            )
+            from academic_data_service.settings import load_settings
+
+            settings = load_settings()
+            engine = create_service_engine(settings)
+            try:
+                if args.bootstrap:
+                    require_empty_active_slot(engine, settings)
+                    seed_bundle = args.base or Path("data/bmstu-2026")
+                    result = build_candidate_bundle(
+                        base_bundle=seed_bundle,
+                        parse_report_path=args.parse_report,
+                        output_dir=args.output,
+                    )
+                else:
+                    active = release_status(engine, settings)
+                    if not active["archive_available"]:
+                        raise IngestionError(
+                            "active release bundle is missing; explicitly adopt its exact-digest legacy bundle"
+                        )
+                    with tempfile.TemporaryDirectory(prefix="andromeda-active-release-") as temporary:
+                        filename = "base.zip" if active["archive_format"] == "source_zip_v1" else "base"
+                        base_bundle = Path(temporary) / filename
+                        export_release_bundle(
+                            engine,
+                            settings,
+                            output_path=base_bundle,
+                            release_id=UUID(active["release_id"]),
+                        )
+                        result = build_candidate_bundle(
+                            base_bundle=base_bundle,
+                            parse_report_path=args.parse_report,
+                            output_dir=args.output,
+                            base_release_id=active["release_id"],
+                            base_source_bundle_sha256=active["source_bundle_sha256"],
+                        )
+            finally:
+                engine.dispose()
             output = {
                 "output_dir": result["output_dir"],
                 "base_digest": result["base_digest"],
@@ -1256,11 +1441,59 @@ def run_bundle_command(args: Any, parser: Any) -> int:
                 "source_artifact_count": result["source_artifact_count"],
                 "validation": _summary(result["validation"]),
             }
+        elif args.ingest_command == "diff":
+            from andromeda_parser.moderation import compare_candidate_bundle, write_diff_report
+
+            result = compare_candidate_bundle(args.input)
+            write_diff_report(result, json_path=args.json_output, csv_path=args.csv_output)
+            output = {
+                "json_report": str(args.json_output),
+                "csv_report": str(args.csv_output) if args.csv_output else None,
+                "base_release_id": result["base_release_id"],
+                "counts": result["counts"],
+                "bulk_eligible_count": result["bulk_eligible_count"],
+            }
+        elif args.ingest_command == "probe":
+            from andromeda_parser.probe import probe_official_sources
+
+            result = probe_official_sources(
+                args.compare_bundle,
+                output_path=args.output,
+                release_id=args.release_id,
+            )
+            output = {
+                "report_path": str(args.output),
+                "fetch_calls_used": result["request_policy"]["fetch_calls_used"],
+                "categories": result["categories"],
+                "source_gaps": result["source_gaps"],
+                "live_data_committed": result["request_policy"]["live_data_committed"],
+            }
+        elif args.ingest_command == "review-template":
+            from getpass import getuser
+
+            from andromeda_parser.moderation import write_review_template
+
+            result = write_review_template(
+                args.input,
+                args.output,
+                actor=args.actor or getuser(),
+            )
+            output = {"review_decisions": str(args.output), **result}
+        elif args.ingest_command == "remoderate":
+            from andromeda_parser.moderation import prepare_rejected_candidates
+
+            result = prepare_rejected_candidates(
+                args.input,
+                args.output,
+                candidate_keys=set(args.candidate_keys) if args.candidate_keys else None,
+            )
+            output = result
         elif args.ingest_command == "review":
             result = materialize_reviewed_bundle(
                 candidate_dir=args.input,
                 decisions_path=args.decisions,
                 output_dir=args.output,
+                actor=args.actor,
             )
             output = {
                 "output_dir": result["output_dir"],
@@ -1279,15 +1512,18 @@ def run_bundle_command(args: Any, parser: Any) -> int:
             parser.error(f"unsupported ingestion action: {args.ingest_command}")
             return 2
     except Exception as error:
-        if isinstance(error, (IngestionError, ValueError, OSError)):
+        if isinstance(error, (IngestionError, ValueError, OSError)) or type(error).__name__ in {
+            "BundleImportError",
+            "SettingsError",
+        }:
             parser.error(f"{args.ingest_command} failed: {type(error).__name__}: {error}")
         parser.error(f"{args.ingest_command} failed: {type(error).__name__}; see verbose logs")
         return 2
 
     serialized = json.dumps(output, ensure_ascii=False, indent=2, default=str) + "\n"
-    if args.output is not None and args.ingest_command in {"validate", "dry-run", "commit"}:
-        args.output.parent.mkdir(parents=True, exist_ok=True)
-        args.output.write_text(serialized, encoding="utf-8")
-    else:
-        print(serialized, end="")
+    result_path = getattr(args, "output", None)
+    if result_path is not None and args.ingest_command in {"validate", "dry-run", "commit"}:
+        result_path.parent.mkdir(parents=True, exist_ok=True)
+        result_path.write_text(serialized, encoding="utf-8")
+    print(serialized, end="")
     return 0

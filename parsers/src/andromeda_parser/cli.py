@@ -62,14 +62,48 @@ def _parser() -> argparse.ArgumentParser:
     parse_capture.add_argument("--output", type=Path, help="sanitized parser report path")
     parse_capture.add_argument("--log-level", choices=("DEBUG", "INFO", "WARNING", "ERROR"), default="DEBUG")
     stage = ingestion_actions.add_parser("stage", help="stage parser output as a review-only bundle")
-    stage.add_argument("--base", type=Path, default=Path("data/bmstu-2026"))
+    stage.add_argument("--base", type=Path, help="explicit seed bundle used only with --bootstrap")
+    stage.add_argument(
+        "--bootstrap",
+        action="store_true",
+        help="create the first release from an explicit seed only when no active release exists",
+    )
     stage.add_argument("--parse-report", required=True, type=Path)
     stage.add_argument("--output", required=True, type=Path)
     stage.add_argument("--log-level", choices=("DEBUG", "INFO", "WARNING", "ERROR"), default="DEBUG")
+    diff = ingestion_actions.add_parser(
+        "diff", help="classify staged facts against the exact active-release base"
+    )
+    diff.add_argument("--input", required=True, type=Path, help="staged candidate bundle")
+    diff.add_argument("--json-output", required=True, type=Path)
+    diff.add_argument("--csv-output", type=Path)
+    diff.add_argument("--log-level", choices=("DEBUG", "INFO", "WARNING", "ERROR"), default="DEBUG")
+    probe = ingestion_actions.add_parser(
+        "probe", help="perform a bounded, read-only live check of selected official BMSTU sources"
+    )
+    probe.add_argument("--compare-bundle", required=True, type=Path, help="local export of the release to compare")
+    probe.add_argument("--release-id", help="release identity shown in the report")
+    probe.add_argument("--output", required=True, type=Path, help="new JSON report path; no source bodies are saved")
+    probe.add_argument("--log-level", choices=("DEBUG", "INFO", "WARNING", "ERROR"), default="DEBUG")
+    template = ingestion_actions.add_parser(
+        "review-template", help="prepare a review CSV with only safe group decisions filled in"
+    )
+    template.add_argument("--input", required=True, type=Path, help="staged candidate bundle")
+    template.add_argument("--output", required=True, type=Path)
+    template.add_argument("--actor", help="reviewer identity; defaults to the current OS account")
+    template.add_argument("--log-level", choices=("DEBUG", "INFO", "WARNING", "ERROR"), default="DEBUG")
+    remoderate = ingestion_actions.add_parser(
+        "remoderate", help="reopen selected rejected candidate payloads for a new individual decision"
+    )
+    remoderate.add_argument("--input", required=True, type=Path, help="reviewed bundle retaining rejected candidates")
+    remoderate.add_argument("--output", required=True, type=Path)
+    remoderate.add_argument("--key", action="append", dest="candidate_keys", help="exact candidate key; repeat to select multiple")
+    remoderate.add_argument("--log-level", choices=("DEBUG", "INFO", "WARNING", "ERROR"), default="DEBUG")
     review = ingestion_actions.add_parser("review", help="materialize explicit candidate review decisions")
     review.add_argument("--input", required=True, type=Path, help="candidate bundle directory")
     review.add_argument("--decisions", required=True, type=Path, help="CSV with external_key, decision, reviewed_at")
     review.add_argument("--output", required=True, type=Path)
+    review.add_argument("--actor", help="reviewer identity for rows without reviewed_by")
     review.add_argument("--log-level", choices=("DEBUG", "INFO", "WARNING", "ERROR"), default="DEBUG")
     for action, description in (
         ("validate", "validate an importer-mappable reviewed bundle"),

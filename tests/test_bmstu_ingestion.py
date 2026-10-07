@@ -16,7 +16,9 @@ from bs4 import BeautifulSoup
 
 from academic_data_service.importer.bundle import validate_bundle
 from academic_data_service.importer.mapping import BundleMappingError, project_bundle
+from andromeda.ingestion.universities.bmstu.capture import BmstuSource
 from andromeda.ingestion.universities.bmstu.fetch import FetchConfig, Fetcher
+from andromeda.ingestion.universities.bmstu.source_models import FetchedResource
 from andromeda.ingestion.pdf_policy import PdfResourceError, validate_page_count, validate_pdf_payload
 from andromeda_parser.bundle import (
     build_candidate_bundle,
@@ -30,6 +32,18 @@ from andromeda_parser.ingest import (
     capture_sources,
     parse_capture,
     write_parse_report,
+)
+from andromeda_parser.moderation import (
+    compare_candidate_bundle,
+    prepare_rejected_candidates,
+    write_review_template,
+)
+from andromeda_parser.probe import (
+    MAX_REQUESTS,
+    _CappedTransport,
+    _RequestBudget,
+    _compare_exact_keys,
+    _safe_report_url,
 )
 from andromeda.shared.contracts.errors import ContractError
 
@@ -50,6 +64,136 @@ def _fixture_parse_report(tmp_path: Path) -> Path:
     output = tmp_path / "parsed.json"
     write_parse_report(report, output)
     return output
+
+
+def test_exact_key_diff_conflicts_and_safe_bulk_template(tmp_path: Path) -> None:
+    candidate_dir = tmp_path / "candidate-diff"
+    shutil.copytree(BASE_BUNDLE, candidate_dir)
+    statistics_path = BASE_BUNDLE / "data" / "historical_admission_statistics.jsonl"
+    statistics = [json.loads(line) for line in statistics_path.read_text(encoding="utf-8").splitlines()]
+    by_key = {row["external_key"]: row for row in statistics}
+    artifact_rows = [
+        json.loads(line)
+        for line in (BASE_BUNDLE / "source_artifacts.jsonl").read_text(encoding="utf-8").splitlines()
+    ]
+    artifact = next(row for row in artifact_rows if row["source_key"] == by_key[statistics[0]["external_key"]]["source_artifact_key"])
+
+    candidates: list[dict[str, Any]] = []
+
+    def candidate(candidate_key: str, target_key: str, payload: dict[str, Any], source_identity: str) -> None:
+        encoded = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+        candidates.append(
+            {
+                "external_key": candidate_key,
+                "candidate_type": "typed_record",
+                "target_dataset": "historical_admission_statistics.jsonl",
+                "source_identity": source_identity,
+                "suggested_target": target_key,
+                "source_capture_digest": "a" * 64,
+                "source_artifact_key": artifact["source_key"],
+                "review_state": "pending",
+                "payload_json": encoded,
+                "payload_sha256": hashlib.sha256(encoded.encode("utf-8")).hexdigest(),
+            }
+        )
+
+    safe_key = "admission_statistic:bmstu:2025:01.03.02:paid:direction"
+    safe_payload = dict(by_key[safe_key])
+    safe_payload["finality_note"] = "Source explicitly confirms this aggregate is final."
+    candidate("bmstu_fact_candidate:safe-finality", safe_key, safe_payload, "source:safe-finality")
+    unchanged_row = next(
+        row
+        for row in statistics
+        if row["source_artifact_key"] == artifact["source_key"]
+        and row["external_key"] not in {
+            safe_key,
+            "admission_statistic:bmstu:2024:01.03.02:paid:direction",
+            "admission_statistic:bmstu:2023:01.03.02:paid:direction",
+        }
+    )
+    candidate(
+        "bmstu_fact_candidate:unchanged",
+        unchanged_row["external_key"],
+        dict(unchanged_row),
+        "source:unchanged",
+    )
+
+    critical_key = "admission_statistic:bmstu:2024:01.03.02:paid:direction"
+    critical_payload = dict(by_key[critical_key])
+    critical_payload["minimum_score"] = 259
+    candidate("bmstu_fact_candidate:critical-score", critical_key, critical_payload, "source:critical-score")
+
+    new_payload = dict(safe_payload)
+    new_key = "admission_statistic:bmstu:test-new:01.03.02:paid:direction"
+    new_payload["external_key"] = new_key
+    new_payload["admission_year"] = 2022
+    candidate("bmstu_fact_candidate:new-key", new_key, new_payload, "source:new-key")
+
+    conflict_key = "admission_statistic:bmstu:2023:01.03.02:paid:direction"
+    conflict_a = dict(by_key[conflict_key])
+    conflict_b = dict(by_key[conflict_key])
+    conflict_a["finality_note"] = "Conflicting source A."
+    conflict_b["finality_note"] = "Conflicting source B."
+    candidate("bmstu_fact_candidate:conflict-a", conflict_key, conflict_a, "source:conflict-a")
+    candidate("bmstu_fact_candidate:conflict-b", conflict_key, conflict_b, "source:conflict-b")
+
+    candidate_path = candidate_dir / "data" / "bmstu_ingestion_candidates.jsonl"
+    candidate_path.write_text(
+        "".join(json.dumps(row, ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n" for row in candidates),
+        encoding="utf-8",
+    )
+    (candidate_dir / "ingestion_candidate_manifest.json").write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "capture_digest": "a" * 64,
+                "candidate_keys": [row["external_key"] for row in candidates],
+                "complete_datasets": [],
+            },
+            sort_keys=True,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    diff = compare_candidate_bundle(candidate_dir)
+    classifications = {row["candidate_key"]: row for row in diff["records"]}
+    assert classifications["bmstu_fact_candidate:safe-finality"]["classification"] == "changed"
+    assert classifications["bmstu_fact_candidate:safe-finality"]["bulk_eligible"] is True
+    assert classifications["bmstu_fact_candidate:critical-score"]["bulk_eligible"] is False
+    assert classifications["bmstu_fact_candidate:new-key"]["classification"] == "new"
+    assert classifications["bmstu_fact_candidate:conflict-a"]["classification"] == "conflicting"
+    assert classifications["bmstu_fact_candidate:conflict-b"]["classification"] == "conflicting"
+    assert classifications["bmstu_fact_candidate:unchanged"]["classification"] == "unchanged"
+    assert classifications["bmstu_fact_candidate:unchanged"]["provenance_verified"] is True
+    assert diff["counts"].get("potentially_removed", 0) == 0
+    complete_manifest_path = candidate_dir / "ingestion_candidate_manifest.json"
+    complete_manifest = json.loads(complete_manifest_path.read_text(encoding="utf-8"))
+    complete_manifest["complete_datasets"] = ["historical_admission_statistics.jsonl"]
+    complete_manifest_path.write_text(json.dumps(complete_manifest, sort_keys=True) + "\n", encoding="utf-8")
+    complete_diff = compare_candidate_bundle(candidate_dir)
+    removed = [row for row in complete_diff["records"] if row["classification"] == "potentially_removed"]
+    assert removed
+    assert all(row["bulk_eligible"] is False for row in removed)
+
+    template_path = tmp_path / "bulk-template.csv"
+    counts = write_review_template(candidate_dir, template_path, actor="test-reviewer")
+    with template_path.open(encoding="utf-8", newline="") as stream:
+        decisions = {row["external_key"]: row for row in csv.DictReader(stream)}
+    assert counts == {
+        "candidates": 5,
+        "prefilled_safe": 1,
+        "individual_review_required": 4,
+        "unchanged_skipped": 1,
+    }
+    assert "bmstu_fact_candidate:unchanged" not in decisions
+    assert decisions["bmstu_fact_candidate:safe-finality"]["decision"] == "accept_typed_fact"
+    for key in (
+        "bmstu_fact_candidate:critical-score",
+        "bmstu_fact_candidate:new-key",
+        "bmstu_fact_candidate:conflict-a",
+        "bmstu_fact_candidate:conflict-b",
+    ):
+        assert decisions[key]["decision"] == ""
 
 
 def test_fixture_capture_and_parse_are_offline_and_reproducible(tmp_path: Path, monkeypatch) -> None:
@@ -150,6 +294,177 @@ def test_direct_http_is_rate_limited_and_browser_fallback_is_disabled() -> None:
         fetcher.close()
 
 
+def test_live_probe_request_budget_is_hard_bounded() -> None:
+    class FakeFetcher:
+        def __init__(self) -> None:
+            self.urls: list[str] = []
+
+        def fetch_http(self, url: str) -> str:
+            self.urls.append(url)
+            return url
+
+    fake = FakeFetcher()
+    budget = _RequestBudget(fake)  # type: ignore[arg-type]
+    for index in range(MAX_REQUESTS):
+        assert budget.fetch(f"https://bmstu.ru/probe/{index}") == f"https://bmstu.ru/probe/{index}"
+    with pytest.raises(IngestionError, match="hard request limit"):
+        budget.fetch("https://bmstu.ru/probe/over-limit")
+    assert budget.requests == MAX_REQUESTS
+    assert len(fake.urls) == MAX_REQUESTS
+
+
+def test_live_probe_http_budget_counts_redirect_exchanges() -> None:
+    requested: list[str] = []
+
+    def respond(request: httpx.Request) -> httpx.Response:
+        requested.append(str(request.url))
+        return httpx.Response(302, headers={"location": f"/hop-{len(requested)}"}, request=request)
+
+    transport = _CappedTransport(2, transport=httpx.MockTransport(respond))
+    fetcher = Fetcher(
+        FetchConfig(retries=0, max_redirects=8, request_interval_seconds=0),
+        transport=transport,
+        resolver=lambda _host: ["93.184.216.34"],
+    )
+    try:
+        result = fetcher.fetch_http("https://bmstu.ru/start")
+    finally:
+        fetcher.close()
+    assert len(requested) == 2
+    assert transport.requests == 2
+    assert result.error_code == "retry_exhausted"
+
+
+def test_live_probe_403_and_429_are_terminal_without_retry() -> None:
+    for status_code, expected_error in ((403, "http_error"), (429, "retry_exhausted")):
+        seen: list[int] = []
+
+        def respond(request: httpx.Request) -> httpx.Response:
+            seen.append(status_code)
+            return httpx.Response(status_code, content=b"access response", request=request)
+
+        fetcher = Fetcher(
+            FetchConfig(retries=0, request_interval_seconds=0),
+            transport=httpx.MockTransport(respond),
+            resolver=lambda _host: ["93.184.216.34"],
+        )
+        try:
+            result = fetcher.fetch_http("https://bmstu.ru/probe")
+        finally:
+            fetcher.close()
+        assert result.status_code == status_code
+        assert result.error_code == expected_error
+        assert result.attempts == 1
+        assert seen == [status_code]
+
+
+def test_live_probe_rejects_redirect_outside_official_host_policy() -> None:
+    requested: list[str] = []
+
+    def respond(request: httpx.Request) -> httpx.Response:
+        requested.append(str(request.url))
+        return httpx.Response(302, headers={"location": "https://not-bmstu.invalid/data"}, request=request)
+
+    fetcher = Fetcher(
+        FetchConfig(retries=0, request_interval_seconds=0),
+        transport=httpx.MockTransport(respond),
+        resolver=lambda _host: ["93.184.216.34"],
+    )
+    try:
+        result = fetcher.fetch_http("https://bmstu.ru/probe")
+    finally:
+        fetcher.close()
+    assert result.error_code is not None and result.error_code.startswith("redirect_")
+    assert len(requested) == 1
+
+
+def test_live_probe_response_body_limit_is_enforced() -> None:
+    fetcher = Fetcher(
+        FetchConfig(retries=0, request_interval_seconds=0, max_body_bytes=1024),
+        transport=httpx.MockTransport(
+            lambda request: httpx.Response(
+                200,
+                headers={"content-length": "2048"},
+                content=b"x" * 2048,
+                request=request,
+            )
+        ),
+        resolver=lambda _host: ["93.184.216.34"],
+    )
+    try:
+        result = fetcher.fetch_http("https://bmstu.ru/probe")
+    finally:
+        fetcher.close()
+    assert result.error_code == "response_body_truncated"
+    assert result.truncated is True
+    assert len(result.body) == 1024
+
+
+def test_live_probe_report_urls_omit_share_keys_and_queries() -> None:
+    assert _safe_report_url("https://disk.yandex.ru/d/private-share-key?token=secret") == (
+        "https://disk.yandex.ru/[REDACTED]"
+    )
+
+
+def test_live_probe_exact_comparison_keeps_only_actionable_differences() -> None:
+    comparison = _compare_exact_keys(
+        [
+            {"external_key": "same", "value": 1},
+            {"external_key": "changed", "value": 2},
+            {"external_key": "new", "value": 3},
+            {"value": 4},
+        ],
+        {"same": {"external_key": "same", "value": 1}, "changed": {"external_key": "changed", "value": 1}},
+        fields=("value",),
+    )
+    assert comparison["exact_key_matches"] == 2
+    assert comparison["live_keys_not_in_current_release"] == 1
+    assert comparison["changed_records"] == 1
+    assert comparison["live_records_without_exact_key"] == 1
+    assert {row["external_key"] for row in comparison["records"]} == {"changed", "new"}
+    assert _safe_report_url("https://api.www.bmstu.ru/majors?limit=1&token=secret") == (
+        "https://api.www.bmstu.ru/majors"
+    )
+
+
+def test_selected_plan_capture_downloads_at_most_one_document() -> None:
+    class FakeFetcher:
+        def __init__(self) -> None:
+            self.urls: list[str] = []
+
+        def fetch_http(self, url: str) -> FetchedResource:
+            self.urls.append(url)
+            body = json.dumps(
+                {
+                    "_embedded": {
+                        "items": [
+                            {"file": "https://downloader.disk.yandex.net/first.pdf"},
+                            {"file": "https://downloader.disk.yandex.net/second.pdf"},
+                        ]
+                    }
+                }
+            ).encode() if "public/resources" in url else b"%PDF-1.7 sample"
+            return FetchedResource(
+                requested_url=url,
+                final_url=url,
+                status_code=200,
+                content_type="application/json" if "public/resources" in url else "application/pdf",
+                body=body,
+                fetched_at="2026-10-07T00:00:00+00:00",
+            )
+
+    fake = FakeFetcher()
+    source = BmstuSource(fetcher=fake)  # type: ignore[arg-type]
+    snapshots = source._fetch_public_documents("https://disk.yandex.ru/d/fixture-key", max_documents=1)
+    assert len(snapshots) == 2  # metadata plus exactly one selected PDF
+    assert fake.urls == [
+        "https://cloud-api.yandex.net/v1/disk/public/resources?public_key=https%3A%2F%2Fdisk.yandex.ru%2Fd%2Ffixture-key",
+        "https://downloader.disk.yandex.net/first.pdf",
+    ]
+    assert len(source._capture_gaps) == 1
+    assert source._capture_gaps[0].reason == "additional_documents_not_probed"
+
+
 def test_redacting_filter_strips_query_tokens_and_secret_values() -> None:
     import logging
 
@@ -194,6 +509,35 @@ def test_candidate_bundle_requires_review_and_preserves_base_facts(tmp_path: Pat
     )
     assert not list(candidate_dir.rglob("*.pdf"))
     assert validate_bundle(candidate_dir)["source_artifacts"]["saved_files_present"] == 0
+    diff = compare_candidate_bundle(candidate_dir)
+    assert diff["counts"].get("changed", 0) > 0
+    assert diff["counts"].get("new", 0) > 0
+    assert diff["counts"].get("potentially_removed", 0) == 0
+    assert diff["coverage"].startswith("complete only for explicitly declared")
+    review_template_path = tmp_path / "grouped-review-template.csv"
+    template_counts = write_review_template(
+        candidate_dir,
+        review_template_path,
+        actor="reviewer@example.invalid",
+    )
+    assert (
+        template_counts["prefilled_safe"]
+        + template_counts["individual_review_required"]
+        + template_counts["unchanged_skipped"]
+        == result["candidate_count"]
+    )
+    with review_template_path.open(encoding="utf-8", newline="") as stream:
+        template_rows = list(csv.DictReader(stream))
+    by_diff_key = {row.get("candidate_key"): row for row in diff["records"]}
+    assert not any(
+        by_diff_key.get(row["external_key"], {}).get("classification") == "unchanged"
+        for row in template_rows
+    )
+    for row in template_rows:
+        if row["decision"]:
+            classification = by_diff_key[row["external_key"]]
+            assert classification["classification"] == "changed" and classification["bulk_eligible"]
+            assert row["reviewed_by"] == "reviewer@example.invalid"
     with pytest.raises(IngestionError, match="unreviewed candidate"):
         validate_import_bundle(candidate_dir)
     with pytest.raises(BundleMappingError, match="no import mapping"):
@@ -270,17 +614,32 @@ def test_candidate_bundle_requires_review_and_preserves_base_facts(tmp_path: Pat
                 accepted_targets[row["external_key"]] = matches[0]["external_key"]
 
     assert item_candidate is not None, "fixture review must identify one exact existing curriculum item key"
+    review_required_keys = {
+        str(row["candidate_key"])
+        for row in diff["records"]
+        if isinstance(row.get("candidate_key"), str)
+        and not (
+            row["classification"] == "unchanged"
+            and row.get("provenance_verified") is True
+            and not next(candidate for candidate in candidate_rows if candidate["external_key"] == row["candidate_key"]).get("prior_rejection_event_ids")
+        )
+    }
+    accepted_targets = {
+        key: value for key, value in accepted_targets.items() if key in review_required_keys
+    }
     with decisions.open("w", encoding="utf-8", newline="") as stream:
         writer = csv.DictWriter(stream, fieldnames=("external_key", "decision", "reviewed_at", "target_external_key"))
         writer.writeheader()
         for row in candidate_rows:
+            if row["external_key"] not in review_required_keys:
+                continue
             decision = "accept_observation" if row["candidate_type"] == "canonical_snapshot" else (
                 "accept_typed_fact" if row["external_key"] in accepted_targets else "reject"
             )
             writer.writerow({
                 "external_key": row["external_key"],
                 "decision": decision,
-                "reviewed_at": "2026-10-06T00:00:00+00:00",
+                "reviewed_at": "2026-10-07T00:00:00+00:00",
                 "target_external_key": accepted_targets.get(row["external_key"], ""),
             })
 
@@ -292,8 +651,70 @@ def test_candidate_bundle_requires_review_and_preserves_base_facts(tmp_path: Pat
     )
     assert materialized["accepted"] == 1 + len(accepted_targets)
     assert materialized["accepted_typed"] == len(accepted_targets)
+    assert materialized["unchanged_skipped"] == len(candidate_rows) - len(review_required_keys)
     assert materialized["validation"]["valid"]
     assert validate_import_bundle(reviewed_dir)["valid"]
+    audit_rows = [
+        json.loads(line)
+        for line in (reviewed_dir / "review_decisions.jsonl").read_text(encoding="utf-8").splitlines()
+    ]
+    assert len(audit_rows) == len(review_required_keys)
+    assert not any(row["candidate_key"] not in review_required_keys for row in audit_rows)
+    assert all(row["reviewed_by"] and row["source_value_json"] for row in audit_rows)
+    rejected = [row for row in candidate_rows if row["external_key"] in review_required_keys and row["external_key"] not in accepted_targets and row["candidate_type"] == "typed_record"]
+    assert rejected
+    archived_rejections = [
+        json.loads(line)
+        for line in (reviewed_dir / "data" / "bmstu_rejected_candidates.jsonl").read_text(encoding="utf-8").splitlines()
+    ]
+    assert len(archived_rejections) == len(rejected)
+    reopen_key = rejected[0]["external_key"]
+    reopened_dir = tmp_path / "re-moderation"
+    reopened = prepare_rejected_candidates(
+        reviewed_dir,
+        reopened_dir,
+        candidate_keys={reopen_key},
+    )
+    assert reopened["reopened_candidates"] == 1
+    reopened_candidate = json.loads((reopened_dir / "data" / "bmstu_ingestion_candidates.jsonl").read_text(encoding="utf-8").splitlines()[0])
+    assert reopened_candidate["external_key"] == reopen_key
+    assert reopened_candidate["prior_rejection_event_ids"]
+    remoderate_template = tmp_path / "remoderate-template.csv"
+    remoderate_template_counts = write_review_template(
+        reopened_dir,
+        remoderate_template,
+        actor="reviewer@example.invalid",
+    )
+    assert remoderate_template_counts["prefilled_safe"] == 0
+    remoderate_decisions = tmp_path / "remoderate-decisions.csv"
+    with remoderate_decisions.open("w", encoding="utf-8", newline="") as stream:
+        writer = csv.DictWriter(
+            stream,
+            fieldnames=("external_key", "decision", "reviewed_at", "target_external_key", "reviewed_by"),
+        )
+        writer.writeheader()
+        writer.writerow(
+            {
+                "external_key": reopen_key,
+                "decision": "reject",
+                "reviewed_at": "2026-10-06T00:00:00+00:00",
+                "target_external_key": "",
+                "reviewed_by": "reviewer@example.invalid",
+            }
+        )
+    reopened_again_dir = tmp_path / "re-moderated-again"
+    materialize_reviewed_bundle(
+        candidate_dir=reopened_dir,
+        decisions_path=remoderate_decisions,
+        output_dir=reopened_again_dir,
+    )
+    repeated_audit = [
+        json.loads(line)
+        for line in (reopened_again_dir / "review_decisions.jsonl").read_text(encoding="utf-8").splitlines()
+    ]
+    assert len(repeated_audit) == len(candidate_rows) + 1
+    assert sum(row["candidate_key"] == reopen_key for row in repeated_audit) == 2
+    assert validate_import_bundle(reopened_again_dir)["valid"]
 
     dry_run = dry_run_import(reviewed_dir)
     assert dry_run["outcome"] == "dry_run"
