@@ -39,7 +39,7 @@ CurriculumId: TypeAlias = Annotated[
 CurriculumItemId: TypeAlias = Annotated[
     str,
     StringConstraints(
-        pattern=r"^curriculum-item:program:(?:[a-z0-9][a-z0-9-]{0,62}:)?[0-9]{2}\.[0-9]{2}\.[0-9]{2}-[0-9]{2,3}:discipline:[a-f0-9]{16}:(?:unassigned|[1-9]|1[0-2])$"
+        pattern=r"^curriculum-item:program:(?:[a-z0-9][a-z0-9-]{0,62}:)?[0-9]{2}\.[0-9]{2}\.[0-9]{2}-[0-9]{2,3}:discipline:[a-f0-9]{16}:(?:unassigned|[1-9]|1[0-2])(?::row:[1-9][0-9]{0,5})?$"
     ),
 ]
 DisciplineId: TypeAlias = Annotated[str, StringConstraints(pattern=r"^discipline:[a-f0-9]{16}$")]

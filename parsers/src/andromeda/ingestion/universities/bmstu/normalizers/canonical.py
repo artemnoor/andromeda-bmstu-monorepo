@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from hashlib import sha256
+import json
 import logging
 import unicodedata
 from decimal import Decimal, InvalidOperation
@@ -110,6 +111,13 @@ def normalize_bundle(raw: RawTracerBundle) -> CanonicalSnapshot:
             credits=_credits(row.credits, row.locator.field or "credits"),
             assessment_types=assessment_types,
             source_position=row.source_position,
+            parsed_position=row.parsed_position,
+            printed_row_no=row.printed_row_no,
+            source_page=row.source_page,
+            chair_code=row.chair,
+            course_block=row.course_block,
+            source_part=row.source_part,
+            provenance=_row_provenance(raw, row),
         )
         _append_curriculum_item(items_by_program[program.code], item)
 
@@ -279,30 +287,63 @@ def _program_direction(program: object, directions: dict[str, Direction], fallba
 
 
 def _append_curriculum_item(items: list[CurriculumItem], item: CurriculumItem) -> None:
-    """Collapse repeated PDF rows without losing workload/control facts."""
-    for index, existing in enumerate(items):
-        if (existing.discipline_id, existing.semester) != (item.discipline_id, item.semester):
-            continue
-        existing_assessments = existing.assessment_types or ()
-        item_assessments = item.assessment_types or ()
-        assessment_types = tuple(dict.fromkeys((*existing_assessments, *item_assessments))) or None
-        items[index] = existing.model_copy(
-            update={
-                "hours": max(existing.hours, item.hours),
-                "credits": existing.credits if existing.credits is not None else item.credits,
-                "assessment_types": assessment_types,
-                "source_position": min(
-                    value for value in (existing.source_position, item.source_position) if value is not None
-                ) if existing.source_position is not None or item.source_position is not None else None,
-            }
-        )
-        logger.warning(
-            "duplicate_curriculum_row_collapsed program_item=%s semester=%s",
-            existing.discipline_id,
-            existing.semester,
-        )
+    """Preserve duplicate source rows and keep them pending identity review."""
+    duplicates = [
+        index for index, existing in enumerate(items)
+        if (existing.discipline_id, existing.semester) == (item.discipline_id, item.semester)
+    ]
+    if not duplicates:
+        items.append(item)
         return
-    items.append(item)
+    for index in duplicates:
+        existing = items[index]
+        items[index] = existing.model_copy(update={
+            "id": _row_scoped_internal_id(existing),
+            "identity_status": "ambiguous",
+        })
+    items.append(item.model_copy(update={
+        "id": _row_scoped_internal_id(item),
+        "identity_status": "ambiguous",
+    }))
+    logger.warning(
+        "duplicate_curriculum_rows_preserved_for_review program_item=%s semester=%s count=%d",
+        item.discipline_id,
+        item.semester,
+        len(duplicates) + 1,
+    )
+
+
+def _row_scoped_internal_id(item: CurriculumItem) -> str:
+    if item.id.endswith(f":row:{item.parsed_position}"):
+        return item.id
+    if item.parsed_position is None:
+        raise ContractError(ErrorCode.SOURCE_CONTRACT_ERROR, "ambiguous curriculum rows need distinct source positions")
+    return f"{item.id}:row:{item.parsed_position}"
+
+
+def _row_provenance(raw: RawTracerBundle, row: object) -> tuple[SourceAttribution, ...]:
+    source_url = str(getattr(row, "source_url"))
+    snapshot = next(
+        (value for value in raw.snapshots if value.source_kind == "bmstu_curriculum_document" and str(value.requested_url) == source_url),
+        None,
+    )
+    if snapshot is None:
+        return ()
+    locator = {
+        "page": getattr(row, "source_page", None),
+        "printed_row_no": getattr(row, "printed_row_no", None),
+        "parsed_position": getattr(row, "parsed_position", None),
+        "semester": getattr(row, "semester", None),
+    }
+    return (SourceAttribution(
+        kind=SourceKind(snapshot.source_kind),
+        url=snapshot.requested_url,
+        captured_at=snapshot.captured_at,
+        content_sha256=snapshot.content_sha256,
+        university_id="university:bmstu",
+        field="curriculum_item",
+        record_key=json.dumps(locator, ensure_ascii=False, sort_keys=True),
+    ),)
 
 
 
