@@ -18,12 +18,16 @@ tests/               offline fixtures and PostgreSQL lifecycle checks
 docs/                architecture, API, Directus, operations, live check, limits
 ```
 
-Start with [architecture](docs/ARCHITECTURE.md), then follow the
-[operator workflow](docs/INGESTION_OPERATIONS.md). The [live validation
-report](docs/LIVE_VALIDATION.md) records the bounded 2026-10-07 probe and its
-source gaps. See [API](docs/API.md), [Directus](docs/DIRECTUS.md),
-[API readiness](docs/API_READINESS.md), and
-[known limitations](docs/KNOWN_ISSUES.md) before building on these contracts.
+## Documentation
+
+| Topic | Guide |
+|---|---|
+| Architecture and data ownership | [Architecture](docs/ARCHITECTURE.md) |
+| Update and review workflow | [Operator guide](docs/INGESTION_OPERATIONS.md) |
+| Live source coverage and gaps | [Live validation](docs/LIVE_VALIDATION.md) · [Known issues](docs/KNOWN_ISSUES.md) |
+| Read-only API | [API contract](docs/API.md) · [API readiness](docs/API_READINESS.md) |
+| Directus internal viewer | [Setup and permissions](docs/DIRECTUS.md) · [Navigation and relations](docs/DIRECTUS_UX.md) |
+| License | [LICENSE](LICENSE) |
 
 ## Local setup
 
@@ -78,16 +82,27 @@ shared database.
 
 ## Start the Directus viewer
 
-After provisioning `andromeda_directus_runtime` and setting local Directus
-secrets, start the opt-in service:
+After migrations, an active test release, and provisioning
+`andromeda_directus_runtime`, set local Directus secrets and start the opt-in
+service:
 
 ```powershell
+$env:DIRECTUS_SECRET = "<long-random-secret>"
+$env:ANDROMEDA_DIRECTUS_DB_PASSWORD = "<provisioned-role-password>"
+$env:DIRECTUS_ADMIN_EMAIL = "team@example.invalid"
+$env:DIRECTUS_ADMIN_PASSWORD = "<local-admin-password>"
+# Keep the operator URL from local setup pointed at isolated PG16 academic_data_test.
+$env:ACADEMIC_DATA_DATABASE_URL = "postgresql+psycopg://andromeda_test:andromeda_test@localhost:55433/academic_data_test"
 docker compose -p andromeda -f infra/compose.yaml --profile directus up -d --wait
+uv run python infra/directus/metadata/apply_metadata.py --dry-run
+uv run python infra/directus/metadata/apply_metadata.py
+docker compose -p andromeda -f infra/compose.yaml --profile directus restart directus
 ```
 
-Directus binds to localhost and reads a DB-maintained projection of the active
-release. It cannot write academic facts or alter releases. See
-[DIRECTUS.md](docs/DIRECTUS.md) for role permissions and setup details.
+Directus binds to localhost and reads the active-release projection; PostgreSQL
+blocks academic writes. Its metadata writer uses the local operator URL only in
+`directus_meta`; keep it on the isolated database. See [setup](docs/DIRECTUS.md)
+and [navigation](docs/DIRECTUS_UX.md) for provisioning, restore, and smoke steps.
 
 ## Validate the checked-in bundle
 
