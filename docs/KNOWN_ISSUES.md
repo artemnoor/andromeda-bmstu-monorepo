@@ -38,11 +38,17 @@ Previous: [API readiness](API_READINESS.md) · Next: [Ingestion audit](INGESTION
 - The official catalog API is primary for the current parser: one sampled row
   parsed and the API reported 53 total. The HTML page returned no recognized
   links and remains a deferred fallback. This sample was not paginated.
-- The sampled live curriculum PDF yielded 113 rows across 12 semesters. Exact
-  keys using the existing `curriculum_item:<plan-key>:row:<position>` scheme
-  matched all 113 rows in the current release, with no changes or unmatched
-  records. This validates one plan layout only; row reorderings still require
-  exact-key diff and human review.
+- The sampled live curriculum PDF yielded 113 rows across 12 semesters. The
+  saved bounded report records 113/113 matches using the previous positional
+  keys. The new resolver was replayed against the checked-in 113-row release
+  slice and preserved every key with no ambiguous rows; the raw live PDF was
+  not available locally for a fresh live reparse. See
+  [curriculum identity](CURRICULUM_IDENTITY.md) for the scope of that evidence.
+- BMSTU's currently parsed curriculum PDFs expose no official discipline code
+  or stable row identifier. Exact labels and available chair/block context
+  preserve unique rows across reorder and mutable fact changes. A renamed row,
+  indistinguishable repeated title, or repeated title whose semester changes
+  remains an individual review gap. Similarity never selects a canonical key.
 - The sampled tuition page exposed 154 rows but no academic year in each
   owning section. They remain pending and no canonical tuition row was
   produced. The parser does not infer a year or emit `year-unspecified` keys.
@@ -73,7 +79,11 @@ Previous: [API readiness](API_READINESS.md) · Next: [Ingestion audit](INGESTION
 - Applicant profiles, preferences, EGE/olympiad results, shortlists, and
   recommendations remain a separate unimplemented domain. HSE remains deferred.
 
-## Verification record
+## Core pipeline verification baseline
+
+The following database and release-lifecycle results were recorded before the
+curriculum-identity follow-up. They remain baseline evidence for the unchanged
+importer and release core.
 
 Verified locally on Python 3.11 and the isolated localhost PostgreSQL 16
 `academic_data_test` database:
@@ -111,6 +121,27 @@ Verified locally on Python 3.11 and the isolated localhost PostgreSQL 16
   652.44 seconds**. The PostgreSQL 16-backed `uv run pytest -q` workflow runs
   on pushed branches; check the current commit's GitHub checks after any later
   documentation-only update. The pre-change `main` baseline was green.
+
+## Curriculum identity follow-up verification
+
+Verified on 2026-10-07 after the identity changes:
+
+- `uv run pytest -q`: **45 passed, 5 skipped, 1 warning in 123.81 seconds**.
+  The five skips are `tests/test_postgres_import.py`; their guard requires a
+  local PostgreSQL 16 URL for the dedicated `academic_data_test` database.
+  This machine has PostgreSQL 17 only, so it was not used for destructive
+  importer tests. The repository CI job provisions PostgreSQL 16 and runs the
+  same suite; its result is recorded after the final push.
+- Focused identity tests cover a five-step history (insert, reorder, mutable
+  fact change, potential removal, repeated import), duplicate titles, ambiguous
+  semester changes, rename review, partial source, importer provenance, both
+  PDF fixtures, and the offline 113-row release slice.
+- `curriculum.pdf` and `curriculum_2.pdf` parsed as 89 and 123 rows. The offline
+  `01.03.02-01` release slice matched all 113 existing keys with zero new or
+  ambiguous rows. This does not replace a new live parse; the saved live report
+  has no raw PDF body to replay.
+- No fixture file, checked-in release bundle, immutable PostgreSQL release, or
+  Alembic migration was changed by the identity implementation.
 
 ## Operational rule
 

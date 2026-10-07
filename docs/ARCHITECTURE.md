@@ -69,6 +69,15 @@ are partial by default. An omitted row is not a deletion; even an explicit
 complete-dataset scope only reports a potential removal and does not delete
 data.
 
+Curriculum candidates first pass through a plan-scoped identity resolver. It
+uses a stored exact source signature or a unique exact label and compatible
+PDF context to preserve an existing key. New unambiguous rows receive a
+deterministic identity key; row order and printed row number remain provenance
+locators. Similar labels and repeated rows without a unique source match stay
+ambiguous for individual review. See
+[curriculum identity](CURRICULUM_IDENTITY.md) for the source signals, legacy
+key handling, and remaining limits.
+
 Bulk review is limited to allowlisted low-risk fields with exact targets and
 verified provenance. New, ambiguous, conflicting, critical, rejected, or
 unprovenanced candidates remain for individual review. Similar names never
