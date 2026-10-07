@@ -1,5 +1,7 @@
 # BMSTU ingestion audit
 
+Previous: [Known limitations](KNOWN_ISSUES.md) · Next: [README](../README.md)
+
 Audit date: 2026-10-06. All source checkouts listed below are read-only copies
 under the system temporary directory. The original GitHub repositories were
 not modified.
@@ -81,8 +83,10 @@ normalized bundles contain no raw source documents. A local fixture run
 captured and parsed seven sources into 2 programs, 2 curricula, 101
 disciplines, 212 curriculum items, and one aggregate historical result with
 zero parser source gaps. It made no live requests. Its capture digest is
-`dedc5d2731b78a285c42bfdcdf85d6e8e6634d729a1a975ecd7d7f00b0145afc`. Live-mode
-behavior remains unverified against current official pages.
+`dedc5d2731b78a285c42bfdcdf85d6e8e6634d729a1a975ecd7d7f00b0145afc`. The
+broader `ingest capture --mode live` behavior remains unverified as a routine
+update path; a separate selected-source live probe was completed on
+2026-10-07 and is documented in [LIVE_VALIDATION.md](LIVE_VALIDATION.md).
 
 Separately, before integration, the monolith's offline BMSTU integration test
 passed in a temporary Python 3.11.9 environment: **1 passed**, with four
@@ -160,3 +164,21 @@ coverage limits are in the root `README.md` and `docs/KNOWN_ISSUES.md`.
 - [andromeda-parsers](https://github.com/artemnoor/andromeda-parsers)
 - [andromeda-data](https://github.com/artemnoor/andromeda-data)
 - [hackathon-max-andromeda](https://github.com/artemnoor/hackathon-max-andromeda)
+
+## Follow-up: release lifecycle, moderation, and live probe
+
+Follow-up work adds a verified archive and active-release export, stale-base
+and concurrent-publisher guards, explicit rollback history, exact-key diff,
+safe group-review eligibility, reviewer/source/value audit events, and
+reopening rejected candidates. A PostgreSQL 16 test now covers five sequential
+operations while checking that earlier accepted facts remain.
+
+The 2026-10-07 bounded source probe parsed one catalog API row, one detail
+card, one study-plan PDF, the admission page, and the order-index metadata.
+The sample exposed exact-key gaps for curriculum rows and tuition; no source
+data was committed. See [operations](INGESTION_OPERATIONS.md),
+[live findings](LIVE_VALIDATION.md), and
+[known limitations](KNOWN_ISSUES.md).
+
+See also: [architecture](ARCHITECTURE.md),
+[live validation](LIVE_VALIDATION.md), [known limitations](KNOWN_ISSUES.md).

@@ -1,5 +1,7 @@
 # Migration report
 
+Previous: [Architecture](ARCHITECTURE.md) · Next: [Ingestion operations](INGESTION_OPERATIONS.md)
+
 ## Sources audited
 
 The source repositories were cloned read-only outside this workspace for the
@@ -132,3 +134,7 @@ source-dependent price/campaign identity; see
 The documented CLI commands were also run with the checked-in fixture folder
 through `capture`, `parse`, `stage`, one exact-key typed acceptance, `validate`,
 `dry-run`, and `commit` against the disposable local database.
+
+See also: [architecture](ARCHITECTURE.md),
+[current ingestion operations](INGESTION_OPERATIONS.md),
+[known limitations](KNOWN_ISSUES.md).

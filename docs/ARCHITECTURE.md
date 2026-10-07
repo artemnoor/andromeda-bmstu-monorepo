@@ -1,77 +1,84 @@
 # Architecture
 
-## Active components
+Previous: [README](../README.md) · Next: [Migration report](MIGRATION_REPORT.md)
+
+## Active ingestion path
 
 ```text
-official BMSTU source URLs OR checked-in/local fixtures
-  -> fixture-first capture / explicit bounded direct-HTTP capture
-  -> local raw bodies + source manifest and hashes
-  -> BMSTU adapter and canonical normalizer
-  -> sanitized parse report (no network access)
-  -> review-only candidate bundle based on data/bmstu-2026
-  -> explicit accept_observation/reject decisions
-  -> existing academic-data validator and dry-run mapper
-  -> guarded atomic release importer
-
-checked-in reviewed bundle in data/bmstu-2026 ───────────────┘
+official BMSTU sources or checked-in fixtures
+  -> bounded capture and source manifest
+  -> offline parser report with hashes and provenance
+  -> candidate based on the active release export
+  -> exact-key diff and human review
+  -> importer-compatible typed bundle
+  -> validation and deterministic mapping
+  -> guarded PostgreSQL transaction
+  -> immutable release plus active-pointer event
 ```
 
-Capture and parsing do not write database rows. Fixture mode is the default;
-live mode is explicit and uses direct HTTP only. Raw bodies remain in ignored
-local capture directories. Public parse reports and candidates carry source
-hashes and provenance, not source bodies. An unreviewed candidate cannot pass
-import mapping. An accepted candidate is preserved as a source observation;
-this first integration does not infer new typed facts from parser output.
-Activation still goes through the existing importer and its single release
-transaction and active-release pointer.
+Capture never writes database rows. The explicit `ingest probe` command is
+read-only and is separate from the broader `ingest capture --mode live`
+path. Candidate staging exports the current release from PostgreSQL; the
+checked-in `data/bmstu-2026` snapshot is used only for an explicit first-release
+bootstrap when the active slot is empty.
+
+Every committed release keeps a verified importer-bundle archive. Export checks
+the archive and source digest before returning the bundle. A candidate records
+its base release ID and digest. Publication takes a shared advisory lock and
+checks that base against the active pointer inside the transaction. A stale
+candidate fails before publication. Release facts are immutable; rollback
+changes only the active pointer to a previously verified release and appends
+an activation event.
 
 ## Data ownership
 
-| Data | Owner | Canonical write path |
+| Data | Owner | Write path |
 |---|---|---|
-| Universities, departments, directions, programs, admission facts, study plans, courses, source evidence | `academic-data` | validate, map, and commit a versioned bundle |
-| User identity, exams, achievements, quotas, saved programs | None in this release | Deferred; do not write these facts into academic releases |
-| Parser output | `parsers` until reviewed | Candidate bundle; explicit review materializes accepted rows as source observations |
-| Web/API behavior | None in this release | Future backend work |
+| BMSTU programs, departments, plans, curriculum items, admissions and evidence | `academic-data` | Validate, map, and commit a reviewed bundle |
+| Parser observations and candidates | `parsers` until review | Review-gated candidate bundle |
+| Review decisions | Importer bundle and review event log | Explicit reviewer identity, timestamp, source and payload |
+| Applicant identity/profile and saved choices | Not implemented | Must remain outside academic releases |
+| HTTP API, website, Directus | Not implemented | Future read-only integration work |
 
-`academic-data` uses release-scoped rows and separate source evidence,
-observations, and relationships. `data_releases` and `active_data_release`
-make snapshot ownership explicit. Requirements preserve their AND/OR/AT_LEAST
-tree structure. User-entered facts are outside this release-scoped data path.
+The schema stores sourced facts in release-scoped tables with provenance,
+evidence and relationship rows. Requirements retain their AND/OR/AT_LEAST
+trees. Disciplines are represented as `curriculum_items`; there is no separate
+discipline table. Unresolved references remain visible in reconciliation and
+review output rather than being guessed or hidden.
 
-## Database and migrations
+## Review and partial sources
 
-The active schema is only `academic-data/migrations/versions/`. Its eight
-Alembic revisions are kept intact and are not combined with either older
-migration history. The importer verifies PostgreSQL 16 and a dedicated target
-name before writes. Local tests use `academic_data_test` on localhost through
-`infra/compose.yaml`.
+The diff matches only exact external keys. It classifies new, changed,
+unchanged, conflicting, unreviewed and potentially removed candidates. Sources
+are partial by default. An omitted row is not a deletion; even an explicit
+complete-dataset scope only reports a potential removal and does not delete
+data.
 
-The schema contains release and importer metadata, academic catalog and
-admission records, study-plan content, classifications, provenance, and
-evidence bridges. It has no user-profile tables, public API, or application
-authentication.
+Bulk review is limited to allowlisted low-risk fields with exact targets and
+verified provenance. New, ambiguous, conflicting, critical, rejected, or
+unprovenanced candidates remain for individual review. Similar names never
+create a link. Rejected payloads can be reopened for another review, with
+earlier decisions preserved in the append-only journal inside the archived
+bundle. The journal is not a standalone SQL event table.
 
-## Parser package
+## Database and package boundaries
 
-The active installable package contains the selectively restored BMSTU 2026
-source adapter, parsers, normalizers, and an explicit capture/parse/review CLI.
-Fixture mode reads checked local HTML, JSON, and public curriculum PDF captures.
-Live mode is opt-in, direct HTTP only, and constrained by source allowlists,
-rate spacing, retries, timeouts, and body limits. The standalone parser command
-still reads one local HTML or JSON file. The active package rejects unapproved
-provenance URLs and has no HSE registry entry.
+`academic-data/` owns the SQLAlchemy schema, preserved Alembic history,
+PostgreSQL 16 importer, immutable releases, and existing read-query/DTO
+contracts. Tests may reset only the isolated localhost
+`academic_data_test` database. No production connection or deployment is part
+of this repository workflow.
 
-HSE sources are held under `parsers/deferred/hse/`, outside the installable
-source tree. BMSTU shared runtime contracts were selectively restored from the
-audited legacy monolith. The legacy ORM, API, user services, and optional plan
-visualizer are not part of the active package. No replacement domain contracts
-were invented; small evidence/source contract imports required by the adapter
-remain limited to source contracts.
+`parsers/` contains the installable BMSTU parser and ingestion CLI. Fixture
+capture is the default; parser stages consume frozen local captures without
+network access. Direct live fetches use official-host allowlists, one-second
+spacing, bounded timeouts/body sizes, terminal 403/429 outcomes, and no
+browser fallback. HSE sources remain deferred and are not in the active build.
 
-## Explicitly out of scope
+The full broad live catalog/order capture is not the bounded probe and has not
+been validated as a safe routine update. See the
+[live validation report](LIVE_VALIDATION.md) and
+[known issues](KNOWN_ISSUES.md).
 
-The monorepo does not currently include the legacy API, auth, recommendation,
-proftest, event/venue, ontology assertion, or generic user-profile services.
-Their source schemas remain in the original repositories; see the migration
-report before reviving or mapping any of them.
+See also: [operator workflow](INGESTION_OPERATIONS.md),
+[API readiness](API_READINESS.md), [migration report](MIGRATION_REPORT.md).
