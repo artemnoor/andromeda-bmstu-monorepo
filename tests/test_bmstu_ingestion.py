@@ -20,6 +20,13 @@ from andromeda.ingestion.universities.bmstu.capture import BmstuSource
 from andromeda.ingestion.universities.bmstu.fetch import FetchConfig, Fetcher
 from andromeda.ingestion.universities.bmstu.source_models import FetchedResource
 from andromeda.ingestion.pdf_policy import PdfResourceError, validate_page_count, validate_pdf_payload
+from andromeda.ingestion.universities.bmstu.parser.campaign_2026.curricula.parser import (
+    _attach_exact_identity,
+    parse_curriculum_document,
+)
+from andromeda.ingestion.universities.bmstu.parser.campaign_2026.tuition.parser import (
+    parse_cost_page,
+)
 from andromeda_parser.bundle import (
     build_candidate_bundle,
     dry_run_import,
@@ -256,6 +263,147 @@ def test_checked_in_source_fixtures_are_redacted_with_hash_provenance() -> None:
     chairs = detail["props"]["initialState"]["bachelorMajorsDetails"]["data"]["chairs"]["items"]
     member_names = [member["name"] for chair in chairs for member in chair.get("members", [])]
     assert member_names and set(member_names) == {"[PERSONAL_NAME_REDACTED]"}
+
+
+def test_real_curriculum_fixtures_have_stable_exact_item_keys_and_pdf_provenance() -> None:
+    profile = {
+        "code": "01.03.02-01",
+        "name": "fixture profile",
+        "study_plan_external_key": "study_plan:program:bmstu:01.03.02:ИУ9:01.03.02-01:source:1-1",
+    }
+    for name in ("curriculum.pdf", "curriculum_2.pdf"):
+        body = (FIXTURE_DIR / name).read_bytes()
+        kwargs = {
+            "content_type": "application/pdf",
+            "final_url": f"https://official.bmstu.ru/{name}",
+            "share_url": f"https://official.bmstu.ru/{name}",
+            "profile": profile,
+            "retrieved_at": "2026-10-07T00:00:00+00:00",
+        }
+        first = parse_curriculum_document(body, **kwargs)
+        repeated = parse_curriculum_document(body, **kwargs)
+        first_keys = [item.get("external_key") for item in first["items"]]
+        repeated_keys = [item.get("external_key") for item in repeated["items"]]
+        assert first["identity_status"] == "exact"
+        assert first_keys == repeated_keys
+        plan_key = profile["study_plan_external_key"]
+        assert first_keys == [
+            f"curriculum_item:{plan_key}:row:{position}"
+            for position in range(1, len(first_keys) + 1)
+        ]
+        assert len(first_keys) == len(set(first_keys))
+        assert all(item["source_sha256"] == hashlib.sha256(body).hexdigest() for item in first["items"])
+        assert all(item["source_locator"]["row"] == item["source_position"] for item in first["items"])
+
+
+def test_curriculum_external_key_survives_mutable_fact_changes() -> None:
+    source_items = [
+        {
+            "row_no": 12,
+            "discipline": "Математический анализ",
+            "hours": 108,
+            "semester": 1,
+            "assessment_type": "Экз",
+        },
+        {
+            "row_no": 12,
+            "discipline": "Математический анализ",
+            "hours": 72,
+            "semester": 3,
+            "assessment_type": "Зчт",
+        },
+    ]
+    profile = {"study_plan_external_key": "study_plan:program:bmstu:01.03.02:test"}
+    original = _attach_exact_identity(
+        {"items": [dict(item) for item in source_items]},
+        body=b"stable-pdf-bytes",
+        final_url="https://bmstu.ru/plan.pdf",
+        share_url="https://bmstu.ru/plan.pdf",
+        profile=profile,
+    )
+    changed_items = [dict(item) for item in source_items]
+    changed_items[0].update(
+        discipline="Изменённое название",
+        hours=144,
+        semester=2,
+        assessment_type="Зчт",
+    )
+    changed = _attach_exact_identity(
+        {"items": changed_items},
+        body=b"stable-pdf-bytes",
+        final_url="https://bmstu.ru/plan.pdf",
+        share_url="https://bmstu.ru/plan.pdf",
+        profile=profile,
+    )
+    assert [item["external_key"] for item in changed["items"]] == [
+        item["external_key"] for item in original["items"]
+    ]
+    assert [item["external_key"] for item in original["items"]] == [
+        f"curriculum_item:{profile['study_plan_external_key']}:row:{position}"
+        for position in (1, 2)
+    ]
+    added_items = [dict(item) for item in source_items] + [
+        {
+            "row_no": 13,
+            "discipline": "Новая дисциплина",
+            "hours": 36,
+            "semester": 1,
+            "assessment_type": "Зчт",
+        }
+    ]
+    added = _attach_exact_identity(
+        {"items": added_items},
+        body=b"stable-pdf-bytes",
+        final_url="https://bmstu.ru/plan.pdf",
+        share_url="https://bmstu.ru/plan.pdf",
+        profile=profile,
+    )
+    assert len({item["external_key"] for item in added["items"]}) == 3
+    missing_plan = _attach_exact_identity(
+        {"items": [dict(source_items[0])]},
+        body=b"stable-pdf-bytes",
+        final_url="https://bmstu.ru/plan.pdf",
+        share_url="https://bmstu.ru/plan.pdf",
+        profile={},
+    )
+    assert missing_plan["identity_status"] == "source_gap"
+    assert "external_key" not in missing_plan["items"][0]
+
+
+def test_tuition_year_identity_is_exact_or_remains_pending() -> None:
+    confirmed = """
+    <div id="v-pills-1">
+      <h2>Стоимость обучения на 2026/2027 учебный год</h2>
+      <table><tr><th>Код</th><th>Направление</th><th>Стоимость</th></tr>
+      <tr><td>01.03.02</td><td>Прикладная математика</td><td>250 000 руб.</td></tr></table>
+    </div>
+    """.encode("utf-8")
+    parsed = parse_cost_page(confirmed, "https://course.bmstu.ru/edu/abiturient/")
+    assert len(parsed["tuition_records"]) == 1
+    assert parsed["tuition_records"][0]["study_year_label"] == "2026-2027"
+    assert parsed["tuition_records"][0]["external_key"].startswith("tuition:bmstu:01.03.02:2026-2027:")
+    assert parsed["pending_tuition_observations"] == []
+
+    unspecified = """
+    <table><tr><th>Код</th><th>Направление</th><th>Стоимость</th></tr>
+    <tr><td>01.03.02</td><td>Прикладная математика</td><td>250 000 руб.</td></tr></table>
+    """.encode("utf-8")
+    pending = parse_cost_page(unspecified, "https://course.bmstu.ru/edu/abiturient/")
+    assert pending["tuition_records"] == []
+    assert len(pending["pending_tuition_observations"]) == 1
+    observation = pending["pending_tuition_observations"][0]
+    assert observation["external_key"] is None
+    assert observation["gap_code"] == "academic_year_not_explicit_in_owning_section"
+
+
+def test_live_admission_fixture_does_not_infer_tuition_year() -> None:
+    parsed = parse_cost_page(
+        (FIXTURE_DIR / "admission_information.html").read_bytes(),
+        "https://course.bmstu.ru/edu/abiturient/",
+    )
+    assert parsed["tuition_records"] == []
+    assert parsed["pending_tuition_observations"]
+    assert all(row["external_key"] is None for row in parsed["pending_tuition_observations"])
 
 
 def test_direct_http_is_rate_limited_and_browser_fallback_is_disabled() -> None:

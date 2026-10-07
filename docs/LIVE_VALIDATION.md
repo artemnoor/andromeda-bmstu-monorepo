@@ -4,65 +4,55 @@ Previous: [Ingestion operations](INGESTION_OPERATIONS.md) · Next: [API readines
 
 ## Scope and safety
 
-Checked at **2026-10-06 23:20:08 UTC / 2026-10-07 02:20:08 Europe/Moscow**.
-The probe used the explicit read-only CLI, at most one catalog record, one
-program card, one plan/PDF, one admissions page, one order index, and one
-requirements-link check. It performed **10 HTTP exchanges** (including
-redirects) within the 12-exchange cap, across eight fetch calls. Requests were
-spaced by at least one second, timeout was 10 seconds, retries were disabled,
-and each response was capped at 30 MB. No browser fallback, applicant-level
-order document, raw body, or live database write was used. No 403 or 429 was
-encountered.
+Repeated at **2026-10-07 06:04:56 UTC / 09:04:56 Europe/Moscow**, after the
+curriculum-key and tuition-year changes. The probe used the sanitized release
+export from isolated PostgreSQL 16 `academic_data_test`, release
+`a897c88a-9a3b-59bd-b563-3b055fe6fb42`, bundle digest
+`42616ee9348ee009fa1b297f7ef697862134835e562c7840f413643ce71d2130`.
 
-The comparison release was built in the isolated local PostgreSQL 16
-`academic_data_test` database from the checked-in bundle, not from a
-production database. Its release ID was
-`a897c88a-9a3b-59bd-b563-3b055fe6fb42`, with source digest
-`42616ee9348ee009fa1b297f7ef697862134835e562c7840f413643ce71d2130`. The
-active release ID and digest were unchanged after the probe. The complete
-sanitized JSON report is available locally under ignored
-`artifacts/live-validation/probe-2026-10-07-final.json`; it is not committed
-as an academic data update.
+It made **8 fetch calls / 10 HTTP exchanges** including redirects, under the
+12-exchange hard cap. It used a 10-second timeout, no retries, one-second
+request spacing, 30 MB response cap, and no browser automation. No admission
+order document body was fetched, and no live result was committed or staged.
+The complete sanitized report is in ignored local storage at
+`artifacts/live-validation/probe-2026-10-07-identity-compat.json`.
 
-## Observed sources
+## Observed sources and comparisons
 
-| Source | Result | What the bounded parser could establish |
+| Source | Result | What the bounded probe established |
 |---|---|---|
-| [BMSTU bachelor catalog](https://bmstu.ru/bachelor/majors) | HTTP 200 | HTML parser found zero visible program links in this response. This is a parser/source gap, not an empty catalog. |
-| [BMSTU catalog API](https://api.www.bmstu.ru/majors/baccalaureate-and-specialty?limit=1&offset=0) | HTTP 200 | One row parsed; API reports 53 records total. The probe did not paginate. |
-| One selected program detail | HTTP 200 | Direction `01.03.02`, one department and one program parsed; all three exact keys matched the local release with no changed fields. Raw places/price fields were not promoted from the card. |
-| One public study-plan link and its metadata/PDF | HTTP 200 | 2026 plan parsed: 12 semesters and 113 curriculum rows. The parser emitted no exact external keys for those rows, so no fact-level comparison was possible. |
-| [BMSTU admission information](https://course.bmstu.ru/edu/abiturient/) | HTTP 200 | 783 aggregate historical-statistic rows matched the local release by exact key with no differences. 154 tuition rows parsed, but their `year-unspecified` keys do not match the current release keys; values are not treated as changed facts. Date text includes 25 July 2026, 19 August 2026, and 20 August 2026. |
-| [Admission order index](https://priem.bmstu.ru/lists/orders.json) | HTTP 200 | Manifest metadata parsed for 24 enabled documents. No document body was fetched; this does not establish aggregate places or quota values. |
+| [BMSTU catalog HTML](https://bmstu.ru/bachelor/majors) | HTTP 200 | Zero visible card links. Marked `fallback_deferred`; this response does not imply an empty catalog. |
+| [Official BMSTU catalog API](https://api.www.bmstu.ru/majors/baccalaureate-and-specialty?limit=1&offset=0) | HTTP 200 | One row returned; API reported 53 total. One detail record was inspected, not paginated. The API is the primary catalog source for this parser. |
+| One direction, department and program card | HTTP 200 | Direction `01.03.02`, one department and one program parsed. All exact keys matched the release; no compared fields changed. The card contained raw places/price indicators, but those were not promoted. |
+| One linked 2026 study plan/PDF | HTTP 200 | 12 semesters and 113 curriculum rows parsed. Keys `curriculum_item:<exact-plan-key>:row:1..113` matched all 113 current-release keys; zero unkeyed, unmatched, or changed records. PDF SHA-256 and row locators were retained in parser output. |
+| [BMSTU admission information](https://course.bmstu.ru/edu/abiturient/) | HTTP 200 | 783 aggregate historical-statistic rows matched by exact key with zero compared changes. No explicit year was found in the owning tuition sections: 0 canonical live tuition rows, 154 pending observations, and no `year-unspecified` external keys. The page contained date mentions on 25 July, 19 August, and 20 August 2026; this sample is not a complete campaign calendar. |
+| [Admission order index](https://priem.bmstu.ru/lists/orders.json) | HTTP 200 | Manifest metadata listed 24 enabled documents. Zero document bodies were fetched; no applicant-level data was read. |
 
-## Gaps and interpretation
+## Remaining source gaps
 
-- The selected HTML catalog response has no links recognized by the current
-  parser, even though the API reports catalog rows. The API route is the
-  usable source in this sample; the HTML parser needs a separately reviewed
-  fixture/update before it can be relied upon.
-- Curriculum parsing works for the selected PDF, but its 113 rows lack exact
-  importer external keys. The parser output therefore cannot be safely
-  compared or promoted by key; no name-based join was attempted.
-- Tuition parsing returns 154 rows but uses keys such as
-  `year-unspecified`; 154 live keys did not match the release by exact key.
-  This is an identity/year-contract gap, not evidence that the stored prices
-  changed. The source requires review and better academic-year identity.
-- The selected admission page exposed no official exam-requirements PDF link
-  matching the current selector. Exam subject and AND/OR/AT_LEAST rules were
-  not live-verified by this sample.
-- No safe aggregate places/quota table was identified. The order index was
-  metadata-only; individual admissions/result documents were deliberately
-  excluded.
-- The page yielded 2026 campaign date text, but the probe did not validate
-  every education level, admission track, or deadline against a complete
-  official campaign calendar.
+- The HTML catalog returned no recognized links while the official API returned
+  a sample. No browser automation was added; the HTML parser is a deferred
+  fallback and the API is the primary source.
+- The selected plan's exact positional key convention is importer-compatible
+  and matches its 113 existing rows. This proves repeatability and exact
+  comparison for the sampled plan/document, not every BMSTU PDF layout. A PDF
+  reorder can change positional keys and must go through exact-key diff and
+  human review; no title-based reconciliation is performed.
+- The tuition page did not state an academic year in the same owning section
+  as the sampled values. All 154 rows remain pending/source-gap observations;
+  no current date or campaign convention was used to guess a year.
+- The selected admissions page exposed no requirements PDF link matching the
+  bounded selector. Exam-rule coverage remains unverified live.
+- No safe aggregate places/quota table was identified. Raw places/price hints
+  on a program card were not mapped to campaign/program facts. The order index
+  remained metadata-only.
+- Date text was observed but not validated across education levels, tracks,
+  and the full official campaign calendar.
 
-No live result was staged, reviewed, or committed. These findings are a
-time-bounded source sample and do not demonstrate complete live parser
-coverage. For a repeatable local run, use the `ingest probe` steps in
-[Ingestion operations](INGESTION_OPERATIONS.md). For model/API limits, see
-[API readiness](API_READINESS.md).
+No live value was written to PostgreSQL or published. A bounded sample does
+not demonstrate complete live parser coverage. To reproduce this check, use
+the guarded `ingest probe` command in
+[INGESTION_OPERATIONS.md](INGESTION_OPERATIONS.md).
 
 See also: [known limitations](KNOWN_ISSUES.md),
-[architecture](ARCHITECTURE.md), [ingestion audit](INGESTION_AUDIT.md).
+[architecture](ARCHITECTURE.md), [API readiness](API_READINESS.md).

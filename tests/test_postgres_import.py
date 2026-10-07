@@ -13,6 +13,7 @@ from uuid import UUID, uuid4
 
 import pytest
 from sqlalchemy import Engine, create_engine, text
+from sqlalchemy.engine import URL
 from sqlalchemy.exc import DBAPIError
 
 from academic_data_service.importer.mapping import project_bundle
@@ -66,6 +67,9 @@ def _reset_isolated_postgres_test_schema():
         ):
             pytest.fail("integration schema reset target is not the dedicated local PostgreSQL 16 test database")
         with engine.begin() as connection:
+            connection.execute(text("DROP SCHEMA IF EXISTS directus_read CASCADE"))
+            connection.execute(text("DROP SCHEMA IF EXISTS academic_read CASCADE"))
+            connection.execute(text("DROP SCHEMA IF EXISTS directus_meta CASCADE"))
             connection.execute(text("DROP SCHEMA public CASCADE"))
             connection.execute(text("CREATE SCHEMA public AUTHORIZATION andromeda_test"))
             connection.execute(text("GRANT ALL ON SCHEMA public TO andromeda_test"))
@@ -194,6 +198,58 @@ def _wrap_requirement_with_at_least(bundle: Path) -> str:
         "operator": "AT_LEAST",
         "min_count": 1,
         "children": [selected["requirement_tree"]],
+    }
+    path.write_text(
+        "".join(json.dumps(row, ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n" for row in rows),
+        encoding="utf-8",
+    )
+    return str(selected["external_key"])
+
+
+def _set_direction_name(bundle: Path, external_key: str, name: str) -> None:
+    path = bundle / "data" / "directions.jsonl"
+    rows = [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+    for row in rows:
+        if row.get("external_key") == external_key:
+            row["name"] = name
+            break
+    else:
+        raise AssertionError(f"direction was not found: {external_key}")
+    path.write_text(
+        "".join(json.dumps(row, ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n" for row in rows),
+        encoding="utf-8",
+    )
+
+
+def _wrap_requirement_with_nested_operators(bundle: Path) -> str:
+    path = bundle / "data" / "admission_exam_requirements.jsonl"
+    rows = [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+    selected = rows[0]
+    leaves: list[dict] = []
+
+    def collect_leaves(node: dict) -> None:
+        exam = node.get("exam")
+        if isinstance(exam, dict):
+            leaves.append({"exam": exam})
+            return
+        for child in node.get("children", []):
+            if isinstance(child, dict):
+                collect_leaves(child)
+
+    collect_leaves(selected["requirement_tree"])
+    if len(leaves) < 2:
+        raise AssertionError("nested requirement regression needs two exact exam leaves")
+    selected["requirement_tree"] = {
+        "operator": "AT_LEAST",
+        "min_count": 1,
+        "children": [
+            {
+                "operator": "AND",
+                "children": [
+                    {"operator": "OR", "min_count": 1, "children": leaves[:2]}
+                ],
+            }
+        ],
     }
     path.write_text(
         "".join(json.dumps(row, ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n" for row in rows),
@@ -852,4 +908,240 @@ def test_concurrent_publishers_allow_only_one_candidate_from_the_same_base(
         assert _release_counts(engine, base_release_id) == base_counts
     finally:
         concurrent_engine.dispose()
+        engine.dispose()
+
+
+def test_read_api_uses_one_active_release_and_directus_is_physically_read_only(
+    tmp_path: Path,
+) -> None:
+    from urllib.parse import quote
+
+    from fastapi.testclient import TestClient
+    from sqlalchemy import event
+
+    from andromeda_api.main import create_app
+
+    engine, settings = _test_database()
+    api_engine = None
+    directus_engine = None
+    api_password = uuid4().hex
+    directus_password = uuid4().hex
+    try:
+        base_release_id = _active_release(engine)
+        if base_release_id is None:
+            bootstrap = commit_projection(engine, settings, project_bundle(str(BUNDLE)))
+            assert bootstrap["outcome"] == "committed"
+            base_release_id = UUID(bootstrap["active_release_id"])
+        assert base_release_id is not None
+        base_bundle, base_export = _export_release(
+            engine, settings, base_release_id, tmp_path / "api-base-release"
+        )
+        with engine.connect() as connection:
+            direction_key, old_direction_name = connection.execute(
+                text(
+                    "SELECT external_key, name FROM directions "
+                    "WHERE release_id=:release_id ORDER BY external_key LIMIT 1"
+                ),
+                {"release_id": base_release_id},
+            ).one()
+            requirement_key = connection.execute(
+                text(
+                    "SELECT requirement.external_key FROM admission_requirement_sets requirement "
+                    "JOIN admission_requirement_nodes node "
+                    "ON node.release_id=requirement.release_id "
+                    "AND node.requirement_set_id=requirement.id "
+                    "WHERE requirement.release_id=:release_id AND node.parent_id IS NULL "
+                    "ORDER BY requirement.external_key LIMIT 1"
+                ),
+                {"release_id": base_release_id},
+            ).scalar_one()
+            plan_key = connection.execute(
+                text(
+                    "SELECT plan.external_key FROM study_plans plan "
+                    "JOIN study_plan_evidence evidence "
+                    "ON evidence.release_id=plan.release_id AND evidence.study_plan_id=plan.id "
+                    "WHERE plan.release_id=:release_id ORDER BY plan.external_key LIMIT 1"
+                ),
+                {"release_id": base_release_id},
+            ).scalar_one()
+
+        candidate = _copy_bundle(base_bundle, tmp_path / "api-changed-release")
+        _set_release_context(candidate, base_release_id, base_export["source_bundle_sha256"])
+        changed_direction_name = f"{old_direction_name} — API test release {uuid4().hex[:8]}"
+        _set_direction_name(candidate, direction_key, changed_direction_name)
+        requirement_key = _wrap_requirement_with_nested_operators(candidate)
+        committed = commit_projection(engine, settings, project_bundle(str(candidate)))
+        assert committed["outcome"] == "committed"
+        new_release_id = UUID(committed["active_release_id"])
+        assert new_release_id != base_release_id
+        with engine.connect() as connection:
+            new_release_key = connection.execute(
+                text("SELECT release_key FROM data_releases WHERE id=:release_id"),
+                {"release_id": new_release_id},
+            ).scalar_one()
+
+        with engine.begin() as connection:
+            connection.execute(
+                text(f"ALTER ROLE andromeda_api_runtime PASSWORD '{api_password}'")
+            )
+            connection.execute(
+                text(f"ALTER ROLE andromeda_directus_runtime PASSWORD '{directus_password}'")
+            )
+        api_url = settings.parsed_database_url.set(
+            username="andromeda_api_runtime", password=api_password
+        )
+        directus_url = settings.parsed_database_url.set(
+            username="andromeda_directus_runtime", password=directus_password
+        )
+        api_engine = create_engine(api_url, pool_size=2, max_overflow=0)
+        directus_engine = create_engine(directus_url, pool_size=1, max_overflow=0)
+        app = create_app(settings=settings, engine=api_engine)
+
+        with TestClient(app) as client:
+            health = client.get("/api/v1/health")
+            assert health.status_code == 200
+            assert health.json()["active_release_key"] == new_release_key
+
+            first_page = client.get("/api/v1/directions", params={"limit": 1}).json()
+            assert first_page["page"]["release_key"] == new_release_key
+            assert first_page["page"]["total_count"] > 1
+            assert first_page["items"][0]["sources"]
+            next_cursor = first_page["page"]["next_cursor"]
+            assert next_cursor
+            second_page = client.get(
+                "/api/v1/directions", params={"limit": 1, "cursor": next_cursor}
+            ).json()
+            first_key = first_page["items"][0]["external_key"]
+            second_key = second_page["items"][0]["external_key"]
+            assert first_key < second_key
+
+            invalid_cursor = client.get("/api/v1/directions", params={"cursor": "!"})
+            assert invalid_cursor.status_code == 422
+            assert invalid_cursor.json()["error"]["code"] == "invalid_cursor"
+            missing = client.get("/api/v1/directions/no-such-exact-key")
+            assert missing.status_code == 404
+            assert missing.json()["error"]["code"] == "record_not_found"
+            assert client.post("/api/v1/release").status_code == 405
+
+            plan_response = client.get(f"/api/v1/study-plans/{quote(plan_key, safe='')}")
+            assert plan_response.status_code == 200
+            assert plan_response.json()["sources"]
+
+            requirement_response = client.get(
+                f"/api/v1/requirements/{quote(requirement_key, safe='')}"
+            )
+            tree = requirement_response.json()["root"]
+            assert requirement_response.status_code == 200
+            assert tree["operator"] == "AT_LEAST"
+            assert tree["children"][0]["operator"] == "AND"
+            assert tree["children"][0]["children"][0]["operator"] == "OR"
+
+            tuition = client.get("/api/v1/tuition", params={"limit": 100}).json()
+            assert all(
+                "unspecified" not in (item["academic_year"] or "").casefold()
+                for item in tuition["items"]
+            )
+
+            flipped = False
+
+            def rollback_between_release_lookup_and_page(
+                connection, cursor, statement, parameters, context, executemany
+            ):
+                nonlocal flipped
+                normalized = " ".join(statement.casefold().split())
+                if not flipped and normalized.startswith("select count(*)") and "from directions" in normalized:
+                    flipped = True
+                    rollback_active_release(
+                        engine,
+                        settings,
+                        target_release_id=base_release_id,
+                        expected_active_release_id=new_release_id,
+                        reason="simulate active release change during one API request",
+                        actor="api-integration-test",
+                    )
+
+            event.listen(api_engine, "before_cursor_execute", rollback_between_release_lookup_and_page)
+            try:
+                stable_snapshot = client.get("/api/v1/directions", params={"limit": 1}).json()
+            finally:
+                event.remove(api_engine, "before_cursor_execute", rollback_between_release_lookup_and_page)
+            assert flipped
+            assert stable_snapshot["page"]["release_key"] == new_release_key
+            assert stable_snapshot["items"][0]["name"] == changed_direction_name
+
+            restored = client.get("/api/v1/directions", params={"limit": 100}).json()
+            restored_direction = next(
+                item for item in restored["items"] if item["external_key"] == direction_key
+            )
+            assert restored["page"]["release_key"] == base_export["release_key"]
+            assert restored_direction["name"] == old_direction_name
+
+        with engine.connect() as owner_connection:
+            academic_direction_view_oid = owner_connection.execute(
+                text("SELECT 'academic_read.directions'::regclass::oid")
+            ).scalar_one()
+        with directus_engine.connect() as connection:
+            projection_release_key = connection.execute(
+                text("SELECT release_key FROM directus_read.active_release")
+            ).scalar_one()
+            assert projection_release_key == base_export["release_key"]
+            assert connection.execute(
+                text("SELECT count(DISTINCT release_id) FROM directus_read.directions")
+            ).scalar_one() <= 1
+            assert connection.execute(
+                text("SELECT has_table_privilege(current_user, 'directus_read.directions', 'SELECT')")
+            ).scalar_one()
+            assert connection.execute(
+                text("SELECT has_table_privilege(current_user, 'directus_read.directions', 'UPDATE')")
+            ).scalar_one() is False
+            assert connection.execute(
+                text("SELECT has_schema_privilege(current_user, 'directus_read', 'CREATE')")
+            ).scalar_one() is False
+            assert connection.execute(
+                text("SELECT has_schema_privilege(current_user, 'academic_read', 'USAGE')")
+            ).scalar_one() is False
+            assert connection.execute(
+                text("SELECT has_table_privilege(current_user, :view_oid, 'SELECT')"),
+                {"view_oid": academic_direction_view_oid},
+            ).scalar_one() is False
+            with pytest.raises(DBAPIError):
+                connection.execute(text("SELECT * FROM public.directions LIMIT 1"))
+            connection.rollback()
+            with pytest.raises(DBAPIError):
+                connection.execute(text("UPDATE public.directions SET name=name WHERE false"))
+            connection.rollback()
+            with pytest.raises(DBAPIError):
+                connection.execute(text("UPDATE directus_read.directions SET name=name WHERE false"))
+            connection.rollback()
+            with pytest.raises(DBAPIError):
+                connection.execute(text("DROP TABLE directus_read.directions"))
+            connection.rollback()
+
+        with api_engine.connect() as connection:
+            assert connection.execute(
+                text("SELECT has_table_privilege(current_user, 'public.directions', 'SELECT')")
+            ).scalar_one()
+            assert connection.execute(
+                text("SELECT has_table_privilege(current_user, 'public.admission_result_sources', 'SELECT')")
+            ).scalar_one() is False
+            assert connection.execute(
+                text("SELECT has_schema_privilege(current_user, 'public', 'CREATE')")
+            ).scalar_one() is False
+            with pytest.raises(DBAPIError):
+                connection.execute(text("UPDATE public.directions SET name=name WHERE false"))
+            connection.rollback()
+            with pytest.raises(DBAPIError):
+                connection.execute(text("SELECT * FROM public.admission_result_sources LIMIT 1"))
+            connection.rollback()
+            with pytest.raises(DBAPIError):
+                connection.execute(text("SELECT * FROM directus_read.directions LIMIT 1"))
+            connection.rollback()
+    finally:
+        if api_engine is not None:
+            api_engine.dispose()
+        if directus_engine is not None:
+            directus_engine.dispose()
+        with engine.begin() as connection:
+            connection.execute(text("ALTER ROLE andromeda_api_runtime PASSWORD NULL"))
+            connection.execute(text("ALTER ROLE andromeda_directus_runtime PASSWORD NULL"))
         engine.dispose()

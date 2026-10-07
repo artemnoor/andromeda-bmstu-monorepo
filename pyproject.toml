@@ -1,12 +1,16 @@
 [tool.uv.workspace]
-members = ["academic-data", "parsers"]
+members = ["academic-data", "parsers", "services/api"]
 
 [dependency-groups]
 dev = ["pytest>=8,<9"]
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
+testpaths = ["tests", "services/api/tests"]
 addopts = "-ra"
 markers = [
-    "integration: requires the dedicated local PostgreSQL test database",
+  "integration: requires the dedicated local PostgreSQL test database",
 ]
+pythonpath = ["services/api/src"]
+
+[tool.uv.sources]
+andromeda-academic-data-db = { workspace = true }

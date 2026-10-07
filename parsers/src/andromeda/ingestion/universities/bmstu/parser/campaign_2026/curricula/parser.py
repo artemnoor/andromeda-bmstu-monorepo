@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from io import BytesIO
+from hashlib import sha256
 from typing import Any
 
 from ..common import normalize_code
@@ -17,7 +18,14 @@ def parse_curriculum_document(
 ) -> dict[str, Any]:
     """Parse one document selected by one exact profile card link."""
     if body.startswith(b"%PDF-") or (content_type or "").lower().find("pdf") >= 0:
-        return _parse_pdf(body, final_url, share_url, profile, retrieved_at)
+        parsed = _parse_pdf(body, final_url, share_url, profile, retrieved_at)
+        return _attach_exact_identity(
+            parsed,
+            body=body,
+            final_url=final_url,
+            share_url=share_url,
+            profile=profile,
+        )
     if body.startswith(b"PK\x03\x04") or any(token in (content_type or "").lower() for token in ("spreadsheet", "excel", "officedocument")):
         return _parse_xlsx(body, final_url, share_url, profile, retrieved_at)
     return {
@@ -29,6 +37,61 @@ def parse_curriculum_document(
         "items": [],
         "error": "linked study-plan file is neither a recognized PDF nor XLS/XLSX workbook",
     }
+
+
+def _attach_exact_identity(
+    parsed: dict[str, Any],
+    *,
+    body: bytes,
+    final_url: str,
+    share_url: str,
+    profile: dict[str, Any],
+) -> dict[str, Any]:
+    """Attach stable importer keys only when the selected plan has exact identity."""
+    items = [item for item in parsed.get("items", []) if isinstance(item, dict)]
+    plan_key = profile.get("study_plan_external_key")
+    parsed["source_sha256"] = sha256(body).hexdigest()
+    parsed["source_url"] = share_url
+    parsed["download_url"] = final_url
+    if not isinstance(plan_key, str) or not plan_key.startswith("study_plan:"):
+        parsed["identity_status"] = "source_gap"
+        parsed["identity_gap"] = "exact_study_plan_external_key_unresolved"
+        return parsed
+
+    keys: set[str] = set()
+    for position, item in enumerate(items, start=1):
+        # The source parser's row_no is a printed row number and can repeat
+        # between semesters. The global order of parsed data rows is the
+        # existing importer identity convention and remains independent of
+        # mutable facts such as title, hours, semester, and assessment.
+        external_key = f"curriculum_item:{plan_key}:row:{position}"
+        if external_key in keys:
+            parsed["identity_status"] = "source_gap"
+            parsed["identity_gap"] = "duplicate_curriculum_identity"
+            for row in items:
+                row.pop("external_key", None)
+            return parsed
+        keys.add(external_key)
+        item["external_key"] = external_key
+        item["curriculum_key"] = plan_key
+        item["source_position"] = position
+        item["source_url"] = share_url
+        item["source_sha256"] = parsed["source_sha256"]
+        item["source_locator"] = {
+            "row": position,
+            "printed_row_no": item.get("row_no"),
+            "semester": item.get("semester"),
+            "source_url": share_url,
+        }
+        item["identity_status"] = "exact"
+
+    if any(item.get("identity_status") == "source_gap" for item in items):
+        parsed["identity_status"] = "source_gap"
+        parsed["identity_gap"] = "one_or_more_curriculum_rows_missing_identity"
+    else:
+        parsed["identity_status"] = "exact"
+        parsed.pop("identity_gap", None)
+    return parsed
 
 
 def _parse_pdf(body: bytes, final_url: str, share_url: str, profile: dict[str, Any], retrieved_at: str) -> dict[str, Any]:

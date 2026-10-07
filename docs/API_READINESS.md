@@ -2,71 +2,71 @@
 
 Previous: [Live validation](LIVE_VALIDATION.md) · Next: [Known limitations](KNOWN_ISSUES.md)
 
-## What is ready now
+## Implemented read contour
 
-The codebase already has a read-side application service
-(`AcademicDataQueries`), a repository protocol with a SQLAlchemy implementation,
-release-aware pagination, strict `contracts/v1` DTOs, source/evidence
-references, and explicit data-gap statuses. These parts can support a
-read-only HTTP layer without changing the ingestion model.
+The repository now includes a synchronous FastAPI v1 application under
+`services/api/`. Its routers call `AcademicDataQueries`; SQLAlchemy repository
+access remains in `academic-data/`. A request uses one read-only PostgreSQL
+`REPEATABLE READ` transaction, so the active pointer and all facts observed in
+that response come from one release snapshot. Pagination is deterministic by
+external key and carries the release key on every page.
 
-Existing query areas include directions, departments, programs, program
-courses, study plans, curriculum items, admission campaigns and calendar,
-offerings, competition pools, requirement trees, tuition, current/historical
-statistics, achievements, admission documents, source evidence, and manual
-review metadata. The DTOs carry exact external keys and source provenance;
-pages include a release key. Requirement nodes preserve `AND`, `OR`, and
-`AT_LEAST`.
+The OpenAPI document is served at `/openapi.json`; Swagger UI is at `/docs`.
+The public v1 surface is GET-only. No proposal, approval, publication,
+applicant profile, or applicant-level result endpoint exists.
 
-Review-decision history is currently preserved in an archived bundle sidecar;
-it is not exposed by `AcademicDataQueries` as a relational read model.
+Application DTOs retain exact external keys, provenance references, evidence,
+manual-review data gaps, nullable unknown values, and structured
+AND/OR/AT_LEAST requirement trees. The API does not expose the raw payload of
+unmodeled source observations. `/data-gaps` currently lists open manual-review
+records; pending observations that have no canonical record remain visible to
+the internal Directus view by metadata only.
 
-## Contracts to expose in a future API
+## Read model coverage
 
-These are proposed read-only route families, not implemented routes:
-
-| Read model | Existing backing query/DTO | Notes |
+| Read model | Query/DTO boundary | API route family |
 |---|---|---|
-| Directions and programs | `directions`, `programs`, `EducationalProgramRecord` | Filter programs by exact direction key; return department relations and plan keys only when resolved. |
-| Departments | `departments`, `DepartmentRecord` | Preserve campus verification and source references. |
-| Study plans and disciplines | `study_plans`, `curriculum_items`, `StudyPlanRecord`, `CurriculumItemRecord` | Discipline rows are curriculum items with semester, hours, assessment and source evidence. |
-| Exams and requirements | `requirements`, `RequirementTreeRecord` | Expose the nested requirement tree; there is no independent public exam-query contract yet. |
-| Tuition | `tuition`, `TuitionRecord` | Preserve amount, currency, validity period and gaps; do not infer a missing academic year. |
-| Admission | campaigns, calendar, offerings, pools and statistic queries | Keep campaign year, education level, funding, quota and admission-statistic scopes explicit. Never expose applicant-level order rows. |
+| Directions | `directions`, `DirectionRecord` | `/api/v1/directions` |
+| Departments | `departments`, `DepartmentRecord` | `/api/v1/departments` |
+| Programs | `programs`, `EducationalProgramRecord` | `/api/v1/programs` |
+| Plans and curriculum | `study_plans`, `curriculum_items` | `/api/v1/study-plans`, `/api/v1/programs/{key}/study-plans` |
+| Campaigns and calendar | campaigns, calendar events, offerings | `/api/v1/campaigns` |
+| Requirements and exams | requirement trees, `admission_exams` | `/api/v1/requirements`, `/api/v1/exams` |
+| Places and quotas | competition pools and quota assertions | `/api/v1/place-quotas` |
+| Tuition | `tuition`, `TuitionRecord` | `/api/v1/tuition` |
+| Statistics | current and historical statistics | `/api/v1/statistics` |
+| Review gaps | open manual-review records | `/api/v1/data-gaps` |
 
-Stable v1 routes could follow the query boundaries, for example
-`/v1/directions`, `/v1/programs`, `/v1/study-plans`,
-`/v1/study-plans/{key}/items`, `/v1/requirements`, `/v1/tuition`,
-`/v1/statistics`, and `/v1/campaigns/{key}/offerings`. Final path names,
-filter syntax, response size limits, error envelopes, readiness behavior, and
-OpenAPI publication remain an API implementation decision.
+Responses from sourced canonical record queries carry release-scoped source
+references and evidence where the database has those links. Unknown values stay
+`null` or unresolved; live tuition rows without explicit academic year were
+not imported as canonical tuition.
 
-## Not implemented
+## Runtime boundaries
 
-There is no FastAPI application, HTTP router, authentication, rate limiting,
-deployment, browser client, or user profile service in this repository. The
-query/DTO layer is library code, not a running service. Live-source coverage
-is partial; see the [2026-10-07 source check](LIVE_VALIDATION.md).
+The `andromeda_api_runtime` login is a member of `andromeda_api_readonly`. Its
+SELECT rights are limited to tables used by the read queries; it has no DML or
+public-schema CREATE rights. The API connection also starts each request in a
+read-only transaction. It uses the existing academic PostgreSQL database.
 
-Applicant profiles, preferences, saved programs, submitted scores, documents,
-or recommendations must be designed as a separate user-owned domain with its
-own authorization and retention rules. They must not be added to immutable
-academic releases, source evidence, or public admission records.
+The Directus POC reads `directus_read` tables, a transactionally refreshed
+projection from the active-release views, with the `andromeda_directus_runtime`
+login. It cannot read base canonical tables or the source views. Directus may
+create and update its own metadata under `directus_meta`; that schema is
+separate from academic facts. See [Directus setup](DIRECTUS.md).
 
-## Directus compatibility
+## Still outside the API
 
-The normalized relational data can be presented to Directus in a future step
-through read-only views or a restricted database role. Such a role should
-resolve records through `active_data_release`, expose only reconciled active
-facts plus their provenance/data-gap metadata, and have no write permission
-for release, fact, review, or activation tables. Directus must not become a
-second writer or mutate an already published release. No Directus schema,
-service, or configuration is included now.
+- Ingestion, review, validation, commit, and rollback remain CLI/application
+  workflows. A future HTTP proposal/write path needs its own identity,
+  authorization, idempotency, audit, and publication design.
+- User profiles, exam scores, olympiad results, preferences, saved programs,
+  and recommendations belong to a separate Applicant/User domain.
+- API authentication, rate limiting, external deployment, and frontend
+  integration are not included in this POC.
+- `/data-gaps` covers open manual-review records, not every source observation.
+- Live checks are bounded samples, not evidence of complete BMSTU parser
+  coverage; see [LIVE_VALIDATION.md](LIVE_VALIDATION.md).
 
-Before implementation, verify that the desired filters and response DTOs can
-be served by `AcademicDataQueries`, define public-vs-review-only fields, and
-test that every endpoint reads one consistent active release. For operational
-and data limits, see [known limitations](KNOWN_ISSUES.md).
-
-See also: [architecture](ARCHITECTURE.md),
-[ingestion operations](INGESTION_OPERATIONS.md), [known limitations](KNOWN_ISSUES.md).
+See also: [API contract](API.md), [architecture](ARCHITECTURE.md),
+[known limitations](KNOWN_ISSUES.md).

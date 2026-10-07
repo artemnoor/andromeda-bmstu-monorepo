@@ -256,12 +256,12 @@ def probe_official_sources(
             try:
                 html_cards = parse_catalog_html(catalog_html.body)
                 categories["program_catalog_html"] = {
-                    "status": "parsed" if html_cards else "parsed_empty",
+                    "status": "parsed_fallback" if html_cards else "fallback_deferred",
                     "visible_card_links": len(html_cards),
                 }
                 if not html_cards:
                     source_gaps.append(
-                        {"source": "program_catalog_html", "url": _safe_report_url(S06_CATALOG_URL), "reason": "no_program_links_in_selected_html"}
+                        {"source": "program_catalog_html", "url": _safe_report_url(S06_CATALOG_URL), "reason": "official_html_has_no_links_api_is_primary"}
                     )
             except ValueError as error:
                 categories["program_catalog_html"] = {"status": "parser_gap", "error_type": type(error).__name__}
@@ -279,7 +279,7 @@ def probe_official_sources(
                 catalog_rows = parse_catalog_api(api.body)
                 meta = api_payload.get("meta", {})
                 categories["program_catalog_api"] = {
-                    "status": "parsed",
+                    "status": "parsed_primary",
                     "returned_records": len(catalog_rows),
                     "requested_limit": 1,
                     "reported_total": meta.get("count") if isinstance(meta, dict) else None,
@@ -368,7 +368,15 @@ def probe_official_sources(
                             content_type=pdf.content_type,
                             final_url=str(pdf.final_url),
                             share_url=str(selected_profile["study_plan_url"]),
-                            profile={"code": selected_profile.get("code"), "name": selected_profile.get("name")},
+                            profile={
+                                "code": selected_profile.get("code"),
+                                "name": selected_profile.get("name"),
+                                "study_plan_external_key": (
+                                    f"study_plan:{selected_profile['external_key']}"
+                                    if isinstance(selected_profile.get("external_key"), str)
+                                    else None
+                                ),
+                            },
                             retrieved_at=pdf.captured_at.isoformat(),
                         )
                         categories["study_plan_and_disciplines"] = {
@@ -377,6 +385,8 @@ def probe_official_sources(
                             "education_year": parsed_plan.get("education_year"),
                             "semester_count": parsed_plan.get("semester_count"),
                             "discipline_rows": len(parsed_plan.get("items", [])),
+                            "identity_status": parsed_plan.get("identity_status"),
+                            "identity_gap": parsed_plan.get("identity_gap"),
                             "parser_error": parsed_plan.get("error"),
                         }
                         current_items = _read_rows(base, "curriculum_items.jsonl")
@@ -386,12 +396,19 @@ def probe_official_sources(
                         exact_comparisons["curriculum_items"] = _compare_exact_keys(
                             plan_items, current_items, fields=("discipline", "semester", "hours", "credits")
                         )
-                        if exact_comparisons["curriculum_items"]["live_records_without_exact_key"]:
+                        if (
+                            exact_comparisons["curriculum_items"]["live_records_without_exact_key"]
+                            or exact_comparisons["curriculum_items"]["live_keys_not_in_current_release"]
+                        ):
                             source_gaps.append(
                                 {
                                     "source": "curriculum_items",
                                     "url": _safe_report_url(str(selected_profile["study_plan_url"])),
-                                    "reason": "parser_emitted_discipline_rows_without_exact_external_keys",
+                                    "reason": (
+                                        "exact_curriculum_keys_not_present_in_comparison_release"
+                                        if exact_comparisons["curriculum_items"]["live_keys_not_in_current_release"]
+                                        else "parser_emitted_discipline_rows_without_exact_external_keys"
+                                    ),
                                 }
                             )
                     else:
@@ -412,7 +429,9 @@ def probe_official_sources(
             admission_body = admission.body
             try:
                 stats = parse_admission_information(admission.body, ADMISSION_INFO_URL)["historical_results"]
-                tuition = parse_cost_page(admission.body, ADMISSION_INFO_URL)["tuition_records"]
+                tuition_result = parse_cost_page(admission.body, ADMISSION_INFO_URL)
+                tuition = tuition_result["tuition_records"]
+                pending_tuition = tuition_result["pending_tuition_observations"]
                 visible = BeautifulSoup(admission.body, "html.parser").get_text(" ", strip=True)
                 date_mentions = sorted(
                     set(
@@ -427,6 +446,10 @@ def probe_official_sources(
                     "status": "parsed",
                     "aggregate_statistics": len(stats),
                     "tuition_rows": len(tuition),
+                    "pending_tuition_rows": len(pending_tuition),
+                    "tuition_year_identity": (
+                        "explicit" if tuition else "source_gap"
+                    ),
                     "campaign_date_mentions": date_mentions[:8],
                     "applicant_rows_emitted": 0,
                 }
@@ -438,6 +461,14 @@ def probe_official_sources(
                 exact_comparisons["tuition"] = _compare_exact_keys(
                     tuition, _read_rows(base, "tuition.jsonl"), fields=("annual_amount_rub", "currency", "study_year_label")
                 )
+                if pending_tuition:
+                    source_gaps.append(
+                        {
+                            "source": "tuition",
+                            "url": _safe_report_url(ADMISSION_INFO_URL),
+                            "reason": "academic_year_not_explicit_in_owning_official_section",
+                        }
+                    )
                 if exact_comparisons["tuition"]["live_keys_not_in_current_release"]:
                     source_gaps.append(
                         {

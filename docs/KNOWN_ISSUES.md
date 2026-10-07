@@ -35,17 +35,20 @@ Previous: [API readiness](API_READINESS.md) · Next: [Ingestion audit](INGESTION
   direction references). The validator also reports 22 manual-review keys
   that are not canonical records and existing unverified campus scopes.
   These are visible source/model gaps; this work did not invent links.
-- The live catalog API returned one sampled record and reported 53 total. The
-  HTML parser found no program links in the sampled HTML response.
-- The live curriculum PDF parser returned 113 rows across 12 semesters, but
-  those rows had no importer exact external keys. They cannot safely be
-  compared or promoted until key generation is confirmed.
-- The live tuition parser returned 154 rows with `year-unspecified` external
-  keys. None matched the release's exact keys. This is a key/year identity gap,
-  not evidence that the stored amounts changed.
-- The bounded sample found no exam-requirements PDF link and no safe aggregate
-  places/quota table. Order-index metadata was parsed, but individual result
-  documents were not downloaded.
+- The official catalog API is primary for the current parser: one sampled row
+  parsed and the API reported 53 total. The HTML page returned no recognized
+  links and remains a deferred fallback. This sample was not paginated.
+- The sampled live curriculum PDF yielded 113 rows across 12 semesters. Exact
+  keys using the existing `curriculum_item:<plan-key>:row:<position>` scheme
+  matched all 113 rows in the current release, with no changes or unmatched
+  records. This validates one plan layout only; row reorderings still require
+  exact-key diff and human review.
+- The sampled tuition page exposed 154 rows but no academic year in each
+  owning section. They remain pending and no canonical tuition row was
+  produced. The parser does not infer a year or emit `year-unspecified` keys.
+- The bounded sample found no requirements PDF link and no safe aggregate
+  places/quota table. The order manifest contained 24 enabled document
+  records, but no document bodies were fetched.
 - The probe compared against an isolated PostgreSQL 16 test release seeded
   from the checked-in bundle. No production database was queried. The broader
   live capture command remains unsuitable for unattended/mass refresh until
@@ -55,9 +58,20 @@ Previous: [API readiness](API_READINESS.md) · Next: [Ingestion audit](INGESTION
   Passing-score statistics are not complete campaign-wide data.
 - Applicant-level records, personal data, user profiles, and preferences are
   excluded. HSE remains deferred.
-- There is no FastAPI application, frontend, Directus configuration, or
-  applicant-profile model. Existing read-side queries and DTOs are library
-  contracts only; see [API readiness](API_READINESS.md).
+- The read-only FastAPI v1 and Directus viewer are implemented, but API
+  authentication, rate limiting, public deployment, and frontend integration
+  remain out of scope. `/data-gaps` currently lists open manual-review records;
+  pending observations without canonical entities are not returned by that
+  endpoint.
+- The Directus POC reads `directus_read` tables, atomically refreshed from
+  allowlisted active-release SQL views because Directus 12.4.1's PostgreSQL
+  inspector excludes views. It enforces SELECT-only access but does not yet
+  provide curated relation metadata or role/policy export files. The full
+  projection refresh adds lock time and WAL per publish/rollback and has not
+  been benchmarked beyond the checked-in POC corpus. Its default admin can
+  administer Directus metadata while PostgreSQL still blocks academic writes.
+- Applicant profiles, preferences, EGE/olympiad results, shortlists, and
+  recommendations remain a separate unimplemented domain. HSE remains deferred.
 
 ## Verification record
 
@@ -65,30 +79,36 @@ Verified locally on Python 3.11 and the isolated localhost PostgreSQL 16
 `academic_data_test` database:
 
 - Locked non-editable workspace installation completed with `uv sync
-  --locked --reinstall --all-packages --group dev --no-editable`.
-- `uv run pytest -q`: **30 passed in 719.00 seconds**. This included the
-  five-operation sequential lifecycle, same-base concurrent publishers,
-  stale-base rejection, explicit rollback, failed activation recovery,
-  exact-key moderation, partial-source behavior, parser failure/provenance,
-  and bundle round-trip cases.
+  --locked --all-packages --group dev --no-editable`.
+- `uv run pytest -q`: **39 passed, 1 deprecation warning, in 844.17 seconds**.
+  This includes the existing five-operation sequential lifecycle, same-base
+  concurrent publishers, stale-base rejection, explicit rollback, failed
+  activation recovery, exact-key moderation, partial-source behavior, parser
+  failure/provenance, and bundle round-trip cases, plus API and Directus
+  integration tests. The new API/Directus test proves one-release repeatable
+  reads, AND/OR/AT_LEAST output, runtime permissions, and projection refresh
+  after rollback.
 - The five sequential operations verified a changed fact, an added exact-key
   statistic, unchanged `no_op`, two contradictory exact-key source candidates
   blocked and individually rejected before publication, and repeated import
   `no_op`. Earlier accepted values, counts, evidence, provenance, and links
   were checked after each step.
 - PostgreSQL reports major version **16**, schema revision
-  `e91532f013ac`; `academic-data db check` and Alembic `command.check` passed.
+  `f4b19a7c2d61`; `academic-data db check` and Alembic `command.check` passed.
 - The checked-in bundle validated as **21,911 records, zero errors, one
   existing warning**, digest
   `42616ee9348ee009fa1b297f7ef697862134835e562c7840f413643ce71d2130`.
   Import dry-run returned `dry_run` with zero network requests.
+- `docker compose --profile directus config --quiet` passed. The pinned
+  Directus 12.4.1 smoke authenticated, discovered 12 key academic collections,
+  and read one direction item; the container was stopped and the temporary DB
+  password cleared afterward.
 - Fixture hash tests preserve LF `content_sha256`/capture digest and all six
   original upstream `source_sha256` values. `git check-attr` reports LF for
   HTML/JSON fixtures and disables text conversion for PDFs.
-- GitHub Actions run [37551684272](https://github.com/artemnoor/andromeda-bmstu-monorepo/actions/runs/37551684272)
-  passed every CI step on published commit
-  `93ca411490cb60808f6294affdd8b344f170c791`, including the full PostgreSQL 16
-  test suite in 10m33s.
+- GitHub Actions runs the PostgreSQL 16-backed `uv run pytest -q` workflow on
+  pushed branches. The commit checks in GitHub are authoritative for each
+  published revision; the pre-change `main` baseline was green.
 
 ## Operational rule
 
