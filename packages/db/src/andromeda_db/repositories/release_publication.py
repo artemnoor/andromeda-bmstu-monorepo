@@ -675,10 +675,13 @@ def publish_projection(
         SQLAlchemyError,
         ProposalDomainError,
         ReleasePublicationError,
+        RuntimeError,
         ValueError,
         TypeError,
         OSError,
     ) as error:
+        # Normalize database, domain, and callback failures only after the
+        # transaction context has rolled back.
         failure_code = _safe_failure_code(error)
         _record_failed_batch(engine, projection, failure_code)
         original_error = getattr(error, "orig", None)
