@@ -3,9 +3,121 @@ name: CI
 on:
   push:
   pull_request:
+  schedule:
+    - cron: '17 4 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  verify:
+  changes:
+    if: github.event_name != 'schedule' && github.event_name != 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    outputs:
+      db: ${{ steps.filter.outputs.db }}
+      domain_contracts: ${{ steps.filter.outputs.domain_contracts }}
+      api_ingestion: ${{ steps.filter.outputs.api_ingestion }}
+      directus: ${{ steps.filter.outputs.directus }}
+      unclassified: ${{ steps.filter.outputs.unclassified }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Classify changed paths
+        id: filter
+        uses: dorny/paths-filter@v4
+        with:
+          # On a push, compare only the commits in that push. Pull requests are
+          # compared with their base branch by paths-filter.
+          base: ${{ github.event.before != '0000000000000000000000000000000000000000' && github.event.before || github.ref }}
+          predicate-quantifier: 'some-with-excludes'
+          filters: |
+            db:
+              - 'packages/db/**'
+              - 'domain/**'
+              - 'tests/**'
+              - 'tests/fixtures/**'
+              - 'data/**'
+              - 'pyproject.toml'
+              - 'uv.lock'
+              - 'Makefile'
+              - '.env.example'
+              - 'docker-compose.yml'
+              - '.github/workflows/**'
+            domain_contracts:
+              - 'domain/**'
+              - 'packages/contracts/**'
+              - 'packages/db/**'
+              - 'services/api/**'
+              - 'services/ingestion/**'
+              - 'tests/**'
+              - 'tests/fixtures/**'
+              - 'data/**'
+              - 'pyproject.toml'
+              - 'uv.lock'
+              - 'Makefile'
+              - '.env.example'
+              - 'packages/db/migrations/**'
+              - 'docker-compose.yml'
+              - '.github/workflows/**'
+            api_ingestion:
+              - 'services/api/**'
+              - 'services/ingestion/**'
+              - 'domain/**'
+              - 'packages/contracts/**'
+              - 'packages/db/**'
+              - 'tests/**'
+              - 'tests/integration/**'
+              - 'tests/fixtures/**'
+              - 'data/**'
+              - 'pyproject.toml'
+              - 'uv.lock'
+              - 'Makefile'
+              - '.env.example'
+              - 'packages/db/migrations/**'
+              - 'docker-compose.yml'
+              - '.github/workflows/**'
+            directus:
+              - 'platform/directus/**'
+              - 'services/api/**'
+              - 'packages/db/**'
+              - 'domain/**'
+              - 'tests/**'
+              - 'tests/fixtures/**'
+              - 'data/**'
+              - 'pyproject.toml'
+              - 'uv.lock'
+              - 'Makefile'
+              - '.env.example'
+              - 'packages/db/migrations/**'
+              - 'docker-compose.yml'
+              - '.github/workflows/**'
+            unclassified:
+              - '**'
+              - '!packages/db/**'
+              - '!packages/contracts/**'
+              - '!domain/**'
+              - '!services/api/**'
+              - '!services/ingestion/**'
+              - '!platform/directus/**'
+              - '!docker-compose.yml'
+              - '!tests/**'
+              - '!data/**'
+              - '!pyproject.toml'
+              - '!uv.lock'
+              - '!Makefile'
+              - '!.env.example'
+              - '!.github/workflows/**'
+
+  db-check:
+    if: needs.changes.result == 'success' && needs.changes.outputs.db == 'true' && github.ref != 'refs/heads/main'
+    needs: changes
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -24,32 +136,179 @@ jobs:
     env:
       ACADEMIC_DATA_ENV: test
       ACADEMIC_DATA_DATABASE_URL: postgresql+psycopg://andromeda_test:andromeda_test@localhost:5432/academic_data_test
-      UV_NO_EDITABLE: "1"
+      UV_NO_EDITABLE: '1'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: '3.11'
       - name: Install locked workspace
         run: |
           python -m pip install uv==0.11.28
           uv sync --locked --all-packages --group dev --no-editable
-      - name: Validate and dry-run the BMSTU bundle
+      - name: Upgrade and check the isolated PostgreSQL database
         run: |
-          uv run --package andromeda-academic-data-db academic-data bundle validate --input data/bmstu-2026
-          uv run --package andromeda-academic-data-db academic-data bundle import --input data/bmstu-2026 --dry-run
-      - name: Check active parser set
-        run: uv run --package andromeda-bmstu-parsers andromeda-bmstu list
-      - name: Migrate the test database
-        run: uv run --package andromeda-academic-data-db academic-data db upgrade
-      - name: Check migration metadata
+          uv run academic-data db upgrade
+          uv run academic-data db check
+      - name: Run database migration and lifecycle tests
+        run: uv run pytest -q tests/test_db_migrations.py tests/test_postgres_import.py
+
+  domain-contracts-check:
+    if: needs.changes.result == 'success' && needs.changes.outputs.domain_contracts == 'true' && github.ref != 'refs/heads/main'
+    needs: changes
+    runs-on: ubuntu-latest
+    env:
+      UV_NO_EDITABLE: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install locked workspace
+        run: |
+          python -m pip install uv==0.11.28
+          uv sync --locked --all-packages --group dev --no-editable
+      - name: Run domain, API contract, and import boundary tests
+        run: uv run pytest -q tests/test_domain_semantics.py tests/test_import_boundaries.py services/api/tests/test_api_contracts.py
+
+  api-ingestion-check:
+    if: needs.changes.result == 'success' && needs.changes.outputs.api_ingestion == 'true' && github.ref != 'refs/heads/main'
+    needs: changes
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: academic_data_test
+          POSTGRES_USER: andromeda_test
+          POSTGRES_PASSWORD: andromeda_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U andromeda_test -d academic_data_test"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 30
+    env:
+      ACADEMIC_DATA_ENV: test
+      ACADEMIC_DATA_DATABASE_URL: postgresql+psycopg://andromeda_test:andromeda_test@localhost:5432/academic_data_test
+      UV_NO_EDITABLE: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install Poppler for curriculum PDF fixtures
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes poppler-utils
+      - name: Install locked workspace
+        run: |
+          python -m pip install uv==0.11.28
+          uv sync --locked --all-packages --group dev --no-editable
+      - name: Upgrade the isolated PostgreSQL database
+        run: uv run academic-data db upgrade
+      - name: Run API, ingestion, and publication regression tests
         run: >-
-          uv run --package andromeda-academic-data-db python -c
-          "from alembic import command; from academic_data_service.cli import build_alembic_config; command.check(build_alembic_config())"
-      - name: Install Poppler for curriculum PDF parsing
+          uv run pytest -q
+          services/api/tests/test_api_contracts.py
+          tests/test_offline_bundle.py
+          tests/test_bmstu_parser_cli.py
+          tests/test_bmstu_ingestion.py
+          tests/test_curriculum_identity.py
+          tests/test_postgres_import.py
+
+  directus-check:
+    if: needs.changes.result == 'success' && needs.changes.outputs.directus == 'true' && github.ref != 'refs/heads/main'
+    needs: changes
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: academic_data_test
+          POSTGRES_USER: andromeda_test
+          POSTGRES_PASSWORD: andromeda_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U andromeda_test -d academic_data_test"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 30
+    env:
+      ACADEMIC_DATA_ENV: test
+      ACADEMIC_DATA_DATABASE_URL: postgresql+psycopg://andromeda_test:andromeda_test@localhost:5432/academic_data_test
+      UV_NO_EDITABLE: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install locked workspace
+        run: |
+          python -m pip install uv==0.11.28
+          uv sync --locked --all-packages --group dev --no-editable
+      - name: Upgrade the isolated PostgreSQL database
+        run: uv run academic-data db upgrade
+      - name: Run Directus metadata and permission tests
+        run: uv run pytest -q tests/test_directus_metadata.py tests/test_directus_permissions.py tests/test_directus_runtime.py
+
+  full-check:
+    if: >-
+      always() &&
+      (github.event_name == 'schedule' ||
+       github.event_name == 'workflow_dispatch' ||
+       github.ref == 'refs/heads/main' ||
+       needs.changes.result != 'success' ||
+       needs.changes.outputs.unclassified == 'true' ||
+       (needs.changes.outputs.db != 'true' &&
+        needs.changes.outputs.domain_contracts != 'true' &&
+        needs.changes.outputs.api_ingestion != 'true' &&
+        needs.changes.outputs.directus != 'true'))
+    needs: changes
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: academic_data_test
+          POSTGRES_USER: andromeda_test
+          POSTGRES_PASSWORD: andromeda_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U andromeda_test -d academic_data_test"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 30
+    env:
+      ACADEMIC_DATA_ENV: test
+      ACADEMIC_DATA_DATABASE_URL: postgresql+psycopg://andromeda_test:andromeda_test@localhost:5432/academic_data_test
+      UV_NO_EDITABLE: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install Poppler for curriculum PDF tests
         run: |
           sudo apt-get update
           sudo apt-get install --yes poppler-utils
           pdftotext -v
-      - name: Run unit and PostgreSQL integration tests
+      - name: Install locked workspace
+        run: |
+          python -m pip install uv==0.11.28
+          uv sync --locked --all-packages --group dev --no-editable
+      - name: Validate and dry-run the checked-in bundle
+        run: |
+          uv run academic-data bundle validate --input data/bmstu-2026
+          uv run academic-data bundle import --input data/bmstu-2026 --dry-run
+      - name: Check the active parser set
+        run: uv run andromeda-bmstu list
+      - name: Upgrade and check the isolated PostgreSQL database
+        run: |
+          uv run academic-data db upgrade
+          uv run academic-data db check
+      - name: Run the full test suite
         run: uv run pytest -q

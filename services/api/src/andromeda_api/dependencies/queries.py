@@ -8,15 +8,16 @@ from fastapi import Request
 from sqlalchemy import text
 from sqlalchemy.engine import Connection, Engine
 
-from academic_data_service.application.queries import AcademicDataQueries
-from academic_data_service.infrastructure.database.connection import (
+from andromeda_api.application.queries import AcademicDataQueries, ApiReadError
+from andromeda_db.connection import (
     create_service_engine,
     verify_server_identity,
 )
-from academic_data_service.infrastructure.database.read_repository import (
+from andromeda_db.repositories.read_repository import (
+    NoActiveReleaseError,
     SQLAlchemyAcademicDataReadRepository,
 )
-from academic_data_service.settings import Settings, load_settings
+from andromeda_api.application.settings import Settings, load_settings
 
 
 def _runtime_settings(request: Request) -> Settings:
@@ -58,7 +59,14 @@ def get_queries(request: Request) -> Iterator[AcademicDataQueries]:
             {"timeout": f"{settings.db_statement_timeout_ms}ms"},
         )
         repository = SQLAlchemyAcademicDataReadRepository(connection)
-        yield AcademicDataQueries(repository)
+        try:
+            yield AcademicDataQueries(repository)
+        except NoActiveReleaseError as error:
+            raise ApiReadError(
+                503,
+                "active_release_unavailable",
+                "No committed data release is ready.",
+            ) from error
     finally:
         if transaction.is_active:
             transaction.rollback()

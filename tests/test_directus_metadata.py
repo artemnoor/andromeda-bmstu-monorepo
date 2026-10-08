@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from academic_data_service.infrastructure.database import (
+from andromeda_db.models import (
     admission_models,  # noqa: F401
     catalog_models,  # noqa: F401
     evidence_models,  # noqa: F401
@@ -15,13 +15,14 @@ from academic_data_service.infrastructure.database import (
     source_models,  # noqa: F401
     subject_classification_models,  # noqa: F401
 )
-from academic_data_service.infrastructure.database.base import Base
+from andromeda_db.models.base import Base
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
-METADATA_ROOT = PROJECT_ROOT / "infra" / "directus" / "metadata"
+METADATA_ROOT = PROJECT_ROOT / "platform" / "directus" / "metadata"
 MIGRATION_PATH = (
     PROJECT_ROOT
-    / "academic-data"
+    / "packages"
+    / "db"
     / "migrations"
     / "versions"
     / "f4b19a7c2d61_add_readonly_runtime_roles_and_views.py"

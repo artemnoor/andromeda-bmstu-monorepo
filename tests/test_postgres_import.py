@@ -16,18 +16,16 @@ from sqlalchemy import Engine, create_engine, text
 from sqlalchemy.engine import URL
 from sqlalchemy.exc import DBAPIError
 
-from academic_data_service.importer.mapping import project_bundle
-from academic_data_service.importer.persistence import (
-    BundleImportError,
-    commit_projection,
-)
-from academic_data_service.importer.bundle import BundleReader
-from academic_data_service.infrastructure.database.connection import verify_server_identity
-from academic_data_service.operations.releases import (
+from andromeda_api.application.importer.mapping import project_bundle
+from andromeda_api.application.importer.persistence import BundleImportError, run_bundle_import
+from andromeda_db.repositories.release_publication import publish_projection as commit_projection
+from andromeda_api.application.importer.bundle import BundleReader
+from andromeda_db.connection import verify_server_identity
+from andromeda_api.application.operations.releases import (
     export_release_bundle,
     rollback_active_release,
 )
-from academic_data_service.settings import Settings, load_settings
+from andromeda_api.application.settings import Settings, load_settings
 from andromeda_parser.bundle import build_candidate_bundle, materialize_reviewed_bundle
 from andromeda_parser.ingest import IngestionError, capture_sources, parse_capture, write_parse_report
 from andromeda_parser.moderation import compare_candidate_bundle
@@ -75,7 +73,7 @@ def _reset_isolated_postgres_test_schema():
             connection.execute(text("GRANT ALL ON SCHEMA public TO andromeda_test"))
     finally:
         engine.dispose()
-    from academic_data_service.cli import run_database_upgrade
+    from andromeda_api.cli import run_database_upgrade
 
     run_database_upgrade()
     yield

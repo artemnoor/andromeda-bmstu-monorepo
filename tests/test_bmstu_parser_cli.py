@@ -5,7 +5,7 @@ import importlib
 import pkgutil
 from pathlib import Path
 
-import academic_data_service
+import andromeda_api.application as application
 import andromeda.ingestion
 import andromeda_parser
 from andromeda_parser.cli import PARSER_NAMES, main
@@ -23,7 +23,7 @@ def test_parser_list_is_bmstu_only(capsys) -> None:
 
 
 def test_all_active_python_modules_import() -> None:
-    packages = (academic_data_service, andromeda.ingestion, andromeda_parser)
+    packages = (application, andromeda.ingestion, andromeda_parser)
     for package in packages:
         for module in pkgutil.walk_packages(package.__path__, package.__name__ + "."):
             importlib.import_module(module.name)

@@ -14,8 +14,9 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.exc import SQLAlchemyError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from academic_data_service.application.queries import ApiReadError
-from academic_data_service.contracts.v1.models import ApiErrorEnvelope
+from andromeda_ontology.ports import InvalidCursorError
+from andromeda_api.application.queries import ApiReadError
+from andromeda_contracts.api.v1.models import ApiErrorEnvelope
 from andromeda_api.routers.v1 import router as v1_router
 
 REQUEST_ID_PATTERN = re.compile(r"^[A-Za-z0-9._:-]{1,128}$")
@@ -61,6 +62,10 @@ def create_app(*, settings: Any | None = None, engine: Any | None = None) -> Fas
     @app.exception_handler(ApiReadError)
     async def query_error(request: Request, error: ApiReadError):
         return _error_response(request, error.status_code, error.code, error.public_message)
+
+    @app.exception_handler(InvalidCursorError)
+    async def invalid_cursor_error(request: Request, error: InvalidCursorError):
+        return _error_response(request, 422, "invalid_cursor", "The page cursor is invalid.")
 
     @app.exception_handler(RequestValidationError)
     async def validation_error(request: Request, error: RequestValidationError):

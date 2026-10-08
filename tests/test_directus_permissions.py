@@ -5,12 +5,12 @@ from pathlib import Path
 from uuid import uuid4
 
 import pytest
-from academic_data_service.importer.mapping import project_bundle
-from academic_data_service.importer.persistence import commit_projection
-from academic_data_service.infrastructure.database.connection import (
+from andromeda_api.application.importer.mapping import project_bundle
+from andromeda_db.repositories.release_publication import publish_projection as commit_projection
+from andromeda_db.connection import (
     verify_server_identity,
 )
-from academic_data_service.settings import Settings, load_settings
+from andromeda_api.application.settings import Settings, load_settings
 from sqlalchemy import Engine, create_engine, text
 from sqlalchemy.engine import URL
 from sqlalchemy.exc import DBAPIError

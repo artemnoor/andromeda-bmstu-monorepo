@@ -4,8 +4,9 @@ from pathlib import Path
 
 from fastapi.testclient import TestClient
 
-from academic_data_service.application.queries import ApiReadError
-from academic_data_service.contracts.v1.models import (
+from andromeda_ontology.ports import InvalidCursorError
+from andromeda_api.application.queries import ApiReadError
+from andromeda_contracts.api.v1.models import (
     AdmissionCampaignRecord,
     DirectionRecord,
     PageResponse,
@@ -47,9 +48,9 @@ class _Queries:
         )
 
 
-def _app_with_fixture_queries():
+def _app_with_fixture_queries(queries=None):
     app = create_app()
-    app.dependency_overrides[get_queries] = lambda: _Queries()
+    app.dependency_overrides[get_queries] = lambda: queries if queries is not None else _Queries()
     return app
 
 
@@ -82,6 +83,18 @@ def test_http_errors_share_stable_envelope_and_request_id() -> None:
     assert route_missing.json()["error"]["code"] == "route_not_found"
 
 
+def test_invalid_repository_cursor_is_mapped_at_the_http_boundary() -> None:
+    class InvalidCursorQueries(_Queries):
+        def directions(self, limit, cursor):
+            raise InvalidCursorError("cursor is not a valid encoded external key")
+
+    with TestClient(_app_with_fixture_queries(InvalidCursorQueries())) as client:
+        response = client.get("/api/v1/directions?cursor=invalid")
+
+    assert response.status_code == 422
+    assert response.json()["error"]["code"] == "invalid_cursor"
+
+
 def test_api_has_no_proposal_or_publication_write_routes() -> None:
     schema = create_app().openapi()
     paths = schema["paths"]
@@ -92,7 +105,7 @@ def test_api_has_no_proposal_or_publication_write_routes() -> None:
 def test_routers_delegate_without_sql_and_query_layer_stays_framework_independent() -> None:
     project_root = Path(__file__).resolve().parents[4]
     routers = project_root / "services" / "api" / "src" / "andromeda_api" / "routers"
-    query_files = project_root / "academic-data" / "src" / "academic_data_service" / "application"
+    query_files = project_root / "services" / "api" / "src" / "andromeda_api" / "application"
     router_sources = "\n".join(path.read_text(encoding="utf-8") for path in routers.glob("*.py"))
     query_sources = "\n".join(path.read_text(encoding="utf-8") for path in query_files.glob("*.py"))
     assert "sqlalchemy" not in router_sources

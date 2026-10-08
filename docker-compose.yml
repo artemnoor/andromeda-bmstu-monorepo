@@ -1,0 +1,62 @@
+services:
+  academic-data-db:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-academic_data_test}
+      POSTGRES_USER: ${POSTGRES_USER:-andromeda_test}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-andromeda_test}
+    ports:
+      - "127.0.0.1:${ANDROMEDA_DB_PORT:-55433}:5432"
+    volumes:
+      - academic-data-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  directus:
+    image: directus/directus:12.4.1
+    profiles: ["directus"]
+    ports:
+      - "127.0.0.1:${DIRECTUS_PORT:-8055}:8055"
+    environment:
+      SECRET: ${DIRECTUS_SECRET:-}
+      LICENSE_KEY: ${DIRECTUS_LICENSE_KEY:-}
+      DB_CLIENT: pg
+      DB_HOST: academic-data-db
+      DB_PORT: 5432
+      DB_DATABASE: ${POSTGRES_DB:-academic_data_test}
+      DB_USER: andromeda_directus_runtime
+      DB_PASSWORD: ${ANDROMEDA_DIRECTUS_DB_PASSWORD:-}
+      DB_SEARCH_PATH: array:directus_meta,directus_read
+      ADMIN_EMAIL: ${DIRECTUS_ADMIN_EMAIL:-}
+      ADMIN_PASSWORD: ${DIRECTUS_ADMIN_PASSWORD:-}
+      LOG_LEVEL: ${LOG_LEVEL:-debug}
+    entrypoint: ["/bin/sh", "-ec"]
+    command: |
+      : "$${SECRET:?Set DIRECTUS_SECRET in .env or the shell before starting the Directus profile}"
+      : "$${DB_PASSWORD:?Set ANDROMEDA_DIRECTUS_DB_PASSWORD to the password provisioned for andromeda_directus_runtime}"
+      : "$${ADMIN_EMAIL:?Set DIRECTUS_ADMIN_EMAIL in .env or the shell before starting the Directus profile}"
+      : "$${ADMIN_PASSWORD:?Set DIRECTUS_ADMIN_PASSWORD in .env or the shell before starting the Directus profile}"
+      if [ "$${SECRET}" = "REPLACE_ME" ] || [ "$${DB_PASSWORD}" = "REPLACE_ME" ] || [ "$${ADMIN_PASSWORD}" = "REPLACE_ME" ]; then
+        echo "Replace Directus placeholders in .env or the shell before starting the Directus profile." >&2
+        exit 1
+      fi
+      if [ "$${#SECRET}" -lt 32 ]; then
+        echo "DIRECTUS_SECRET must contain at least 32 characters." >&2
+        exit 1
+      fi
+      exec node /directus/cli.js start
+    depends_on:
+      academic-data-db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://127.0.0.1:8055/server/health',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"]
+      interval: 10s
+      timeout: 3s
+      retries: 20
+      start_period: 20s
+
+volumes:
+  academic-data-postgres:
