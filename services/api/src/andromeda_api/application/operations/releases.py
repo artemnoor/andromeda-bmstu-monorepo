@@ -33,7 +33,7 @@ from andromeda_db.repositories.release_publication import reconcile_release_proj
 from andromeda_api.application.importer.bundle import BundleReader, validate_bundle
 from andromeda_api.application.importer.mapping import project_bundle
 from andromeda_api.application.importer.persistence import BundleImportError
-from andromeda_api.application.publication import _prepare_release_archive
+from andromeda_api.application.publication import prepare_release_archive
 from andromeda_api.application.settings import Settings
 
 logger = logging.getLogger("academic_data_service.release")
@@ -196,7 +196,7 @@ def adopt_legacy_release_bundle(
     if existing_release is None or existing_release["status"] != "committed":
         raise BundleImportError("legacy archive target must be a committed release")
     projection = project_bundle(input_path, mapper_version=existing_release["mapper_version"])
-    _prepare_release_archive(projection)
+    prepare_release_archive(projection)
     try:
         reconciliation = adopt_legacy_archive(
             engine, release_id=release_id, projection=projection

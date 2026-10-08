@@ -12,28 +12,42 @@ from threading import Barrier
 from uuid import UUID, uuid4
 
 import pytest
-from sqlalchemy import Engine, create_engine, text
-from sqlalchemy.engine import URL
-from sqlalchemy.exc import DBAPIError
-
-from andromeda_api.application.importer.mapping import project_bundle
-from andromeda_api.application.importer.persistence import BundleImportError, run_bundle_import
-from andromeda_db.repositories.release_publication import publish_projection as commit_projection
 from andromeda_api.application.importer.bundle import BundleReader
-from andromeda_db.connection import verify_server_identity
+from andromeda_api.application.importer.mapping import MappingResult, project_bundle
+from andromeda_api.application.importer.persistence import (
+    BundleImportError,
+)
 from andromeda_api.application.operations.releases import (
     export_release_bundle,
     rollback_active_release,
 )
+from andromeda_api.application.publication import prepare_release_archive
 from andromeda_api.application.settings import Settings, load_settings
+from andromeda_db.connection import verify_server_identity
+from andromeda_db.repositories.release_publication import publish_projection
 from andromeda_parser.bundle import build_candidate_bundle, materialize_reviewed_bundle
-from andromeda_parser.ingest import IngestionError, capture_sources, parse_capture, write_parse_report
+from andromeda_parser.ingest import (
+    IngestionError,
+    capture_sources,
+    parse_capture,
+    write_parse_report,
+)
 from andromeda_parser.moderation import compare_candidate_bundle
-
+from sqlalchemy import Engine, create_engine, text
+from sqlalchemy.exc import DBAPIError
 
 pytestmark = pytest.mark.integration
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 BUNDLE = PROJECT_ROOT / "data" / "bmstu-2026"
+
+
+def commit_projection(
+    engine: Engine, settings: Settings, projection: MappingResult, **kwargs
+) -> dict[str, object]:
+    """Prepare the application artifact before testing the DB publication repository."""
+
+    prepare_release_archive(projection)
+    return publish_projection(engine, settings, projection, **kwargs)
 FIXTURE_DIR = PROJECT_ROOT / "tests" / "fixtures" / "bmstu" / "ingestion"
 FIXTURE_STATISTIC_KEY = "admission_statistic:bmstu:2025:01.03.02:paid:direction"
 
@@ -497,25 +511,23 @@ def test_commit_is_idempotent_and_failed_activation_rolls_back(tmp_path: Path) -
                 {"release_id": active_before},
             ).scalar_one()
         assert archive_rows == 1
-        with pytest.raises(DBAPIError):
-            with engine.begin() as connection:
-                connection.execute(
-                    text(
-                        "UPDATE data_release_bundle_artifacts "
-                        "SET archive_sha256 = :digest WHERE release_id = :release_id"
-                    ),
-                    {"digest": "0" * 64, "release_id": active_before},
-                )
+        with pytest.raises(DBAPIError), engine.begin() as connection:
+            connection.execute(
+                text(
+                    "UPDATE data_release_bundle_artifacts "
+                    "SET archive_sha256 = :digest WHERE release_id = :release_id"
+                ),
+                {"digest": "0" * 64, "release_id": active_before},
+            )
         assert _active_release(engine) == active_before
-        with pytest.raises(DBAPIError):
-            with engine.begin() as connection:
-                connection.execute(
-                    text(
-                        "UPDATE release_activation_events SET reason = 'changed' "
-                        "WHERE operation = 'rollback' AND active_release_id = :release_id"
-                    ),
-                    {"release_id": active_before},
-                )
+        with pytest.raises(DBAPIError), engine.begin() as connection:
+            connection.execute(
+                text(
+                    "UPDATE release_activation_events SET reason = 'changed' "
+                    "WHERE operation = 'rollback' AND active_release_id = :release_id"
+                ),
+                {"release_id": active_before},
+            )
     finally:
         engine.dispose()
 
@@ -916,10 +928,9 @@ def test_read_api_uses_one_active_release_and_directus_is_physically_read_only(
 ) -> None:
     from urllib.parse import quote
 
+    from andromeda_api.main import create_app
     from fastapi.testclient import TestClient
     from sqlalchemy import event
-
-    from andromeda_api.main import create_app
 
     engine, settings = _test_database()
     api_engine = None

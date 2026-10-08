@@ -7,20 +7,25 @@ from pathlib import Path
 from typing import Any
 from uuid import UUID
 
-from andromeda_api.application.importer.bundle import BundleInputError, BundleReader, validate_bundle
-from andromeda_api.application.importer.errors import BundleImportError
-from andromeda_api.application.importer.mapping import MappingResult, project_bundle
-from andromeda_api.application.settings import Settings, load_settings
 from andromeda_db.connection import create_service_engine
 from andromeda_db.repositories.release_publication import (
     ReleasePublicationError,
     publish_projection,
 )
 
+from andromeda_api.application.importer.bundle import (
+    BundleInputError,
+    BundleReader,
+    validate_bundle,
+)
+from andromeda_api.application.importer.errors import BundleImportError
+from andromeda_api.application.importer.mapping import MappingResult, project_bundle
+from andromeda_api.application.settings import Settings, load_settings
+
 logger = logging.getLogger("andromeda_api.application.publication")
 
 
-def _prepare_release_archive(projection: MappingResult) -> None:
+def prepare_release_archive(projection: MappingResult) -> None:
     """Create the immutable archive while confirming the mapped input has not drifted."""
 
     if projection.release_archive_bytes:
@@ -56,7 +61,7 @@ class PublicationApplicationService:
             or prepared_release.expected_base_release_id != expected_active_release_id
         ):
             raise BundleImportError("candidate base does not match the expected active release")
-        _prepare_release_archive(prepared_release)
+        prepare_release_archive(prepared_release)
         settings = self.settings or load_settings()
         engine = create_service_engine(settings)
         try:
