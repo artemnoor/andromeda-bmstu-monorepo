@@ -6,8 +6,8 @@ from typing import Literal
 
 from fastapi import APIRouter, Depends, Query
 
-from academic_data_service.application.queries import AcademicDataQueries
-from academic_data_service.contracts.v1.models import (
+from andromeda_api.application.queries import AcademicDataQueries
+from andromeda_contracts.api.v1.models import (
     AdmissionCampaignRecord,
     AdmissionExamRecord,
     AdmissionOfferingRecord,

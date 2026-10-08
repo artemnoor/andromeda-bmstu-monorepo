@@ -15,8 +15,8 @@ import httpx
 import pytest
 from bs4 import BeautifulSoup
 
-from academic_data_service.importer.bundle import validate_bundle
-from academic_data_service.importer.mapping import (
+from andromeda_api.application.importer.bundle import validate_bundle
+from andromeda_api.application.importer.mapping import (
     BundleMappingError,
     _exact_curriculum_parent_pdf,
     project_bundle,

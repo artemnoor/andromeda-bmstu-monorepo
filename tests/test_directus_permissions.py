@@ -5,12 +5,11 @@ from pathlib import Path
 from uuid import uuid4
 
 import pytest
-from academic_data_service.importer.mapping import project_bundle
-from academic_data_service.importer.persistence import commit_projection
-from academic_data_service.infrastructure.database.connection import (
+from andromeda_api.application.publication import publish_reviewed_bundle
+from andromeda_api.application.settings import Settings, load_settings
+from andromeda_db.connection import (
     verify_server_identity,
 )
-from academic_data_service.settings import Settings, load_settings
 from sqlalchemy import Engine, create_engine, text
 from sqlalchemy.engine import URL
 from sqlalchemy.exc import DBAPIError
@@ -49,13 +48,13 @@ def _isolated_test_database() -> tuple[Engine, Settings]:
     return engine, settings
 
 
-def _ensure_active_release(engine: Engine, settings: Settings) -> None:
+def _ensure_active_release(engine: Engine) -> None:
     with engine.connect() as connection:
         release_id = connection.execute(
             text("SELECT release_id FROM active_data_release WHERE slot_key='active'")
         ).scalar_one_or_none()
     if release_id is None:
-        result = commit_projection(engine, settings, project_bundle(str(BUNDLE)))
+        result = publish_reviewed_bundle(str(BUNDLE))
         assert result["outcome"] == "committed"
 
 
@@ -105,7 +104,7 @@ def test_directus_runtime_sees_one_active_release_and_resolvable_read_relations(
     runtime_engine = None
     password = uuid4().hex
     try:
-        _ensure_active_release(engine, settings)
+        _ensure_active_release(engine)
         with engine.connect() as connection:
             active_id = connection.execute(
                 text("SELECT release_id FROM active_data_release WHERE slot_key='active'")
@@ -252,7 +251,7 @@ def test_directus_runtime_cannot_change_academic_data_or_schema() -> None:
     runtime_engine = None
     password = uuid4().hex
     try:
-        _ensure_active_release(engine, settings)
+        _ensure_active_release(engine)
         before = _academic_schema_fingerprint(engine)
         with engine.begin() as connection:
             connection.execute(

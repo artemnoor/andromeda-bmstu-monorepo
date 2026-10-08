@@ -1,5 +1,5 @@
 [tool.uv.workspace]
-members = ["academic-data", "parsers", "services/api"]
+members = ["domain", "packages/contracts", "packages/db", "services/api", "services/ingestion"]
 
 [dependency-groups]
 dev = ["pytest>=8,<9"]
@@ -13,4 +13,7 @@ markers = [
 pythonpath = ["services/api/src"]
 
 [tool.uv.sources]
-andromeda-academic-data-db = { workspace = true }
+andromeda-api = { workspace = true }
+andromeda-contracts = { workspace = true }
+andromeda-db = { workspace = true }
+andromeda-ontology = { workspace = true }

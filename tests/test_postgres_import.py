@@ -12,30 +12,42 @@ from threading import Barrier
 from uuid import UUID, uuid4
 
 import pytest
-from sqlalchemy import Engine, create_engine, text
-from sqlalchemy.engine import URL
-from sqlalchemy.exc import DBAPIError
-
-from academic_data_service.importer.mapping import project_bundle
-from academic_data_service.importer.persistence import (
-    BundleImportError,
-    commit_projection,
-)
-from academic_data_service.importer.bundle import BundleReader
-from academic_data_service.infrastructure.database.connection import verify_server_identity
-from academic_data_service.operations.releases import (
+from andromeda_api.application.importer.bundle import BundleReader
+from andromeda_api.application.importer.mapping import MappingResult, project_bundle
+from andromeda_api.application.operations.releases import (
     export_release_bundle,
     rollback_active_release,
 )
-from academic_data_service.settings import Settings, load_settings
+from andromeda_api.application.publication import prepare_release_archive
+from andromeda_api.application.settings import Settings, load_settings
+from andromeda_db.connection import verify_server_identity
+from andromeda_db.repositories.release_publication import (
+    ReleasePublicationError,
+    publish_projection,
+)
 from andromeda_parser.bundle import build_candidate_bundle, materialize_reviewed_bundle
-from andromeda_parser.ingest import IngestionError, capture_sources, parse_capture, write_parse_report
+from andromeda_parser.ingest import (
+    IngestionError,
+    capture_sources,
+    parse_capture,
+    write_parse_report,
+)
 from andromeda_parser.moderation import compare_candidate_bundle
-
+from sqlalchemy import Engine, create_engine, text
+from sqlalchemy.exc import DBAPIError
 
 pytestmark = pytest.mark.integration
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 BUNDLE = PROJECT_ROOT / "data" / "bmstu-2026"
+
+
+def commit_projection(
+    engine: Engine, settings: Settings, projection: MappingResult, **kwargs
+) -> dict[str, object]:
+    """Prepare the application artifact before testing the DB publication repository."""
+
+    prepare_release_archive(projection)
+    return publish_projection(engine, settings, projection, **kwargs)
 FIXTURE_DIR = PROJECT_ROOT / "tests" / "fixtures" / "bmstu" / "ingestion"
 FIXTURE_STATISTIC_KEY = "admission_statistic:bmstu:2025:01.03.02:paid:direction"
 
@@ -75,7 +87,7 @@ def _reset_isolated_postgres_test_schema():
             connection.execute(text("GRANT ALL ON SCHEMA public TO andromeda_test"))
     finally:
         engine.dispose()
-    from academic_data_service.cli import run_database_upgrade
+    from andromeda_api.cli import run_database_upgrade
 
     run_database_upgrade()
     yield
@@ -432,9 +444,9 @@ def test_commit_is_idempotent_and_failed_activation_rolls_back(tmp_path: Path) -
         changed_projection = project_bundle(str(changed_bundle))
 
         def fail_before_activation() -> None:
-            raise BundleImportError("intentional integration-test failure")
+            raise RuntimeError("intentional integration-test failure")
 
-        with pytest.raises(BundleImportError, match="rolled back"):
+        with pytest.raises(ReleasePublicationError, match="rolled back"):
             commit_projection(
                 engine,
                 settings,
@@ -499,25 +511,23 @@ def test_commit_is_idempotent_and_failed_activation_rolls_back(tmp_path: Path) -
                 {"release_id": active_before},
             ).scalar_one()
         assert archive_rows == 1
-        with pytest.raises(DBAPIError):
-            with engine.begin() as connection:
-                connection.execute(
-                    text(
-                        "UPDATE data_release_bundle_artifacts "
-                        "SET archive_sha256 = :digest WHERE release_id = :release_id"
-                    ),
-                    {"digest": "0" * 64, "release_id": active_before},
-                )
+        with pytest.raises(DBAPIError), engine.begin() as connection:
+            connection.execute(
+                text(
+                    "UPDATE data_release_bundle_artifacts "
+                    "SET archive_sha256 = :digest WHERE release_id = :release_id"
+                ),
+                {"digest": "0" * 64, "release_id": active_before},
+            )
         assert _active_release(engine) == active_before
-        with pytest.raises(DBAPIError):
-            with engine.begin() as connection:
-                connection.execute(
-                    text(
-                        "UPDATE release_activation_events SET reason = 'changed' "
-                        "WHERE operation = 'rollback' AND active_release_id = :release_id"
-                    ),
-                    {"release_id": active_before},
-                )
+        with pytest.raises(DBAPIError), engine.begin() as connection:
+            connection.execute(
+                text(
+                    "UPDATE release_activation_events SET reason = 'changed' "
+                    "WHERE operation = 'rollback' AND active_release_id = :release_id"
+                ),
+                {"release_id": active_before},
+            )
     finally:
         engine.dispose()
 
@@ -559,7 +569,7 @@ def test_stale_prepared_bundle_is_rejected_after_another_release_activates(
         winner_id = UUID(winner["active_release_id"])
         assert winner_id != base_release_id
 
-        with pytest.raises(BundleImportError, match="candidate base is stale"):
+        with pytest.raises(ReleasePublicationError, match="candidate base is stale"):
             commit_projection(engine, settings, project_bundle(str(stale_bundle)))
         assert _active_release(engine) == winner_id
         assert _release_counts(engine, base_release_id) == before_counts
@@ -878,7 +888,7 @@ def test_concurrent_publishers_allow_only_one_candidate_from_the_same_base(
             gate.wait(timeout=60)
             try:
                 return commit_projection(concurrent_engine, settings, projection)
-            except BundleImportError as error:
+            except ReleasePublicationError as error:
                 return {"outcome": "rejected", "error": str(error)}
 
         with ThreadPoolExecutor(max_workers=2) as executor:
@@ -918,10 +928,9 @@ def test_read_api_uses_one_active_release_and_directus_is_physically_read_only(
 ) -> None:
     from urllib.parse import quote
 
+    from andromeda_api.main import create_app
     from fastapi.testclient import TestClient
     from sqlalchemy import event
-
-    from andromeda_api.main import create_app
 
     engine, settings = _test_database()
     api_engine = None

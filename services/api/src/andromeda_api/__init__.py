@@ -1,1 +1,3 @@
-"""Read-only HTTP application for active academic data releases."""
+"""Andromeda API and application services."""
+
+__version__ = "0.1.0"

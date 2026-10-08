@@ -4,8 +4,8 @@ import json
 import shutil
 from pathlib import Path
 
-from academic_data_service.importer.bundle import BundleReader, validate_bundle
-from academic_data_service.importer.persistence import run_bundle_import
+from andromeda_api.application.importer.bundle import BundleReader, validate_bundle
+from andromeda_api.application.importer.persistence import run_bundle_import
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]

@@ -9,15 +9,15 @@ from urllib.request import Request, urlopen
 from uuid import UUID, uuid4
 
 import pytest
-from academic_data_service.importer.mapping import project_bundle
-from academic_data_service.importer.persistence import commit_projection
-from academic_data_service.operations.releases import export_release_bundle
-from academic_data_service.settings import load_settings
+from andromeda_api.application.importer.mapping import project_bundle
+from andromeda_db.repositories.release_publication import publish_projection as commit_projection
+from andromeda_api.application.operations.releases import export_release_bundle
+from andromeda_api.application.settings import load_settings
 from sqlalchemy import create_engine, text
 
 pytestmark = pytest.mark.integration
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
-METADATA_ROOT = PROJECT_ROOT / "infra" / "directus" / "metadata"
+METADATA_ROOT = PROJECT_ROOT / "platform" / "directus" / "metadata"
 
 
 def _runtime_config() -> tuple[str, str, str]:
