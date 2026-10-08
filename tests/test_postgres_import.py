@@ -14,9 +14,6 @@ from uuid import UUID, uuid4
 import pytest
 from andromeda_api.application.importer.bundle import BundleReader
 from andromeda_api.application.importer.mapping import MappingResult, project_bundle
-from andromeda_api.application.importer.persistence import (
-    BundleImportError,
-)
 from andromeda_api.application.operations.releases import (
     export_release_bundle,
     rollback_active_release,
@@ -24,7 +21,10 @@ from andromeda_api.application.operations.releases import (
 from andromeda_api.application.publication import prepare_release_archive
 from andromeda_api.application.settings import Settings, load_settings
 from andromeda_db.connection import verify_server_identity
-from andromeda_db.repositories.release_publication import publish_projection
+from andromeda_db.repositories.release_publication import (
+    ReleasePublicationError,
+    publish_projection,
+)
 from andromeda_parser.bundle import build_candidate_bundle, materialize_reviewed_bundle
 from andromeda_parser.ingest import (
     IngestionError,
@@ -444,9 +444,9 @@ def test_commit_is_idempotent_and_failed_activation_rolls_back(tmp_path: Path) -
         changed_projection = project_bundle(str(changed_bundle))
 
         def fail_before_activation() -> None:
-            raise BundleImportError("intentional integration-test failure")
+            raise RuntimeError("intentional integration-test failure")
 
-        with pytest.raises(BundleImportError, match="rolled back"):
+        with pytest.raises(ReleasePublicationError, match="rolled back"):
             commit_projection(
                 engine,
                 settings,
@@ -569,7 +569,7 @@ def test_stale_prepared_bundle_is_rejected_after_another_release_activates(
         winner_id = UUID(winner["active_release_id"])
         assert winner_id != base_release_id
 
-        with pytest.raises(BundleImportError, match="candidate base is stale"):
+        with pytest.raises(ReleasePublicationError, match="candidate base is stale"):
             commit_projection(engine, settings, project_bundle(str(stale_bundle)))
         assert _active_release(engine) == winner_id
         assert _release_counts(engine, base_release_id) == before_counts
@@ -888,7 +888,7 @@ def test_concurrent_publishers_allow_only_one_candidate_from_the_same_base(
             gate.wait(timeout=60)
             try:
                 return commit_projection(concurrent_engine, settings, projection)
-            except BundleImportError as error:
+            except ReleasePublicationError as error:
                 return {"outcome": "rejected", "error": str(error)}
 
         with ThreadPoolExecutor(max_workers=2) as executor:
