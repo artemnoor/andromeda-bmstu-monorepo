@@ -260,6 +260,43 @@ def test_exact_command_retry_returns_original_outcome_and_key_reuse_conflicts() 
         )
 
 
+def test_concurrent_exact_retry_replays_after_preflight_version_race(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    service, repository = _service()
+    created = _create(service)
+    first = service.validate_proposal(
+        created.proposal_id,
+        expected_version=1,
+        actor="reviewer",
+        idempotency_key="validate:race",
+    )
+    original_replay = repository.replay
+    calls = 0
+
+    def miss_first_lookup(proposal_id, *, idempotency_key, request_hash):
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            return None
+        return original_replay(
+            proposal_id,
+            idempotency_key=idempotency_key,
+            request_hash=request_hash,
+        )
+
+    monkeypatch.setattr(repository, "replay", miss_first_lookup)
+    retry = service.validate_proposal(
+        created.proposal_id,
+        expected_version=1,
+        actor="reviewer",
+        idempotency_key="validate:race",
+    )
+
+    assert retry == first
+    assert calls == 2
+
+
 def test_stale_and_invalid_proposal_transitions_are_deterministic() -> None:
     service, _repository = _service()
     created = _create(service)

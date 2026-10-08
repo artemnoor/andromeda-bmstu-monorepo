@@ -556,7 +556,19 @@ class ProposalApplicationService:
         if replay is not None:
             self._authorize(normalized_actor, event_type.value.lower(), replay)
             return replay
-        current = self._current(proposal_id, expected_version)
+        try:
+            current = self._current(proposal_id, expected_version)
+        except StaleProposalError:
+            # A concurrent retry with the same idempotency key may have committed
+            # between the first replay lookup and this version check. Resolve that
+            # committed result before reporting a stale write to the caller.
+            replay = self.repository.replay(
+                proposal_id, idempotency_key=key, request_hash=normalized_hash
+            )
+            if replay is None:
+                raise
+            self._authorize(normalized_actor, event_type.value.lower(), replay)
+            return replay
         self._authorize(normalized_actor, event_type.value.lower(), current)
         ensure_proposal_transition(current.status, target)
         if target is ProposalStatus.APPROVED and current.status not in {
