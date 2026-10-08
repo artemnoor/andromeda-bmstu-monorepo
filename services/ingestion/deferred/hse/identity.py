@@ -1,13 +1,12 @@
 from __future__ import annotations
 
+import re
 from collections.abc import Iterable, Sequence
 from hashlib import sha256
-import re
 
 from andromeda.ingestion.contracts.raw import RawProgramRecord
 from andromeda.modules.programs.contracts.public import Program
 from andromeda.shared.contracts.errors import ContractError, ErrorCode
-
 
 _DIRECTION_RE = re.compile(r"(?<!\d)(\d{2}\.\d{2}\.\d{2})(?!\d)")
 

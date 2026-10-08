@@ -2,10 +2,10 @@ from __future__ import annotations
 
 import re
 from collections import defaultdict
-from typing import Any, Iterable
+from collections.abc import Iterable
+from typing import Any
 
 from ..common import clean_text
-
 
 AUTHORITATIVE_PLAN_REFERENCE = "local://user-attachment/bmstu-2026/admission-plan-appendix-8-1.pdf"
 AUTHORITATIVE_PLAN_SOURCE_TYPE = "user_provided_authoritative_admission_plan"

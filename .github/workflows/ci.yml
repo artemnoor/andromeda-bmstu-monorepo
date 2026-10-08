@@ -16,6 +16,20 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install locked Ruff tool
+        run: |
+          python -m pip install uv==0.11.28
+          uv sync --locked --group dev --no-install-workspace
+      - name: Check repository lint
+        run: uv run --no-sync ruff check .
+
   changes:
     if: github.event_name != 'schedule' && github.event_name != 'workflow_dispatch'
     runs-on: ubuntu-latest
@@ -53,10 +67,12 @@ jobs:
               - '.github/workflows/**'
             domain_contracts:
               - 'domain/**'
+              - 'packages/release-bundles/**'
               - 'packages/contracts/**'
               - 'packages/db/**'
               - 'services/api/**'
               - 'services/ingestion/**'
+              - 'services/ingestion-cli/**'
               - 'tests/**'
               - 'tests/fixtures/**'
               - 'data/**'
@@ -70,6 +86,8 @@ jobs:
             api_ingestion:
               - 'services/api/**'
               - 'services/ingestion/**'
+              - 'services/ingestion-cli/**'
+              - 'packages/release-bundles/**'
               - 'domain/**'
               - 'packages/contracts/**'
               - 'packages/db/**'
@@ -102,11 +120,13 @@ jobs:
             unclassified:
               - '**'
               - '!packages/db/**'
+              - '!packages/release-bundles/**'
               - '!packages/contracts/**'
               - '!infra/database/**'
               - '!domain/**'
               - '!services/api/**'
               - '!services/ingestion/**'
+              - '!services/ingestion-cli/**'
               - '!platform/directus/**'
               - '!docker-compose.yml'
               - '!tests/**'
@@ -160,7 +180,7 @@ jobs:
           make migrate
           uv run academic-data db check
       - name: Run database migration and lifecycle tests
-        run: uv run pytest -q tests/integration/test_db_migrations.py tests/integration/test_postgres_import.py
+        run: uv run pytest -q tests/integration/test_db_migrations.py tests/integration/test_postgres_import.py tests/integration/test_proposals_postgres.py
       - name: Verify isolated PostgreSQL backup and restore
         shell: pwsh
         run: |
@@ -238,10 +258,12 @@ jobs:
           uv run pytest -q
           services/api/tests/test_api_contracts.py
           tests/test_offline_bundle.py
+          tests/test_ingestion_cli_composition.py
           tests/test_bmstu_parser_cli.py
           tests/test_bmstu_ingestion.py
           tests/test_curriculum_identity.py
           tests/integration/test_postgres_import.py
+          tests/integration/test_proposals_postgres.py
 
   directus-check:
     if: needs.changes.result == 'success' && needs.changes.outputs.directus == 'true' && github.ref != 'refs/heads/main'

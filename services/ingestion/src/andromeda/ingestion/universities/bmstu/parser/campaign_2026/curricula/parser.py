@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from io import BytesIO
 from hashlib import sha256
+from io import BytesIO
 from typing import Any
 
-from ..common import normalize_code
 from ....curriculum_identity import reconcile_curriculum_rows
+from ..common import normalize_code
 
 
 def parse_curriculum_document(
@@ -104,8 +104,13 @@ def _attach_exact_identity(
 
 
 def _parse_pdf(body: bytes, final_url: str, share_url: str, profile: dict[str, Any], retrieved_at: str) -> dict[str, Any]:
-    from andromeda.ingestion.universities.bmstu.parser.curriculum import _study_plan_records
-    from andromeda.ingestion.universities.bmstu.source_models import FetchedResource, SourceDefinition
+    from andromeda.ingestion.universities.bmstu.parser.curriculum import (
+        _study_plan_records,
+    )
+    from andromeda.ingestion.universities.bmstu.source_models import (
+        FetchedResource,
+        SourceDefinition,
+    )
 
     resource = FetchedResource(
         requested_url=share_url,

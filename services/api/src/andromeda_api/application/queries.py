@@ -6,7 +6,6 @@ from collections.abc import Callable
 from typing import Any, Literal, TypeVar, cast
 from uuid import UUID
 
-from andromeda_api.application.ports import AcademicDataReadRepository
 from andromeda_contracts.api.v1.models import (
     AdmissionCampaignRecord,
     AdmissionDocumentRecord,
@@ -44,6 +43,8 @@ from andromeda_contracts.api.v1.models import (
     TuitionRecord,
     UniversityRecord,
 )
+
+from andromeda_api.application.ports import AcademicDataReadRepository
 
 T = TypeVar("T")
 

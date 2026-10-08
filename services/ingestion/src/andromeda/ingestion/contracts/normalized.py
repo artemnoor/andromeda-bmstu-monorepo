@@ -2,13 +2,13 @@ from __future__ import annotations
 
 from pydantic import Field
 
-from ...modules.curricula.contracts.public import Curriculum
-from ...modules.disciplines.contracts.public import Discipline
-from ...modules.disciplines.contracts.classification import ClassificationOutcome
-from ...modules.programs.contracts.public import Program
 from ...modules.admissions.contracts.public import ProgramAdmissions
-from ...modules.events.contracts.public import Event
 from ...modules.campus.contracts.public import CampusPoint
+from ...modules.curricula.contracts.public import Curriculum
+from ...modules.disciplines.contracts.classification import ClassificationOutcome
+from ...modules.disciplines.contracts.public import Discipline
+from ...modules.events.contracts.public import Event
+from ...modules.programs.contracts.public import Program
 from ...modules.universities.contracts.public import Direction, University
 from ...shared.contracts.base import ContractModel
 from ...shared.contracts.provenance import SourceAttribution

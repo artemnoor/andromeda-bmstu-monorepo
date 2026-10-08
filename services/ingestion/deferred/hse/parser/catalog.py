@@ -1,14 +1,12 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 import re
+from dataclasses import dataclass
 from urllib.parse import urldefrag, urlparse
 
-from andromeda.ingestion.contracts.constraints import http_url
 from andromeda.ingestion.contracts.raw import RawSourceSnapshot
 
 from ..html import clean_text, extract_links, official_hse_url, visible_text
-
 
 _CODE_RE = re.compile(r"(?<!\d)(\d{2}\.\d{2}\.\d{2})(?!\d)")
 _PDF_RE = re.compile(r"https?://[^\s\"']+\.pdf(?:\?[^\s\"']*)?", re.IGNORECASE)

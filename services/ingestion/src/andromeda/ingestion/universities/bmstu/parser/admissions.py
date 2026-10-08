@@ -12,7 +12,6 @@ import re
 from collections.abc import Mapping, Sequence
 from decimal import Decimal, InvalidOperation
 from hashlib import sha256
-from typing import Any
 
 from bs4 import BeautifulSoup
 
@@ -26,7 +25,6 @@ from ....contracts.raw import (
     SourceLocator,
 )
 from ..normalizers.codes import normalize_code
-
 
 logger = logging.getLogger("andromeda.ingestion.bmstu.parser.admissions")
 
@@ -256,7 +254,7 @@ def _read_next_data(body: bytes) -> Mapping[str, object]:
         raise ValueError("BMSTU detail page has no __NEXT_DATA__")
     value = json.loads(script.string)
     if not isinstance(value, Mapping):
-        raise ValueError("BMSTU detail __NEXT_DATA__ is not an object")
+        raise TypeError("BMSTU detail __NEXT_DATA__ is not an object")
     return value
 
 

@@ -3,23 +3,24 @@ from __future__ import annotations
 import json
 import logging
 import re
-from html import unescape
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime
 from hashlib import sha256
+from html import unescape
 from pathlib import Path
 from typing import cast
 from urllib.parse import quote, urljoin, urlparse
 
 from bs4 import BeautifulSoup
 
-from .fetch import FetchConfig, Fetcher
-from .source_models import FetchedResource
-from .pdf import is_pdf
 from andromeda.ingestion.contracts.constraints import http_url
 from andromeda.ingestion.contracts.raw import JsonValue, RawSourceGap, RawSourceSnapshot
 from andromeda.ingestion.contracts.source import CapturedSources, source_fetch_gap
 from andromeda.shared.contracts.errors import ContractError, ErrorCode, ErrorDetail
+
+from .fetch import FetchConfig, Fetcher
+from .pdf import is_pdf
+from .source_models import FetchedResource
 
 JsonObject = dict[str, JsonValue]
 logger = logging.getLogger("andromeda.ingestion.bmstu.source.fetch")
@@ -528,15 +529,15 @@ def _required_datetime(item: JsonObject, key: str, index: int) -> datetime:
 
 
 __all__ = [
-    "AdmissionOrderManifestEntry",
-    "BmstuSource",
-    "CapturedSources",
     "DEFAULT_FIXTURE_DIR",
     "ORDERS_MANIFEST_URL",
     "S01_URL",
     "S06_API_BASE_URL",
     "S06_CATALOG_URL",
     "S06_DETAIL_API_BASE_URL",
+    "AdmissionOrderManifestEntry",
+    "BmstuSource",
+    "CapturedSources",
     "_catalog_page",
     "_detail_plan_records",
     "_is_supported_download_url",

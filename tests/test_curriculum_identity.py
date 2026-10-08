@@ -3,16 +3,16 @@ from __future__ import annotations
 import hashlib
 
 import pytest
-
 from andromeda.ingestion.universities.bmstu.curriculum_identity import (
     CurriculumIdentityError,
     observation_identity_key,
     reconcile_curriculum_rows,
     stable_source_identity_key,
 )
-from andromeda.ingestion.universities.bmstu.normalizers.canonical import _append_curriculum_item
+from andromeda.ingestion.universities.bmstu.normalizers.canonical import (
+    _append_curriculum_item,
+)
 from andromeda.modules.curricula.contracts.public import CurriculumItem
-
 
 PLAN_KEY = "study_plan:bmstu:01.03.02-01:2026"
 

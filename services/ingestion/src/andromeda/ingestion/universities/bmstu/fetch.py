@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+import logging
 from collections.abc import Callable
 from dataclasses import dataclass
-import logging
 from threading import Lock
 from time import monotonic, sleep
 from typing import Any
@@ -24,7 +24,6 @@ from andromeda.ingestion.fetch_policy import (
 
 from .html import is_blocked_page
 from .source_models import FetchedResource, utc_now
-
 
 logger = logging.getLogger("andromeda.ingestion.bmstu.fetch")
 
@@ -344,7 +343,6 @@ class Fetcher:
         truncated: bool = False,
         redirects: list[str] | None = None,
     ) -> FetchedResource:
-        response_class = "success" if error_code is None else error_code
         return FetchedResource(
             requested_url=requested_url,
             final_url=str(response.url) if response.url else final_url,

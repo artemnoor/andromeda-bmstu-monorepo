@@ -4,9 +4,6 @@ from __future__ import annotations
 
 from typing import Literal
 
-from fastapi import APIRouter, Depends, Query
-
-from andromeda_api.application.queries import AcademicDataQueries
 from andromeda_contracts.api.v1.models import (
     AdmissionCampaignRecord,
     AdmissionExamRecord,
@@ -26,13 +23,17 @@ from andromeda_contracts.api.v1.models import (
     StudyPlanRecord,
     TuitionRecord,
 )
+from fastapi import APIRouter, Depends, Query
+
+from andromeda_api.application.queries import AcademicDataQueries
 from andromeda_api.dependencies.queries import get_queries
 
 router = APIRouter(prefix="/api/v1")
+_QUERIES_DEPENDENCY = Depends(get_queries)
 
 
 @router.get("/health")
-def health(queries: AcademicDataQueries = Depends(get_queries)) -> HealthRecord:
+def health(queries: AcademicDataQueries = _QUERIES_DEPENDENCY) -> HealthRecord:
     release = queries.release()
     return HealthRecord(
         status="ready",
@@ -43,7 +44,7 @@ def health(queries: AcademicDataQueries = Depends(get_queries)) -> HealthRecord:
 
 
 @router.get("/release", response_model=ReleaseMetadataRecord)
-def release(queries: AcademicDataQueries = Depends(get_queries)) -> ReleaseMetadataRecord:
+def release(queries: AcademicDataQueries = _QUERIES_DEPENDENCY) -> ReleaseMetadataRecord:
     return queries.release()
 
 
@@ -51,13 +52,13 @@ def release(queries: AcademicDataQueries = Depends(get_queries)) -> ReleaseMetad
 def directions(
     limit: int = Query(default=50, ge=1, le=100),
     cursor: str | None = Query(default=None, min_length=1, max_length=1024),
-    queries: AcademicDataQueries = Depends(get_queries),
+    queries: AcademicDataQueries = _QUERIES_DEPENDENCY,
 ) -> PageResponse[DirectionRecord]:
     return queries.directions(limit, cursor)
 
 
 @router.get("/directions/{key:path}", response_model=DirectionRecord)
-def direction(key: str, queries: AcademicDataQueries = Depends(get_queries)) -> DirectionRecord:
+def direction(key: str, queries: AcademicDataQueries = _QUERIES_DEPENDENCY) -> DirectionRecord:
     return queries.direction(key)
 
 
@@ -65,13 +66,13 @@ def direction(key: str, queries: AcademicDataQueries = Depends(get_queries)) -> 
 def departments(
     limit: int = Query(default=50, ge=1, le=100),
     cursor: str | None = Query(default=None, min_length=1, max_length=1024),
-    queries: AcademicDataQueries = Depends(get_queries),
+    queries: AcademicDataQueries = _QUERIES_DEPENDENCY,
 ) -> PageResponse[DepartmentRecord]:
     return queries.departments(limit, cursor)
 
 
 @router.get("/departments/{key:path}", response_model=DepartmentRecord)
-def department(key: str, queries: AcademicDataQueries = Depends(get_queries)) -> DepartmentRecord:
+def department(key: str, queries: AcademicDataQueries = _QUERIES_DEPENDENCY) -> DepartmentRecord:
     return queries.department(key)
 
 
@@ -80,7 +81,7 @@ def programs(
     direction_key: str | None = Query(default=None, min_length=1, max_length=256),
     limit: int = Query(default=50, ge=1, le=100),
     cursor: str | None = Query(default=None, min_length=1, max_length=1024),
-    queries: AcademicDataQueries = Depends(get_queries),
+    queries: AcademicDataQueries = _QUERIES_DEPENDENCY,
 ) -> PageResponse[EducationalProgramRecord]:
     return queries.programs(limit, cursor, direction_key=direction_key)
 
@@ -90,13 +91,13 @@ def program_study_plans(
     key: str,
     limit: int = Query(default=50, ge=1, le=100),
     cursor: str | None = Query(default=None, min_length=1, max_length=1024),
-    queries: AcademicDataQueries = Depends(get_queries),
+    queries: AcademicDataQueries = _QUERIES_DEPENDENCY,
 ) -> PageResponse[StudyPlanRecord]:
     return queries.study_plans(limit, cursor, program_key=key)
 
 
 @router.get("/programs/{key:path}", response_model=EducationalProgramRecord)
-def program(key: str, queries: AcademicDataQueries = Depends(get_queries)) -> EducationalProgramRecord:
+def program(key: str, queries: AcademicDataQueries = _QUERIES_DEPENDENCY) -> EducationalProgramRecord:
     return queries.program(key)
 
 
@@ -105,7 +106,7 @@ def study_plans(
     program_key: str | None = Query(default=None, min_length=1, max_length=256),
     limit: int = Query(default=50, ge=1, le=100),
     cursor: str | None = Query(default=None, min_length=1, max_length=1024),
-    queries: AcademicDataQueries = Depends(get_queries),
+    queries: AcademicDataQueries = _QUERIES_DEPENDENCY,
 ) -> PageResponse[StudyPlanRecord]:
     return queries.study_plans(limit, cursor, program_key=program_key)
 
@@ -116,13 +117,13 @@ def study_plan_items(
     semester: int | None = Query(default=None, ge=1, le=20),
     limit: int = Query(default=50, ge=1, le=100),
     cursor: str | None = Query(default=None, min_length=1, max_length=1024),
-    queries: AcademicDataQueries = Depends(get_queries),
+    queries: AcademicDataQueries = _QUERIES_DEPENDENCY,
 ) -> PageResponse[CurriculumItemRecord]:
     return queries.curriculum_items(key, limit, cursor, semester=semester)
 
 
 @router.get("/study-plans/{key:path}", response_model=StudyPlanRecord)
-def study_plan(key: str, queries: AcademicDataQueries = Depends(get_queries)) -> StudyPlanRecord:
+def study_plan(key: str, queries: AcademicDataQueries = _QUERIES_DEPENDENCY) -> StudyPlanRecord:
     return queries.study_plan(key)
 
 
@@ -132,7 +133,7 @@ def campaigns(
     education_level: str | None = Query(default=None, min_length=1, max_length=80),
     limit: int = Query(default=50, ge=1, le=100),
     cursor: str | None = Query(default=None, min_length=1, max_length=1024),
-    queries: AcademicDataQueries = Depends(get_queries),
+    queries: AcademicDataQueries = _QUERIES_DEPENDENCY,
 ) -> PageResponse[AdmissionCampaignRecord]:
     return queries.campaigns(limit, cursor, year=year, education_level=education_level)
 
@@ -142,7 +143,7 @@ def campaign_offerings(
     key: str,
     limit: int = Query(default=50, ge=1, le=100),
     cursor: str | None = Query(default=None, min_length=1, max_length=1024),
-    queries: AcademicDataQueries = Depends(get_queries),
+    queries: AcademicDataQueries = _QUERIES_DEPENDENCY,
 ) -> PageResponse[AdmissionOfferingRecord]:
     return queries.campaign_offerings(key, limit, cursor)
 
@@ -152,13 +153,13 @@ def campaign_calendar(
     key: str,
     limit: int = Query(default=50, ge=1, le=100),
     cursor: str | None = Query(default=None, min_length=1, max_length=1024),
-    queries: AcademicDataQueries = Depends(get_queries),
+    queries: AcademicDataQueries = _QUERIES_DEPENDENCY,
 ) -> PageResponse[CampaignCalendarEventRecord]:
     return queries.campaign_calendar(key, limit, cursor)
 
 
 @router.get("/campaigns/{key:path}", response_model=AdmissionCampaignRecord)
-def campaign(key: str, queries: AcademicDataQueries = Depends(get_queries)) -> AdmissionCampaignRecord:
+def campaign(key: str, queries: AcademicDataQueries = _QUERIES_DEPENDENCY) -> AdmissionCampaignRecord:
     return queries.campaign(key)
 
 
@@ -167,13 +168,13 @@ def requirements(
     campaign_key: str | None = Query(default=None, min_length=1, max_length=256),
     limit: int = Query(default=50, ge=1, le=100),
     cursor: str | None = Query(default=None, min_length=1, max_length=1024),
-    queries: AcademicDataQueries = Depends(get_queries),
+    queries: AcademicDataQueries = _QUERIES_DEPENDENCY,
 ) -> PageResponse[RequirementTreeRecord]:
     return queries.requirements(limit, cursor, campaign_key=campaign_key)
 
 
 @router.get("/requirements/{key:path}", response_model=RequirementTreeRecord)
-def requirement(key: str, queries: AcademicDataQueries = Depends(get_queries)) -> RequirementTreeRecord:
+def requirement(key: str, queries: AcademicDataQueries = _QUERIES_DEPENDENCY) -> RequirementTreeRecord:
     return queries.requirement(key)
 
 
@@ -182,7 +183,7 @@ def tuition(
     direction_code: str | None = Query(default=None, min_length=1, max_length=32),
     limit: int = Query(default=50, ge=1, le=100),
     cursor: str | None = Query(default=None, min_length=1, max_length=1024),
-    queries: AcademicDataQueries = Depends(get_queries),
+    queries: AcademicDataQueries = _QUERIES_DEPENDENCY,
 ) -> PageResponse[TuitionRecord]:
     return queries.tuition(limit, cursor, direction_code=direction_code)
 
@@ -194,7 +195,7 @@ def statistics(
     direction_code: str | None = Query(default=None, min_length=1, max_length=32),
     limit: int = Query(default=50, ge=1, le=100),
     cursor: str | None = Query(default=None, min_length=1, max_length=1024),
-    queries: AcademicDataQueries = Depends(get_queries),
+    queries: AcademicDataQueries = _QUERIES_DEPENDENCY,
 ) -> PageResponse[OfficialAdmissionStatisticRecord]:
     return queries.statistics(kind, limit, cursor, year=year, direction_code=direction_code)
 
@@ -203,13 +204,13 @@ def statistics(
 def exams(
     limit: int = Query(default=50, ge=1, le=100),
     cursor: str | None = Query(default=None, min_length=1, max_length=1024),
-    queries: AcademicDataQueries = Depends(get_queries),
+    queries: AcademicDataQueries = _QUERIES_DEPENDENCY,
 ) -> PageResponse[AdmissionExamRecord]:
     return queries.exams(limit, cursor)
 
 
 @router.get("/exams/{key:path}", response_model=AdmissionExamRecord)
-def exam(key: str, queries: AcademicDataQueries = Depends(get_queries)) -> AdmissionExamRecord:
+def exam(key: str, queries: AcademicDataQueries = _QUERIES_DEPENDENCY) -> AdmissionExamRecord:
     return queries.exam(key)
 
 
@@ -218,7 +219,7 @@ def place_quotas(
     campaign_key: str | None = Query(default=None, min_length=1, max_length=256),
     limit: int = Query(default=50, ge=1, le=100),
     cursor: str | None = Query(default=None, min_length=1, max_length=1024),
-    queries: AcademicDataQueries = Depends(get_queries),
+    queries: AcademicDataQueries = _QUERIES_DEPENDENCY,
 ) -> PageResponse[PlaceQuotaRecord]:
     return queries.place_quotas(limit, cursor, campaign_key=campaign_key)
 
@@ -227,7 +228,7 @@ def place_quotas(
 def data_gaps(
     limit: int = Query(default=50, ge=1, le=100),
     cursor: str | None = Query(default=None, min_length=1, max_length=1024),
-    queries: AcademicDataQueries = Depends(get_queries),
+    queries: AcademicDataQueries = _QUERIES_DEPENDENCY,
 ) -> PageResponse[ManualReviewRecord]:
     """List unresolved manual review items as recorded data gaps."""
     return queries.manual_reviews(limit, cursor, status="open")

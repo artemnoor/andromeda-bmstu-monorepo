@@ -1,10 +1,10 @@
 from __future__ import annotations
 
+import logging
+import unicodedata
 from datetime import datetime
 from decimal import Decimal, InvalidOperation
 from hashlib import sha256
-import logging
-import unicodedata
 
 from andromeda.ingestion.contracts.normalized import CanonicalSnapshot
 from andromeda.ingestion.contracts.raw import RawTracerBundle
@@ -18,7 +18,6 @@ from andromeda.shared.contracts.errors import ContractError, ErrorCode, ErrorDet
 from andromeda.shared.contracts.provenance import SourceAttribution, SourceGapReference
 
 from ..identity import direction_codes
-
 
 logger = logging.getLogger("andromeda.ingestion.hse.normalize")
 
@@ -105,7 +104,7 @@ def _program_direction(program: object, directions: dict[str, Direction], fallba
     return next((candidate for candidate in candidates if candidate in directions), fallback)
 
 
-def _credits(value: str | float | int | None, path: str) -> Decimal | None:
+def _credits(value: str | float | None, path: str) -> Decimal | None:
     if value is None or value == "":
         return None
     try:
@@ -172,7 +171,7 @@ def _source_gaps(raw: RawTracerBundle, record_key: str, source_url: str, *, fiel
 
 
 def _captured_at(raw: RawTracerBundle, program: object) -> datetime:
-    plan_url = str(getattr(program, "study_plan_url"))
+    plan_url = str(program.study_plan_url)
     matches = [snapshot.captured_at for snapshot in raw.snapshots if str(snapshot.requested_url) == plan_url or snapshot.source_kind == "hse_curriculum_document"]
     return matches[0] if matches else raw.snapshots[0].captured_at
 

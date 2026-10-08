@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Sequence
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import Sequence
 
 from .capture import AdmissionOrderManifestEntry, parse_orders_manifest
 from .pdf import extract_admission_year

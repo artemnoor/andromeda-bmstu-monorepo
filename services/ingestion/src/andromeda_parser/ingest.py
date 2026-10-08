@@ -2,22 +2,21 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from datetime import datetime, timezone
 import hashlib
 import json
 import logging
-from pathlib import Path
 import re
 import sys
+from dataclasses import dataclass
+from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any, Literal
 from urllib.parse import urlsplit, urlunsplit
 
-from andromeda.ingestion.universities.bmstu.capture import BmstuSource, write_fixture
 from andromeda.ingestion.contracts.source import CapturedSources
-from andromeda.ingestion.universities.bmstu.fetch import FetchConfig, Fetcher
 from andromeda.ingestion.universities.bmstu.adapter import BmstuUniversityAdapter
-
+from andromeda.ingestion.universities.bmstu.capture import BmstuSource, write_fixture
+from andromeda.ingestion.universities.bmstu.fetch import FetchConfig, Fetcher
 
 logger = logging.getLogger("andromeda.ingestion.pipeline")
 CaptureMode = Literal["fixture", "live"]
@@ -56,9 +55,10 @@ class _RedactingFilter(logging.Filter):
         record.args = ()
         # This upstream event fires once per model instance and overwhelms the
         # useful stage-level DEBUG log for curriculum-heavy fixtures.
-        if record.name == "andromeda.contracts.validation" and "contract_boundary model=" in message:
-            return False
-        return True
+        return not (
+            record.name == "andromeda.contracts.validation"
+            and "contract_boundary model=" in message
+        )
 
 
 class IngestionError(ValueError):
@@ -427,7 +427,7 @@ def run_parse_admission_plan_command(args: Any, parser: Any) -> int:
         for row in [*offers, *source_rows]:
             row.pop("source_url", None)
         source_kind = "bmstu_user_provided_authoritative_admission_plan"
-        capture_digest = hashlib.sha256(f"{source_kind}\0{digest}".encode("utf-8")).hexdigest()
+        capture_digest = hashlib.sha256(f"{source_kind}\0{digest}".encode()).hexdigest()
         normalized = {
             "authoritative_admission_plan": {
                 "campaign_year": 2026,

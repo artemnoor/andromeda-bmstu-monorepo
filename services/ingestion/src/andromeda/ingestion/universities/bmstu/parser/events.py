@@ -10,15 +10,19 @@ from datetime import datetime
 from decimal import Decimal, InvalidOperation
 from hashlib import sha256
 from pathlib import Path
-from typing import Any, NoReturn, cast
+from typing import NoReturn, cast
 
-from pydantic import HttpUrl, TypeAdapter
+from pydantic import HttpUrl, TypeAdapter, ValidationError
 
-from andromeda.shared.contracts.errors import ContractError, ErrorCode, ErrorDetail
 from andromeda.shared.contracts.enums import SourceKind
+from andromeda.shared.contracts.errors import ContractError, ErrorCode, ErrorDetail
 
-from ....contracts.raw import RawEventRecord, RawSourceSnapshot, RawVenueRecord, SourceLocator
-
+from ....contracts.raw import (
+    RawEventRecord,
+    RawSourceSnapshot,
+    RawVenueRecord,
+    SourceLocator,
+)
 
 logger = logging.getLogger("andromeda.ingestion.bmstu.events")
 EVENT_SOURCE_URL = "https://bmstu.ru/events"
@@ -127,7 +131,7 @@ def _parse_record(value: Mapping[str, object], snapshot: RawSourceSnapshot, loca
         )
     except ContractError:
         raise
-    except Exception as exc:
+    except (ValidationError, ValueError, TypeError, KeyError, InvalidOperation) as exc:
         logger.error("event_record_rejected locator=%s reason=%s", locator, str(exc))
         raise ContractError(
             ErrorCode.SOURCE_CONTRACT_ERROR,
@@ -152,14 +156,14 @@ def _parse_venue(value: object, locator: SourceLocator) -> RawVenueRecord:
             latitude=latitude,
             longitude=longitude,
         )
-    except Exception as exc:
+    except (ValidationError, ValueError, TypeError, KeyError, InvalidOperation) as exc:
         _fail(f"events[{locator.row}].venue", str(exc), locator=locator)
 
 
 def _json_object(body: bytes, label: str) -> dict[str, object]:
     try:
         value = json.loads(body.decode("utf-8-sig"))
-    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+    except (UnicodeDecodeError, json.JSONDecodeError):
         _fail(label, "JSON is malformed")
     if not isinstance(value, dict):
         _fail(label, "JSON root must be an object")
@@ -199,7 +203,7 @@ def _datetime(value: Mapping[str, object], key: str, locator: SourceLocator, *, 
         _fail(key, "must be an ISO datetime string", locator=locator)
     try:
         parsed = datetime.fromisoformat(candidate)
-    except ValueError as exc:
+    except ValueError:
         _fail(key, "must be an ISO datetime string", locator=locator)
     if parsed.tzinfo is None or parsed.utcoffset() is None:
         _fail(key, "must include a timezone offset", locator=locator)

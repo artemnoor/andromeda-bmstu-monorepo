@@ -5,7 +5,6 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, ValidationError, model_validator
 
-
 logger = logging.getLogger("andromeda.contracts.validation")
 
 

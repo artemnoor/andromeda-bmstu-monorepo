@@ -1,13 +1,12 @@
 from __future__ import annotations
 
-from collections.abc import Callable
 import logging
+from collections.abc import Callable
 from dataclasses import dataclass
 from time import monotonic, sleep
 from typing import Any
 
 import httpx
-
 from andromeda.ingestion.fetch_policy import (
     FetchPolicy,
     ResolveHost,
@@ -21,7 +20,6 @@ from andromeda.ingestion.fetch_policy import (
 )
 
 from .source_models import FetchedResource, utc_now
-
 
 logger = logging.getLogger("andromeda.ingestion.hse.fetch")
 
@@ -246,4 +244,4 @@ class Fetcher:
     fetch = fetch_http
 
 
-__all__ = ["FetchConfig", "Fetcher", "FetchedResource"]
+__all__ = ["FetchConfig", "FetchedResource", "Fetcher"]

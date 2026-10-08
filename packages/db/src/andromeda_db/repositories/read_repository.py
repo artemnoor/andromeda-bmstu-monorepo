@@ -7,10 +7,11 @@ import binascii
 from typing import Any
 from uuid import UUID
 
+from andromeda_ontology.ports import InvalidCursorError, PageRows
 from sqlalchemy import and_, func, or_, select
 from sqlalchemy.engine import Connection
 
-from andromeda_ontology.ports import InvalidCursorError, PageRows
+from andromeda_db.models import Base
 from andromeda_db.models import admission_models as _admission_models
 from andromeda_db.models import catalog_models as _catalog_models
 from andromeda_db.models import evidence_models as _evidence_models
@@ -19,7 +20,6 @@ from andromeda_db.models import source_models as _source_models
 from andromeda_db.models import (
     subject_classification_models as _subject_classification_models,
 )
-from andromeda_db.models import Base
 
 _REGISTERED_MODELS = (
     _admission_models,

@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from pydantic import HttpUrl, TypeAdapter
 
-
 HTTP_URL_ADAPTER = TypeAdapter(HttpUrl)
 
 

@@ -2,11 +2,17 @@ from __future__ import annotations
 
 from typing import Self
 
+from andromeda_ontology.ontology.program import validate_program_identity
 from pydantic import HttpUrl, model_validator
 
-from andromeda_ontology.ontology.program import validate_program_identity
 from ....shared.contracts.base import ContractModel
-from ....shared.contracts.ids import DirectionId, EducationYear, NonEmptyText, ProgramCode, ProgramId
+from ....shared.contracts.ids import (
+    DirectionId,
+    EducationYear,
+    NonEmptyText,
+    ProgramCode,
+    ProgramId,
+)
 from ....shared.contracts.provenance import SourceAttribution, SourceGapReference
 from ...domain_validation import validate_domain
 

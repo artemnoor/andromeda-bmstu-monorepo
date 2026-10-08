@@ -8,9 +8,12 @@ never collapse a multi-area subject to one label.
 
 from __future__ import annotations
 
-from andromeda.modules.disciplines.domain.areas import AreaVector, DisciplineAreaCode, area_vector
+from andromeda.modules.disciplines.domain.areas import (
+    AreaVector,
+    DisciplineAreaCode,
+    area_vector,
+)
 from andromeda.modules.disciplines.domain.identity import normalize_discipline_name
-
 
 MATH = area_vector((DisciplineAreaCode.MATHEMATICS_STATISTICS, "1.00"))
 MATH_COMPUTER = area_vector((DisciplineAreaCode.MATHEMATICS_STATISTICS, "0.75"), (DisciplineAreaCode.COMPUTER_SCIENCE_DATA, "0.25"))

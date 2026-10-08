@@ -9,7 +9,11 @@ from hashlib import sha1
 from typing import Any
 from urllib.parse import urlparse
 
-from andromeda.ingestion.pdf_policy import DEFAULT_PDF_POLICY, PdfDependencyError, validate_pdf_payload
+from andromeda.ingestion.pdf_policy import (
+    DEFAULT_PDF_POLICY,
+    PdfDependencyError,
+    validate_pdf_payload,
+)
 
 from ..html import clean_text, parse_number
 from ..source_models import FetchedResource, SourceDefinition

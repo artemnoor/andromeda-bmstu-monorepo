@@ -1,8 +1,7 @@
 from __future__ import annotations
 
-from pydantic import Field
-
 from andromeda.shared.contracts.base import ContractModel
+from pydantic import Field
 
 from ..domain.entities import Event
 

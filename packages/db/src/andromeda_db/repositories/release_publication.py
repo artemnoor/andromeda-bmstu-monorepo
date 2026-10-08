@@ -4,12 +4,17 @@ from __future__ import annotations
 
 import hashlib
 import logging
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from datetime import UTC, datetime
 from getpass import getuser
 from typing import Any, Protocol, cast
 from uuid import UUID, uuid4
 
+from andromeda_ontology.proposals import (
+    ProposalDomainError,
+    ProposalPublicationCommand,
+    StaleProposalBaseError,
+)
 from sqlalchemy import Engine, Table, func, insert, select, text, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.exc import IntegrityError, OperationalError, SQLAlchemyError
@@ -18,6 +23,7 @@ import andromeda_db.models.admission_models as _admission_models  # noqa: F401
 import andromeda_db.models.catalog_models as _catalog_models  # noqa: F401
 import andromeda_db.models.evidence_models as _evidence_models  # noqa: F401
 import andromeda_db.models.source_models as _source_models  # noqa: F401
+from andromeda_db.connection import verify_server_identity
 from andromeda_db.models.base import Base
 from andromeda_db.models.models import (
     ActiveDataReleaseModel,
@@ -27,7 +33,6 @@ from andromeda_db.models.models import (
     ReleaseActivationEventModel,
 )
 from andromeda_db.revisions import SERVICE_SCHEMA_HEAD, current_schema_revision
-from andromeda_db.connection import verify_server_identity
 
 logger = logging.getLogger("andromeda_db.release_publication")
 BATCH_SIZE = 500
@@ -58,7 +63,13 @@ class ReleasePublicationError(RuntimeError):
     """The release projection could not be safely committed."""
 
 
+class StaleReleaseBaseError(ReleasePublicationError):
+    """The active canonical release no longer matches a reviewed candidate."""
+
+
 def _safe_failure_code(error: Exception) -> str:
+    if isinstance(error, StaleReleaseBaseError):
+        return "STALE_ACTIVE_RELEASE"
     if isinstance(error, ReleasePublicationError):
         return "BUNDLE_RECONCILIATION_FAILED"
     if isinstance(error, IntegrityError):
@@ -323,7 +334,7 @@ def _record_failed_batch(
                     failure_code=failure_code,
                 )
             )
-    except Exception:
+    except SQLAlchemyError:
         logger.exception(
             "failed import batch metadata could not be recorded",
             extra={
@@ -340,10 +351,29 @@ def publish_projection(
     *,
     actor: str | None = None,
     before_activation: Callable[[], None] | None = None,
+    proposals: Sequence[ProposalPublicationCommand] = (),
+    idempotency_key: str | None = None,
+    request_hash: str | None = None,
 ) -> dict[str, Any]:
     """Write one release transactionally and update the active pointer last."""
 
     _validate_projection(projection)
+    if bool(idempotency_key) != bool(request_hash):
+        raise ReleasePublicationError(
+            "publication idempotency key and request hash must be provided together"
+        )
+    if idempotency_key is not None and (
+        not idempotency_key.strip()
+        or idempotency_key != idempotency_key.strip()
+        or len(idempotency_key) > 256
+        or len(request_hash or "") != 64
+        or any(character not in "0123456789abcdef" for character in request_hash or "")
+    ):
+        raise ReleasePublicationError("publication idempotency identity is invalid")
+    if proposals and idempotency_key is None:
+        raise ReleasePublicationError(
+            "proposal publication requires a stable idempotency key and request hash"
+        )
     with engine.connect() as connection:
         identity = verify_server_identity(connection, settings)
     revision = current_schema_revision(engine)
@@ -374,6 +404,75 @@ def publish_projection(
                 .where(active_table.c.slot_key == "active")
                 .with_for_update()
             ).scalar_one_or_none()
+            if idempotency_key is not None:
+                prior_command = connection.execute(
+                    select(
+                        batch_table.c.id.label("batch_id"),
+                        batch_table.c.status.label("batch_status"),
+                        batch_table.c.source_bundle_sha256,
+                        batch_table.c.mapper_version,
+                        batch_table.c.publication_request_hash,
+                        release_table.c.id.label("release_id"),
+                        release_table.c.release_key,
+                        release_table.c.status.label("release_status"),
+                    )
+                    .select_from(
+                        batch_table.join(release_table, release_table.c.batch_id == batch_table.c.id)
+                    )
+                    .where(batch_table.c.publication_idempotency_key == idempotency_key)
+                ).one_or_none()
+                if prior_command is not None:
+                    if prior_command.publication_request_hash != request_hash:
+                        raise ReleasePublicationError(
+                            "publication idempotency key was already used with a different request"
+                        )
+                    if (
+                        prior_command.batch_status != "committed"
+                        or prior_command.release_status != "committed"
+                        or prior_command.source_bundle_sha256 != projection.input_digest
+                        or prior_command.mapper_version != projection.report["mapper_version"]
+                    ):
+                        raise ReleasePublicationError(
+                            "publication idempotency record does not match the committed request"
+                        )
+                    prior_activation = connection.execute(
+                        select(
+                            activation_table.c.previous_release_id,
+                            activation_table.c.actor,
+                        )
+                        .where(
+                            activation_table.c.operation == "publish",
+                            activation_table.c.active_release_id == prior_command.release_id,
+                        )
+                        .order_by(activation_table.c.occurred_at.desc())
+                        .limit(1)
+                    ).one_or_none()
+                    replay_result = {
+                        "outcome": "idempotent_replay",
+                        "reason": "publication_command_already_committed",
+                        "actor": prior_activation.actor if prior_activation else actor_name,
+                        "input_digest": projection.input_digest,
+                        "release_id": str(prior_command.release_id),
+                        "release_key": prior_command.release_key,
+                        "batch_id": str(prior_command.batch_id),
+                        "previous_active_release_id": (
+                            str(prior_activation.previous_release_id)
+                            if prior_activation and prior_activation.previous_release_id
+                            else None
+                        ),
+                        "active_release_id": (
+                            str(active_release_id) if active_release_id else None
+                        ),
+                        "database_name": identity["database_name"],
+                        "schema_revision": revision,
+                        "mapping": projection.report,
+                    }
+                    if proposals:
+                        replay_result["published_proposal_ids"] = [
+                            str(command.proposal_id)
+                            for command in sorted(proposals, key=lambda item: str(item.proposal_id))
+                        ]
+                    return replay_result
             existing = connection.execute(
                 select(
                     release_table.c.id,
@@ -386,6 +485,10 @@ def publish_projection(
             ).one_or_none()
             if existing is not None and existing.status == "committed":
                 if active_release_id == existing.id:
+                    if proposals:
+                        raise ReleasePublicationError(
+                            "reviewed proposal bundle is already active under a different command key"
+                        )
                     return {
                         "outcome": "no_op",
                         "reason": "bundle_digest_and_mapper_version_already_active",
@@ -407,7 +510,7 @@ def publish_projection(
                 else None
             )
             if active_release_id != expected_active_id:
-                raise ReleasePublicationError(
+                raise StaleReleaseBaseError(
                     "candidate base is stale: active release changed; export, diff, and review again"
                 )
             if expected_active_id is not None:
@@ -417,7 +520,7 @@ def publish_projection(
                     )
                 ).scalar_one_or_none()
                 if active_digest != projection.expected_base_source_bundle_sha256:
-                    raise ReleasePublicationError(
+                    raise StaleReleaseBaseError(
                         "candidate base digest does not match the locked active release"
                     )
 
@@ -430,6 +533,8 @@ def publish_projection(
                     started_at=now,
                     validation_report=projection.validator_report,
                     row_counts=projection.report,
+                    publication_idempotency_key=idempotency_key,
+                    publication_request_hash=request_hash,
                 )
             )
             connection.execute(
@@ -496,6 +601,23 @@ def publish_projection(
                 .where(batch_table.c.id == batch_id)
                 .values(status="committed", finished_at=now, row_counts=report_payload)
             )
+            published_proposal_ids: tuple[UUID, ...] = ()
+            if proposals:
+                from andromeda_db.repositories.proposals import (
+                    publish_proposals_in_transaction,
+                )
+
+                try:
+                    published_proposal_ids = publish_proposals_in_transaction(
+                        connection,
+                        proposals,
+                        release_id=projection.release_id,
+                        occurred_at=now,
+                    )
+                except StaleProposalBaseError as error:
+                    raise StaleReleaseBaseError(
+                        "candidate base is stale: proposal base does not match the locked active release"
+                    ) from error
             connection.execute(
                 pg_insert(active_table)
                 .values(slot_key="active", release_id=projection.release_id, changed_at=now)
@@ -532,6 +654,10 @@ def publish_projection(
             "reconciliation": reconciliation,
             "mapping": projection.report,
         }
+        if published_proposal_ids:
+            result["published_proposal_ids"] = [
+                str(proposal_id) for proposal_id in published_proposal_ids
+            ]
         logger.info(
             "bundle release committed and activated",
             extra={
@@ -545,7 +671,17 @@ def publish_projection(
             },
         )
         return result
-    except Exception as error:
+    except (
+        SQLAlchemyError,
+        ProposalDomainError,
+        ReleasePublicationError,
+        RuntimeError,
+        ValueError,
+        TypeError,
+        OSError,
+    ) as error:
+        # Normalize database, domain, and callback failures only after the
+        # transaction context has rolled back.
         failure_code = _safe_failure_code(error)
         _record_failed_batch(engine, projection, failure_code)
         original_error = getattr(error, "orig", None)
@@ -571,7 +707,8 @@ def publish_projection(
             },
         )
         safe_detail = str(error) if isinstance(error, ReleasePublicationError) else failure_code
-        raise ReleasePublicationError(
+        error_type = StaleReleaseBaseError if isinstance(error, StaleReleaseBaseError) else ReleasePublicationError
+        raise error_type(
             f"bundle import rolled back: {failure_code}: {safe_detail}"
         ) from None
 

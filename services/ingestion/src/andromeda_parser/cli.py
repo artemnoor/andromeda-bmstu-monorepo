@@ -6,9 +6,8 @@ import argparse
 import json
 import sys
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 from urllib.parse import urlsplit
-
 
 PARSER_NAMES = (
     "catalog-html",
@@ -167,19 +166,19 @@ def _run_parser(name: str, body: bytes, args: argparse.Namespace, parser: argpar
     raise AssertionError("argparse.error must exit")
 
 
-def main(argv: list[str] | None = None) -> int:
+def main(argv: list[str] | None = None, *, application: Any | None = None) -> int:
     parser = _parser()
     args = parser.parse_args(argv)
     if args.command == "list":
         print("\n".join(PARSER_NAMES))
         return 0
     if args.command == "ingest":
+        from andromeda_parser.bundle import run_bundle_command
         from andromeda_parser.ingest import (
             run_capture_command,
             run_parse_admission_plan_command,
             run_parse_command,
         )
-        from andromeda_parser.bundle import run_bundle_command
 
         if args.ingest_command == "capture":
             return run_capture_command(args, parser)
@@ -187,7 +186,7 @@ def main(argv: list[str] | None = None) -> int:
             return run_parse_command(args, parser)
         if args.ingest_command == "parse-admission-plan":
             return run_parse_admission_plan_command(args, parser)
-        return run_bundle_command(args, parser)
+        return run_bundle_command(args, parser, application=application)
 
     try:
         if args.input.is_symlink() or not args.input.is_file():

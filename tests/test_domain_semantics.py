@@ -4,7 +4,6 @@ from datetime import date
 from decimal import Decimal
 
 import pytest
-
 from andromeda_ontology.ontology.admission import (
     validate_admission_offering,
     validate_exam_choice_metadata,

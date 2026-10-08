@@ -49,7 +49,6 @@ ALLOWED_CONTEXT_FIELDS = frozenset(
         "chunk_ordinal",
         "chunk_count",
         "chunk_size",
-        "source_key",
         "sqlstate",
         "constraint_name",
         "database_table",

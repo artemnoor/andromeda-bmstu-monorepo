@@ -18,7 +18,7 @@ test:
 	uv run --env-file .env pytest -q
 
 lint:
-	uv run --no-project --with ruff ruff check .
+	uv run ruff check .
 
 api:
 	uv run --env-file .env --package andromeda-api uvicorn andromeda_api.main:app --reload --host 127.0.0.1 --port 8000

@@ -2,7 +2,14 @@ from __future__ import annotations
 
 import io
 
-from andromeda.ingestion.pdf_policy import PdfResourceError, validate_page_count, validate_pdf_payload, validate_text_size
+from andromeda.ingestion.pdf_policy import (
+    PdfResourceError,
+    validate_page_count,
+    validate_pdf_payload,
+    validate_text_size,
+)
+from pdfminer.pdfexceptions import PDFException
+from pypdf.errors import PdfReadError
 
 
 def is_pdf(body: bytes, content_type: str | None = None, url: str = "") -> bool:
@@ -22,7 +29,7 @@ def extract_pdf_text(body: bytes) -> str:
             document.close()
     except PdfResourceError:
         raise
-    except Exception:
+    except (ImportError, OSError, ValueError, RuntimeError, TypeError):
         pass
     try:
         import pdfplumber
@@ -33,7 +40,7 @@ def extract_pdf_text(body: bytes) -> str:
         return validate_text_size("\n\n".join(pages).strip())
     except PdfResourceError:
         raise
-    except Exception:
+    except (ImportError, OSError, ValueError, TypeError, PDFException):
         pass
     try:
         from pypdf import PdfReader
@@ -43,7 +50,7 @@ def extract_pdf_text(body: bytes) -> str:
         return validate_text_size("\n\n".join(page.extract_text() or "" for page in reader.pages).strip())
     except PdfResourceError:
         raise
-    except Exception:
+    except (ImportError, OSError, ValueError, TypeError, PdfReadError):
         return ""
 
 

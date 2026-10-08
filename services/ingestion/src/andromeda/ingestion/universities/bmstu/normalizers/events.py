@@ -6,7 +6,12 @@ import logging
 import re
 from collections.abc import Sequence
 
-from andromeda.modules.events.contracts.public import Event, EventFormat, EventKind, Venue
+from andromeda.modules.events.contracts.public import (
+    Event,
+    EventFormat,
+    EventKind,
+    Venue,
+)
 from andromeda.modules.programs.contracts.public import Program
 from andromeda.shared.contracts.enums import SourceKind
 from andromeda.shared.contracts.errors import ContractError, ErrorCode
@@ -14,7 +19,6 @@ from andromeda.shared.contracts.provenance import SourceAttribution
 
 from ....contracts.raw import RawEventRecord, RawSourceSnapshot
 from ..normalizers.codes import normalize_code
-
 
 logger = logging.getLogger("andromeda.ingestion.bmstu.events")
 _SLUG_RE = re.compile(r"[^a-z0-9]+")

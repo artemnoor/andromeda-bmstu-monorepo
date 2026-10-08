@@ -1,8 +1,8 @@
 [tool.uv.workspace]
-members = ["domain", "packages/contracts", "packages/db", "services/api", "services/ingestion"]
+members = ["domain", "packages/contracts", "packages/db", "packages/release-bundles", "services/api", "services/ingestion", "services/ingestion-cli"]
 
 [dependency-groups]
-dev = ["pytest>=8,<9"]
+dev = ["pytest>=8,<9", "ruff==0.16.10"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests", "services/api/tests"]
@@ -17,3 +17,6 @@ andromeda-api = { workspace = true }
 andromeda-contracts = { workspace = true }
 andromeda-db = { workspace = true }
 andromeda-ontology = { workspace = true }
+andromeda-release-bundles = { workspace = true }
+andromeda-ingestion = { workspace = true }
+andromeda-ingestion-cli = { workspace = true }

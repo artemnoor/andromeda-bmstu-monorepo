@@ -137,9 +137,8 @@ class TemporalFactRecord(ContractModel):
 
     @model_validator(mode="after")
     def validate_validity_period(self) -> TemporalFactRecord:
-        if self.valid_from is not None and self.valid_to is not None:
-            if self.valid_from > self.valid_to:
-                raise ValueError("valid_from cannot be later than valid_to")
+        if self.valid_from is not None and self.valid_to is not None and self.valid_from > self.valid_to:
+            raise ValueError("valid_from cannot be later than valid_to")
         return self
 
 

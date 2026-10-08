@@ -92,7 +92,7 @@ IngestRunId: TypeAlias = Annotated[str, StringConstraints(pattern=r"^ingest:[a-f
 EducationYear: TypeAlias = Annotated[int, Field(strict=True, ge=2000, le=2100)]
 Semester: TypeAlias = Annotated[int, Field(strict=True, ge=1, le=12)]
 HourCount: TypeAlias = Annotated[int, Field(strict=True, ge=0, le=2000)]
-Credits: TypeAlias = Annotated[Decimal, Field(strict=True, ge=Decimal("0"), le=Decimal("60"), max_digits=6, decimal_places=2)]
+Credits: TypeAlias = Annotated[Decimal, Field(strict=True, ge=Decimal(0), le=Decimal(60), max_digits=6, decimal_places=2)]
 
 
 def canonical_program_id(program_id: str) -> str:

@@ -6,9 +6,8 @@ from urllib.parse import urljoin, urlparse
 
 from bs4 import BeautifulSoup
 
-from ....capture import S06_API_BASE_URL, S06_CATALOG_URL
+from ....capture import S06_API_BASE_URL
 from ..common import clean_text, normalize_code
-
 
 CATALOG_URL = "https://bmstu.ru/bachelor/majors"
 CATALOG_API_URL = S06_API_BASE_URL
@@ -40,14 +39,16 @@ def parse_catalog_api(body: bytes) -> tuple[dict[str, Any], ...]:
         payload = json.loads(body.decode("utf-8-sig"))
     except (UnicodeDecodeError, json.JSONDecodeError) as exc:
         raise ValueError("BMSTU catalog API response is not valid UTF-8 JSON") from exc
-    if not isinstance(payload, dict) or not isinstance(payload.get("data"), list):
-        raise ValueError("BMSTU catalog API response has no data array")
+    if not isinstance(payload, dict):
+        raise TypeError("BMSTU catalog API response root is not an object")
+    if not isinstance(payload.get("data"), list):
+        raise TypeError("BMSTU catalog API response has no data array")
     records: list[dict[str, Any]] = []
     seen_codes: set[str] = set()
     seen_slugs: set[str] = set()
     for index, value in enumerate(payload["data"], start=1):
         if not isinstance(value, dict):
-            raise ValueError(f"BMSTU catalog row {index} is not an object")
+            raise TypeError(f"BMSTU catalog row {index} is not an object")
         code = normalize_code(value.get("code"))
         name = clean_text(value.get("name"))
         slug = clean_text(value.get("slug"))

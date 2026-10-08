@@ -6,18 +6,24 @@ import io
 import logging
 import re
 from collections import OrderedDict
+from collections.abc import Sequence
 from dataclasses import dataclass
 from decimal import Decimal
-from typing import Iterable, Sequence
 
+from pypdf.errors import PdfReadError
+
+from andromeda.ingestion.pdf_policy import (
+    PdfResourceError,
+    validate_page_count,
+    validate_pdf_payload,
+    validate_text_size,
+)
 from andromeda.ingestion.universities.bmstu.source_metadata import (
     BmstuOrderCompetition,
     BmstuOrderDocumentMetadata,
     BmstuOrderFunding,
     classify_competition_heading,
 )
-from andromeda.ingestion.pdf_policy import PdfResourceError, validate_page_count, validate_pdf_payload, validate_text_size
-
 
 logger = logging.getLogger("andromeda.ingestion.bmstu.parser.admission_orders")
 
@@ -111,7 +117,7 @@ def iter_pdf_pages(body: bytes) -> tuple[str, ...]:
             document.close()
     except PdfResourceError:
         raise
-    except Exception:
+    except (ImportError, OSError, ValueError, RuntimeError, TypeError):
         pass
     try:
         from pypdf import PdfReader
@@ -121,7 +127,7 @@ def iter_pdf_pages(body: bytes) -> tuple[str, ...]:
         return tuple((page.extract_text() or "").strip() for page in reader.pages)
     except PdfResourceError:
         raise
-    except Exception:
+    except (ImportError, OSError, ValueError, TypeError, IndexError, KeyError, PdfReadError):
         return ()
 
 

@@ -2,37 +2,40 @@ from __future__ import annotations
 
 import logging
 import re
+from collections.abc import Mapping
 from html import unescape
 from pathlib import Path
-from collections.abc import Mapping
 from typing import cast
 
 from bs4 import BeautifulSoup
 from pydantic import ValidationError
 
-from .curriculum import _study_plan_records
 from andromeda.ingestion.contracts.constraints import http_url
+from andromeda.ingestion.contracts.normalized import CanonicalSnapshot
 from andromeda.ingestion.contracts.raw import (
     JsonObject,
     RawCurriculumRow,
     RawDirectionRecord,
-    RawProgramRecord,
     RawParserDiagnostic,
-    RawSourceSnapshot,
+    RawProgramRecord,
     RawSourceGap,
+    RawSourceSnapshot,
     RawTracerBundle,
     RawUniversityRecord,
     SourceLocator,
 )
-from ..source_models import FetchedResource, SourceDefinition
+from andromeda.shared.contracts.errors import (
+    ContractError,
+    ErrorCode,
+    details_from_validation,
+)
+
+from ..capture import BmstuSource, CapturedSources, _detail_data, _json_object
 from ..html import parse_page
-from andromeda.ingestion.contracts.normalized import CanonicalSnapshot
-from andromeda.shared.contracts.errors import ContractError, ErrorCode, ErrorDetail, details_from_validation
-from ..capture import CapturedSources, BmstuSource, _detail_data, _json_object
-
-
-from ..normalizers.canonical import normalize_bundle
 from ..identity import canonicalize_program_records, direction_codes
+from ..normalizers.canonical import normalize_bundle
+from ..source_models import FetchedResource, SourceDefinition
+from .curriculum import _study_plan_records
 
 logger = logging.getLogger("andromeda.ingestion.bmstu.parser")
 
@@ -238,7 +241,7 @@ def _source_education_years(captured: CapturedSources) -> dict[str, int]:
                 snapshot.captured_at.isoformat(),
                 context={},
             )
-        except Exception:
+        except (ContractError, ValidationError, OSError, RuntimeError, ValueError, TypeError, KeyError):
             continue
         years = {
             int(value["education_year"])

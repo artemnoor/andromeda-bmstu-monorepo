@@ -1,30 +1,48 @@
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
-from hashlib import sha256
 import logging
 import re
+from collections.abc import Mapping, Sequence
+from hashlib import sha256
 from pathlib import Path
 
 from andromeda.ingestion.contracts.constraints import http_url
 from andromeda.ingestion.contracts.normalized import CanonicalSnapshot
-from andromeda.ingestion.contracts.raw import RawAdmissionPassingScore, RawAdmissionRecord, RawCurriculumRow, RawDirectionRecord, RawParserDiagnostic, RawProgramRecord, RawSourceGap, RawSourceSnapshot, RawTracerBundle, RawUniversityRecord, SourceLocator
+from andromeda.ingestion.contracts.raw import (
+    RawAdmissionPassingScore,
+    RawAdmissionRecord,
+    RawCurriculumRow,
+    RawDirectionRecord,
+    RawParserDiagnostic,
+    RawProgramRecord,
+    RawSourceGap,
+    RawSourceSnapshot,
+    RawTracerBundle,
+    RawUniversityRecord,
+    SourceLocator,
+)
 from andromeda.ingestion.contracts.source import CapturedSources
 from andromeda.modules.disciplines.contracts.public import Discipline
-from andromeda.modules.disciplines.services.classifier import RuleBasedDisciplineClassifier
-from andromeda.shared.contracts.enums import SourceKind
+from andromeda.modules.disciplines.services.classifier import (
+    RuleBasedDisciplineClassifier,
+)
 from andromeda.shared.contracts.errors import ContractError, ErrorCode
-from andromeda.shared.contracts.provenance import SourceAttribution
 
 from .capture import DEFAULT_FIXTURE_DIR, HseSource
 from .identity import canonicalize_program_records, direction_codes, normalize_name
 from .mappings.discipline_areas import HSE_DISCIPLINE_AREA_OVERRIDES
 from .normalizers.admissions import normalize_admissions
 from .normalizers.canonical import normalize_bundle
-from .parser.admissions import FactObservation, parse_enrollment_document, parse_historical_passing, parse_minimum_exams, parse_places, parse_tuition
+from .parser.admissions import (
+    FactObservation,
+    parse_enrollment_document,
+    parse_historical_passing,
+    parse_minimum_exams,
+    parse_places,
+    parse_tuition,
+)
 from .parser.catalog import canonical_url, parse_program_detail, study_plan_urls
 from .parser.curriculum import CurriculumObservation, parse_work_plan
-
 
 fetch_logger = logging.getLogger("andromeda.ingestion.hse.fetch")
 parse_logger = logging.getLogger("andromeda.ingestion.hse.parse")
@@ -75,8 +93,7 @@ class HseUniversityAdapter:
             education_level = "специалитет" if ".05." in direction_code or page.education_level == "специалитет" else "бакалавриат"
             raw_directions.append(RawDirectionRecord(code=direction_code, name=page.direction_name or page.name, education_level=education_level, locator=locator))
             program_root = page.url.rstrip("/")
-            if program_root.endswith("/admission"):
-                program_root = program_root[: -len("/admission")]
+            program_root = program_root.removesuffix("/admission")
             raw_programs.append(RawProgramRecord(code="pending", name=page.name, direction_code=direction_code, education_level=education_level, education_year=page.education_year, study_plan_url=http_url(program_root + "/learn_plans/"), source_url=http_url(page.url), locator=locator, source_code=program_root))
         if not raw_programs:
             raise ContractError(ErrorCode.SOURCE_CONTRACT_ERROR, "HSE details contain no parseable programs")

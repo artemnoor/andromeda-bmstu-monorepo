@@ -14,7 +14,7 @@ from pathlib import Path, PurePosixPath
 from typing import Any
 from uuid import NAMESPACE_URL, UUID, uuid5
 
-from andromeda_api.application.importer.bundle import (
+from andromeda_release_bundles.bundle import (
     BundleFile,
     BundleInputError,
     BundleReader,
@@ -1632,7 +1632,7 @@ def project_bundle(
             raise BundleInputError("bundle bytes changed between validation and mapping")
         dataset_paths = sorted(
             path
-            for path in reader._file_names()
+            for path in reader.file_names()
             if path.startswith("data/") and path.endswith(".jsonl")
         )
         datasets: dict[str, list[tuple[int, dict[str, Any]]]] = {}

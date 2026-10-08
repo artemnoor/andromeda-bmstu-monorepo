@@ -211,7 +211,7 @@ def parse_olympiad_appendix(
                                     "eligible_direction_codes": eligible,
                                     "applicability_text": cells[6],
                                     "confirmation_exam_text": confirm,
-                                    "confirmation_score": 75 if confirm and re.search(r"75\s*бал", confirm, re.I) else None,
+                                    "confirmation_score": 75 if confirm and re.search(r"75\s*бал", confirm, re.IGNORECASE) else None,
                                     "is_branch_only": True,
                                     "source_appendix": appendix,
                                     "source_url": source_url,

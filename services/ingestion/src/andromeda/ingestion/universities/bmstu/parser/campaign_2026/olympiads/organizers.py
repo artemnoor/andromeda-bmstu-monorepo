@@ -1,13 +1,15 @@
 from __future__ import annotations
 
 import re
-from typing import Any, Iterable
+import zipfile
+from collections.abc import Iterable
+from typing import Any
 from urllib.parse import urldefrag, urljoin, urlparse
 
 from bs4 import BeautifulSoup
+from pypdf.errors import PdfReadError
 
 from ..common import clean_text
-
 
 OFFICIAL_RSOSH_2025_26_URL = "https://rsr-olymp.ru/archive"
 RSOSH_HOST = "rsr-olymp.ru"
@@ -114,40 +116,46 @@ def extract_official_page_text(body: bytes, url: str) -> str:
     suffix = urlparse(url).path.casefold().rsplit(".", 1)[-1] if "." in urlparse(url).path else ""
     if suffix == "pdf":
         try:
-            from pypdf import PdfReader
             import io
 
+            from pypdf import PdfReader
+
             return " ".join(page.extract_text() or "" for page in PdfReader(io.BytesIO(body)).pages)
-        except Exception:
+        except (ImportError, OSError, ValueError, RuntimeError, TypeError, PdfReadError):
             return ""
     if suffix == "xlsx":
         try:
-            from openpyxl import load_workbook
             import io
+
+            from openpyxl import load_workbook
+            from openpyxl.utils.exceptions import InvalidFileException
 
             workbook = load_workbook(io.BytesIO(body), read_only=True, data_only=True)
             return " ".join(str(value) for sheet in workbook.worksheets for row in sheet.iter_rows(values_only=True) for value in row if value is not None)
-        except Exception:
+        except (ImportError, OSError, ValueError, TypeError, KeyError, IndexError, zipfile.BadZipFile):
+            return ""
+        except InvalidFileException:
             return ""
     if suffix == "docx":
         try:
             import io
-            import zipfile
             from xml.etree import ElementTree
 
             with zipfile.ZipFile(io.BytesIO(body)) as archive:
                 xml = archive.read("word/document.xml")
             root = ElementTree.fromstring(xml)
             return " ".join(text for text in root.itertext() if text)
-        except Exception:
+        except (ImportError, OSError, ValueError, TypeError, KeyError, zipfile.BadZipFile):
+            return ""
+        except ElementTree.ParseError:
             return ""
     return clean_text(BeautifulSoup(body, "html.parser").get_text(" ", strip=True))
 
 
 __all__ = [
     "OFFICIAL_RSOSH_2025_26_URL",
-    "parse_rsosh_directory",
+    "extract_official_page_text",
     "normalize_event_name",
     "official_related_links",
-    "extract_official_page_text",
+    "parse_rsosh_directory",
 ]

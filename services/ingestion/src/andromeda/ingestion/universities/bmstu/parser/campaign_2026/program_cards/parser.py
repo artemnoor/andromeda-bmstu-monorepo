@@ -1,13 +1,13 @@
 from __future__ import annotations
 
-from html import unescape
 import json
+from html import unescape
 from typing import Any
 
 from bs4 import BeautifulSoup
 
-from ..common import clean_text, normalize_code
 from ..catalog.parser import is_head_campus
+from ..common import clean_text, normalize_code
 
 
 def _plain_html(value: object) -> str | None:
@@ -30,7 +30,7 @@ def parse_program_card(body: bytes, expected_direction_code: str, source_url: st
     except (UnicodeDecodeError, json.JSONDecodeError) as exc:
         raise ValueError(f"BMSTU card response is not valid JSON: {source_url}") from exc
     if not isinstance(root, dict):
-        raise ValueError(f"BMSTU direction card is not an object: {source_url}")
+        raise TypeError(f"BMSTU direction card is not an object: {source_url}")
     additional = _object(root.get("additional"))
     direction_code = normalize_code(additional.get("code"))
     direction_name = clean_text(additional.get("name"))

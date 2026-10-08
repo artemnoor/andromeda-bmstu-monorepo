@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from ....capture import AdmissionOrderManifestEntry, parse_orders_manifest
+from ....capture import parse_orders_manifest
 from ....parser.admission_orders import iter_pdf_pages, parse_admission_order_document
 from ....source_metadata import classify_order_document
 
@@ -16,7 +16,7 @@ def parse_order_sources(manifest_body: bytes, manifest_url: str, pdf_loader: Any
     for index, entry in enumerate(entries, start=1):
         try:
             body, artifact = pdf_loader(entry.requested_url, index)
-        except Exception as exc:
+        except (OSError, RuntimeError, ValueError, TypeError) as exc:
             key = f"admission_result_source:bmstu:manifest:{index}"
             documents.append({
                 "external_key": key,

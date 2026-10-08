@@ -5,10 +5,12 @@ import logging
 from datetime import datetime
 from hashlib import sha256
 from pathlib import Path
-from urllib.parse import urljoin
 
 from andromeda.ingestion.contracts.constraints import http_url
-from andromeda.ingestion.contracts.raw import JsonObject, JsonValue, RawSourceGap, RawSourceSnapshot
+from andromeda.ingestion.contracts.raw import (
+    RawSourceGap,
+    RawSourceSnapshot,
+)
 from andromeda.ingestion.contracts.source import CapturedSources, source_fetch_gap
 from andromeda.shared.contracts.errors import ContractError, ErrorCode, ErrorDetail
 
@@ -17,7 +19,6 @@ from .html import extract_links, official_hse_url
 from .parser.catalog import discover_program_links, study_plan_urls
 from .pdf import is_pdf
 from .source_models import FetchedResource
-
 
 logger = logging.getLogger("andromeda.ingestion.hse.capture")
 selection_logger = logging.getLogger("andromeda.ingestion.hse.select")

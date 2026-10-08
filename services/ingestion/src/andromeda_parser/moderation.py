@@ -10,7 +10,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from andromeda_api.application.importer.bundle import BundleReader
+from andromeda_release_bundles import BundleReader, validate_bundle
 
 from .bundle import (
     CANDIDATE_FILE,
@@ -23,10 +23,8 @@ from .bundle import (
     _read_jsonl,
     _write_json,
     _write_jsonl,
-    _validate_bundle,
 )
 from .ingest import IngestionError
-
 
 PROVENANCE_FIELDS = frozenset(
     {
@@ -361,7 +359,7 @@ def compare_candidate_bundle(candidate_dir: Path) -> dict[str, Any]:
     }
     with BundleReader(candidate_root) as reader:
         for dataset in complete_datasets:
-            for external_key, _row in current_rows_by_dataset.get(dataset, {}).items():
+            for external_key in current_rows_by_dataset.get(dataset, {}):
                 if (dataset, external_key) not in candidate_targets:
                     results.append(
                         {
@@ -533,7 +531,6 @@ def prepare_rejected_candidates(
 
     source = reviewed_bundle.expanduser().resolve(strict=True)
     target = _prepare_output(output_dir)
-    validate_bundle = _validate_bundle()
     source_validation = validate_bundle(source)
     if not source_validation.get("valid"):
         raise IngestionError("reviewed bundle is invalid; rejected candidates were not restored")
@@ -549,7 +546,7 @@ def prepare_rejected_candidates(
     if candidate_keys is not None:
         unknown = candidate_keys - set(grouped)
         if unknown:
-            raise IngestionError(f"requested rejected candidate key was not found: {sorted(unknown)[0]}")
+            raise IngestionError(f"requested rejected candidate key was not found: {min(unknown)}")
         selected = candidate_keys
     else:
         selected = set(grouped)
@@ -559,7 +556,15 @@ def prepare_rejected_candidates(
             grouped[key],
             key=lambda row: (str(row.get("reviewed_at", "")), str(row.get("rejection_event_id", ""))),
         )
-        latest = dict(history[-1])
+        latest = dict(
+            max(
+                history,
+                key=lambda row: (
+                    str(row.get("reviewed_at", "")),
+                    str(row.get("rejection_event_id", "")),
+                ),
+            )
+        )
         rejection_events = [str(row["rejection_event_id"]) for row in history if row.get("rejection_event_id")]
         latest.pop("candidate_reference", None)
         latest.pop("rejection_event_id", None)

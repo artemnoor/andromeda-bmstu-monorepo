@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from andromeda.shared.contracts.enums import AssessmentType
 
-
 ASSESSMENT_MAPPING: dict[str, tuple[AssessmentType, ...]] = {
     "экз": (AssessmentType.EXAM,),
     "рэкз": (AssessmentType.EXAM,),

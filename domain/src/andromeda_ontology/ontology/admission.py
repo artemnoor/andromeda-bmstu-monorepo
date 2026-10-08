@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from datetime import UTC, date, datetime
 from decimal import Decimal
-from typing import Iterable
 
 from andromeda_ontology.ontology.errors import DomainValidationError
 
