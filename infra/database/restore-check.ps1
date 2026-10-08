@@ -59,7 +59,8 @@ FROM academic_data_alembic_version
 "@
     $psqlArguments = Get-PostgresConnectionArguments -Connection $connection -Database $restoreDatabase
     $psqlArguments += @("--no-psqlrc", "--tuples-only", "--no-align", "--set", "ON_ERROR_STOP=1", "--command", $validationSql)
-    $validationOutput = & (Get-Command psql -CommandType Application -ErrorAction Stop).Source @psqlArguments
+    $psql = Get-Command psql -CommandType Application -ErrorAction Stop | Select-Object -First 1
+    $validationOutput = & $psql.Source @psqlArguments
     if ($LASTEXITCODE -ne 0) {
         throw "Could not read the restored migration and schema state from temporary database '$restoreDatabase'."
     }

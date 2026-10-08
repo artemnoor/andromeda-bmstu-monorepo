@@ -69,7 +69,8 @@ function Invoke-PostgresUtility {
         [string] $TargetDatabase
     )
 
-    $tool = Get-Command $Name -CommandType Application -ErrorAction SilentlyContinue
+    $tool = Get-Command $Name -CommandType Application -ErrorAction SilentlyContinue |
+        Select-Object -First 1
     if ($null -eq $tool) {
         throw "Required PostgreSQL utility '$Name' was not found on PATH. Install PostgreSQL client tools for local backup and restore checks."
     }
@@ -108,7 +109,8 @@ function Assert-Postgres16Database {
 
     $args = Get-PostgresConnectionArguments -Connection $Connection -Database $Database
     $args += @("--no-psqlrc", "--tuples-only", "--no-align", "--command", "SELECT current_database() || '|' || (current_setting('server_version_num')::integer / 10000)::text")
-    $result = & (Get-Command psql -CommandType Application -ErrorAction Stop).Source @args
+    $psql = Get-Command psql -CommandType Application -ErrorAction Stop | Select-Object -First 1
+    $result = & $psql.Source @args
     $exitCode = $LASTEXITCODE
     if ($exitCode -ne 0) {
         throw "Could not verify the PostgreSQL server for local target database '$Database'."
