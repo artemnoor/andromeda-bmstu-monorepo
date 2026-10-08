@@ -6,13 +6,13 @@ their allowlists and pass them into these generic safety checks.
 
 from __future__ import annotations
 
+import ipaddress
+import socket
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
-import ipaddress
-import socket
-from urllib.parse import urlparse, urljoin
+from urllib.parse import urljoin, urlparse
 
 
 class SourcePolicyError(ValueError):

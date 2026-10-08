@@ -1,12 +1,18 @@
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from decimal import Decimal
-import re
 
-from andromeda.ingestion.contracts.raw import RawAdmissionExamRequirement, RawAdmissionPassingScore, RawAdmissionQuota, RawAdmissionTuition, RawSourceSnapshot
+from andromeda.ingestion.contracts.raw import (
+    RawAdmissionExamRequirement,
+    RawAdmissionPassingScore,
+    RawAdmissionQuota,
+    RawAdmissionTuition,
+    RawSourceSnapshot,
+)
 
-from ..html import clean_text, extract_tables, visible_text
+from ..html import clean_text, extract_tables
 from ..identity import direction_codes
 from ..pdf import extract_pdf_text
 

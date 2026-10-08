@@ -18,8 +18,7 @@ def validate_curriculum_item(
 
     expected_suffix = f":{discipline_id}:{semester if semester is not None else 'unassigned'}"
     if not item_id.startswith("curriculum-item:program:") or not (
-        item_id.endswith(expected_suffix)
-        or item_id.endswith(f"{expected_suffix}:row:{parsed_position}")
+        item_id.endswith((expected_suffix, f"{expected_suffix}:row:{parsed_position}"))
     ):
         raise DomainValidationError(
             "curriculum item id must derive from its discipline and semester", field="id"

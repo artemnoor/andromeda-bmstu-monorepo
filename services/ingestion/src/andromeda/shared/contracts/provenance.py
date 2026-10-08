@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from enum import StrEnum
 
-from pydantic import Field, HttpUrl
+from pydantic import HttpUrl
 
 from .base import ContractModel
 from .enums import SourceKind

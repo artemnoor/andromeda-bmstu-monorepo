@@ -12,8 +12,6 @@ from typing import Any
 from urllib.parse import quote, urlsplit
 
 import httpx
-from bs4 import BeautifulSoup
-
 from andromeda.ingestion.universities.bmstu.capture import (
     ORDERS_MANIFEST_URL,
     S06_API_BASE_URL,
@@ -23,7 +21,6 @@ from andromeda.ingestion.universities.bmstu.capture import (
     parse_orders_manifest,
 )
 from andromeda.ingestion.universities.bmstu.fetch import FetchConfig, Fetcher
-from andromeda_api.application.importer.bundle import BundleReader
 from andromeda.ingestion.universities.bmstu.parser.campaign_2026.admission_information.parser import (
     parse_admission_information,
 )
@@ -40,8 +37,12 @@ from andromeda.ingestion.universities.bmstu.parser.campaign_2026.program_cards.p
 from andromeda.ingestion.universities.bmstu.parser.campaign_2026.tuition.parser import (
     parse_cost_page,
 )
-from andromeda_parser.ingest import IngestionError
+from andromeda.shared.contracts.errors import ContractError
+from andromeda_release_bundles import BundleReader
+from bs4 import BeautifulSoup
+from pydantic import ValidationError
 
+from andromeda_parser.ingest import IngestionError
 
 logger = logging.getLogger("andromeda.ingestion.live_probe")
 ADMISSION_INFO_URL = "https://course.bmstu.ru/edu/abiturient/"
@@ -438,7 +439,7 @@ def probe_official_sources(
                         re.findall(
                             r"\b\d{1,2}\s+(?:января|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря)\s+20\d{2}(?:\s+года)?(?:\s+в\s+\d{1,2}\s+час(?:а|ов))?",
                             visible,
-                            flags=re.I,
+                            flags=re.IGNORECASE,
                         )
                     )
                 )
@@ -493,7 +494,7 @@ def probe_official_sources(
                     "document_bodies_fetched": 0,
                     "applicant_documents_excluded": True,
                 }
-            except Exception as error:
+            except (ContractError, ValidationError, OSError, RuntimeError, ValueError, TypeError, KeyError) as error:
                 categories["admission_orders_and_places"] = {"status": "parser_gap", "error_type": type(error).__name__}
                 source_gaps.append({"source": "admission_order_index", "url": _safe_report_url(ORDERS_MANIFEST_URL), "reason": "parser_contract_error"})
         else:
@@ -520,7 +521,7 @@ def probe_official_sources(
                         _read_rows(base, "admission_exam_requirements.jsonl"),
                         fields=("requirement_tree",),
                     )
-                except Exception as error:
+                except (ContractError, ValidationError, OSError, RuntimeError, ValueError, TypeError, KeyError) as error:
                     categories["exams_and_requirements"] = {"status": "parser_gap", "error_type": type(error).__name__}
                     source_gaps.append({"source": "exam_requirements_appendix", "url": _safe_report_url(requirements_pdf_url), "reason": "parser_contract_error"})
             else:

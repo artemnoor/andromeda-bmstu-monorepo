@@ -1,5 +1,23 @@
 > Data and product limitations snapshot dated 2026-10-07. The migration report records current repository ownership and verification status.
 
+## Architecture hardening update (2026-10-08)
+
+- PostgreSQL-backed proposal records, immutable revisions/evidence/event history,
+  version-checked transitions, and transactionally coupled publication are now
+  implemented. Earlier statements below about proposals having no SQL audit
+  table describe the pre-hardening snapshot and are superseded by this section.
+- `services/ingestion` no longer depends on or imports API implementation.
+  `services/ingestion-cli` retains the existing operator command grammar and
+  composes those commands with the API application use cases. Bundle parsing
+  and validation live in the API-independent `packages/release-bundles`.
+- `/api/v1` remains GET-only. No authenticated administrative HTTP API exists;
+  moderation is available only through the internal application use cases and
+  trusted local CLI policy.
+- The new Alembic head is `71d8c4a29f30`, an additive child of
+  `f4b19a7c2d61`. The previous 11 revisions were not edited. Local PostgreSQL
+  16 was unavailable during this pass, so migration, role, and concurrency
+  integration evidence must come from the isolated PostgreSQL 16 CI service.
+
 ---
 
 # Current status and known limitations
@@ -22,10 +40,11 @@ Previous: [Directus UX](directus/DIRECTUS_UX.md) · Next: [Ingestion audit](INGE
 - Diff and review templates report new, changed, unchanged, conflicting,
   unreviewed, and potentially removed candidates. Bulk review is limited to
   allowlisted noncritical fields with exact targets and verified provenance.
-  Decisions include actor, timestamp, payload, and source provenance;
-  rejected candidates can be re-reviewed without losing their prior decision.
-  The append-only decision journal is stored in the verified bundle archive,
-  not a queryable SQL event table.
+  The reviewed bundle retains its append-only decision journal. Proposal-backed
+  decisions additionally store actor, timestamp, reason, exact review-event
+  identity, proposal revision, source evidence, and transition history in
+  PostgreSQL. Rejected candidates can be re-reviewed without losing their
+  prior journal event.
 - The selected-source live probe completed under its 12-exchange cap. Its
   output was not imported. See [live findings](LIVE_VALIDATION.md).
 
@@ -178,6 +197,34 @@ Verified locally on Python 3.11 and the isolated localhost PostgreSQL 16
   Directus 12.4.1 smoke authenticated, discovered 12 key academic collections,
   and read one direction item; the container was stopped and the temporary DB
   password cleared afterward.
+
+## Remaining work by stage
+
+### Before frontend integration
+
+- Integrate the existing frontend in `apps/web/` as a separate task against
+  the stable, read-only `/api/v1` contract. No frontend assets or application
+  code were moved during this hardening pass.
+- The frontend should consume only published active-release data. Proposal
+  editing and moderation are not available over HTTP.
+
+### Before public production
+
+- Select and implement real reviewer/operator authentication and authorization
+  before exposing any proposal write use case over HTTP. The current trusted
+  local CLI policy is limited to an operator process on the configured host.
+- Validate deployment secrets, DB role separation, production release backup
+  and restore, retention, RPO/RTO, monitoring, and service SLOs in the chosen
+  production environment. No production database was used in this work.
+- Complete a human review of Directus identity, roles, and licensed-mode
+  behavior if Directus is used beyond the local read-only viewer.
+
+### Optional future improvements
+
+- Dagster orchestration, Graph Explorer, Neo4j, Kafka, Kubernetes, applicant
+  accounts/preferences, and recommendation features remain future scope.
+- Source coverage gaps listed above need new evidence and isolated reviewed
+  ingestion; they do not affect the architecture hardening invariants.
 - Fixture hash tests preserve LF `content_sha256`/capture digest and all six
   original upstream `source_sha256` values. `git check-attr` reports LF for
   HTML/JSON fixtures and disables text conversion for PDFs.

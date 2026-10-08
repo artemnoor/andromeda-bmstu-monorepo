@@ -6,12 +6,26 @@ from decimal import Decimal
 from typing import TypeVar
 
 from andromeda.ingestion.contracts.raw import RawAdmissionRecord, RawSourceSnapshot
-from andromeda.modules.admissions.contracts.public import AdmissionCompetitionType, AdmissionOffering, AdmissionProvenance, AdmissionScope, ExamRequirement, FundingType, PassingScoreType, ProgramAdmissions, Quota, QuotaType, PassingScore, PassingScoreStatus, StudyForm, TuitionCost
+from andromeda.modules.admissions.contracts.public import (
+    AdmissionCompetitionType,
+    AdmissionOffering,
+    AdmissionProvenance,
+    AdmissionScope,
+    ExamRequirement,
+    FundingType,
+    PassingScore,
+    PassingScoreStatus,
+    PassingScoreType,
+    ProgramAdmissions,
+    Quota,
+    QuotaType,
+    StudyForm,
+    TuitionCost,
+)
 from andromeda.modules.programs.contracts.public import Program
 from andromeda.shared.contracts.errors import ContractError, ErrorCode
 
 from ..identity import resolve_program
-
 
 _Child = TypeVar("_Child")
 
@@ -75,7 +89,7 @@ def _merge_scores(values: tuple[PassingScore, ...]) -> tuple[PassingScore, ...]:
     result: list[PassingScore] = []
     for candidates in groups.values():
         if candidates[0].status is PassingScoreStatus.NUMERIC:
-            result.append(min(candidates, key=lambda value: (value.score or Decimal("999"), value.provenance.content_sha256)))
+            result.append(min(candidates, key=lambda value: (value.score or Decimal(999), value.provenance.content_sha256)))
         else:
             result.append(candidates[0])
     return tuple(result)

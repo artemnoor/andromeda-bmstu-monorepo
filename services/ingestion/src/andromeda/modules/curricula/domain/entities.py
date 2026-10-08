@@ -3,12 +3,12 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Literal, Self
 
-from pydantic import Field, HttpUrl, model_validator
-
 from andromeda_ontology.ontology.curriculum import (
     validate_curriculum_identity,
     validate_curriculum_item,
 )
+from pydantic import Field, HttpUrl, model_validator
+
 from ....shared.contracts.base import ContractModel
 from ....shared.contracts.enums import AssessmentType
 from ....shared.contracts.ids import (

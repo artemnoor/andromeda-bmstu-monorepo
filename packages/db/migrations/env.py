@@ -2,13 +2,12 @@
 
 from __future__ import annotations
 
-from alembic import context
-from sqlalchemy import engine_from_config, pool
-
 import andromeda_db.models as _models  # noqa: F401
+from alembic import context
 from andromeda_db.connection import verify_server_identity
 from andromeda_db.models import Base
 from andromeda_db.settings import load_database_settings
+from sqlalchemy import engine_from_config, pool
 
 config = context.config
 

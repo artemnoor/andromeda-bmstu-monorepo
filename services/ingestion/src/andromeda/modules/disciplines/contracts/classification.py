@@ -8,7 +8,6 @@ from ....shared.contracts.base import ContractModel
 from ....shared.contracts.ids import DisciplineId, ShortText
 from ..domain.areas import DisciplineAreaWeight
 
-
 TAXONOMY_VERSION = "taxonomy-22.v1"
 ClassificationMethod = Literal[
     "exact_override",
@@ -35,8 +34,8 @@ class ClassificationOutcome(ContractModel):
 
 
 __all__ = [
+    "TAXONOMY_VERSION",
     "ClassificationMethod",
     "ClassificationOutcome",
     "ClassificationReviewStatus",
-    "TAXONOMY_VERSION",
 ]

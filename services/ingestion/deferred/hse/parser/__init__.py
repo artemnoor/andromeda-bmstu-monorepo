@@ -8,7 +8,12 @@ from .admissions import (
     parse_places,
     parse_tuition,
 )
-from .catalog import HseProgramPage, discover_program_links, parse_program_detail, study_plan_urls
+from .catalog import (
+    HseProgramPage,
+    discover_program_links,
+    parse_program_detail,
+    study_plan_urls,
+)
 from .curriculum import CurriculumObservation, parse_work_plan
 
 __all__ = [

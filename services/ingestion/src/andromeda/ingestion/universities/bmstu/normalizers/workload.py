@@ -3,7 +3,7 @@ from __future__ import annotations
 from decimal import Decimal, InvalidOperation
 
 
-def parse_credits(value: str | int | float | None) -> Decimal | None:
+def parse_credits(value: str | float | None) -> Decimal | None:
     if value is None or value == "":
         return None
     try:

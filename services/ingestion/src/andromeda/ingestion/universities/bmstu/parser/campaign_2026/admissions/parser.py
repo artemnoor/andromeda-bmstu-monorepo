@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 import re
+from itertools import pairwise
 from typing import Any
 
 import pdfplumber
 
 from ..common import clean_text, normalize_code
-
 
 SUBJECTS = (
     "russian_language",
@@ -160,7 +160,7 @@ def _direction_code_by_table_row(
     ]
     direction_for_row: dict[int, str] = {}
     current_direction = carried_direction_text
-    for top, bottom in zip(boundaries, boundaries[1:]):
+    for top, bottom in pairwise(boundaries):
         words = [
             word for word in code_words
             if top - 1 <= (float(word["top"]) + float(word["bottom"])) / 2 <= bottom + 1

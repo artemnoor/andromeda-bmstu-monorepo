@@ -177,8 +177,8 @@ class RawVenueRecord(ContractModel):
     external_key: str = Field(min_length=1, max_length=128)
     name: str = Field(min_length=1, max_length=512)
     address: str | None = Field(default=None, min_length=1, max_length=1024)
-    latitude: Decimal | None = Field(default=None, strict=True, ge=Decimal("-90"), le=Decimal("90"), max_digits=9, decimal_places=6)
-    longitude: Decimal | None = Field(default=None, strict=True, ge=Decimal("-180"), le=Decimal("180"), max_digits=9, decimal_places=6)
+    latitude: Decimal | None = Field(default=None, strict=True, ge=Decimal(-90), le=Decimal(90), max_digits=9, decimal_places=6)
+    longitude: Decimal | None = Field(default=None, strict=True, ge=Decimal(-180), le=Decimal(180), max_digits=9, decimal_places=6)
 
 
 class RawCampusPointRecord(ContractModel):
@@ -186,8 +186,8 @@ class RawCampusPointRecord(ContractModel):
     point_type: str = Field(min_length=1, max_length=32)
     name: str = Field(min_length=1, max_length=512)
     address: str | None = Field(default=None, min_length=1, max_length=1024)
-    latitude: Decimal | None = Field(default=None, strict=True, ge=Decimal("-90"), le=Decimal("90"), max_digits=9, decimal_places=6)
-    longitude: Decimal | None = Field(default=None, strict=True, ge=Decimal("-180"), le=Decimal("180"), max_digits=9, decimal_places=6)
+    latitude: Decimal | None = Field(default=None, strict=True, ge=Decimal(-90), le=Decimal(90), max_digits=9, decimal_places=6)
+    longitude: Decimal | None = Field(default=None, strict=True, ge=Decimal(-180), le=Decimal(180), max_digits=9, decimal_places=6)
     university_ids: tuple[UniversityId, ...] = Field(min_length=1)
     department_codes: tuple[str, ...] = ()
     program_codes: tuple[str, ...] = ()

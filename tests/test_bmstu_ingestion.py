@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 import csv
-from decimal import Decimal
 import hashlib
 import json
 import re
 import shutil
+from decimal import Decimal
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
@@ -13,29 +13,34 @@ from typing import Any
 import fitz
 import httpx
 import pytest
-from bs4 import BeautifulSoup
-
+from andromeda.ingestion.pdf_policy import (
+    PdfResourceError,
+    validate_page_count,
+    validate_pdf_payload,
+)
+from andromeda.ingestion.universities.bmstu.capture import BmstuSource
+from andromeda.ingestion.universities.bmstu.curriculum_identity import (
+    reconcile_curriculum_rows,
+)
+from andromeda.ingestion.universities.bmstu.fetch import FetchConfig, Fetcher
+from andromeda.ingestion.universities.bmstu.parser.campaign_2026.admissions.authority import (
+    build_authoritative_intake_records,
+)
+from andromeda.ingestion.universities.bmstu.parser.campaign_2026.curricula.parser import (
+    parse_curriculum_document,
+)
+from andromeda.ingestion.universities.bmstu.parser.campaign_2026.tuition.parser import (
+    parse_cost_page,
+)
+from andromeda.ingestion.universities.bmstu.source_models import FetchedResource
+from andromeda.shared.contracts.errors import ContractError
 from andromeda_api.application.importer.bundle import validate_bundle
 from andromeda_api.application.importer.mapping import (
     BundleMappingError,
     _exact_curriculum_parent_pdf,
     project_bundle,
 )
-from andromeda.ingestion.universities.bmstu.capture import BmstuSource
-from andromeda.ingestion.universities.bmstu.fetch import FetchConfig, Fetcher
-from andromeda.ingestion.universities.bmstu.curriculum_identity import reconcile_curriculum_rows
-from andromeda.ingestion.universities.bmstu.source_models import FetchedResource
-from andromeda.ingestion.pdf_policy import PdfResourceError, validate_page_count, validate_pdf_payload
-from andromeda.ingestion.universities.bmstu.parser.campaign_2026.curricula.parser import (
-    _attach_exact_identity,
-    parse_curriculum_document,
-)
-from andromeda.ingestion.universities.bmstu.parser.campaign_2026.tuition.parser import (
-    parse_cost_page,
-)
-from andromeda.ingestion.universities.bmstu.parser.campaign_2026.admissions.authority import (
-    build_authoritative_intake_records,
-)
+from andromeda_ingestion_cli.cli import ApiIngestionOperations
 from andromeda_parser.bundle import (
     _remove_jsonl_rows_exact,
     build_candidate_bundle,
@@ -59,12 +64,11 @@ from andromeda_parser.moderation import (
 from andromeda_parser.probe import (
     MAX_REQUESTS,
     _CappedTransport,
-    _RequestBudget,
     _compare_exact_keys,
+    _RequestBudget,
     _safe_report_url,
 )
-from andromeda.shared.contracts.errors import ContractError
-
+from bs4 import BeautifulSoup
 
 ROOT = Path(__file__).resolve().parents[1]
 FIXTURE_DIR = ROOT / "tests" / "fixtures" / "bmstu" / "ingestion"
@@ -427,7 +431,7 @@ def test_tuition_year_identity_is_exact_or_remains_pending() -> None:
       <table><tr><th>Код</th><th>Направление</th><th>Стоимость</th></tr>
       <tr><td>01.03.02</td><td>Прикладная математика</td><td>250 000 руб.</td></tr></table>
     </div>
-    """.encode("utf-8")
+    """.encode()
     parsed = parse_cost_page(confirmed, "https://course.bmstu.ru/edu/abiturient/")
     assert len(parsed["tuition_records"]) == 1
     assert parsed["tuition_records"][0]["study_year_label"] == "2026-2027"
@@ -437,7 +441,7 @@ def test_tuition_year_identity_is_exact_or_remains_pending() -> None:
     unspecified = """
     <table><tr><th>Код</th><th>Направление</th><th>Стоимость</th></tr>
     <tr><td>01.03.02</td><td>Прикладная математика</td><td>250 000 руб.</td></tr></table>
-    """.encode("utf-8")
+    """.encode()
     pending = parse_cost_page(unspecified, "https://course.bmstu.ru/edu/abiturient/")
     assert pending["tuition_records"] == []
     assert len(pending["pending_tuition_observations"]) == 1
@@ -537,9 +541,14 @@ def test_live_probe_403_and_429_are_terminal_without_retry() -> None:
     for status_code, expected_error in ((403, "http_error"), (429, "retry_exhausted")):
         seen: list[int] = []
 
-        def respond(request: httpx.Request) -> httpx.Response:
-            seen.append(status_code)
-            return httpx.Response(status_code, content=b"access response", request=request)
+        def respond(
+            request: httpx.Request,
+            *,
+            response_status: int = status_code,
+            observed: list[int] = seen,
+        ) -> httpx.Response:
+            observed.append(response_status)
+            return httpx.Response(response_status, content=b"access response", request=request)
 
         fetcher = Fetcher(
             FetchConfig(retries=0, request_interval_seconds=0),
@@ -693,6 +702,7 @@ def test_pdf_bounds_and_text_extraction() -> None:
 
 
 def test_candidate_bundle_requires_review_and_preserves_base_facts(tmp_path: Path) -> None:
+    application = ApiIngestionOperations()
     parsed_path = _fixture_parse_report(tmp_path)
     candidate_dir = tmp_path / "candidate"
     result = build_candidate_bundle(
@@ -846,12 +856,13 @@ def test_candidate_bundle_requires_review_and_preserves_base_facts(tmp_path: Pat
         candidate_dir=candidate_dir,
         decisions_path=decisions,
         output_dir=reviewed_dir,
+        project_bundle=application.project_bundle,
     )
     assert materialized["accepted"] == 1 + len(accepted_targets)
     assert materialized["accepted_typed"] == len(accepted_targets)
     assert materialized["unchanged_skipped"] == len(candidate_rows) - len(review_required_keys)
     assert materialized["validation"]["valid"]
-    assert validate_import_bundle(reviewed_dir)["valid"]
+    assert validate_import_bundle(reviewed_dir, application)["valid"]
     accepted_curriculum_key = accepted_targets[item_candidate["external_key"]]
     reviewed_curriculum_rows = [
         json.loads(line)
@@ -916,6 +927,7 @@ def test_candidate_bundle_requires_review_and_preserves_base_facts(tmp_path: Pat
         candidate_dir=reopened_dir,
         decisions_path=remoderate_decisions,
         output_dir=reopened_again_dir,
+        project_bundle=application.project_bundle,
     )
     repeated_audit = [
         json.loads(line)
@@ -923,9 +935,9 @@ def test_candidate_bundle_requires_review_and_preserves_base_facts(tmp_path: Pat
     ]
     assert len(repeated_audit) == len(candidate_rows) + 1
     assert sum(row["candidate_key"] == reopen_key for row in repeated_audit) == 2
-    assert validate_import_bundle(reopened_again_dir)["valid"]
+    assert validate_import_bundle(reopened_again_dir, application)["valid"]
 
-    dry_run = dry_run_import(reviewed_dir)
+    dry_run = dry_run_import(reviewed_dir, application)
     assert dry_run["outcome"] == "dry_run"
     assert dry_run["database_connection_opened"] is False
     assert dry_run["network_requests"] == 0

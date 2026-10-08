@@ -3,25 +3,27 @@
 from __future__ import annotations
 
 import csv
-from datetime import datetime
 import hashlib
 import json
 import logging
 import os
-from pathlib import Path, PurePosixPath
 import re
 import shutil
 import tempfile
-from typing import Any
+from collections.abc import Callable
+from datetime import datetime
+from pathlib import Path, PurePosixPath
+from typing import Any, Protocol
 from urllib.parse import urlsplit, urlunsplit
 from uuid import UUID
 
-from andromeda_parser.ingest import IngestionError, _assert_safe_payload
 from andromeda.ingestion.universities.bmstu.curriculum_identity import (
     observation_identity_key,
     reconcile_curriculum_rows,
 )
+from andromeda_release_bundles import BundleReader, validate_bundle
 
+from andromeda_parser.ingest import IngestionError, _assert_safe_payload
 
 logger = logging.getLogger("andromeda.ingestion.bundle")
 CANDIDATE_FILE = "data/bmstu_ingestion_candidates.jsonl"
@@ -37,8 +39,39 @@ DECISION_HEADERS = (
 )
 
 
+class IngestionApplicationPort(Protocol):
+    """Application operations supplied by the outer CLI composition root."""
+
+    def assert_empty_active_slot(self) -> None: ...
+
+    def get_release_status(self) -> dict[str, Any]: ...
+
+    def export_active_release_bundle(self, output_path: Path) -> dict[str, Any]: ...
+
+    def validate_import_bundle(self, input_path: Path) -> dict[str, Any]: ...
+
+    def project_bundle(self, input_path: Path) -> Any: ...
+
+    def dry_run_bundle(self, input_path: Path) -> dict[str, Any]: ...
+
+    def publish_reviewed_bundle(self, input_path: Path) -> dict[str, Any]: ...
+
+    def register_candidate_bundle(self, input_path: Path, *, actor: str) -> list[dict[str, Any]]: ...
+
+    def apply_candidate_diff(self, input_path: Path, report: dict[str, Any], *, actor: str) -> None: ...
+
+    def review_candidate_bundle(
+        self,
+        candidate_path: Path,
+        decisions_path: Path,
+        reviewed_path: Path,
+        *,
+        actor: str,
+    ) -> list[dict[str, Any]]: ...
+
+
 def _fact_candidate_key(dataset: str, source_key: str, capture_digest: str) -> str:
-    identity = hashlib.sha256(f"{dataset}\0{source_key}\0{capture_digest}".encode("utf-8")).hexdigest()
+    identity = hashlib.sha256(f"{dataset}\0{source_key}\0{capture_digest}".encode()).hexdigest()
     return f"bmstu_fact_candidate:{identity}"
 
 
@@ -880,9 +913,12 @@ def _build_typed_candidates(
                     exam_candidate_keys[subject] = exam_candidate
                     exam_code_keys[subject] = exam_key
 
-                def leaf(exam: dict[str, Any]) -> dict[str, Any]:
+                def leaf(
+                    exam: dict[str, Any],
+                    candidate_keys: dict[str, dict[str, Any]] = exam_candidate_keys,
+                ) -> dict[str, Any]:
                     return {
-                        "exam": {"exam_key": _candidate_ref(exam_candidate_keys[exam["subject"]])},
+                        "exam": {"exam_key": _candidate_ref(candidate_keys[exam["subject"]])},
                         "subject_code": exam.get("subject"),
                         "minimum_score": exam.get("minimum_score"),
                         "is_choice": exam.get("is_choice", False),
@@ -948,16 +984,6 @@ def _build_typed_candidates(
     return candidates, complete_curriculum_scopes, manual_findings
 
 
-def _validate_bundle() -> Any:
-    try:
-        from andromeda_api.application.importer.bundle import validate_bundle
-    except ImportError as error:
-        raise IngestionError(
-            "bundle operations require the API application package; run `uv sync --all-packages`"
-        ) from error
-    return validate_bundle
-
-
 def _read_json(path: Path) -> dict[str, Any]:
     try:
         value = json.loads(path.read_text(encoding="utf-8-sig"))
@@ -996,6 +1022,52 @@ def _write_jsonl(path: Path, rows: list[dict[str, Any]]) -> None:
     )
 
 
+def _store_proposal_references(bundle_dir: Path, references: list[dict[str, Any]]) -> None:
+    """Bind the outer workflow's proposal IDs and versions to this exact bundle."""
+
+    normalized = sorted(
+        references,
+        key=lambda row: (str(row.get("source_candidate_key", "")), str(row.get("proposal_id", ""))),
+    )
+    seen_proposal_ids: set[str] = set()
+    for reference in normalized:
+        required = (
+            "proposal_id",
+            "expected_version",
+            "source_candidate_key",
+            "target_dataset",
+            "target_key",
+            "payload_sha256",
+        )
+        if any(reference.get(field) in (None, "") for field in required):
+            raise IngestionError("proposal reference is missing an identity or payload field")
+        proposal_id = str(reference["proposal_id"])
+        if proposal_id in seen_proposal_ids:
+            raise IngestionError("proposal references contain a duplicate proposal ID")
+        seen_proposal_ids.add(proposal_id)
+        if not isinstance(reference["expected_version"], int) or reference["expected_version"] < 1:
+            raise IngestionError("proposal reference has an invalid expected version")
+        if not isinstance(reference["payload_sha256"], str) or not re.fullmatch(
+            r"[0-9a-f]{64}", reference["payload_sha256"]
+        ):
+            raise IngestionError("proposal reference has an invalid payload digest")
+
+    manifest_path = bundle_dir / CANDIDATE_MANIFEST
+    manifest = _read_json(manifest_path)
+    candidate_path = bundle_dir / CANDIDATE_FILE
+    if candidate_path.is_file():
+        manifest["typed_candidate_keys"] = [
+            row["external_key"]
+            for row in _read_jsonl(candidate_path)
+            if row.get("candidate_type") == "typed_record"
+        ]
+    manifest["proposal_references"] = normalized
+    _write_json(manifest_path, manifest)
+    report = validate_bundle(bundle_dir)
+    if not report.get("valid"):
+        raise IngestionError("proposal references made the candidate bundle invalid")
+
+
 def _safe_source_url(value: Any) -> str:
     if not isinstance(value, str):
         raise IngestionError("candidate source URL is missing")
@@ -1003,10 +1075,8 @@ def _safe_source_url(value: Any) -> str:
     host = (parsed.hostname or "").casefold().rstrip(".")
     allowed = (
         host == "bmstu.ru"
-        or host.endswith(".bmstu.ru")
         or host in {"disk.yandex.ru", "clck.ru", "clck.su", "cloud-api.yandex.net"}
-        or host.endswith(".yandex.ru")
-        or host.endswith(".yandex.net")
+        or host.endswith((".bmstu.ru", ".yandex.ru", ".yandex.net"))
     )
     if (
         parsed.scheme != "https"
@@ -1035,7 +1105,6 @@ def _prepare_output(output_dir: Path) -> Path:
 
 
 def _base_validation(base_bundle: Path) -> tuple[Any, dict[str, Any]]:
-    validate_bundle = _validate_bundle()
     report = validate_bundle(base_bundle)
     if not report.get("valid"):
         raise IngestionError("base BMSTU bundle is invalid; candidate staging stopped")
@@ -1045,12 +1114,8 @@ def _base_validation(base_bundle: Path) -> tuple[Any, dict[str, Any]]:
 def _copy_import_bundle(base: Path, target: Path) -> None:
     """Copy a validated directory or ZIP using BundleReader's safe path index."""
 
-    try:
-        from andromeda_api.application.importer.bundle import BundleReader
-    except ImportError as error:
-        raise IngestionError("bundle copying requires the API application package") from error
     with BundleReader(base) as reader:
-        for relative_path in reader._file_names():
+        for relative_path in reader.file_names():
             path = PurePosixPath(relative_path)
             destination = target.joinpath(*path.parts)
             destination.parent.mkdir(parents=True, exist_ok=True)
@@ -1164,7 +1229,7 @@ def build_candidate_bundle(
             requested = _safe_source_url(source.get("requested_url"))
             final = _safe_source_url(source.get("final_url"))
             source_identity = hashlib.sha256(
-                f"{source_kind}\0{requested}\0{source_hash}".encode("utf-8")
+                f"{source_kind}\0{requested}\0{source_hash}".encode()
             ).hexdigest()
             artifact_key = f"source_artifact:bmstu_capture:{source_identity}"
             artifacts.append(
@@ -1565,12 +1630,12 @@ def materialize_reviewed_bundle(
     decisions_path: Path,
     output_dir: Path,
     actor: str | None = None,
+    project_bundle: Callable[[Path], Any] | None = None,
 ) -> dict[str, Any]:
     """Apply exact-key decisions to typed datasets and preserve the audit observation."""
 
     candidate = candidate_dir.expanduser().resolve(strict=True)
     decisions_file = decisions_path.expanduser().resolve(strict=True)
-    validate_bundle = _validate_bundle()
     candidate_validation = validate_bundle(candidate)
     if not candidate_validation.get("valid"):
         raise IngestionError("candidate bundle is invalid; review materialization stopped")
@@ -1907,6 +1972,22 @@ def materialize_reviewed_bundle(
             [row for row in all_artifacts if row.get("source_key") not in added_keys or row.get("source_key") in retained_keys],
         )
 
+        accepted_typed_candidate_keys = sorted(str(row["external_key"]) for row in accepted_typed)
+        accepted_candidate_key_set = set(accepted_typed_candidate_keys)
+        accepted_typed_review_event_ids = sorted(
+            event["event_id"]
+            for event in review_events
+            if event.get("decision") == "accept_typed_fact"
+            and event.get("candidate_key") in accepted_candidate_key_set
+        )
+        if len(accepted_typed_review_event_ids) != len(accepted_typed_candidate_keys):
+            raise IngestionError("accepted typed candidates do not have one exact review event each")
+        reviewed_manifest_path = temporary / CANDIDATE_MANIFEST
+        reviewed_manifest = _read_json(reviewed_manifest_path)
+        reviewed_manifest["accepted_typed_candidate_keys"] = accepted_typed_candidate_keys
+        reviewed_manifest["accepted_typed_review_event_ids"] = accepted_typed_review_event_ids
+        _write_json(reviewed_manifest_path, reviewed_manifest)
+
         review_path = temporary / "manual_review.csv"
         _remove_exact_manual_review_rows(review_path, resolved_manual_review_rows)
         with review_path.open("r", encoding="utf-8-sig", newline="") as stream:
@@ -1947,9 +2028,8 @@ def materialize_reviewed_bundle(
                 str(item.get("code", "unknown")) for item in reviewed_validation.get("errors", [])[:8]
             )
             raise IngestionError(f"reviewed bundle failed validation: {error_codes or 'see validation report'}")
-        from andromeda_api.application.importer.mapping import project_bundle
-
-        project_bundle(str(temporary))
+        if project_bundle is not None:
+            project_bundle(temporary)
         exported["validation"]["normalized_records"] = reviewed_validation["counts"]["normalized_records"]
         exported["validation"]["jsonl_datasets"] = reviewed_validation["counts"]["normalized_datasets"]
         _write_json(temporary / "validation_report.json", exported)
@@ -1957,10 +2037,9 @@ def materialize_reviewed_bundle(
         if target_input.exists():
             target_input.rmdir()
         os.replace(temporary, target_input)
-    except Exception:
+    finally:
         if temporary.exists():
             shutil.rmtree(temporary)
-        raise
 
     typed_count = sum(len(rows) for rows in rows_by_dataset.values())
     rejected_count = sum(decision["decision"] == "reject" for decision in decisions_by_key.values())
@@ -1984,38 +2063,35 @@ def materialize_reviewed_bundle(
     }
 
 
-def validate_import_bundle(input_dir: Path) -> dict[str, Any]:
+def validate_import_bundle(
+    input_dir: Path,
+    application: IngestionApplicationPort | None = None,
+) -> dict[str, Any]:
     if (input_dir / CANDIDATE_FILE).exists():
         raise IngestionError("unreviewed candidate bundle is not importer-mappable")
-    try:
-        from andromeda_api.application.publication import validate_import_bundle as validate
-    except ImportError as error:
-        raise IngestionError(
-            "bundle validation requires the API application package; run `uv sync --all-packages`"
-        ) from error
-    return validate(input_dir)
+    if application is None:
+        return validate_bundle(input_dir)
+    return application.validate_import_bundle(input_dir)
 
 
-def dry_run_import(input_dir: Path) -> dict[str, Any]:
-    validate_import_bundle(input_dir)
-    try:
-        from andromeda_api.application.publication import dry_run_bundle
-    except ImportError as error:
-        raise IngestionError(
-            "bundle dry-run requires the API application package; run `uv sync --all-packages`"
-        ) from error
-    return dry_run_bundle(input_dir)
+def dry_run_import(
+    input_dir: Path,
+    application: IngestionApplicationPort | None = None,
+) -> dict[str, Any]:
+    if application is None:
+        raise IngestionError("dry-run requires an application-operations provider")
+    validate_import_bundle(input_dir, application)
+    return application.dry_run_bundle(input_dir)
 
 
-def commit_import(input_dir: Path) -> dict[str, Any]:
-    validate_import_bundle(input_dir)
-    try:
-        from andromeda_api.application.publication import publish_reviewed_bundle
-    except ImportError as error:
-        raise IngestionError(
-            "bundle publication requires the API application package; run `uv sync --all-packages`"
-        ) from error
-    return publish_reviewed_bundle(input_dir)
+def commit_import(
+    input_dir: Path,
+    application: IngestionApplicationPort | None = None,
+) -> dict[str, Any]:
+    if application is None:
+        raise IngestionError("commit requires an application-operations provider")
+    validate_import_bundle(input_dir, application)
+    return application.publish_reviewed_bundle(input_dir)
 
 
 def _summary(report: dict[str, Any]) -> dict[str, Any]:
@@ -2030,7 +2106,11 @@ def _summary(report: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def run_bundle_command(args: Any, parser: Any) -> int:
+def run_bundle_command(
+    args: Any,
+    parser: Any,
+    application: IngestionApplicationPort | None = None,
+) -> int:
     from andromeda_parser.ingest import configure_verbose_logging
 
     configure_verbose_logging(args.log_level)
@@ -2038,19 +2118,11 @@ def run_bundle_command(args: Any, parser: Any) -> int:
         if args.ingest_command == "stage":
             if args.base is not None and not args.bootstrap:
                 parser.error("--base requires --bootstrap; normal updates export the active release")
-            try:
-                from andromeda_api.application.publication import (
-                    assert_empty_active_slot,
-                    export_active_release_bundle,
-                    get_release_status,
-                )
-            except ImportError as error:
-                raise IngestionError(
-                    "release bundle operations require the API application package; run `uv sync --all-packages`"
-                ) from error
+            if application is None:
+                raise IngestionError("stage requires an application-operations provider")
 
             if args.bootstrap:
-                assert_empty_active_slot()
+                application.assert_empty_active_slot()
                 seed_bundle = args.base or Path("data/bmstu-2026")
                 result = build_candidate_bundle(
                     base_bundle=seed_bundle,
@@ -2058,7 +2130,7 @@ def run_bundle_command(args: Any, parser: Any) -> int:
                     output_dir=args.output,
                 )
             else:
-                active = get_release_status()
+                active = application.get_release_status()
                 if not active["archive_available"]:
                     raise IngestionError(
                         "active release bundle is missing; explicitly adopt its exact-digest legacy bundle"
@@ -2066,7 +2138,7 @@ def run_bundle_command(args: Any, parser: Any) -> int:
                 with tempfile.TemporaryDirectory(prefix="andromeda-active-release-") as temporary:
                     filename = "base.zip" if active["archive_format"] == "source_zip_v1" else "base"
                     base_bundle = Path(temporary) / filename
-                    exported = export_active_release_bundle(base_bundle)
+                    exported = application.export_active_release_bundle(base_bundle)
                     if (
                         exported["release_id"] != active["release_id"]
                         or exported["source_bundle_sha256"] != active["source_bundle_sha256"]
@@ -2081,6 +2153,14 @@ def run_bundle_command(args: Any, parser: Any) -> int:
                         base_release_id=active["release_id"],
                         base_source_bundle_sha256=active["source_bundle_sha256"],
                     )
+            from getpass import getuser
+
+            proposal_references = application.register_candidate_bundle(
+                args.output,
+                actor=getuser(),
+            )
+            _store_proposal_references(args.output, proposal_references)
+            result["validation"] = validate_bundle(args.output)
             output = {
                 "output_dir": result["output_dir"],
                 "base_digest": result["base_digest"],
@@ -2095,9 +2175,20 @@ def run_bundle_command(args: Any, parser: Any) -> int:
                 "validation": _summary(result["validation"]),
             }
         elif args.ingest_command == "diff":
-            from andromeda_parser.moderation import compare_candidate_bundle, write_diff_report
+            from getpass import getuser
+
+            from andromeda_parser.moderation import (
+                compare_candidate_bundle,
+                write_diff_report,
+            )
 
             result = compare_candidate_bundle(args.input)
+            if application is not None:
+                application.apply_candidate_diff(
+                    args.input,
+                    result,
+                    actor=getuser(),
+                )
             write_diff_report(result, json_path=args.json_output, csv_path=args.csv_output)
             output = {
                 "json_report": str(args.json_output),
@@ -2142,12 +2233,26 @@ def run_bundle_command(args: Any, parser: Any) -> int:
             )
             output = result
         elif args.ingest_command == "review":
+            from getpass import getuser
+
             result = materialize_reviewed_bundle(
                 candidate_dir=args.input,
                 decisions_path=args.decisions,
                 output_dir=args.output,
                 actor=args.actor,
+                project_bundle=application.project_bundle if application is not None else None,
             )
+            staged_manifest = _read_json(args.input / CANDIDATE_MANIFEST)
+            if application is not None and staged_manifest.get("proposal_references"):
+                proposal_references = application.review_candidate_bundle(
+                    args.input,
+                    args.decisions,
+                    args.output,
+                    actor=getuser(),
+                )
+                _store_proposal_references(args.output, proposal_references)
+                result["validation"] = validate_bundle(args.output)
+                application.project_bundle(args.output)
             output = {
                 "output_dir": result["output_dir"],
                 "accepted": result["accepted"],
@@ -2159,21 +2264,16 @@ def run_bundle_command(args: Any, parser: Any) -> int:
                 "validation": _summary(result["validation"]),
             }
         elif args.ingest_command == "validate":
-            output = _summary(validate_import_bundle(args.input))
+            output = _summary(validate_import_bundle(args.input, application))
         elif args.ingest_command == "dry-run":
-            output = dry_run_import(args.input)
+            output = dry_run_import(args.input, application)
         elif args.ingest_command == "commit":
-            output = commit_import(args.input)
+            output = commit_import(args.input, application)
         else:
             parser.error(f"unsupported ingestion action: {args.ingest_command}")
             return 2
-    except Exception as error:
-        if isinstance(error, (IngestionError, ValueError, OSError)) or type(error).__name__ in {
-            "BundleImportError",
-            "SettingsError",
-        }:
-            parser.error(f"{args.ingest_command} failed: {type(error).__name__}: {error}")
-        parser.error(f"{args.ingest_command} failed: {type(error).__name__}; see verbose logs")
+    except (IngestionError, ValueError, TypeError, OSError, RuntimeError) as error:
+        parser.error(f"{args.ingest_command} failed: {type(error).__name__}: {error}")
         return 2
 
     serialized = json.dumps(output, ensure_ascii=False, indent=2, default=str) + "\n"

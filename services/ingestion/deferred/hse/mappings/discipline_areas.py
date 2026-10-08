@@ -1,7 +1,10 @@
 from __future__ import annotations
 
-from andromeda.modules.disciplines.domain.areas import AreaVector, DisciplineAreaCode, area_vector
-
+from andromeda.modules.disciplines.domain.areas import (
+    AreaVector,
+    DisciplineAreaCode,
+    area_vector,
+)
 
 MATH = area_vector((DisciplineAreaCode.MATHEMATICS_STATISTICS, "1.00"))
 COMPUTER = area_vector((DisciplineAreaCode.COMPUTER_SCIENCE_DATA, "1.00"))

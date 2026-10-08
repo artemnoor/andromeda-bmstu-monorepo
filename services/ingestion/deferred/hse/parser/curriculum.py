@@ -1,13 +1,14 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 import re
+from dataclasses import dataclass
 
 from andromeda.ingestion.contracts.raw import RawSourceSnapshot
 from andromeda.ingestion.pdf_policy import PdfResourceError
+from pdfminer.pdfexceptions import PDFException
 
-from ..pdf import extract_pdf_text
 from ..identity import direction_codes
+from ..pdf import extract_pdf_text
 
 
 @dataclass(frozen=True, slots=True)
@@ -66,6 +67,7 @@ def parse_work_plan(snapshot: RawSourceSnapshot) -> tuple[CurriculumObservation,
 def _parse_structured_table(body: bytes, direction: str | None, program_name: str | None) -> tuple[CurriculumObservation, ...]:
     try:
         import io
+
         import pdfplumber
 
         observations: list[CurriculumObservation] = []
@@ -93,7 +95,7 @@ def _parse_structured_table(body: bytes, direction: str | None, program_name: st
         return tuple(observations)
     except PdfResourceError:
         raise
-    except Exception:
+    except (PDFException, OSError, RuntimeError, ValueError, TypeError):
         return ()
 
 
@@ -115,7 +117,7 @@ def _structured_workload(row: list[str | None], kind_index: int) -> tuple[str | 
             continue
         raw = match.group(1).replace(",", ".")
         try:
-            numeric = float(raw)
+            float(raw)
         except ValueError:
             continue
         values.append((index, raw, "," in match.group(1) or "." in match.group(1)))

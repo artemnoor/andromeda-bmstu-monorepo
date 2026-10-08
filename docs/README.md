@@ -7,6 +7,7 @@ The root [README](../README.md) is the local setup guide. This index points to t
 - [Architecture](architecture/ARCHITECTURE.md)
 - [Baseline inventory](architecture/CURRENT_STATE.md)
 - [Migration report](architecture/MIGRATION_REPORT.md)
+- [Proposal and publication workflow](architecture/PROPOSAL_WORKFLOW.md)
 - [ADR register](adr/)
 
 ## API and data model

@@ -2,10 +2,9 @@
 
 from __future__ import annotations
 
-from pydantic import Field, HttpUrl, field_validator
-
 from andromeda.shared.contracts.base import ContractModel
 from andromeda.shared.contracts.ids import SourceHash
+from pydantic import Field, HttpUrl, field_validator
 
 from .sources import SourceId, SourceObservationId
 

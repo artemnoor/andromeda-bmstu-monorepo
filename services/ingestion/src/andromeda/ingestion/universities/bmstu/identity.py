@@ -2,17 +2,15 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
-from hashlib import sha256
 import re
-from typing import Iterable
+from collections.abc import Iterable, Sequence
+from hashlib import sha256
 
 from andromeda.ingestion.contracts.raw import RawProgramRecord
 from andromeda.modules.programs.contracts.public import Program
 from andromeda.shared.contracts.errors import ContractError, ErrorCode
 
 from .mappings.admissions import normalize_code
-
 
 _DIRECTION_RE = re.compile(r"\d{2}\.\d{2}\.\d{2}")
 _EXPLICIT_PROFILE_RE = re.compile(r"(?P<direction>\d{2}\.\d{2}\.\d{2})[-/]?(?P<suffix>\d{2,3})(?:\s|\(|$)")

@@ -5,7 +5,16 @@ import re
 from collections.abc import Iterable
 from typing import Any
 
-from andromeda.ingestion.pdf_policy import DEFAULT_PDF_POLICY, PdfResourceError, validate_page_count, validate_pdf_payload, validate_text_size
+from pdfminer.pdfexceptions import PDFException
+from pypdf.errors import PdfReadError
+
+from andromeda.ingestion.pdf_policy import (
+    DEFAULT_PDF_POLICY,
+    PdfResourceError,
+    validate_page_count,
+    validate_pdf_payload,
+    validate_text_size,
+)
 
 
 def is_pdf(body: bytes, content_type: str | None = None, url: str = "") -> bool:
@@ -25,7 +34,7 @@ def extract_pdf_text(body: bytes) -> str:
             document.close()
     except PdfResourceError:
         raise
-    except Exception:
+    except (ImportError, OSError, ValueError, RuntimeError, TypeError):
         pass
     try:
         from pypdf import PdfReader
@@ -38,7 +47,7 @@ def extract_pdf_text(body: bytes) -> str:
         return validate_text_size("\n\n".join(pages).strip())
     except PdfResourceError:
         raise
-    except Exception:
+    except (ImportError, OSError, ValueError, TypeError, PdfReadError):
         return ""
 
 
@@ -61,7 +70,7 @@ def pdf_metadata(body: bytes) -> dict[str, Any]:
             document.close()
     except PdfResourceError:
         raise
-    except Exception:
+    except (ImportError, OSError, ValueError, RuntimeError, TypeError):
         pass
     try:
         from pypdf import PdfReader
@@ -77,7 +86,7 @@ def pdf_metadata(body: bytes) -> dict[str, Any]:
         }
     except PdfResourceError:
         raise
-    except Exception:
+    except (ImportError, OSError, ValueError, TypeError, PdfReadError):
         return {"pages": None, "title": "", "author": "", "subject": ""}
 
 
@@ -112,7 +121,7 @@ def extract_pdf_tables(body: bytes, max_pages: int | None = 120) -> list[dict[st
         return result
     except PdfResourceError:
         raise
-    except Exception:
+    except (ImportError, OSError, ValueError, TypeError, PDFException, IndexError, KeyError):
         return []
 
 

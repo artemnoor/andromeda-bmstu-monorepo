@@ -1,12 +1,19 @@
 from __future__ import annotations
 
-from pydantic import HttpUrl, model_validator
 from typing import Self
 
 from andromeda_ontology.ontology.university import validate_direction_identity
+from pydantic import HttpUrl, model_validator
+
 from ....shared.contracts.base import ContractModel
-from ....shared.contracts.ids import DirectionCode, DirectionId, NonEmptyText, ShortText, UniversityId
 from ....shared.contracts.enums import EducationLevel
+from ....shared.contracts.ids import (
+    DirectionCode,
+    DirectionId,
+    NonEmptyText,
+    ShortText,
+    UniversityId,
+)
 from ...domain_validation import validate_domain
 
 

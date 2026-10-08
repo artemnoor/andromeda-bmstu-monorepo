@@ -9,15 +9,13 @@ from decimal import Decimal
 from typing import TypeVar
 
 from andromeda.modules.admissions.contracts.public import (
-    AdmissionCompetitionType,
     AdmissionOffering,
     AdmissionProvenance,
     AdmissionScope,
     ExamRequirement,
+    PassingScore,
     ProgramAdmissions,
     Quota,
-    PassingScore,
-    PassingScoreStatus,
     TuitionCost,
 )
 from andromeda.modules.programs.contracts.public import Program
@@ -26,15 +24,14 @@ from andromeda.shared.contracts.errors import ContractError, ErrorCode
 from ....contracts.raw import RawAdmissionRecord, RawSourceSnapshot
 from ..identity import resolve_programs
 from ..mappings.admissions import (
-    normalize_currency,
     normalize_competition_type,
+    normalize_currency,
     normalize_funding,
     normalize_passing_score,
     normalize_passing_status,
     normalize_quota,
     normalize_study_form,
 )
-
 
 logger = logging.getLogger("andromeda.ingestion.bmstu.normalizers.admissions")
 _Child = TypeVar("_Child")

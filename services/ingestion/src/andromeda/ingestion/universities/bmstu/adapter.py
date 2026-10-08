@@ -1,32 +1,44 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Sequence
 from hashlib import sha256
 from pathlib import Path
-from typing import Sequence
 
-from ...contracts.normalized import CanonicalSnapshot
-from ...contracts.raw import RawAdmissionPassingScore, RawAdmissionRecord, RawProgramRecord, RawSourceGap, RawTracerBundle, SourceLocator
-from ...contracts.source import CapturedSources, RawSourceSnapshot
 from ....modules.disciplines.contracts.public import Discipline
+from ....modules.disciplines.services.classifier import RuleBasedDisciplineClassifier
 from ....shared.contracts.enums import SourceKind
 from ....shared.contracts.provenance import SourceAttribution
-from ....modules.disciplines.services.classifier import RuleBasedDisciplineClassifier
-from .selectors import DEFAULT_CAMPUS_FIXTURE_DIR, DEFAULT_EVENT_FIXTURE_DIR, DEFAULT_FIXTURE_DIR, select_program_codes
+from ...contracts.normalized import CanonicalSnapshot
+from ...contracts.raw import (
+    RawAdmissionPassingScore,
+    RawAdmissionRecord,
+    RawProgramRecord,
+    RawSourceGap,
+    RawTracerBundle,
+    SourceLocator,
+)
+from ...contracts.source import CapturedSources, RawSourceSnapshot
+from .capture import BmstuSource, _detail_plan_records, parse_orders_manifest
+from .identity import direction_codes as extract_direction_codes
+from .identity import map_source_program_code
 from .mappings.discipline_areas import BMSTU_DISCIPLINE_AREA_OVERRIDES
 from .normalizers.admissions import normalize_admissions
 from .normalizers.campus import normalize_campus_points
+from .normalizers.canonical import normalize_bundle
 from .normalizers.events import normalize_events
-from .parser.admissions import parse_detail_admissions
 from .parser.admission_orders import iter_pdf_pages, parse_admission_order_document
+from .parser.admissions import parse_detail_admissions
 from .parser.campus import load_campus_fixture, parse_campus_points
 from .parser.events import load_event_fixture, parse_events
 from .parser.tracer import parse_captured
-from .capture import BmstuSource, _detail_plan_records, parse_orders_manifest
-from .identity import direction_codes as extract_direction_codes, map_source_program_code
-from .normalizers.canonical import normalize_bundle
+from .selectors import (
+    DEFAULT_CAMPUS_FIXTURE_DIR,
+    DEFAULT_EVENT_FIXTURE_DIR,
+    DEFAULT_FIXTURE_DIR,
+    select_program_codes,
+)
 from .source_metadata import classify_order_document
-
 
 fetch_logger = logging.getLogger("andromeda.ingestion.bmstu.fetch")
 select_logger = logging.getLogger("andromeda.ingestion.bmstu.select")

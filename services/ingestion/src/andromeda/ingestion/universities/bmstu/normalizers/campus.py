@@ -15,7 +15,6 @@ from andromeda.shared.contracts.provenance import SourceAttribution
 from ....contracts.raw import RawCampusPointRecord, RawSourceSnapshot
 from ..normalizers.codes import normalize_code
 
-
 logger = logging.getLogger("andromeda.ingestion.bmstu.campus")
 _SLUG_RE = re.compile(r"[^a-z0-9]+")
 

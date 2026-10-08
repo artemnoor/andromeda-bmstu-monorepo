@@ -2,6 +2,34 @@
 
 > Evidence date: 2026-10-08. This report records the migration and follow-up verification evidence. It is not a production-readiness report.
 
+> **Historical note:** The original migration checkpoints below describe the earlier v1.1 ownership move. Their statements that proposal storage was not implemented, repository-wide Ruff still had findings, or proposal PostgreSQL integration was pending are superseded by the **Final hardening follow-up** section below.
+
+## Final hardening follow-up
+
+The hardening work started from main `929eb3589031f36cc87df795aef4af09992f28a6`; no pre-existing Alembic revision or checked-in academic data/fixture was edited. The implementation adds:
+
+- API-independent `packages/release-bundles`; `services/ingestion` no longer declares or imports `andromeda-api`. `services/ingestion-cli` owns the existing `andromeda-bmstu` executable and composes parser commands with API application use cases.
+- A PostgreSQL proposal lifecycle in additive Alembic revision `71d8c4a29f30`, linked immutable revisions/evidence/event history, explicit domain transitions, authorization checks, and version compare-and-swap.
+- One publication path: the API `PublicationApplicationService` delegates to the existing guarded `publish_projection` repository. Canonical rows/archive, proposal PUBLISHED events, active pointer, activation history, and import-batch idempotency record share one PostgreSQL transaction.
+- A whole-publication key/hash on `import_batches` and a stable event key/hash per proposal, with exact retry replay and changed-payload key conflicts.
+- Explicit mappings from reviewed dataset filenames to canonical release tables. Publication recomputes each review event ID, resolves accepted candidate references, and rejects a release when a non-null approved payload field is missing or stale in the materialized target or its mapped projection. RETIRE proposals require the target to be absent.
+- An AST boundary check for ordinary and literal lazy/runtime imports, and a parser subprocess check that blocks API, DB, FastAPI, and SQLAlchemy imports.
+- Locked Ruff `0.16.10`, an unconditional CI lint job, and repository-wide lint fixes without mass rule disables.
+
+The previous 11 Alembic revisions remain unchanged; `71d8c4a29f30` is the additive twelfth revision. Public `/api/v1` remains GET-only. No public admin endpoint was added. Directus remains without academic/proposal write privileges. The existing bundle `review_decisions.jsonl` remains the exact reviewed decision source, now linked to proposal audit events by content and event identity.
+
+### Local verification checkpoint
+
+- `uv sync --locked --python 3.11 --all-packages --group dev --no-editable`, `uv lock --check`, `ruff check .`, and `git diff --check` passed in the isolated D: clone.
+- Full pytest first ran **82 passed, 23 skipped, 2 failed**. The failures exposed the expected new Alembic head in a migration discovery assertion and an overbroad CLI adapter import; both were corrected. The two focused regression groups then passed **18 tests**. A fresh full-suite result is recorded after the final code/documentation changes below.
+- The final full local suite after the independent publication review fixes passed: **91 passed, 23 skipped, 1 existing Starlette/httpx deprecation warning in 160.28 seconds**. The skips were 2 Directus permission tests, 1 Directus HTTP smoke, 5 release-import PostgreSQL tests, and 15 proposal PostgreSQL tests because no local PostgreSQL 16/Directus service was configured.
+- The focused proposal-bundle binding and application tests passed **11 tests**; the combined final boundary/CLI/proposal regression set passed **22 tests**. They cover event-body tampering with a retained old event ID, candidate-reference resolution, an existing stale target row, and dataset-to-table mappings.
+- Ruff baseline on the starting `main` was **261 findings across 102 files** (matching the earlier audit's approximate 280): 94 import-order, 31 verbose `Decimal` construction, 22 unused-import, 24 function-call-default, and 21 blind-exception findings were the largest groups. Ruff marked 186 safe automatic fixes; the remaining findings required manual review of exception handling, control flow, and typing. The final repository-wide check reports zero findings.
+- `ruff check .`, `uv lock --check`, `git diff --check`, both Compose configuration profiles, and the retained `andromeda-bmstu ingest --help` command passed locally.
+- The 15 new proposal integration cases fail closed unless `ACADEMIC_DATA_DATABASE_URL` points at a local isolated PostgreSQL 16 database named `academic_data_test`. Docker Desktop was unavailable; the local PostgreSQL 17 service was not used. Proposal migration, role grants, concurrency, and rollback therefore require successful PostgreSQL 16 CI evidence before this report can claim them as integration-verified.
+
+The implementation guarantees and exact workflow are documented in [ARCHITECTURE.md](ARCHITECTURE.md) and [PROPOSAL_WORKFLOW.md](PROPOSAL_WORKFLOW.md). The final remote PR, Actions, merge, and PostgreSQL 16 integration evidence will be appended here after it is observed; until then it is not implied.
+
 ## Scope
 
 The task is to migrate the Andromeda monorepo toward the attached Architecture v1.1 structure while preserving the existing PostgreSQL schema history, published academic data, and parser/API behavior. The target document is a proposal; its listed future components are not evidence that they exist.

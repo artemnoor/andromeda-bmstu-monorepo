@@ -4,11 +4,6 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 
-from fastapi import Request
-from sqlalchemy import text
-from sqlalchemy.engine import Connection, Engine
-
-from andromeda_api.application.queries import AcademicDataQueries, ApiReadError
 from andromeda_db.connection import (
     create_service_engine,
     verify_server_identity,
@@ -17,6 +12,11 @@ from andromeda_db.repositories.read_repository import (
     NoActiveReleaseError,
     SQLAlchemyAcademicDataReadRepository,
 )
+from fastapi import Request
+from sqlalchemy import text
+from sqlalchemy.engine import Connection, Engine
+
+from andromeda_api.application.queries import AcademicDataQueries, ApiReadError
 from andromeda_api.application.settings import Settings, load_settings
 
 

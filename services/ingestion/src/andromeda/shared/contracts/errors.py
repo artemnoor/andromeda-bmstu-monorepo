@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from enum import StrEnum
+
 from pydantic import Field
 
 from .base import ContractModel

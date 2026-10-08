@@ -5,10 +5,24 @@ from collections.abc import Mapping
 from hashlib import sha256
 from typing import Protocol
 
-from ..contracts.classification import ClassificationMethod, ClassificationOutcome, ClassificationReviewStatus, TAXONOMY_VERSION
-from ..domain.areas import AreaVector, DisciplineAreaCode, DisciplineAreaWeight, area_vector, default_area_weights
-from ..domain.identity import discipline_id_for, normalize_classification_name, normalize_discipline_name
-
+from ..contracts.classification import (
+    TAXONOMY_VERSION,
+    ClassificationMethod,
+    ClassificationOutcome,
+    ClassificationReviewStatus,
+)
+from ..domain.areas import (
+    AreaVector,
+    DisciplineAreaCode,
+    DisciplineAreaWeight,
+    area_vector,
+    default_area_weights,
+)
+from ..domain.identity import (
+    discipline_id_for,
+    normalize_classification_name,
+    normalize_discipline_name,
+)
 
 logger = logging.getLogger("andromeda.disciplines.classifier")
 

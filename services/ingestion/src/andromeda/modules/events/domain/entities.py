@@ -5,12 +5,19 @@ from decimal import Decimal
 from enum import StrEnum
 from typing import Self
 
+from andromeda.shared.contracts.base import ContractModel
+from andromeda.shared.contracts.ids import (
+    DepartmentId,
+    EventId,
+    NonEmptyText,
+    ProgramId,
+    UniversityId,
+    VenueId,
+)
+from andromeda.shared.contracts.provenance import SourceAttribution
+from andromeda_ontology.ontology.events import validate_event, validate_venue
 from pydantic import Field, HttpUrl, model_validator
 
-from andromeda_ontology.ontology.events import validate_event, validate_venue
-from andromeda.shared.contracts.base import ContractModel
-from andromeda.shared.contracts.ids import DepartmentId, EventId, NonEmptyText, ProgramId, UniversityId, VenueId
-from andromeda.shared.contracts.provenance import SourceAttribution
 from ...domain_validation import validate_domain
 
 
@@ -36,16 +43,16 @@ class Venue(ContractModel):
     latitude: Decimal | None = Field(
         default=None,
         strict=True,
-        ge=Decimal("-90"),
-        le=Decimal("90"),
+        ge=Decimal(-90),
+        le=Decimal(90),
         max_digits=9,
         decimal_places=6,
     )
     longitude: Decimal | None = Field(
         default=None,
         strict=True,
-        ge=Decimal("-180"),
-        le=Decimal("180"),
+        ge=Decimal(-180),
+        le=Decimal(180),
         max_digits=9,
         decimal_places=6,
     )

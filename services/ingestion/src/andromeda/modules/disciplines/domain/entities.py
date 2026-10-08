@@ -2,13 +2,13 @@ from __future__ import annotations
 
 from typing import Self
 
-from pydantic import Field, model_validator
-
 from andromeda_ontology.ontology.discipline import (
     DisciplineAreaCode,
     primary_area,
     validate_discipline_identity,
 )
+from pydantic import Field, model_validator
+
 from ....shared.contracts.base import ContractModel
 from ....shared.contracts.ids import DisciplineId, ShortText
 from ...domain_validation import validate_domain

@@ -8,7 +8,6 @@ from urllib.parse import urljoin
 
 from bs4 import BeautifulSoup, Tag
 
-
 YEAR_RE = re.compile(r"\b(19\d{2}|20\d{2})\b")
 CODE_RE = re.compile(r"^\d{2}\.\d{2}\.\d{2}(?:/\d{2}\.\d{2}\.\d{2})?$")
 EMAIL_RE = re.compile(r"[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}", re.IGNORECASE)

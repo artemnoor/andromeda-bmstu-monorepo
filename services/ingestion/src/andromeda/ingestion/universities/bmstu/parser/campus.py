@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 import logging
-import re
 from collections.abc import Mapping
 from datetime import datetime
 from decimal import Decimal, InvalidOperation
@@ -19,7 +18,6 @@ from andromeda.shared.contracts.enums import SourceKind
 from andromeda.shared.contracts.errors import ContractError, ErrorCode, ErrorDetail
 
 from ....contracts.raw import RawCampusPointRecord, RawSourceSnapshot, SourceLocator
-
 
 logger = logging.getLogger("andromeda.ingestion.bmstu.campus")
 CAMPUS_SOURCE_URL = "https://bmstu.ru/campus/points"
@@ -187,9 +185,9 @@ def _decimal(value: object, key: str, locator: SourceLocator) -> Decimal | None:
     except InvalidOperation:
         _fail(key, "must be a decimal coordinate", locator=locator)
         raise AssertionError from None
-    if key == "latitude" and not Decimal("-90") <= coordinate <= Decimal("90"):
+    if key == "latitude" and not Decimal(-90) <= coordinate <= Decimal(90):
         _fail(key, "coordinate must be between -90 and 90", locator=locator)
-    if key == "longitude" and not Decimal("-180") <= coordinate <= Decimal("180"):
+    if key == "longitude" and not Decimal(-180) <= coordinate <= Decimal(180):
         _fail(key, "coordinate must be between -180 and 180", locator=locator)
     return coordinate
 

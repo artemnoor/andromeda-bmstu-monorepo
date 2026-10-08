@@ -80,20 +80,23 @@ def validate_database_target(url: URL, database_name: str, environment: str) -> 
             f"{environment} must use the dedicated {SERVICE_DATABASE_NAME} database"
         )
 
-    if environment == "test" and url.drivername in {"postgresql", "postgresql+psycopg"}:
-        if database_name != "academic_data_test" or url.host not in {"localhost", "127.0.0.1"}:
-            raise SettingsError(
-                "PostgreSQL tests may target only localhost database academic_data_test"
-            )
+    if (
+        environment == "test"
+        and url.drivername in {"postgresql", "postgresql+psycopg"}
+        and (database_name != "academic_data_test" or url.host not in {"localhost", "127.0.0.1"})
+    ):
+        raise SettingsError(
+            "PostgreSQL tests may target only localhost database academic_data_test"
+        )
 
-    if environment == "development" and url.drivername in {
-        "postgresql",
-        "postgresql+psycopg",
-    }:
-        if not database_name.endswith("_dev") or url.host not in {"localhost", "127.0.0.1"}:
-            raise SettingsError(
-                "Development PostgreSQL must be a localhost database with a _dev suffix"
-            )
+    if (
+        environment == "development"
+        and url.drivername in {"postgresql", "postgresql+psycopg"}
+        and (not database_name.endswith("_dev") or url.host not in {"localhost", "127.0.0.1"})
+    ):
+        raise SettingsError(
+            "Development PostgreSQL must be a localhost database with a _dev suffix"
+        )
 
     if url.drivername.startswith("sqlite"):
         if environment != "test":

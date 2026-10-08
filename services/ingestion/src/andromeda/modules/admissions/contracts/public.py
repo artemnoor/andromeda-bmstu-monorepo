@@ -7,14 +7,6 @@ from decimal import Decimal
 from enum import StrEnum
 from typing import Self
 
-from pydantic import Field, HttpUrl, model_validator
-
-from andromeda_ontology.ontology.admission import (
-    validate_admission_offering,
-    validate_exam_choice_metadata,
-    validate_passing_score_status,
-    validate_program_admissions,
-)
 from andromeda.shared.contracts.base import ContractModel
 from andromeda.shared.contracts.ids import (
     AdmissionCampusId,
@@ -25,6 +17,13 @@ from andromeda.shared.contracts.ids import (
     ShortText,
     SourceHash,
 )
+from andromeda_ontology.ontology.admission import (
+    validate_admission_offering,
+    validate_exam_choice_metadata,
+    validate_passing_score_status,
+    validate_program_admissions,
+)
+from pydantic import Field, HttpUrl, model_validator
 
 from .admission_cycles import (
     AdmissionCycle,

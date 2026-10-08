@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from datetime import datetime
-from hashlib import sha256
 import json
 import logging
 import unicodedata
+from datetime import datetime
 from decimal import Decimal, InvalidOperation
+from hashlib import sha256
 
 from andromeda.ingestion.contracts.normalized import CanonicalSnapshot
 from andromeda.ingestion.contracts.raw import RawTracerBundle
@@ -16,10 +16,9 @@ from andromeda.modules.programs.contracts.public import Program
 from andromeda.modules.universities.contracts.public import Direction, University
 from andromeda.shared.contracts.enums import AssessmentType, EducationLevel, SourceKind
 from andromeda.shared.contracts.errors import ContractError, ErrorCode, ErrorDetail
-from andromeda.shared.contracts.provenance import SourceAttribution
-from andromeda.shared.contracts.provenance import SourceGapReference
-from ..identity import direction_codes
+from andromeda.shared.contracts.provenance import SourceAttribution, SourceGapReference
 
+from ..identity import direction_codes
 
 logger = logging.getLogger("andromeda.ingestion.bmstu.normalize")
 
@@ -206,7 +205,7 @@ def _assessment(value: str | None) -> tuple[AssessmentType, ...] | None:
         return None
 
 
-def _credits(value: str | float | int | None, path: str) -> Decimal | None:
+def _credits(value: str | float | None, path: str) -> Decimal | None:
     if value is None or value == "":
         return None
     try:
@@ -322,7 +321,7 @@ def _row_scoped_internal_id(item: CurriculumItem) -> str:
 
 
 def _row_provenance(raw: RawTracerBundle, row: object) -> tuple[SourceAttribution, ...]:
-    source_url = str(getattr(row, "source_url"))
+    source_url = str(row.source_url)
     snapshot = next(
         (value for value in raw.snapshots if value.source_kind == "bmstu_curriculum_document" and str(value.requested_url) == source_url),
         None,

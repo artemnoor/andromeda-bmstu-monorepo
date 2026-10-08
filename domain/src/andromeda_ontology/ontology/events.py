@@ -6,8 +6,8 @@ from collections.abc import Iterable
 from datetime import datetime
 from decimal import Decimal
 
-from andromeda_ontology.ontology.errors import DomainValidationError
 from andromeda_ontology.ontology.campus import validate_coordinates
+from andromeda_ontology.ontology.errors import DomainValidationError
 
 
 def validate_venue(latitude: Decimal | None, longitude: Decimal | None) -> None:

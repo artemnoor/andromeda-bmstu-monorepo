@@ -7,7 +7,6 @@ from pathlib import Path
 from andromeda_api.application.importer.bundle import BundleReader, validate_bundle
 from andromeda_api.application.importer.persistence import run_bundle_import
 
-
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 BUNDLE = PROJECT_ROOT / "data" / "bmstu-2026"
 

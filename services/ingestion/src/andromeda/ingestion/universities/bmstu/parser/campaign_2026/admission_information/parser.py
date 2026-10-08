@@ -60,7 +60,7 @@ def parse_admission_information(body: bytes, source_url: str) -> dict[str, list[
                 scope_label = label
                 department_code = None
             else:
-                dept_match = re.search(r"кафедра\s*([А-ЯЁA-Z0-9]+)", label, re.I)
+                dept_match = re.search(r"кафедра\s*([А-ЯЁA-Z0-9]+)", label, re.IGNORECASE)
                 if not current_direction_code:
                     continue
                 scope_type = "department" if dept_match else "subgroup"

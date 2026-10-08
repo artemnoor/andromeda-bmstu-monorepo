@@ -6,14 +6,6 @@ from datetime import date, datetime
 from enum import StrEnum
 from typing import Annotated
 
-from pydantic import Field, StringConstraints, field_validator, model_validator
-
-from andromeda_ontology.ontology.admission import (
-    admission_cycle_id as _admission_cycle_id,
-    require_aware_utc,
-    validate_admission_cycle,
-    validate_inclusive_date_window,
-)
 from andromeda.modules.knowledge.contracts.evidence import EvidenceRef
 from andromeda.shared.contracts.base import ContractModel
 from andromeda.shared.contracts.ids import (
@@ -22,6 +14,15 @@ from andromeda.shared.contracts.ids import (
     NonEmptyText,
     UniversityId,
 )
+from andromeda_ontology.ontology.admission import (
+    admission_cycle_id as _admission_cycle_id,
+)
+from andromeda_ontology.ontology.admission import (
+    require_aware_utc,
+    validate_admission_cycle,
+    validate_inclusive_date_window,
+)
+from pydantic import Field, StringConstraints, field_validator, model_validator
 
 AdmissionCycleId = Annotated[
     str,

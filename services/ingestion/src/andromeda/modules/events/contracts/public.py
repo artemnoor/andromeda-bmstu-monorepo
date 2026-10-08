@@ -4,10 +4,9 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from pydantic import Field, model_validator
-
 from andromeda.shared.contracts.base import ContractModel
 from andromeda.shared.contracts.ids import DepartmentId, ProgramId, UniversityId
+from pydantic import Field, model_validator
 
 from ..domain.entities import Event, EventFormat, EventKind, Venue
 from .results import EventListResult
@@ -26,7 +25,7 @@ class EventFilters(ContractModel):
     limit: int = Field(default=50, strict=True, ge=1, le=100)
 
     @model_validator(mode="after")
-    def validate_window_and_recommendations(self) -> "EventFilters":
+    def validate_window_and_recommendations(self) -> EventFilters:
         for field_name, value in (("from_date", self.from_date), ("to_date", self.to_date)):
             if value is not None and (value.tzinfo is None or value.utcoffset() is None):
                 raise ValueError(f"{field_name} must be timezone-aware")

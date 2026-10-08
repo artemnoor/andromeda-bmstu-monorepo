@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "andromeda-ingestion-cli"
+version = "0.1.0"
+description = "Operator composition root for Andromeda ingestion commands"
+requires-python = ">=3.11"
+dependencies = ["andromeda-api", "andromeda-ingestion", "andromeda-release-bundles"]
+
+[project.scripts]
+andromeda-bmstu = "andromeda_ingestion_cli.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["andromeda_ingestion_cli*"]

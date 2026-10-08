@@ -7,14 +7,12 @@ canonical importer key and treats locators as provenance only.
 
 from __future__ import annotations
 
+import json
+import unicodedata
 from dataclasses import dataclass
 from difflib import SequenceMatcher
 from hashlib import sha256
-import json
-import re
-import unicodedata
 from typing import Any, Literal
-
 
 IDENTITY_ALGORITHM = "bmstu-curriculum-identity-v1"
 _SIMILARITY_HINT_THRESHOLD = 0.72
@@ -187,9 +185,12 @@ def reconcile_curriculum_rows(
         if results[index] is None and (name := normalize_curriculum_label(_row_name(row))):
             incoming_by_name.setdefault(name, []).append(index)
     for index, row in enumerate(current_rows):
-        if index not in matched_current and (row.get("curriculum_key") or row.get("study_plan_key")) == study_plan_key:
-            if name := normalize_curriculum_label(_row_name(row)):
-                current_by_name.setdefault(name, []).append(index)
+        if (
+            index not in matched_current
+            and (row.get("curriculum_key") or row.get("study_plan_key")) == study_plan_key
+            and (name := normalize_curriculum_label(_row_name(row)))
+        ):
+            current_by_name.setdefault(name, []).append(index)
 
     for name, incoming_indices in incoming_by_name.items():
         current_indices = current_by_name.get(name, [])
@@ -238,21 +239,26 @@ def reconcile_curriculum_rows(
                     if _contexts_compatible(incoming_rows[other_incoming], current_rows[current_index])
                     and _row_semester(incoming_rows[other_incoming]) == _row_semester(current_rows[current_index])
                 ]
-                if len(reverse) == 1 and not _is_ambiguous(incoming_rows[incoming_index]) and not _is_ambiguous(current_rows[current_index]):
-                    if _row_semester(incoming_rows[incoming_index]) == _row_semester(current_rows[current_index]):
-                        key = current_rows[current_index].get("external_key")
-                        if isinstance(key, str) and key:
-                            results[incoming_index] = _resolution(
-                                "matched", key,
-                                stable_source_identity_key(
-                                    study_plan_key, incoming_rows[incoming_index], duplicate_title=True
-                                ), (),
-                                "repeated exact title matched by unique exact semester and source context",
-                                study_plan_key, incoming_rows[incoming_index], duplicate_title=True,
-                            )
-                            matched_current.add(current_index)
-                            unresolved_incoming.discard(incoming_index)
-                            unresolved_current.discard(current_index)
+                if (
+                    len(reverse) == 1
+                    and not _is_ambiguous(incoming_rows[incoming_index])
+                    and not _is_ambiguous(current_rows[current_index])
+                    and _row_semester(incoming_rows[incoming_index])
+                    == _row_semester(current_rows[current_index])
+                ):
+                    key = current_rows[current_index].get("external_key")
+                    if isinstance(key, str) and key:
+                        results[incoming_index] = _resolution(
+                            "matched", key,
+                            stable_source_identity_key(
+                                study_plan_key, incoming_rows[incoming_index], duplicate_title=True
+                            ), (),
+                            "repeated exact title matched by unique exact semester and source context",
+                            study_plan_key, incoming_rows[incoming_index], duplicate_title=True,
+                        )
+                        matched_current.add(current_index)
+                        unresolved_incoming.discard(incoming_index)
+                        unresolved_current.discard(current_index)
 
         # Every unmatched row in a repeated title group is ambiguous, even if
         # the proposed semester happens to resemble one old row. A moved,

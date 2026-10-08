@@ -114,7 +114,7 @@ def validate_discipline_identity(
         raise DomainValidationError(
             "discipline area weights must not contain duplicate areas", field="area_weights"
         )
-    if sum((weight for _area, weight in area_weights), Decimal("0")) != Decimal("1"):
+    if sum((weight for _area, weight in area_weights), Decimal(0)) != Decimal(1):
         raise DomainValidationError(
             "discipline area weights must sum to one", field="area_weights"
         )
@@ -143,7 +143,7 @@ def area_vector(*entries: tuple[DisciplineAreaCode, str | Decimal]) -> AreaVecto
     if (
         not vector
         or len({code for code, _weight in vector}) != len(vector)
-        or sum((weight for _code, weight in vector), Decimal("0")) != Decimal("1")
+        or sum((weight for _code, weight in vector), Decimal(0)) != Decimal(1)
     ):
         raise DomainValidationError(
             "discipline area vector must contain unique areas whose weights sum to one",

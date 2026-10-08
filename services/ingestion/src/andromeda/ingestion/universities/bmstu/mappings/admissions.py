@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import logging
 import re
-
 from decimal import Decimal
 
 from andromeda.modules.admissions.contracts.public import (
@@ -13,7 +12,6 @@ from andromeda.modules.admissions.contracts.public import (
     QuotaType,
     StudyForm,
 )
-
 
 logger = logging.getLogger("andromeda.ingestion.bmstu.mappings.admissions")
 

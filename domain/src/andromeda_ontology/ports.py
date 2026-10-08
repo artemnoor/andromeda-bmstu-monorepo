@@ -3,8 +3,17 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Protocol
+from typing import TYPE_CHECKING, Any, Protocol
 from uuid import UUID
+
+if TYPE_CHECKING:
+    from andromeda_ontology.proposals import (
+        Proposal,
+        ProposalEvent,
+        ProposalEvidenceReference,
+        ProposalRevision,
+        ProposalStatus,
+    )
 
 
 @dataclass(frozen=True, slots=True)
@@ -70,4 +79,63 @@ class AcademicDataReadRepository(Protocol):
     ) -> dict[str, Any] | None: ...
 
 
-__all__ = ["AcademicDataReadRepository", "InvalidCursorError", "PageRows"]
+class ProposalRepository(Protocol):
+    """Persistence port with atomic version checks and append-only transition events."""
+
+    def create(
+        self,
+        proposal: Proposal,
+        revision: ProposalRevision,
+        evidence: tuple[ProposalEvidenceReference, ...],
+        event: ProposalEvent,
+    ) -> Proposal: ...
+
+    def get(self, proposal_id: UUID) -> Proposal | None: ...
+
+    def events_for(self, proposal_id: UUID) -> tuple[ProposalEvent, ...]: ...
+
+    def replay(
+        self, proposal_id: UUID, *, idempotency_key: str, request_hash: str
+    ) -> Proposal | None: ...
+
+    def transition(
+        self,
+        proposal_id: UUID,
+        *,
+        expected_version: int,
+        expected_status: ProposalStatus,
+        next_status: ProposalStatus,
+        actor: str,
+        reason: str | None,
+        event_type: str,
+        idempotency_key: str,
+        request_hash: str,
+        review_event_id: str | None = None,
+    ) -> Proposal: ...
+
+    def rebase(
+        self,
+        proposal: Proposal,
+        revision: ProposalRevision,
+        evidence: tuple[ProposalEvidenceReference, ...],
+        event: ProposalEvent,
+        *,
+        expected_version: int,
+    ) -> Proposal: ...
+
+
+class ProposalAuthorization(Protocol):
+    """Authorization policy injected by a trusted internal composition root."""
+
+    def is_authorized(
+        self, actor: str, action: str, proposal: Proposal | None
+    ) -> bool: ...
+
+
+__all__ = [
+    "AcademicDataReadRepository",
+    "InvalidCursorError",
+    "PageRows",
+    "ProposalAuthorization",
+    "ProposalRepository",
+]

@@ -11,12 +11,6 @@ from decimal import Decimal
 from enum import StrEnum
 from typing import Self
 
-from pydantic import Field, HttpUrl, model_validator
-
-from andromeda_ontology.ontology.campus import (
-    validate_campus_point,
-    validate_campus_point_detail,
-)
 from andromeda.modules.programs.contracts.public import Program
 from andromeda.modules.universities.contracts.public import University
 from andromeda.shared.contracts.base import ContractModel
@@ -32,6 +26,12 @@ from andromeda.shared.contracts.ids import (
     VenueId,
 )
 from andromeda.shared.contracts.provenance import SourceAttribution
+from andromeda_ontology.ontology.campus import (
+    validate_campus_point,
+    validate_campus_point_detail,
+)
+from pydantic import Field, HttpUrl, model_validator
+
 from ...domain_validation import validate_domain
 
 
@@ -55,7 +55,7 @@ class CampusUniversityReference(ContractModel):
     official_site: HttpUrl
 
     @classmethod
-    def from_contract(cls, university: University) -> "CampusUniversityReference":
+    def from_contract(cls, university: University) -> CampusUniversityReference:
         return cls.model_validate(university.model_dump(mode="python"))
 
 
@@ -71,7 +71,7 @@ class CampusProgramReference(ContractModel):
     source_url: HttpUrl
 
     @classmethod
-    def from_contract(cls, program: Program) -> "CampusProgramReference":
+    def from_contract(cls, program: Program) -> CampusProgramReference:
         return cls.model_validate(program.model_dump(mode="python"))
 
 
@@ -91,16 +91,16 @@ class CampusPoint(ContractModel):
     latitude: Decimal | None = Field(
         default=None,
         strict=True,
-        ge=Decimal("-90"),
-        le=Decimal("90"),
+        ge=Decimal(-90),
+        le=Decimal(90),
         max_digits=9,
         decimal_places=6,
     )
     longitude: Decimal | None = Field(
         default=None,
         strict=True,
-        ge=Decimal("-180"),
-        le=Decimal("180"),
+        ge=Decimal(-180),
+        le=Decimal(180),
         max_digits=9,
         decimal_places=6,
     )
