@@ -10,13 +10,15 @@ from uuid import UUID, uuid4
 
 import pytest
 from andromeda_api.application.importer.mapping import project_bundle
-from andromeda_db.repositories.release_publication import publish_projection as commit_projection
 from andromeda_api.application.operations.releases import export_release_bundle
 from andromeda_api.application.settings import load_settings
+from andromeda_db.repositories.release_publication import (
+    publish_projection as commit_projection,
+)
 from sqlalchemy import create_engine, text
 
 pytestmark = pytest.mark.integration
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 METADATA_ROOT = PROJECT_ROOT / "platform" / "directus" / "metadata"
 
 
@@ -24,7 +26,13 @@ def _runtime_config() -> tuple[str, str, str]:
     url = os.environ.get("DIRECTUS_TEST_URL", "").strip()
     email = os.environ.get("DIRECTUS_ADMIN_EMAIL", "").strip()
     password = os.environ.get("DIRECTUS_ADMIN_PASSWORD", "")
-    if not url or not email or not password:
+    if (
+        not url
+        or not email
+        or not password
+        or email.endswith("@example.invalid")
+        or password.strip().upper() in {"REPLACE_ME", "CHANGEME"}
+    ):
         pytest.skip("set DIRECTUS_TEST_URL and local Directus admin credentials to run Directus smoke")
 
     parsed = urlsplit(url)

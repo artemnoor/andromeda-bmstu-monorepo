@@ -1,6 +1,6 @@
 # Directus internal viewer
 
-> Verification status, 2026-10-08: the moved configuration has 5 passing metadata tests and both Compose profiles validate. PostgreSQL-backed permission checks and the Directus runtime smoke have not been rerun against the moved tree because Docker Desktop could not start. The smoke checklist below is retained as a prior procedure and result record, not as current migration evidence.
+> Verification status, 2026-10-08: metadata, PostgreSQL permission, and Directus tests passed in CI; the optional authenticated HTTP smoke was skipped because no local Directus URL and credentials were configured. Both Compose profiles validate. The smoke checklist below remains an operator procedure.
 
 Previous: [Read-only API](../../api/API.md) · Next: [Directus UX](DIRECTUS_UX.md)
 
@@ -177,10 +177,11 @@ The previous record was an authenticated API smoke, not a manual browser/Data
 Studio review. It does not verify the licensed full-catalog mode, completeness
 of department links across every program, or every evidence bridge outside the
 tested curriculum-item path. The separate PostgreSQL integration test uses the
-actual Directus runtime role to verify academic DML/DDL denials; that check is
-pending against the moved tree.
-See [`tests/test_directus_runtime.py`](../../../tests/test_directus_runtime.py) and
-[`tests/test_directus_permissions.py`](../../../tests/test_directus_permissions.py)
+actual Directus runtime role to verify academic DML/DDL denials; it passed in
+the PostgreSQL 16 pull request check. The HTTP smoke remains optional when no
+local Directus service and credentials are configured.
+See [`tests/integration/test_directus_runtime.py`](../../../tests/integration/test_directus_runtime.py) and
+[`tests/integration/test_directus_permissions.py`](../../../tests/integration/test_directus_permissions.py)
 for the automated checks; rerun them on the isolated PostgreSQL 16 test DB.
 
 ## See also

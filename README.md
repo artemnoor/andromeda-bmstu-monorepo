@@ -11,17 +11,19 @@ For a local checkout, create `.env` from `.env.example` only if it does not
 already exist. Keep its values local.
 
 ```powershell
+if (-not (Test-Path .env)) { Copy-Item .env.example .env }
 python -m pip install uv==0.11.28
-uv sync --locked --all-packages --group dev --no-editable
-docker compose up -d --wait academic-data-db
-uv run academic-data db upgrade
-uv run pytest -q
+make setup
+make up
+make migrate
+make test
 ```
 
-Set the local test database environment before the migration command. The
-Makefile also provides the `make setup`, `make migrate`, and `make test`
-convenience targets. See the [local development guide](docs/operations/LOCAL_DEVELOPMENT.md)
-for environment setup and service commands.
+Replace local placeholders in `.env` before starting services. `make test`
+loads that file so PostgreSQL integration tests use the isolated local test
+database. The optional Directus HTTP smoke skips until local admin credentials
+are configured and Directus is running. See the [local development guide](docs/operations/LOCAL_DEVELOPMENT.md)
+for service and role details.
 
 To inspect the checked-in bundle without changing a database:
 
@@ -39,6 +41,7 @@ uv run academic-data bundle import --input data/bmstu-2026 --dry-run
 | `packages/db/` | PostgreSQL models, repositories, and Alembic history |
 | `services/api/` | Read-only FastAPI v1 and the shared publication application service |
 | `services/ingestion/` | BMSTU capture, parsing, candidate, review, and CLI flows |
+| `tests/integration/` | PostgreSQL lifecycle, migration, and Directus permission/runtime checks |
 | `platform/directus/metadata/` | Directus metadata and local viewer configuration |
 | `docker-compose.yml` | Isolated PostgreSQL 16 and optional Directus |
 | `data/bmstu-2026/` | Reviewed normalized bundle and provenance fixture |
@@ -64,9 +67,9 @@ been verified.
 
 - Public `/api/v1` remains GET-only. Proposal, approval, rejection, and publish HTTP routes are not implemented.
 - The parser and CLI retain the review and publication flow; Dagster orchestration is deferred.
-- Directus is a constrained data viewer. Its post-move database permission checks and runtime smoke remain pending.
-- Production deployment, backup/restore rehearsal, SSO/RBAC, public Web, and Graph Explorer are not verified or implemented.
-- The migration report distinguishes the baseline, post-move checks, and work blocked by unavailable Docker-backed PostgreSQL.
+- Directus remains a constrained viewer. PostgreSQL permission checks passed in CI; the optional HTTP smoke requires a locally running Directus service and credentials.
+- Production deployment, production backup/restore, SSO/RBAC, public Web, and Graph Explorer are not verified or implemented.
+- The migration report separates checked-in fixture evidence from unverified production parity and restore work.
 
 ## License
 

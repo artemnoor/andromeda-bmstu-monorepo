@@ -192,7 +192,7 @@ Verified locally on Python 3.11 and the isolated localhost PostgreSQL 16
 Verified on 2026-10-07 after the identity changes:
 
 - `uv run pytest -q`: **45 passed, 5 skipped, 1 warning in 123.81 seconds**.
-  The five skips are `tests/test_postgres_import.py`; their guard requires a
+  The five skips are `tests/integration/test_postgres_import.py`; their guard requires a
   local PostgreSQL 16 URL for the dedicated `academic_data_test` database.
   This machine has PostgreSQL 17 only, so it was not used for destructive
   importer tests. GitHub Actions provisioned PostgreSQL 16; both the push run
