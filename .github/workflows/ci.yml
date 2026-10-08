@@ -313,6 +313,8 @@ jobs:
       UV_NO_EDITABLE: '1'
     steps:
       - uses: actions/checkout@v4
+      - name: Create local env file for Make targets
+        run: cp .env.example .env
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
