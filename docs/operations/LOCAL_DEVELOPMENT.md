@@ -27,39 +27,37 @@ Replace local placeholders in `.env` before starting services. The template
 binds PostgreSQL to `127.0.0.1:55433`; if `ANDROMEDA_DB_PORT` changes, use that
 same port in `ACADEMIC_DATA_DATABASE_URL` below.
 
-Install the locked workspace and start its database:
+Install the locked workspace, start its database, and run the full local suite:
 
 ```powershell
 python -m pip install uv==0.11.28
-uv sync --locked --all-packages --group dev --no-editable
-docker compose up -d --wait academic-data-db
+make setup
+make up
+make migrate
+make test
 ```
 
-Set the database environment in the current PowerShell session. The password
-below matches the local `.env.example` placeholder and should remain local:
+`make migrate` and `make test` load `.env`. The default local database password
+matches the `.env.example` placeholder and should remain local. The test target
+uses the isolated `academic_data_test` PostgreSQL database; its destructive
+integration fixture refuses any other database identity.
 
 ```powershell
-$env:ACADEMIC_DATA_ENV = "test"
-$env:ACADEMIC_DATA_DATABASE_URL = "postgresql+psycopg://andromeda_test:local-only-change-me@127.0.0.1:55433/academic_data_test"
-uv run academic-data db upgrade
-uv run academic-data db check
+uv run --env-file .env academic-data db check
 ```
 
 The `test` environment accepts only the isolated local test database. Keep the
-operator URL separate from the restricted API and Directus runtime credentials.
-
-The convenience targets are `make setup`, `make migrate`, and `make test`.
-Their corresponding install, migration, and full-suite commands are:
+operator URL separate from restricted API and Directus runtime credentials.
+The corresponding explicit install and full-suite commands are:
 
 ```powershell
 uv sync --locked --all-packages --group dev --no-editable
-uv run academic-data db upgrade
-uv run pytest -q
+uv run --env-file .env pytest -q
 ```
 
-The migration command requires `ACADEMIC_DATA_ENV=test` and
-`ACADEMIC_DATA_DATABASE_URL` in the current environment. The tests that use
-PostgreSQL require the database to be running and upgraded.
+PostgreSQL integration tests require the database to be running and upgraded.
+The authenticated Directus HTTP smoke skips until local Directus credentials
+replace the sample placeholders and the service is running.
 
 ## Validate a bundle
 
@@ -119,8 +117,9 @@ database.
 
 The canonical metadata files are under `platform/directus/metadata`. Run the
 applier's dry-run before applying its Core-mode metadata, then restart Directus
-to reload relationships. PostgreSQL-backed runtime and permission checks for
-the moved tree remain pending; see the [migration report](../architecture/MIGRATION_REPORT.md).
+to reload relationships. PostgreSQL permission checks passed in the migration
+CI run. The optional authenticated HTTP smoke still requires a local Directus
+service and credentials; see the [migration report](../architecture/MIGRATION_REPORT.md).
 
 ## Shut down
 

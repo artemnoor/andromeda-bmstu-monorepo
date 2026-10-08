@@ -3,7 +3,6 @@ from __future__ import annotations
 from pathlib import Path
 
 from alembic.script import ScriptDirectory
-
 from andromeda_db.migration_config import build_alembic_config, resolve_migrations_path
 
 EXPECTED_PARENTS = {

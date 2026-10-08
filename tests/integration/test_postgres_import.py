@@ -37,7 +37,7 @@ from sqlalchemy import Engine, create_engine, text
 from sqlalchemy.exc import DBAPIError
 
 pytestmark = pytest.mark.integration
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 BUNDLE = PROJECT_ROOT / "data" / "bmstu-2026"
 
 

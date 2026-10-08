@@ -40,6 +40,7 @@ jobs:
           filters: |
             db:
               - 'packages/db/**'
+              - 'infra/database/**'
               - 'domain/**'
               - 'tests/**'
               - 'tests/fixtures/**'
@@ -102,6 +103,7 @@ jobs:
               - '**'
               - '!packages/db/**'
               - '!packages/contracts/**'
+              - '!infra/database/**'
               - '!domain/**'
               - '!services/api/**'
               - '!services/ingestion/**'
@@ -139,13 +141,15 @@ jobs:
       UV_NO_EDITABLE: '1'
     steps:
       - uses: actions/checkout@v4
+      - name: Create local env file for Make targets
+        run: cp .env.example .env
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
       - name: Install Poppler for curriculum PDF parsing
         run: |
           sudo apt-get update
-          sudo apt-get install --yes poppler-utils
+          sudo apt-get install --yes poppler-utils postgresql-client
           pdftotext -v
       - name: Install locked workspace
         run: |
@@ -153,10 +157,26 @@ jobs:
           uv sync --locked --all-packages --group dev --no-editable
       - name: Upgrade and check the isolated PostgreSQL database
         run: |
-          uv run academic-data db upgrade
+          make migrate
           uv run academic-data db check
       - name: Run database migration and lifecycle tests
-        run: uv run pytest -q tests/test_db_migrations.py tests/test_postgres_import.py
+        run: uv run pytest -q tests/integration/test_db_migrations.py tests/integration/test_postgres_import.py
+      - name: Verify isolated PostgreSQL backup and restore
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $backupDirectory = Join-Path $env:RUNNER_TEMP "andromeda-backup-check"
+          New-Item -ItemType Directory -Force -Path $backupDirectory | Out-Null
+          $backupPath = Join-Path $backupDirectory "academic-data-test.dump"
+          try {
+            & ./infra/database/backup.ps1 -Target test -OutputPath $backupPath
+            & ./infra/database/restore-check.ps1 -Target test -BackupPath $backupPath
+          }
+          finally {
+            if (Test-Path -LiteralPath $backupPath) {
+              Remove-Item -LiteralPath $backupPath -Force
+            }
+          }
 
   domain-contracts-check:
     if: needs.changes.result == 'success' && needs.changes.outputs.domain_contracts == 'true' && github.ref != 'refs/heads/main'
@@ -221,7 +241,7 @@ jobs:
           tests/test_bmstu_parser_cli.py
           tests/test_bmstu_ingestion.py
           tests/test_curriculum_identity.py
-          tests/test_postgres_import.py
+          tests/integration/test_postgres_import.py
 
   directus-check:
     if: needs.changes.result == 'success' && needs.changes.outputs.directus == 'true' && github.ref != 'refs/heads/main'
@@ -257,7 +277,7 @@ jobs:
       - name: Upgrade the isolated PostgreSQL database
         run: uv run academic-data db upgrade
       - name: Run Directus metadata and permission tests
-        run: uv run pytest -q tests/test_directus_metadata.py tests/test_directus_permissions.py tests/test_directus_runtime.py
+        run: uv run pytest -q tests/test_directus_metadata.py tests/integration/test_directus_permissions.py tests/integration/test_directus_runtime.py
 
   full-check:
     if: >-
@@ -293,13 +313,15 @@ jobs:
       UV_NO_EDITABLE: '1'
     steps:
       - uses: actions/checkout@v4
+      - name: Create local env file for Make targets
+        run: cp .env.example .env
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
       - name: Install Poppler for curriculum PDF tests
         run: |
           sudo apt-get update
-          sudo apt-get install --yes poppler-utils
+          sudo apt-get install --yes poppler-utils postgresql-client
           pdftotext -v
       - name: Install locked workspace
         run: |
@@ -313,7 +335,25 @@ jobs:
         run: uv run andromeda-bmstu list
       - name: Upgrade and check the isolated PostgreSQL database
         run: |
-          uv run academic-data db upgrade
+          make migrate
           uv run academic-data db check
+      - name: Validate documented local commands and Compose
+        run: make validate
       - name: Run the full test suite
-        run: uv run pytest -q
+        run: make test
+      - name: Verify isolated PostgreSQL backup and restore
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $backupDirectory = Join-Path $env:RUNNER_TEMP "andromeda-backup-check"
+          New-Item -ItemType Directory -Force -Path $backupDirectory | Out-Null
+          $backupPath = Join-Path $backupDirectory "academic-data-test.dump"
+          try {
+            & ./infra/database/backup.ps1 -Target test -OutputPath $backupPath
+            & ./infra/database/restore-check.ps1 -Target test -BackupPath $backupPath
+          }
+          finally {
+            if (Test-Path -LiteralPath $backupPath) {
+              Remove-Item -LiteralPath $backupPath -Force
+            }
+          }

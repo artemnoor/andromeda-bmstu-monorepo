@@ -15,7 +15,7 @@ migrate:
 	uv run --env-file .env --package andromeda-api academic-data db upgrade
 
 test:
-	uv run pytest -q
+	uv run --env-file .env pytest -q
 
 lint:
 	uv run --no-project --with ruff ruff check .

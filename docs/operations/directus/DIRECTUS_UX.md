@@ -1,6 +1,6 @@
 # Directus navigation and data relationships
 
-> Verification status, 2026-10-08: the metadata test module passed 5/5 tests and both Compose profiles validate. Runtime smoke statements in this guide come from an earlier record and have not been rerun against the moved tree; PostgreSQL-backed permissions and the Directus runtime remain unverified because Docker Desktop could not start.
+> Verification status, 2026-10-08: metadata and PostgreSQL permission tests passed in CI; both Compose profiles validate. The optional authenticated runtime smoke was skipped because no local Directus URL and credentials were configured. Earlier smoke details below are historical context.
 
 Previous: [Directus viewer](DIRECTUS.md) · Next: [Known limitations](../KNOWN_ISSUES.md)
 

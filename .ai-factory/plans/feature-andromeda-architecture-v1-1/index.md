@@ -30,10 +30,12 @@ The architecture attachment describes a target. Its proposed Web app, Graph Expl
 - The checked-in `data/` bundle and `tests/fixtures/bmstu/ingestion` have no diff from baseline commit `0daa30e`. PostgreSQL CI covered release counts, archive digest, idempotent re-import, rollback, stale-base rejection, and concurrent publication.
 - The migration was merged to `main` by PR #4 at `dda98f6ba33d06575005dc02e85c2e5d4f6dc246`.
 - Production export parity and backup/restore remain unverified because no production database or backup was available; no production preservation claim is made.
+- Follow-up PR #5 code head `1a946d1` passed CI run `37722827566`: **85 passed, 1 skipped** in the full suite; **8 passed** in PostgreSQL lifecycle; **60 passed** in API/ingestion; **7 passed, 1 skipped** in Directus; and **18 passed** in domain/contracts. The database and full-check jobs both passed an isolated PostgreSQL 16 backup/restore rehearsal and verified revision `f4b19a7c2d61`, all three expected schemas, and 57 read-model tables.
+- PostgreSQL lifecycle and Directus permission/runtime tests are organized in `tests/integration/`; all 11 integration tests collect and Ruff passes for the directory. The local non-integration suite passed **78 tests with 8 integration cases deselected**. A dry-run of the documented sanitized baseline export completed with zero network requests; it is fixture compatibility evidence, not production parity.
 
 ## Task 8 completion notes
 
-- Local Docker Desktop was stopped, so the final database checks ran in GitHub Actions against isolated PostgreSQL 16 services and passed.
+- Local Docker Desktop was stopped, so the final database checks and follow-up restore rehearsals ran in GitHub Actions against isolated PostgreSQL 16 services and passed.
 - PR CI, main CI, and merge are complete. Production backup/restore and production data parity remain outside the available verification evidence.
 - The original C: checkout has no free space. Continue in the D: clone; do not clean or overwrite the original checkout's `tmp/`, ignored `.env`, or unrelated artifacts.
 

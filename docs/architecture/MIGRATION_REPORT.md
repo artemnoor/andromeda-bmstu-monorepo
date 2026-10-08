@@ -1,6 +1,6 @@
 # Architecture v1.1 migration report
 
-> Snapshot date: 2026-10-08. This report records implementation and verification evidence available before the final clean-checkout phase. It is not a production-readiness report.
+> Evidence date: 2026-10-08. This report records the migration and follow-up verification evidence. It is not a production-readiness report.
 
 ## Scope
 
@@ -39,7 +39,7 @@ Verification completed: focused domain/contracts/API/boundary suite **55 passed*
 ## Final local verification checkpoint
 
 - The final locked non-editable workspace sync passed from the D: continuation clone using a D:-local uv cache because C: has zero bytes free.
-- The full local non-integration suite passed: **77 passed, 8 deselected, 1 existing Starlette/httpx deprecation warning**. The eight deselected cases require the dedicated PostgreSQL/Directus integration environment.
+- The full local non-integration suite passed: **78 passed, 8 deselected, 1 existing Starlette/httpx deprecation warning**. The eight deselected cases require the dedicated PostgreSQL/Directus integration environment.
 - The `academic-data` CLI help and `andromeda-bmstu list` commands passed; all five parser commands remain available. Offline bundle validation passed for 21,911 normalized records at digest `42616ee9348ee009fa1b297f7ef697862134835e562c7840f413643ce71d2130`. Offline dry-run reported zero network requests and no database connection.
 - Focused Ruff checks passed for the edited application and database repository files. Repository-wide `ruff check .` reports **280 findings**; this migration did not reformat unrelated baseline code.
 - Default and Directus-profile Compose configurations passed with `--env-file .env.example`, without consulting the ignored `.env`.
@@ -54,6 +54,14 @@ Verification completed: focused domain/contracts/API/boundary suite **55 passed*
 - Pull request workflow run [`37715604293`](https://github.com/artemnoor/andromeda-bmstu-monorepo/actions/runs/37715604293) passed on the final PR head. It reported **85 passed, 1 skipped, 1 existing Starlette/httpx deprecation warning** in the full suite; `db-check` reported **8 passed, 1 warning**; `api-ingestion-check` reported **60 passed, 1 warning**; `directus-check` reported **7 passed, 1 skipped**; and `domain-contracts-check` reported **18 passed, 1 warning**.
 - The unconditional main-branch workflow run [`37717732002`](https://github.com/artemnoor/andromeda-bmstu-monorepo/actions/runs/37717732002) passed for merge commit `dda98f6`. The full suite reported **85 passed, 1 skipped, 1 existing Starlette/httpx deprecation warning**.
 - The PR database job used its isolated PostgreSQL 16 service and passed the release lifecycle, stale-base, rollback, sequential-update, concurrent-publisher, and read-only permission checks. The CI workflow now installs Poppler in this job because BMSTU curriculum PDF parsing requires `pdftotext`.
+
+## Follow-up integration and restore verification
+
+- PR [#5](https://github.com/artemnoor/andromeda-bmstu-monorepo/pull/5), code head `1a946d1`, passed workflow run [`37722827566`](https://github.com/artemnoor/andromeda-bmstu-monorepo/actions/runs/37722827566): full suite **85 passed, 1 skipped, 1 warning**; PostgreSQL lifecycle **8 passed, 1 warning**; API/ingestion **60 passed, 1 warning**; Directus **7 passed, 1 skipped**; domain/contracts **18 passed, 1 warning**.
+- The CI database and full-check jobs both created a backup of the isolated PostgreSQL 16 test database and restored it into a temporary database. Both restore checks verified Alembic revision `f4b19a7c2d61`, the `academic_read`, `directus_read`, and `directus_meta` schemas, and all 57 read-model tables. This is a test-database rehearsal, not production backup/restore evidence.
+- PostgreSQL lifecycle and Directus permission/runtime tests now live under `tests/integration/`. The moved suite collects 11 tests; Ruff passes for this directory. The local non-integration suite passed **78 tests with 8 PostgreSQL-dependent cases deselected**.
+- The documented sanitized baseline export completed an importer dry-run with zero network requests. This shows the current importer accepts that isolated fixture; it does not prove production parity or a byte-for-byte match with the checked-in bundle.
+- The follow-up CI exercises `make migrate`, `make validate`, and `make test` with an ephemeral `.env` on GitHub Actions runners. The original ignored `.env`, checked-in data, and pre-existing user artifacts were left untouched.
 
 ## Remaining migration work
 
@@ -75,4 +83,4 @@ The migration does not imply a verified production backup/restore, selected RPO/
 
 ## Final report update
 
-Task 8 is complete for the migration scope: PR #4 merged as `dda98f6ba33d06575005dc02e85c2e5d4f6dc246`, PR CI run `37715604293` passed, and main CI run `37717732002` passed. The available checks establish preservation of checked-in data, fixtures, schema history, API/CLI contracts, and PostgreSQL release behavior. They do not establish production data parity, production backup/restore, or deployment readiness.
+Task 8 is complete for the migration scope: PR #4 merged as `dda98f6ba33d06575005dc02e85c2e5d4f6dc246`, PR CI run `37715604293` passed, and main CI run `37717732002` passed. PR #5 adds the integration layout and test-database restore rehearsal; its CI run is recorded above. The available checks establish preservation of checked-in data, fixtures, schema history, API/CLI contracts, and PostgreSQL release behavior. They do not establish production data parity, production backup/restore, or deployment readiness.

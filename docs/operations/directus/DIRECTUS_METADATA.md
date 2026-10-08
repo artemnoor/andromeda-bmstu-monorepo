@@ -1,6 +1,6 @@
 # Directus viewer metadata
 
-> Verification status, 2026-10-08: the metadata test module passed 5/5 tests and both Compose profiles validate. Database-backed permission and Directus runtime checks remain pending against the moved tree because Docker Desktop could not start. The prior smoke notes below are historical context.
+> Verification status, 2026-10-08: metadata tests passed 5/5 and both Compose profiles validate. The actual PostgreSQL Directus-role permission test passed in CI. The optional Directus HTTP smoke was skipped because no local service and credentials were configured. The prior smoke notes below are historical context.
 
 These files reproduce the Directus 12.4.1 internal viewer configuration:
 

@@ -11,9 +11,9 @@ The monorepo uses Python workspace packages to give persistence, domain semantic
 | Persistence | `packages/db` owns SQLAlchemy models, repositories, connection/settings, Alembic configuration and runner, and migration history. | Implemented. The existing 11 revision files, revision IDs, parent links, one head (`f4b19a7c2d61`), and `academic_data_alembic_version` table are preserved. |
 | Domain | `domain` contains framework-independent ontology validators, policy resolution, and repository port types. | Implemented for the moved semantics. This is not a complete rule engine, graph model, or bitemporal implementation. |
 | HTTP contracts | `packages/contracts` owns the versioned API v1 DTOs. | Implemented. Contracts do not depend on FastAPI routers. |
-| API | `services/api` composes the read-only FastAPI v1 surface and the `PublicationApplicationService` used by both CLI commit entry points. | The shared application service is present in code. A focused post-move set covering parser, API, domain-boundary, proposal, and offline-bundle behavior passed 63 tests; PostgreSQL-backed publication integration remains pending. Existing `/api/v1` routes are GET-only. Proposal, approval, rejection, and publication HTTP routes are not implemented. |
+| API | `services/api` composes the read-only FastAPI v1 surface and the `PublicationApplicationService` used by both CLI commit entry points. | The shared application service is present in code. The final PR CI full suite passed 85 tests with 1 skip; its isolated PostgreSQL lifecycle job passed 8 tests. Existing `/api/v1` routes are GET-only. Proposal, approval, rejection, and publication HTTP routes are not implemented. |
 | Ingestion | The BMSTU parser and review CLI are in `services/ingestion` and retain capture, parse, candidate, diff, review, validation, dry-run, and commit commands. | The move and focused CLI/parser checks are represented in the 63-test post-move set. The parser pipeline is not Dagster-orchestrated. |
-| Directus | The repository contains the Directus metadata and a separate read projection/runtime-role configuration. | Metadata tests passed 5/5 and both root Compose profiles validate. PostgreSQL-backed permission enforcement and the Directus runtime smoke remain pending because Docker Desktop could not start. |
+| Directus | The repository contains the Directus metadata and a separate read projection/runtime-role configuration. | The metadata, permission, and runtime CI job passed 7 tests and skipped the optional HTTP smoke without local service credentials. Both root Compose profiles validate. |
 | Apps and orchestration | No public web app, Graph Explorer, Dagster runtime, or independent deployment artifacts are present. | Deferred. |
 
 ## Dependency direction
@@ -35,7 +35,7 @@ AST boundary tests cover the ontology, contracts, API query/routers, and parser 
 
 PostgreSQL is the canonical store for the published academic release. Alembic history is owned by `packages/db`; no migration was added or rewritten for the ownership move. Release publication continues to use the existing guarded transaction, including active-release/base checks and immutable release records.
 
-The parser `ingest commit` command and API distribution `academic-data bundle import --commit` both call `publish_reviewed_bundle` in `services/api`, which delegates publication to `PublicationApplicationService` and the `packages/db` publication repository. Both CLI paths use the shared boundary in code, and focused post-move tests passed. Real PostgreSQL publication and permission integration remain unverified because Docker Desktop could not start. Do not describe this as a new public API write route. The public API remains read-only and no applicant profile or proposal persistence is present.
+The parser `ingest commit` command and API distribution `academic-data bundle import --commit` both call `publish_reviewed_bundle` in `services/api`, which delegates publication to `PublicationApplicationService` and the `packages/db` publication repository. Both CLI paths use the shared boundary in code. PostgreSQL 16 CI covered publication lifecycle and permission integration. Do not describe this as a new public API write route. The public API remains read-only and no applicant profile or proposal persistence is present.
 
 The ontology package now owns selected semantic validation previously embedded in parser models and the published-rule selection policy. It does not introduce a new canonical schema or copy ORM models into the domain.
 
@@ -43,7 +43,7 @@ The ontology package now owns selected semantic validation previously embedded i
 
 The API reads a single active-release snapshot per request through the existing query layer and stable v1 DTOs. Canonical OpenAPI remains unchanged through the contract move (24 paths and 40 schemas; canonical SHA-256 `59cfcd54a15eb78e2f22e70bb25395c78d65d84139516b01dfe7666e1c1feec4`).
 
-Directus is configured to read the allowlisted active-release projection and scope metadata writes to `directus_meta`. The moved-tree PostgreSQL grants have not been exercised in the current verification checkpoint, so runtime denial of academic writes remains pending. Directus is not a moderator or publisher. Production identity, SSO, policies, and licensed-mode/browser review are outside the verified local contour.
+Directus is configured to read the allowlisted active-release projection and scope metadata writes to `directus_meta`. The isolated PostgreSQL 16 permission test uses the actual Directus runtime role and passed in CI. Directus is not a moderator or publisher. Production identity, SSO, policies, and licensed-mode/browser review are outside the verified contour.
 
 ## Data and migration invariants
 
@@ -55,7 +55,7 @@ Directus is configured to read the allowlisted active-release projection and sco
 
 ## Verification status
 
-Post-move verification includes a locked non-editable workspace install, a focused 63-test parser/API/domain-boundary/proposal/offline-bundle set, 5/5 Directus metadata tests, and successful validation of both Compose profiles. The focused suite emitted one existing Starlette deprecation warning. Docker Desktop could not start, so PostgreSQL-backed permission and full integration checks remain pending. GitHub Actions results and final clean-checkout parity are not implied by these local checks.
+The final merged-code verification includes a locked non-editable workspace install, local non-integration tests, bundle and parser checks, and Compose validation. PR CI passed the full suite (**85 passed, 1 skipped, 1 existing warning**), PostgreSQL release lifecycle (**8 passed**), API/ingestion (**60 passed**), Directus (**7 passed, 1 skipped**), and domain/contracts (**18 passed**). Main CI also passed. These checks use isolated fixtures; they do not establish production data parity, production restore, deployment, or service SLOs.
 
 ## Target architecture boundary
 
