@@ -15,7 +15,7 @@ The architecture attachment describes a target. Its proposed Web app, Graph Expl
 - [x] Task 5 — Route publication through the shared API application service; keep HTTP v1 read-only.
 - [x] Task 6 — Move Directus metadata and add local Compose/operations scaffolding.
 - [x] Task 7 — Add import-boundary checks, path-aware CI, ADRs, and canonical documentation.
-- [ ] Task 8 — Finish isolated database/integration verification, remote checks, and merge to `main`.
+- [x] Task 8 — Finish isolated database/integration verification, remote checks, and merge to `main`.
 
 ## Verified evidence
 
@@ -25,14 +25,18 @@ The architecture attachment describes a target. Its proposed Web app, Graph Expl
 - Focused Ruff checks passed for the edited application and DB repository files. Repository-wide `ruff check .` remains red with 280 findings; this broad lint backlog was not mass-reformatted as part of the ownership move.
 - Both Compose configurations validated using the explicit `.env.example` file, so the ignored `.env` was not consulted.
 - All 11 moved Alembic revision files match the baseline text after normalizing Windows line endings. Existing revision IDs, parent links, single head `f4b19a7c2d61`, and `academic_data_alembic_version` are unchanged.
-- Earlier isolated PostgreSQL 16 migration checks passed before final API/database repository edits. The final PostgreSQL-backed publication, permission, backup/restore, and Directus runtime checks have not been repeated.
+- PR CI run `37715604293` passed: full suite **85 passed, 1 skipped, 1 warning**; PostgreSQL lifecycle **8 passed**; API/ingestion **60 passed**; Directus **7 passed, 1 skipped**; domain/contracts **18 passed**.
+- Main CI run `37717732002` passed on merge commit `dda98f6ba33d06575005dc02e85c2e5d4f6dc246`: full suite **85 passed, 1 skipped, 1 warning**.
+- The checked-in `data/` bundle and `tests/fixtures/bmstu/ingestion` have no diff from baseline commit `0daa30e`. PostgreSQL CI covered release counts, archive digest, idempotent re-import, rollback, stale-base rejection, and concurrent publication.
+- The migration was merged to `main` by PR #4 at `dda98f6ba33d06575005dc02e85c2e5d4f6dc246`.
+- Production export parity and backup/restore remain unverified because no production database or backup was available; no production preservation claim is made.
 
-## Remaining Task 8 gates
+## Task 8 completion notes
 
-- Docker Desktop is stopped, so final PostgreSQL 16 lifecycle and Directus permission/runtime checks cannot run locally without an isolated PG16 service.
-- Remote GitHub Actions and merge to `main` are pending. Do not mark Task 8 complete until remote required checks are green and the merge SHA is verified.
+- Local Docker Desktop was stopped, so the final database checks ran in GitHub Actions against isolated PostgreSQL 16 services and passed.
+- PR CI, main CI, and merge are complete. Production backup/restore and production data parity remain outside the available verification evidence.
 - The original C: checkout has no free space. Continue in the D: clone; do not clean or overwrite the original checkout's `tmp/`, ignored `.env`, or unrelated artifacts.
 
 ## Completion rule
 
-Record final test, database, data-parity, Compose, CI, and merge evidence in `docs/architecture/MIGRATION_REPORT.md`. Keep unavailable checks explicitly unverified, and mark Task 8 complete only after the merge is confirmed.
+Record test, database, bundle, Compose, CI, and merge evidence in `docs/architecture/MIGRATION_REPORT.md`. Keep production-only checks explicitly unverified. Task 8 is complete after the merge SHA and main CI success are recorded.

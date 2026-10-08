@@ -45,22 +45,29 @@ Verification completed: focused domain/contracts/API/boundary suite **55 passed*
 - Default and Directus-profile Compose configurations passed with `--env-file .env.example`, without consulting the ignored `.env`.
 - All 11 relocated Alembic revision files match the baseline contents after normalizing Windows line endings. Existing revision IDs, parent links, single head `f4b19a7c2d61`, and version table name remain unchanged.
 - The API application now owns publication orchestration; release lifecycle, classification persistence, migration audit, health reads, and publication SQL are in `packages/db` repositories. HTTP routers remain read-only by boundary checks.
-- The final PostgreSQL-backed release lifecycle, Directus permission/runtime, and backup/restore checks remain unverified because Docker Desktop could not start. Earlier isolated PG16 migration checks were completed before the final repository-only edits; they do not substitute for post-move integration evidence.
-- GitHub Actions, final data-export parity comparison, and merge to `main` remain pending. The implementation is in the D: continuation clone; the original C: checkout was not modified during this continuation because its volume has no free space.
+- Docker Desktop could not start locally, so the final PostgreSQL lifecycle and Directus permission checks ran in GitHub Actions against isolated PostgreSQL 16 services instead. Production backup/restore remains unverified.
+- The change was merged to `main`; the original C: checkout was not modified during this continuation because its volume has no free space.
+
+## Remote CI and merge verification
+
+- PR [#4](https://github.com/artemnoor/andromeda-bmstu-monorepo/pull/4), head `092c380`, merged on 2026-10-08 at `dda98f6ba33d06575005dc02e85c2e5d4f6dc246`.
+- Pull request workflow run [`37715604293`](https://github.com/artemnoor/andromeda-bmstu-monorepo/actions/runs/37715604293) passed on the final PR head. It reported **85 passed, 1 skipped, 1 existing Starlette/httpx deprecation warning** in the full suite; `db-check` reported **8 passed, 1 warning**; `api-ingestion-check` reported **60 passed, 1 warning**; `directus-check` reported **7 passed, 1 skipped**; and `domain-contracts-check` reported **18 passed, 1 warning**.
+- The unconditional main-branch workflow run [`37717732002`](https://github.com/artemnoor/andromeda-bmstu-monorepo/actions/runs/37717732002) passed for merge commit `dda98f6`. The full suite reported **85 passed, 1 skipped, 1 existing Starlette/httpx deprecation warning**.
+- The PR database job used its isolated PostgreSQL 16 service and passed the release lifecycle, stale-base, rollback, sequential-update, concurrent-publisher, and read-only permission checks. The CI workflow now installs Poppler in this job because BMSTU curriculum PDF parsing requires `pdftotext`.
 
 ## Remaining migration work
 
 | Phase | Scope | Evidence status |
 |---|---|---|
-| 4 | Relocate ingestion and parser ownership while preserving CLI behavior and enforcing its dependency boundary. | The code move is present; parser and related focused regressions are included in the post-move 63-test set. Full PostgreSQL integration remains pending because Docker Desktop could not start. |
-| 5 | Route publication callers through one API application service and keep the public v1 surface read-only. | `PublicationApplicationService` is present in `services/api`; both CLI paths call it and the focused post-move set passed. PostgreSQL-backed publication integration remains pending. No proposal table or moderation HTTP routes were added. |
-| 6 | Move Directus metadata, add root Compose/operations files, and preserve existing permission/count contracts. | Metadata tests passed 5/5 and both Compose profiles validate. PostgreSQL permission enforcement and Directus runtime smoke remain pending because Docker Desktop could not start. |
-| 7 | Organize docs and path-aware CI with unconditional full checks on main/schedule. | Canonical docs, ADRs, compatibility links, and path-aware workflow are present. Compose profile configuration and local tests pass; remote CI is pending. |
-| 8 | Clean locked checkout, final full suite, migration/data parity, remote checks, and merge to `main`. | Local locked install, non-integration suite, bundle checks, revision comparison, focused lint, and Compose configuration pass. Docker-backed integration, final release export parity, remote CI, and merge remain pending. |
+| 4 | Relocate ingestion and parser ownership while preserving CLI behavior and enforcing its dependency boundary. | Parser/CLI checks passed locally and in the 60-test API/ingestion CI job. Existing commands and fixture parsing remain available. |
+| 5 | Route publication callers through one API application service and keep the public v1 surface read-only. | PostgreSQL 16 lifecycle tests passed; a focused API test confirms the application still maps repository publication errors to `BundleImportError`. No proposal table or moderation HTTP routes were added. |
+| 6 | Move Directus metadata, add root Compose/operations files, and preserve existing permission/count contracts. | Metadata, permission, and runtime CI checks reported 7 passed and 1 skipped; both Compose profiles validate locally. |
+| 7 | Organize docs and path-aware CI with unconditional full checks on main/schedule. | Canonical docs, ADRs, compatibility links, path-aware CI, and the unconditional main full check are present. PR and main workflows passed. |
+| 8 | Clean locked checkout, final full suite, migration/data parity, remote checks, and merge to `main`. | Locked installs, local non-integration suite, bundle checks, revision comparison, focused lint, Compose checks, PostgreSQL 16 integration, PR CI, main CI, and merge passed. Exact production export parity and backup/restore were unavailable and are not claimed. |
 
 ## Data identity and protection
 
-Final parity must compare the isolated test release against the baseline export manifest: release ID/key, source bundle digest, migration head, every exported file hash, and structural counts. The current local setup does not provide production credentials or a production backup, so this comparison can establish only test-fixture preservation. Existing user `tmp/`, ignored `.env`, and unrelated artifacts are outside this report and must remain untouched.
+The checked-in `data/` bundle and `tests/fixtures/bmstu/ingestion` files have no diff from baseline commit `0daa30e`. PostgreSQL 16 CI imported and exported the release, checked row counts and idempotent re-import, validated the stored archive digest, and passed rollback/stale-base checks. No production database, backup, or credentials were available for a production export comparison; production data parity and backup/restore remain unverified. Existing user `tmp/`, ignored `.env`, and unrelated artifacts are outside this report and must remain untouched.
 
 ## Operational and product limits
 
@@ -68,4 +75,4 @@ The migration does not imply a verified production backup/restore, selected RPO/
 
 ## Final report update
 
-Task 8 remains open. Append the clean-checkout PostgreSQL lifecycle and release file-hash comparison, remote GitHub Actions result, and merge SHA after those checks are actually completed. The present blocker for PostgreSQL-backed checks is that Docker Desktop could not start. Do not infer production parity from local fixtures.
+Task 8 is complete for the migration scope: PR #4 merged as `dda98f6ba33d06575005dc02e85c2e5d4f6dc246`, PR CI run `37715604293` passed, and main CI run `37717732002` passed. The available checks establish preservation of checked-in data, fixtures, schema history, API/CLI contracts, and PostgreSQL release behavior. They do not establish production data parity, production backup/restore, or deployment readiness.
