@@ -1,0 +1,18 @@
+{
+  "source": "bmstu_archive_2026",
+  "exported_at": "2026-10-04T10:17:52.0908076+03:00",
+  "counts": {
+    "educational_programs": 152,
+    "curriculum_items": 14165,
+    "program_offerings": 127,
+    "competition_pools": 934,
+    "exam_requirements": 81,
+    "individual_achievement_policies": 31,
+    "campaign_dates": 37,
+    "tuition": 340,
+    "historical_admission_statistics": 783,
+    "campaign_admission_statistics": 311,
+    "exams": 11,
+    "curriculum_items_with_subject_classification": 12108
+  }
+}

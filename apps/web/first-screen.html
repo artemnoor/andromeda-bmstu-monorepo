@@ -1,0 +1,550 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <link rel="icon" href="assets/andromeda-symbol.png" type="image/png">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#ffffff">
+  <title>Первый экран — Andromeda × BMSTU</title>
+  <script src="assets/academic-data.js" defer></script>
+  <style>
+    :root {
+      color-scheme: light;
+      font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+      color: #111;
+      background-color: #fafafa;
+      background-image: url("assets/paper-noise.svg");
+      background-repeat: repeat;
+      background-size: 180px 180px;
+      background-blend-mode: multiply;
+      background-attachment: fixed;
+      background-position: 0 0;
+      animation: paper-grain 8s steps(10) infinite;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    @keyframes paper-grain {
+      0%, 100% { background-position: 0 0; }
+      10% { background-position: -8px -18px; }
+      20% { background-position: -27px 9px; }
+      30% { background-position: 9px -45px; }
+      40% { background-position: -9px 45px; }
+      50% { background-position: -27px 18px; }
+      60% { background-position: 27px 0; }
+      70% { background-position: 0 27px; }
+      80% { background-position: 9px 63px; }
+      90% { background-position: -18px 18px; }
+    }
+
+    *,
+    *::before,
+    *::after { box-sizing: border-box; }
+
+    html { min-width: 320px; min-height: 100%; }
+    body { min-width: 320px; min-height: 100vh; min-height: 100svh; margin: 0; overflow-x: hidden; }
+    body.menu-open { overflow: hidden; }
+
+    .page {
+      position: relative;
+      width: 100%;
+      min-height: 100vh;
+      min-height: 100svh;
+      padding: clamp(18px, 3.2vw, 42px) clamp(18px, 4vw, 56px);
+      transition: transform .9s cubic-bezier(.16, 1, .3, 1), filter .9s ease, opacity .7s ease;
+    }
+
+    body.menu-open .page { transform: scale(.985); filter: blur(2px); opacity: .72; }
+
+    .logo {
+      position: fixed;
+      z-index: 90;
+      inset-block-start: clamp(18px, 3.2vw, 42px);
+      inset-inline-start: clamp(18px, 4vw, 56px);
+      pointer-events: none;
+    }
+
+    .logo img { display: block; width: clamp(78px, 7vw, 108px); height: auto; }
+
+    .hero {
+      position: relative;
+      min-height: calc(clamp(60px, 7vh, 96px) + min(72svh, 930px) - clamp(24px, 3.2vw, 52px) + clamp(18px, 2vh, 24px));
+    }
+
+    .hero-shape {
+      position: absolute;
+      z-index: 0;
+      inset-block-start: clamp(60px, 7vh, 96px);
+      inset-inline-start: 50%;
+      width: min(98vw, 1880px);
+      height: min(72svh, 930px);
+      min-height: 460px;
+      transform: translateX(-50%);
+      pointer-events: none;
+    }
+
+    .hero-shape svg { display: block; width: 100%; height: 100%; overflow: visible; }
+    .hero-shape .shape { fill: #0a83f5; filter: url(#softGlow); }
+    .hero-shape .hero-photo { opacity: .98; }
+    .hero-shape .hero-photo-edge { opacity: 1; }
+    .hero-shape .hero-shape-outline {
+      fill: none;
+      stroke: #111;
+      stroke-width: 10;
+      stroke-linejoin: round;
+      stroke-linecap: round;
+      vector-effect: non-scaling-stroke;
+      pointer-events: none;
+    }
+
+    .university-name {
+      position: absolute;
+      z-index: 2;
+      inset-block-start: var(--university-name-top, 72px);
+      inset-inline: var(--university-name-left, 24px) var(--university-name-right, 180px);
+      width: fit-content;
+      max-width: min(52%, 560px);
+      margin: 0;
+      padding: 0;
+      border: 0;
+      border-radius: 0;
+      color: #fff;
+      background: transparent;
+      box-shadow: none;
+      -webkit-backdrop-filter: none;
+      backdrop-filter: none;
+      font-size: clamp(18px, 1.9vw, 27px);
+      font-weight: 700;
+      line-height: 1.16;
+      letter-spacing: -.025em;
+      text-shadow: 0 1px 3px rgba(0, 24, 54, .9), 0 4px 16px rgba(0, 0, 0, .46);
+      text-wrap: balance;
+      pointer-events: none;
+    }
+
+    .stats-marquee {
+      --stats-gap: clamp(32px, 5vw, 60px);
+      --stats-half-gap: clamp(16px, 2.5vw, 30px);
+      display: grid;
+      align-content: center;
+      width: 100%;
+      min-width: 0;
+      padding-block: clamp(18px, 2.5vw, 32px) clamp(22px, 3vw, 40px);
+      overflow: hidden;
+      background: transparent;
+    }
+
+    .stats-track,
+    .stats-group {
+      display: flex;
+      align-items: flex-start;
+      gap: var(--stats-gap);
+      width: max-content;
+    }
+
+    .stats-track {
+      min-width: max-content;
+      animation: stats-marquee 42s linear infinite;
+      will-change: transform;
+    }
+
+    .stats-marquee:hover .stats-track { animation-play-state: paused; }
+
+    .stats-item {
+      display: grid;
+      flex: 0 0 auto;
+      gap: 4px;
+      min-width: max-content;
+    }
+
+    .stats-value {
+      color: #006cdc;
+      font-size: clamp(40px, 4.2vw, 64px);
+      font-weight: 700;
+      line-height: 1;
+      letter-spacing: -.035em;
+      white-space: nowrap;
+    }
+
+    .stats-label {
+      color: #171819;
+      font-size: clamp(12px, 1vw, 15px);
+      font-weight: 500;
+      line-height: 1.3;
+      white-space: nowrap;
+    }
+
+    @keyframes stats-marquee {
+      from { transform: translate3d(0, 0, 0); }
+      to { transform: translate3d(calc(-50% - var(--stats-half-gap)), 0, 0); }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .stats-marquee { overflow-x: auto; scrollbar-width: thin; }
+      .stats-track { animation: none; }
+    }
+
+    .backdrop {
+      position: fixed;
+      z-index: 100;
+      inset: 0;
+      background: rgba(15, 15, 15, .16);
+      -webkit-backdrop-filter: blur(0);
+      backdrop-filter: blur(0);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .8s ease, backdrop-filter .9s ease, -webkit-backdrop-filter .9s ease;
+    }
+
+    body.menu-open .backdrop {
+      background: rgba(15, 15, 15, .16);
+      -webkit-backdrop-filter: blur(7px);
+      backdrop-filter: blur(7px);
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .menu-shell {
+      position: fixed;
+      z-index: 200;
+      inset: max(10px, env(safe-area-inset-top)) max(10px, env(safe-area-inset-right)) max(10px, env(safe-area-inset-bottom)) auto;
+      width: min(72vw, 1050px);
+      pointer-events: none;
+    }
+
+    body.menu-open .menu-shell { pointer-events: auto; }
+
+    .menu-panel {
+      position: absolute;
+      inset: 0;
+      overflow: auto;
+      overscroll-behavior: contain;
+      scrollbar-width: thin;
+      color: #f4f1ea;
+      background: #303030;
+      border-radius: 56px;
+      box-shadow: 0 35px 100px rgba(0, 0, 0, .28), 0 10px 35px rgba(0, 0, 0, .14);
+      clip-path: inset(0 0 calc(100% - 64px) calc(100% - 64px) round 32px);
+      transform: scale(.94);
+      transform-origin: top right;
+      opacity: 0;
+      transition: clip-path 1.05s cubic-bezier(.76, 0, .24, 1), transform 1.05s cubic-bezier(.16, 1, .3, 1), opacity .18s ease;
+    }
+
+    body.menu-open .menu-panel {
+      clip-path: inset(0 0 0 0 round 56px);
+      transform: scale(1);
+      opacity: 1;
+    }
+
+    .menu-content {
+      min-height: 100%;
+      display: grid;
+      align-content: space-between;
+      padding: 118px clamp(30px, 5vw, 72px) 45px;
+    }
+
+    .menu-list { display: grid; margin: 0; padding: 0; list-style: none; }
+    .menu-item { overflow: hidden; border-bottom: 1px solid rgba(255, 255, 255, .14); }
+    .menu-item:first-child { border-top: 1px solid rgba(255, 255, 255, .14); }
+
+    .menu-link {
+      display: grid;
+      grid-template-columns: 32px minmax(0, 1fr);
+      align-items: center;
+      gap: 24px;
+      padding: 12px 0 14px;
+      color: inherit;
+      text-decoration: none;
+      opacity: 0;
+      transform: translateY(55px) scale(.98);
+      filter: blur(9px);
+      transition: transform .75s cubic-bezier(.16, 1, .3, 1), opacity .55s ease, filter .65s ease;
+    }
+
+    body.menu-open .menu-link { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+    body.menu-open .menu-item:nth-child(1) .menu-link { transition-delay: .38s; }
+    body.menu-open .menu-item:nth-child(2) .menu-link { transition-delay: .45s; }
+    body.menu-open .menu-item:nth-child(3) .menu-link { transition-delay: .52s; }
+    body.menu-open .menu-item:nth-child(4) .menu-link { transition-delay: .59s; }
+
+    .menu-link:focus-visible,
+    .menu-button:focus-visible { outline: 3px solid #006cdc; outline-offset: 4px; }
+    .number { width: 32px; font-size: 11px; opacity: .38; }
+    .label { font-size: clamp(32px, 4.4vw, 68px); line-height: .95; letter-spacing: -.065em; transition: transform .45s cubic-bezier(.16, 1, .3, 1), opacity .35s ease; }
+    .menu-link:hover .label { transform: translateX(18px); opacity: .66; }
+    .menu-footer { padding-top: 30px; color: rgba(255, 255, 255, .38); font-size: 12px; }
+
+    .menu-button {
+      position: fixed;
+      z-index: 500;
+      top: max(22px, env(safe-area-inset-top));
+      right: max(22px, env(safe-area-inset-right));
+      display: grid;
+      place-items: center;
+      width: 54px;
+      height: 54px;
+      padding: 0;
+      border: 0;
+      border-radius: 50%;
+      background: #111;
+      cursor: pointer;
+      transition: transform .45s cubic-bezier(.16, 1, .3, 1), background .55s ease;
+    }
+
+    .menu-button:hover { transform: scale(1.07); }
+    .menu-button span { position: absolute; width: 22px; height: 2px; background: #fff; transition: transform .55s cubic-bezier(.16, 1, .3, 1), top .55s cubic-bezier(.16, 1, .3, 1), background .4s ease; }
+    .menu-button span:first-child { top: 22px; }
+    .menu-button span:last-child { top: 30px; }
+    body.menu-open .menu-button { background: #fff; }
+    body.menu-open .menu-button span { top: 26px; background: #111; }
+    body.menu-open .menu-button span:first-child { transform: rotate(45deg); }
+    body.menu-open .menu-button span:last-child { transform: rotate(-45deg); }
+
+    @media (max-width: 1100px) {
+      .hero { min-height: calc(clamp(60px, 7vh, 96px) + min(70svh, 760px) - clamp(24px, 3.2vw, 52px) + clamp(18px, 2vh, 24px)); }
+      .hero-shape { width: 96vw; height: min(70svh, 760px); min-height: 420px; }
+    }
+
+    @media (max-width: 800px) {
+      .logo { inset-block-start: 25px; inset-inline-start: 22px; }
+      .menu-shell { inset: 10px; width: auto; }
+      .menu-panel { border-radius: 40px; clip-path: inset(0 0 calc(100% - 58px) calc(100% - 58px) round 29px); }
+      body.menu-open .menu-panel { clip-path: inset(0 0 0 0 round 40px); }
+      .menu-button { top: 22px; right: 22px; }
+      .menu-content { padding: 96px 26px 28px; }
+      .number { width: 26px; }
+      .label { font-size: clamp(24px, 6vw, 48px); }
+    }
+
+    @media (max-width: 700px) {
+      .hero { min-height: calc(clamp(60px, 7vh, 96px) + min(68svh, 600px) - clamp(18px, 5.5vw, 28px) + 20px); }
+      .hero-shape { width: 96vw; height: min(68svh, 600px); min-height: 390px; }
+    }
+
+    @media (max-width: 600px) {
+      .page { padding: 18px max(18px, env(safe-area-inset-left)) max(18px, env(safe-area-inset-right)); }
+      .logo { inset-block-start: max(18px, env(safe-area-inset-top)); inset-inline-start: max(18px, env(safe-area-inset-left)); }
+      .menu-shell { inset: max(8px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left)); }
+      .menu-panel,
+      body.menu-open .menu-panel { border-radius: 32px; }
+      .menu-panel { clip-path: inset(0 0 calc(100% - 54px) calc(100% - 54px) round 27px); }
+      body.menu-open .menu-panel { clip-path: inset(0 0 0 0 round 32px); }
+      .menu-button { top: max(16px, env(safe-area-inset-top)); right: max(16px, env(safe-area-inset-right)); width: 48px; height: 48px; }
+      .menu-button span:first-child { top: 19px; }
+      .menu-button span:last-child { top: 27px; }
+      body.menu-open .menu-button span { top: 23px; }
+      .menu-content { padding: 84px clamp(20px, 6vw, 34px) 24px; }
+      .label { font-size: clamp(32px, 10.5vw, 58px); }
+    }
+
+    @media (max-width: 420px) {
+      .hero { min-height: calc(clamp(60px, 7vh, 96px) + min(64svh, 520px) - clamp(18px, 5.5vw, 28px) + 20px); }
+      .hero-shape { height: min(64svh, 520px); min-height: 360px; }
+    }
+
+    @media (max-height: 540px) and (orientation: landscape) {
+      .hero { min-height: calc(100svh + 40px); }
+      .hero-shape { height: min(64svh, 360px); min-height: 280px; }
+      .menu-content { min-height: 100%; padding-block: 84px 20px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      :root { animation: none; background-position: 0 0; }
+      *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; }
+    }
+  </style>
+</head>
+<body>
+  <main class="page" id="top">
+    <a class="logo" href="index.html" aria-label="Andromeda × BMSTU — главная">
+      <img src="assets/andromeda-symbol.png" alt="Andromeda × BMSTU">
+    </a>
+
+    <section class="hero" aria-label="МГТУ имени Н. Э. Баумана">
+      <div class="hero-shape" id="heroShapeWrap">
+        <svg id="heroShapeSvg" aria-hidden="true" focusable="false">
+          <defs>
+            <clipPath id="heroPhotoClip" clipPathUnits="userSpaceOnUse">
+              <path id="heroPhotoClipPath"></path>
+            </clipPath>
+            <linearGradient id="heroPhotoFadeGradient" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0" stop-color="#000" />
+              <stop offset=".02" stop-color="#000" />
+              <stop offset=".13" stop-color="#fff" />
+              <stop offset=".87" stop-color="#fff" />
+              <stop offset=".98" stop-color="#000" />
+              <stop offset="1" stop-color="#000" />
+            </linearGradient>
+            <mask id="heroPhotoFade" maskUnits="objectBoundingBox" maskContentUnits="objectBoundingBox" x="0" y="0" width="1" height="1">
+              <rect x="0" y="0" width="1" height="1" fill="url(#heroPhotoFadeGradient)" />
+            </mask>
+            <filter id="softGlow" x="-10%" y="-10%" width="120%" height="120%">
+              <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#1388ff" flood-opacity=".20" />
+            </filter>
+            <filter id="heroPhotoEdgeBlur" x="-10%" y="-10%" width="120%" height="120%">
+              <feGaussianBlur stdDeviation="7" />
+            </filter>
+          </defs>
+          <path class="shape" id="heroShapePath"></path>
+          <image class="hero-photo-edge" href="assets/bmstu-glass-campus-clouds.png" x="0" y="0" width="100%" height="100%" preserveAspectRatio="none" clip-path="url(#heroPhotoClip)" filter="url(#heroPhotoEdgeBlur)"></image>
+          <image class="hero-photo" href="assets/bmstu-glass-campus-clouds.png" x="0" y="0" width="100%" height="100%" preserveAspectRatio="none" clip-path="url(#heroPhotoClip)" mask="url(#heroPhotoFade)"></image>
+          <path class="hero-shape-outline" id="heroShapeOutline"></path>
+        </svg>
+        <p class="university-name">МГТУ имени Н. Э. Баумана</p>
+      </div>
+    </section>
+
+    <section class="stats-marquee" aria-label="Показатели МГТУ имени Н. Э. Баумана">
+      <div class="stats-track">
+        <div class="stats-group" role="list">
+          <div class="stats-item" role="listitem"><span class="stats-value">14000+</span><span class="stats-label">учебных дисциплин</span></div>
+          <div class="stats-item" role="listitem"><span class="stats-value">22</span><span class="stats-label">факультета</span></div>
+          <div class="stats-item" role="listitem"><span class="stats-value">600+</span><span class="stats-label">образовательных программ</span></div>
+          <div class="stats-item" role="listitem"><span class="stats-value">13</span><span class="stats-label">областей исследований</span></div>
+          <div class="stats-item" role="listitem"><span class="stats-value">50+</span><span class="stats-label">НОЦ и лабораторий</span></div>
+          <div class="stats-item" role="listitem"><span class="stats-value">3</span><span class="stats-label">филиала</span></div>
+          <div class="stats-item" role="listitem"><span class="stats-value">9000+</span><span class="stats-label">сотрудников</span></div>
+          <div class="stats-item" role="listitem"><span class="stats-value">31000+</span><span class="stats-label">студентов и аспирантов</span></div>
+          <div class="stats-item" role="listitem"><span class="stats-value">5000+</span><span class="stats-label">выпускников ежегодно</span></div>
+          <div class="stats-item" role="listitem"><span class="stats-value">32%</span><span class="stats-label">доля гособоронзаказа</span></div>
+        </div>
+        <div class="stats-group" aria-hidden="true">
+          <div class="stats-item"><span class="stats-value">14000+</span><span class="stats-label">учебных дисциплин</span></div>
+          <div class="stats-item"><span class="stats-value">22</span><span class="stats-label">факультета</span></div>
+          <div class="stats-item"><span class="stats-value">600+</span><span class="stats-label">образовательных программ</span></div>
+          <div class="stats-item"><span class="stats-value">13</span><span class="stats-label">областей исследований</span></div>
+          <div class="stats-item"><span class="stats-value">50+</span><span class="stats-label">НОЦ и лабораторий</span></div>
+          <div class="stats-item"><span class="stats-value">3</span><span class="stats-label">филиала</span></div>
+          <div class="stats-item"><span class="stats-value">9000+</span><span class="stats-label">сотрудников</span></div>
+          <div class="stats-item"><span class="stats-value">31000+</span><span class="stats-label">студентов и аспирантов</span></div>
+          <div class="stats-item"><span class="stats-value">5000+</span><span class="stats-label">выпускников ежегодно</span></div>
+          <div class="stats-item"><span class="stats-value">32%</span><span class="stats-label">доля гособоронзаказа</span></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div class="backdrop" id="backdrop" hidden></div>
+
+  <button class="menu-button" id="menuButton" type="button" aria-label="Открыть меню" aria-expanded="false" aria-controls="menuPanel">
+    <span></span><span></span>
+  </button>
+
+  <div class="menu-shell">
+    <aside class="menu-panel" id="menuPanel" aria-hidden="true" inert>
+      <div class="menu-content">
+        <nav aria-label="Разделы Andromeda">
+          <ul class="menu-list">
+            <li class="menu-item"><a href="index.html" class="menu-link"><span class="number">01</span><span class="label">Главная</span></a></li>
+            <li class="menu-item"><a href="discover.html" class="menu-link"><span class="number">02</span><span class="label">Проф-тест</span></a></li>
+            <li class="menu-item"><a href="compare.html" class="menu-link"><span class="number">03</span><span class="label">Сравнить программы</span></a></li>
+            <li class="menu-item"><a href="programs.html" class="menu-link"><span class="number">04</span><span class="label">Каталог программ</span></a></li>
+          </ul>
+        </nav>
+        <div class="menu-footer">ANDROMEDA × BMSTU · 2026</div>
+      </div>
+    </aside>
+  </div>
+
+  <script>
+    const menuButton = document.getElementById("menuButton");
+    const menuPanel = document.getElementById("menuPanel");
+    const backdrop = document.getElementById("backdrop");
+    const menuLinks = [...document.querySelectorAll(".menu-link")];
+
+    function setMenu(open) {
+      document.body.classList.toggle("menu-open", open);
+      document.body.style.overflow = open ? "hidden" : "";
+      menuButton.setAttribute("aria-expanded", String(open));
+      menuButton.setAttribute("aria-label", open ? "Закрыть меню" : "Открыть меню");
+      menuPanel.setAttribute("aria-hidden", String(!open));
+      menuPanel.toggleAttribute("inert", !open);
+      backdrop.hidden = false;
+      if (!open) window.setTimeout(() => { backdrop.hidden = true; }, 900);
+      if (open) menuLinks[0]?.focus({ preventScroll: true });
+      else menuButton.focus({ preventScroll: true });
+    }
+
+    menuButton.addEventListener("click", () => setMenu(menuButton.getAttribute("aria-expanded") !== "true"));
+    backdrop.addEventListener("click", () => setMenu(false));
+    menuLinks.forEach(link => link.addEventListener("click", () => setMenu(false)));
+    document.addEventListener("keydown", event => {
+      if (event.key === "Escape" && menuButton.getAttribute("aria-expanded") === "true") setMenu(false);
+    });
+
+    const heroShapeWrap = document.getElementById("heroShapeWrap");
+    const heroShapeSvg = document.getElementById("heroShapeSvg");
+    const heroShapePath = document.getElementById("heroShapePath");
+    const heroShapeOutline = document.getElementById("heroShapeOutline");
+    const heroPhoto = document.querySelector(".hero-photo");
+    const heroPhotoEdge = document.querySelector(".hero-photo-edge");
+    const heroPhotoClipPath = document.getElementById("heroPhotoClipPath");
+    const clampShape = (min, value, max) => Math.max(min, Math.min(value, max));
+
+    function updateHeroShape() {
+      const width = heroShapeWrap.clientWidth;
+      const height = heroShapeWrap.clientHeight;
+      if (!width || !height) return;
+
+      heroShapeSvg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+      const mobile = width < 700;
+      const tablet = width >= 700 && width < 1100;
+      const photoAspect = mobile ? "xMidYMid slice" : "none";
+      heroPhoto.setAttribute("preserveAspectRatio", photoAspect);
+      heroPhoto.setAttribute("mask", "url(#heroPhotoFade)");
+      heroPhotoEdge.setAttribute("preserveAspectRatio", photoAspect);
+      const padding = mobile ? clampShape(18, width * .055, 28) : clampShape(24, width * .032, 52);
+      const radius = mobile ? clampShape(18, width * .065, 30) : clampShape(22, width * .024, 38);
+      const topY = mobile ? clampShape(72, height * .12, 105) : clampShape(85, height * .17, 135);
+      const towerWidth = mobile ? clampShape(72, width * .22, 110) : tablet ? clampShape(95, width * .15, 145) : clampShape(120, width * .09, 170);
+      const towerX = width - padding - towerWidth;
+      const rightX = width - padding;
+      const leftX = padding;
+
+      heroShapeWrap.style.setProperty("--university-name-left", `${leftX + 18}px`);
+      heroShapeWrap.style.setProperty("--university-name-top", `${topY - 18}px`);
+      heroShapeWrap.style.setProperty("--university-name-right", `${width - towerX + 24}px`);
+
+      const leftStepX = mobile ? clampShape(42, width * .14, 68) : clampShape(62, width * .055, 100);
+      const leftStepY = mobile ? clampShape(220, height * .34, 300) : clampShape(250, height * .49, 410);
+      const bottomY = height - padding;
+      const lowerStepWidth = mobile ? clampShape(86, width * .28, 145) : tablet ? clampShape(150, width * .19, 220) : clampShape(250, width * .19, 390);
+      const lowerStepX = width - padding - lowerStepWidth;
+      const rightStepY = mobile ? clampShape(height * .68, height - 190, height * .78) : clampShape(height * .73, height - 120, height * .82);
+      const lowerLeftX = mobile ? clampShape(45, width * .16, 78) : clampShape(80, width * .075, 135);
+
+      const pathData = `
+        M ${leftX + radius} ${topY}
+        L ${towerX - radius} ${topY}
+        Q ${towerX} ${topY} ${towerX} ${topY - radius}
+        L ${towerX} ${padding + radius}
+        Q ${towerX} ${padding} ${towerX + radius} ${padding}
+        L ${rightX - radius} ${padding}
+        Q ${rightX} ${padding} ${rightX} ${padding + radius}
+        L ${rightX} ${rightStepY - radius}
+        Q ${rightX} ${rightStepY} ${rightX - radius} ${rightStepY}
+        L ${lowerStepX + radius} ${rightStepY}
+        Q ${lowerStepX} ${rightStepY} ${lowerStepX} ${rightStepY + radius}
+        L ${lowerStepX} ${bottomY - radius}
+        Q ${lowerStepX} ${bottomY} ${lowerStepX - radius} ${bottomY}
+        L ${lowerLeftX + radius} ${bottomY}
+        Q ${lowerLeftX} ${bottomY} ${lowerLeftX} ${bottomY - radius}
+        L ${lowerLeftX} ${leftStepY + radius}
+        Q ${lowerLeftX} ${leftStepY} ${lowerLeftX - radius} ${leftStepY}
+        L ${leftX + radius} ${leftStepY}
+        Q ${leftX} ${leftStepY} ${leftX} ${leftStepY - radius}
+        L ${leftX} ${topY + radius}
+        Q ${leftX} ${topY} ${leftX + radius} ${topY}
+        Z`;
+      heroShapePath.setAttribute("d", pathData);
+      heroShapeOutline.setAttribute("d", pathData);
+      heroPhotoClipPath.setAttribute("d", pathData);
+    }
+
+    const heroShapeObserver = new ResizeObserver(updateHeroShape);
+    heroShapeObserver.observe(heroShapeWrap);
+    window.addEventListener("orientationchange", updateHeroShape);
+    updateHeroShape();
+  </script>
+</body>
+</html>

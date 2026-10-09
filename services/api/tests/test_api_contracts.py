@@ -12,10 +12,14 @@ from andromeda_api.dependencies.queries import get_queries
 from andromeda_api.main import create_app
 from andromeda_contracts.api.v1.models import (
     AdmissionCampaignRecord,
+    CompetitionPoolRecord,
     DirectionRecord,
+    IndividualAchievementRecord,
     PageResponse,
     PaginationMetadata,
     ReleaseMetadataRecord,
+    SubjectTaxonomyCategoryRecord,
+    SubjectTaxonomyRecord,
 )
 from andromeda_db.repositories.release_publication import ReleasePublicationError
 from andromeda_ontology.ports import InvalidCursorError
@@ -65,6 +69,9 @@ def test_openapi_publishes_get_only_v1_contracts() -> None:
     assert "/api/v1/programs/{key}/study-plans" in schema["paths"]
     assert "/api/v1/requirements/{key}" in schema["paths"]
     assert "/api/v1/place-quotas" in schema["paths"]
+    assert "/api/v1/individual-achievements" in schema["paths"]
+    assert "/api/v1/competition-pools" in schema["paths"]
+    assert "/api/v1/subject-taxonomies/{taxonomy_key}/{taxonomy_version}" in schema["paths"]
     assert all(
         set(path_item) <= {"get", "parameters", "summary", "description", "operationId", "responses", "deprecated", "security", "servers", "tags"}
         for path_item in schema["paths"].values()
@@ -98,6 +105,92 @@ def test_invalid_repository_cursor_is_mapped_at_the_http_boundary() -> None:
 
     assert response.status_code == 422
     assert response.json()["error"]["code"] == "invalid_cursor"
+
+
+def test_frontend_academic_read_routes_use_existing_typed_query_models() -> None:
+    class FrontendQueries(_Queries):
+        def __init__(self):
+            self.calls = []
+
+        def achievements(self, limit, cursor, campaign_key=None):
+            self.calls.append(("achievements", limit, cursor, campaign_key))
+            return PageResponse[IndividualAchievementRecord](
+                items=[
+                    IndividualAchievementRecord(
+                        external_key="achievement:2026:olympiad",
+                        campaign_key=campaign_key,
+                        name="Победитель олимпиады",
+                        points=10,
+                        ingested_at="2026-10-08T00:00:00Z",
+                    )
+                ],
+                page=PaginationMetadata(
+                    limit=limit, next_cursor=None, total_count=1, release_key="fixture-release"
+                ),
+            )
+
+        def competition_pools(self, limit, cursor, campaign_key=None):
+            self.calls.append(("competition_pools", limit, cursor, campaign_key))
+            return PageResponse[CompetitionPoolRecord](
+                items=[
+                    CompetitionPoolRecord(
+                        external_key="pool:2026:budget",
+                        campaign_key=campaign_key,
+                        direction_code="09.03.01",
+                        department_status="verified",
+                        places=10,
+                        ingested_at="2026-10-08T00:00:00Z",
+                    )
+                ],
+                page=PaginationMetadata(
+                    limit=limit, next_cursor=None, total_count=1, release_key="fixture-release"
+                ),
+            )
+
+        def subject_taxonomy(self, taxonomy_key, taxonomy_version):
+            self.calls.append(("subject_taxonomy", taxonomy_key, taxonomy_version))
+            return SubjectTaxonomyRecord(
+                taxonomy_key=taxonomy_key,
+                taxonomy_version=taxonomy_version,
+                name="Предметные области учебных планов",
+                description="Fixture taxonomy",
+                categories=[
+                    SubjectTaxonomyCategoryRecord(
+                        category_code="01",
+                        ordinal=1,
+                        name="Математика",
+                        definition="Математические дисциплины",
+                    )
+                ],
+            )
+
+    queries = FrontendQueries()
+    with TestClient(_app_with_fixture_queries(queries)) as client:
+        achievements = client.get(
+            "/api/v1/individual-achievements?campaign_key=campaign%3Abmstu%3A2026&limit=20"
+        )
+        pools = client.get(
+            "/api/v1/competition-pools?campaign_key=campaign%3Abmstu%3A2026&limit=30"
+        )
+        taxonomy = client.get(
+            "/api/v1/subject-taxonomies/bmstu-subject-domain-16/v1"
+        )
+
+    assert achievements.status_code == 200
+    assert achievements.json()["items"][0]["name"] == "Победитель олимпиады"
+    assert achievements.json()["items"][0]["campaign_key"] == "campaign:bmstu:2026"
+    assert achievements.json()["page"]["release_key"] == "fixture-release"
+    assert pools.status_code == 200
+    assert pools.json()["items"][0]["direction_code"] == "09.03.01"
+    assert pools.json()["items"][0]["places"] == 10
+    assert taxonomy.status_code == 200
+    assert taxonomy.json()["taxonomy_key"] == "bmstu-subject-domain-16"
+    assert taxonomy.json()["categories"][0]["category_code"] == "01"
+    assert queries.calls == [
+        ("achievements", 20, None, "campaign:bmstu:2026"),
+        ("competition_pools", 30, None, "campaign:bmstu:2026"),
+        ("subject_taxonomy", "bmstu-subject-domain-16", "v1"),
+    ]
 
 
 def test_publication_service_maps_database_failures_to_application_error(monkeypatch) -> None:

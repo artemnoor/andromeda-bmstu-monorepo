@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <link rel="icon" href="assets/andromeda-symbol.png" type="image/png">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#ffffff">
+  <title>Проф-тест — Andromeda × BMSTU</title>
+  <link rel="stylesheet" href="app.css">
+  <link rel="stylesheet" href="assets/prof-test.css">
+  <link rel="stylesheet" href="assets/andromeda-header.css">
+  <script src="assets/andromeda-header.js" defer></script>
+</head>
+<body class="has-andromeda-header">
+  <main class="app-main prof-test-main">
+    <section class="app-intro prof-test-intro">
+      <div>
+        <h1 class="app-title">Проф-тест</h1>
+        <p class="app-description">Ответь на несколько коротких вопросов — и получи программы, чьи реальные учебные планы ближе к твоим интересам.</p>
+      </div>
+    </section>
+
+    <section class="prof-test-shell" id="testExperience" aria-labelledby="testExperienceTitle">
+      <h2 class="sr-only" id="testExperienceTitle">Подбор образовательной программы</h2>
+      <div class="prof-test-loading" id="testLoading" role="status" aria-live="polite">
+        <span class="prof-test-loader" aria-hidden="true"></span>
+        <strong>Подключаем учебные планы</strong>
+        <span>Собираем часы по предметным областям и форматам занятий.</span>
+      </div>
+      <div class="prof-test-unavailable" id="testUnavailable" hidden role="alert"></div>
+      <div id="testPanel" hidden>
+        <header class="test-progress-head">
+          <div>
+            <p class="section-kicker">Твой маршрут</p>
+            <p class="test-step-count" id="testStepCount">Вопрос 1 · обычно 5–7</p>
+          </div>
+          <button class="test-restart-link" id="restartTest" type="button">Начать заново</button>
+        </header>
+        <div class="test-progress-track" role="progressbar" id="testProgress" aria-label="Ход теста" aria-valuemin="1" aria-valuemax="7" aria-valuenow="1">
+          <span id="testProgressFill"></span>
+        </div>
+        <div class="test-source-note" id="testSourceNote"></div>
+        <div class="test-question" id="testQuestion" aria-live="polite"></div>
+        <div class="test-feedback" id="testFeedback" aria-live="polite"></div>
+        <footer class="test-controls">
+          <button class="button button-secondary" id="previousQuestion" type="button" hidden>Назад</button>
+          <span class="test-controls-hint" id="testControlsHint"></span>
+          <button class="button button-blue" id="nextQuestion" type="button" disabled>Продолжить</button>
+        </footer>
+      </div>
+    </section>
+
+    <section class="prof-test-results" id="testResults" hidden aria-labelledby="resultsTitle" aria-live="polite">
+      <header class="results-intro">
+        <div>
+          <p class="section-kicker">Результат по учебному плану</p>
+          <h2 id="resultsTitle">Твои подходящие программы</h2>
+          <p id="resultsSummary"></p>
+        </div>
+        <div class="results-total"><strong id="resultsCount">—</strong><span>программ с данными для сравнения</span></div>
+      </header>
+      <div class="results-method-note" id="resultsMethodNote"></div>
+      <div class="results-grid" id="mainRecommendations"></div>
+      <section class="alternative-section" id="alternativeSection" hidden>
+        <header class="alternative-heading">
+          <div>
+            <p class="section-kicker">Ещё варианты</p>
+            <h3>Близкие альтернативы</h3>
+          </div>
+          <p>Они чуть дальше от выбранных предпочтений, но могут быть интересны по составу учебного плана.</p>
+        </header>
+        <div class="results-grid" id="alternativeRecommendations"></div>
+      </section>
+      <div class="results-data-note" id="resultsDataNote"></div>
+      <footer class="results-footer">
+        <button class="button button-secondary" id="editTest" type="button">Изменить ответы</button>
+        <a class="button button-blue" href="compare.html">Сравнить программы</a>
+        <button class="test-restart-link" id="restartFromResults" type="button">Пройти заново</button>
+      </footer>
+    </section>
+  </main>
+  <script src="assets/academic-data.js"></script>
+  <script src="app.js"></script>
+  <script src="assets/prof-test.js"></script>
+</body>
+</html>
