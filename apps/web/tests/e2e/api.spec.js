@@ -232,6 +232,10 @@ test("catalog paginates and filters 500 records without duplicate API requests",
 });
 
 test("@live verifies academic DTO relationships and renders PostgreSQL-backed facts", async ({ page, request, browserDiagnostics }, testInfo) => {
+  // This scenario reads the complete seeded release and then verifies the same
+  // source-backed facts through multiple real browser pages. Allow for slower
+  // shared CI runners while keeping every individual browser wait bounded.
+  test.setTimeout(120_000);
   test.skip(process.env.PLAYWRIGHT_LIVE_API !== "1", "Set PLAYWRIGHT_LIVE_API=1 and run the isolated API test stack.");
   const baseURL = String(testInfo.project.use.baseURL);
   const browserApiResponses = [];
