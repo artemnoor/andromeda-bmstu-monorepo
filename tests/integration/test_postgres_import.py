@@ -947,6 +947,29 @@ def test_read_api_uses_one_active_release_and_directus_is_physically_read_only(
         base_bundle, base_export = _export_release(
             engine, settings, base_release_id, tmp_path / "api-base-release"
         )
+        target_source = next(
+            json.loads(line)
+            for line in (BUNDLE / "data" / "competition_pools.jsonl")
+            .read_text(encoding="utf-8")
+            .splitlines()
+            if json.loads(line).get("quota_type") == "targeted"
+        )
+        exported_target_pool = next(
+            json.loads(line)
+            for line in (base_bundle / "data" / "competition_pools.jsonl")
+            .read_text(encoding="utf-8")
+            .splitlines()
+            if json.loads(line).get("external_key") == target_source["external_key"]
+        )
+        for field in (
+            "target_organization",
+            "target_organization_inn",
+            "target_organization_kpp",
+            "target_organization_ogrn",
+            "target_region",
+            "campus_label_in_document",
+        ):
+            assert exported_target_pool[field] == target_source[field]
         with engine.connect() as connection:
             direction_key, old_direction_name = connection.execute(
                 text(
@@ -1013,6 +1036,48 @@ def test_read_api_uses_one_active_release_and_directus_is_physically_read_only(
             assert health.status_code == 200
             assert health.json()["active_release_key"] == new_release_key
 
+            target_pool = None
+            cursor = None
+            while target_pool is None:
+                pool_page_response = client.get(
+                    "/api/v1/competition-pools",
+                    params={
+                        "campaign_key": target_source["linked_campaign_key"],
+                        "direction_code": target_source["direction_code"],
+                        "limit": 100,
+                        **({"cursor": cursor} if cursor else {}),
+                    },
+                )
+                assert pool_page_response.status_code == 200
+                pool_page = pool_page_response.json()
+                target_pool = next(
+                    (
+                        row for row in pool_page["items"]
+                        if row["external_key"] == target_source["external_key"]
+                    ),
+                    None,
+                )
+                cursor = pool_page["page"]["next_cursor"]
+                if target_pool is None:
+                    assert cursor is not None, "the imported targeted quota row is missing from the API"
+
+            for field in (
+                "target_organization",
+                "target_organization_inn",
+                "target_organization_kpp",
+                "target_organization_ogrn",
+                "target_region",
+                "campus_label_in_document",
+            ):
+                assert target_pool[field] == target_source[field]
+            assert isinstance(target_pool["target_organization_inn"], str)
+            assert isinstance(target_pool["target_organization_kpp"], str)
+            assert isinstance(target_pool["target_organization_ogrn"], str)
+            assert any(
+                source["sha256"] == target_source["source_sha256"]
+                for source in target_pool["sources"]
+            )
+
             first_page = client.get("/api/v1/directions", params={"limit": 1}).json()
             assert first_page["page"]["release_key"] == new_release_key
             assert first_page["page"]["total_count"] > 1
@@ -1046,6 +1111,15 @@ def test_read_api_uses_one_active_release_and_directus_is_physically_read_only(
             assert tree["operator"] == "AT_LEAST"
             assert tree["children"][0]["operator"] == "AND"
             assert tree["children"][0]["children"][0]["operator"] == "OR"
+
+            taxonomy_response = client.get("/api/v1/subject-taxonomies/bmstu-subject-domain-16/v1")
+            assert taxonomy_response.status_code == 200
+            taxonomy = taxonomy_response.json()
+            assert taxonomy["taxonomy_key"] == "bmstu-subject-domain-16"
+            assert taxonomy["taxonomy_version"] == "v1"
+            category_codes = [category["category_code"] for category in taxonomy["categories"]]
+            assert category_codes
+            assert len(category_codes) == len(set(category_codes))
 
             tuition = client.get("/api/v1/tuition", params={"limit": 100}).json()
             assert all(

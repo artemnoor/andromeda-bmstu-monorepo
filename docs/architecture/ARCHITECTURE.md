@@ -1,6 +1,6 @@
 # Andromeda architecture
 
-> Current hardening snapshot: 2026-10-08. Read the migration report for historical checkpoints and the verification evidence for this hardening pass.
+> Architecture and QA snapshot: 2026-10-09. Read the migration report and comprehensive QA report for historical checkpoints and verification evidence.
 
 ## Components and ownership
 
@@ -55,14 +55,16 @@ Two idempotency levels are enforced: the release import batch has a stable comma
 
 Alembic revision `71d8c4a29f30` is additive after `f4b19a7c2d61`. The original 11 migration files and their revision IDs, parent links, and operations are unchanged. The new revision adds proposal workflow tables and import-batch publication idempotency fields; it does not rewrite release records or activation history. Proposal revisions, evidence references, and events are protected by append-only triggers.
 
+Alembic revision `7c2a16df09b4` grants the read-only API role SELECT access to `subject_taxonomies`. Revision `b62d4e91a8c3` adds nullable targeted-quota organization, tax-identifier, region, and campus fields; identifiers are stored as strings so leading zeros remain intact. Both revisions are additive. Existing release rows are not rewritten; newly imported releases preserve these source-backed fields.
+
 The API runtime role can update proposal aggregates and insert proposal history. API read-only and Directus roles have no proposal write privileges. Directus still reads the allowlisted projection, has no academic DML/DDL privileges, and can write only its scoped metadata schema through the configured metadata path.
 
 ## API and frontend boundary
 
 `/api/v1` retains its GET-only routes and DTO contract. There are no administrative proposal HTTP routes. The internal use cases default to deny authorization; the local CLI supplies an explicit trusted-operator policy and local OS identity. This is not a public authentication or authorization system.
 
-The frontend in `apps/web/` has not been integrated or moved. The current DTOs and read-only API remain the integration seam. Graph Explorer, Dagster runtime, Neo4j, Kafka, Kubernetes, applicant/user domain, and recommendation features remain future scope.
+The original multi-page vanilla frontend in `apps/web/` uses the same-origin read-only `/api/v1` contracts through the Node static server. It consumes a single release identity across pages and pagination; missing or changing release keys fail closed. Demo snapshots require explicit `?data=demo` and display a banner; live API errors do not switch modes. Profile, favorites, and comparison remain browser-local and are not server accounts. The separate `/api/v1/place-quotas` route is available, but the checked-in BMSTU release contains no rows in that projection; displayed quota facts come from `/api/v1/competition-pools`. Graph Explorer, Dagster runtime, Neo4j, Kafka, Kubernetes, applicant/user backend, and recommendation service remain future scope.
 
 ## Verification limits
 
-Use [the migration report](MIGRATION_REPORT.md) for exact local, CI, PostgreSQL 16, Directus, lint, PR, and merge results. Local Docker Desktop was unavailable during this hardening pass; the local PostgreSQL 17 service was deliberately not used. Only an isolated PostgreSQL 16 CI service can establish the proposal persistence, migration, permission, and concurrency integration results. No production database or deployment is implied.
+Use [the migration report](MIGRATION_REPORT.md) and [comprehensive QA report](../testing/COMPREHENSIVE_QA_REPORT.md) for exact local, CI, PostgreSQL 16, Directus, lint, browser, PR, and merge results. Browser integration uses an isolated local PostgreSQL 16.15 database. Docker Compose configuration validates, but Docker Desktop could not start its daemon during this QA pass. No production database or deployment is implied.

@@ -23,7 +23,7 @@ New-Item -ItemType Directory -Force .\artifacts\local | Out-Null
 ```
 
 Check that it restores by creating a unique temporary local database, running
-`pg_restore`, checking migration revision `71d8c4a29f30`, the `academic_read`,
+`pg_restore`, checking migration revision `b62d4e91a8c3`, the `academic_read`,
 `directus_read`, and `directus_meta` schemas, and all 57 Directus read-model
 tables, then dropping that temporary database:
 

@@ -50,8 +50,8 @@
 
   function mapLiveProgram(record, directions, departments) {
     const direction = directions.get(record.direction_key);
-    const relation = (record.department_relations || []).find((item) => item.verification_status === "verified")
-      || (record.department_relations || [])[0];
+    const relations = Array.isArray(record.department_relations) ? record.department_relations : [];
+    const relation = relations.find((item) => item.verification_status === "verified") || null;
     const department = relation ? departments.get(relation.department_key) : null;
     return {
       ...record,
@@ -59,6 +59,7 @@
       direction: text(direction?.name),
       department_code: text(department?.official_code || department?.code),
       department: text(department?.name),
+      department_status: department ? "verified" : relations.length ? "unresolved" : "not_stated",
       source_url: sourceUrl(record),
       study_plan: {},
       catalog_course_names: Array.isArray(record.catalog_course_names) ? record.catalog_course_names : [],
@@ -109,7 +110,7 @@
       if (!api) throw new Error("Academic Data client is unavailable");
       if (api.isDemoMode?.()) return { data: await readSnapshot("data/curriculum.json"), source: "demo" };
       const plans = await api.list("/v1/study-plans");
-      const parsedPlans = plans.filter((plan) => plan.status === "parsed");
+      const parsedPlans = plans.filter((plan) => plan.status === "parsed" && plan.profile_link_status === "verified");
       const groups = await loadLiveCurriculumPlans(api, parsedPlans);
       return {
         data: groups.flatMap((group) => group.rows),
@@ -139,6 +140,44 @@
     return groups;
   }
 
+  function selectCurrentPlans(plans, programKeys) {
+    const selected = [];
+    const current = [];
+    const ambiguousProgramKeys = [];
+    const needsReviewProgramKeys = [];
+    for (const programKey of programKeys) {
+      const candidates = plans.filter((plan) => text(plan.program_key) === programKey);
+      if (!candidates.length) continue;
+
+      let latest = candidates;
+      if (candidates.length > 1) {
+        const yearEnds = candidates.map((plan) => {
+          const years = text(plan.academic_year).match(/(?:19|20)\d{2}/g)?.map(Number) || [];
+          return years.length ? Math.max(...years) : null;
+        });
+        if (yearEnds.some((year) => year === null)) {
+          ambiguousProgramKeys.push(programKey);
+          continue;
+        }
+        const latestYear = Math.max(...yearEnds);
+        latest = candidates.filter((_, index) => yearEnds[index] === latestYear);
+        if (latest.length !== 1) {
+          ambiguousProgramKeys.push(programKey);
+          continue;
+        }
+      }
+
+      const currentPlan = latest[0];
+      current.push(currentPlan);
+      if (currentPlan.status === "parsed" && currentPlan.profile_link_status === "verified") {
+        selected.push(currentPlan);
+      } else {
+        needsReviewProgramKeys.push(programKey);
+      }
+    }
+    return { selected, current, ambiguousProgramKeys, needsReviewProgramKeys };
+  }
+
   async function loadCurriculumForProgram(programKey) {
     const key = text(programKey);
     if (!key) return { data: [], source: window.AcademicData?.isDemoMode?.() ? "demo" : "api" };
@@ -155,7 +194,7 @@
         };
       }
       const plans = await api.list("/v1/study-plans", { program_key: key });
-      const groups = await loadLiveCurriculumPlans(api, plans.filter((plan) => plan.status === "parsed"));
+      const groups = await loadLiveCurriculumPlans(api, plans.filter((plan) => plan.status === "parsed" && plan.profile_link_status === "verified"));
       return {
         data: groups.flatMap((group) => group.rows),
         plans,
@@ -180,21 +219,32 @@
           failedPlans: 0,
         };
       }
-      const keySet = new Set(keys);
-      const plans = (await api.list("/v1/study-plans")).filter((plan) => keySet.has(text(plan.program_key)));
-      const parsedPlans = plans.filter((plan) => plan.status === "parsed");
-      const groups = await loadLiveCurriculumPlans(api, parsedPlans);
-      const failedKeys = new Set(
-        groups
-          .filter((group) => group.failed || (!group.rows.length && Number(group.plan.item_count) > 0))
-          .map((group) => text(group.plan.program_key))
-          .filter(Boolean),
+      const plansByProgram = await Promise.all(keys.map((key) => api.list("/v1/study-plans", { program_key: key })));
+      const plans = plansByProgram.flat();
+      const selection = selectCurrentPlans(plans, keys);
+      const groups = await loadLiveCurriculumPlans(api, selection.selected);
+      const failedPlanKeys = groups
+        .filter((group) => group.failed || (!group.rows.length && Number(group.plan.item_count) > 0))
+        .map((group) => text(group.plan.external_key))
+        .filter(Boolean);
+      const failedKeys = new Set(groups
+        .filter((group) => failedPlanKeys.includes(text(group.plan.external_key)))
+        .map((group) => text(group.plan.program_key))
+        .filter(Boolean));
+      for (const key of selection.ambiguousProgramKeys) failedKeys.add(key);
+      for (const key of selection.needsReviewProgramKeys) failedKeys.add(key);
+      const verifiedPlanKeys = new Set(
+        plans.filter((plan) => plan.profile_link_status === "verified").map((plan) => text(plan.program_key)).filter(Boolean),
       );
-      const returnedPlanKeys = new Set(plans.map((plan) => text(plan.program_key)).filter(Boolean));
-      for (const key of keys) if (!returnedPlanKeys.has(key)) failedKeys.add(key);
+      for (const key of keys) if (!verifiedPlanKeys.has(key)) failedKeys.add(key);
       return {
         data: groups.flatMap((group) => group.rows),
         plans,
+        selectedPlanKeys: selection.selected.map((plan) => text(plan.external_key)).filter(Boolean),
+        currentPlanKeys: selection.current.map((plan) => text(plan.external_key)).filter(Boolean),
+        ambiguousProgramKeys: selection.ambiguousProgramKeys,
+        needsReviewProgramKeys: selection.needsReviewProgramKeys,
+        failedPlanKeys,
         source: "api",
         failedPlans: failedKeys.size,
       };
@@ -208,7 +258,7 @@
         exam: {
           subject_code: node.subject_code,
           minimum_score: node.minimum_score,
-          is_choice: Boolean(node.is_choice),
+          is_choice: typeof node.is_choice === "boolean" ? node.is_choice : null,
           tiebreak_rank: node.tiebreak_rank,
         },
       };
@@ -221,21 +271,39 @@
     };
   }
 
-  async function loadAdmissionFromApi(api) {
+  async function loadAdmissionFromApi(api, directionCodes = null, { includeDetails = false, includeCampaignStatistics = true } = {}) {
     const campaigns = await api.list("/v1/campaigns", { year: 2026 });
-    const campaign = campaigns.find((item) => Number(item.year) === 2026 && item.campaign_kind === "admission") || campaigns[0];
+    const campaign = campaigns.find((item) => Number(item.year) === 2026 && item.campaign_kind === "admission");
     if (!campaign?.external_key) throw new Error("2026 admission campaign is unavailable");
     const campaignPath = `/v1/campaigns/${encodeURIComponent(campaign.external_key)}`;
-    const dataRequests = [
-      ["dates", `${campaignPath}/calendar`],
-      ["offerings", `${campaignPath}/offerings`],
-      ["pools", "/v1/competition-pools", { campaign_key: campaign.external_key }],
-      ["requirements", "/v1/requirements", { campaign_key: campaign.external_key }],
-      ["achievements", "/v1/individual-achievements", { campaign_key: campaign.external_key }],
-      ["tuition", "/v1/tuition"],
-      ["history", "/api/v1/statistics", { kind: "historical" }],
-      ["campaignStatistics", "/api/v1/statistics", { kind: "admission", year: 2026 }],
-    ];
+    const scopedDirections = directionCodes === null
+      ? null
+      : [...new Set(directionCodes.map(text).filter(Boolean))];
+    const dataRequests = scopedDirections === null
+      ? [
+          ["dates", `${campaignPath}/calendar`],
+          ["offerings", `${campaignPath}/offerings`],
+          ["pools", "/v1/competition-pools", { campaign_key: campaign.external_key }],
+          ["requirements", "/v1/requirements", { campaign_key: campaign.external_key }],
+          ["achievements", "/v1/individual-achievements", { campaign_key: campaign.external_key }],
+          ["tuition", "/v1/tuition"],
+          ["history", "/api/v1/statistics", { kind: "historical" }],
+          ["campaignStatistics", "/api/v1/statistics", { kind: "admission", year: 2026 }],
+        ]
+      : [
+          ...(includeDetails ? [
+            ["dates", `${campaignPath}/calendar`],
+            ["achievements", "/v1/individual-achievements", { campaign_key: campaign.external_key }],
+          ] : []),
+          ["offerings", `${campaignPath}/offerings`],
+          ["requirements", "/v1/requirements", { campaign_key: campaign.external_key }],
+          ...scopedDirections.flatMap((directionCode) => [
+            [`pools:${directionCode}`, "/v1/competition-pools", { campaign_key: campaign.external_key, direction_code: directionCode }],
+            [`history:${directionCode}`, "/api/v1/statistics", { kind: "historical", direction_code: directionCode }],
+            ...(includeCampaignStatistics ? [[`campaignStatistics:${directionCode}`, "/api/v1/statistics", { kind: "admission", year: 2026, direction_code: directionCode }]] : []),
+            ...(includeDetails ? [[`tuition:${directionCode}`, "/v1/tuition", { direction_code: directionCode }]] : []),
+          ]),
+        ];
     const admissionData = {};
     let nextRequest = 0;
     const worker = async () => {
@@ -245,7 +313,24 @@
       }
     };
     await Promise.all(Array.from({ length: 2 }, worker));
-    const { dates, offerings, pools, requirements, achievements, tuition, history, campaignStatistics } = admissionData;
+    const dates = admissionData.dates || [];
+    const offerings = admissionData.offerings || [];
+    const requirements = admissionData.requirements || [];
+    const achievements = admissionData.achievements || [];
+    const tuition = scopedDirections === null
+      ? admissionData.tuition || []
+      : includeDetails
+        ? scopedDirections.flatMap((directionCode) => admissionData[`tuition:${directionCode}`] || [])
+        : [];
+    const pools = scopedDirections === null
+      ? admissionData.pools || []
+      : scopedDirections.flatMap((directionCode) => admissionData[`pools:${directionCode}`] || []);
+    const history = scopedDirections === null
+      ? admissionData.history || []
+      : scopedDirections.flatMap((directionCode) => admissionData[`history:${directionCode}`] || []);
+    const campaignStatistics = scopedDirections === null
+      ? admissionData.campaignStatistics || []
+      : scopedDirections.flatMap((directionCode) => admissionData[`campaignStatistics:${directionCode}`] || []);
     const offeringsByKey = new Map(offerings
       .filter((row) => text(row.external_key))
       .map((row) => [text(row.external_key), row]));
@@ -258,7 +343,7 @@
           const exam = {
             subject_code: node.subject_code,
             minimum_score: node.minimum_score,
-            is_choice: Boolean(node.is_choice),
+            is_choice: typeof node.is_choice === "boolean" ? node.is_choice : null,
             tiebreak_rank: node.tiebreak_rank,
           };
           exams.push(exam);
@@ -302,6 +387,7 @@
         campaign_year: String(campaign.year),
         direction_code: row.direction_code,
         department_code: row.department_code,
+        department_status: row.department_status,
         scope_level: row.scope_level,
         offering_keys: offeringKeys,
         program_keys: [...new Set(linkedOfferings
@@ -312,22 +398,19 @@
         funding_type: row.funding_type,
         quota_type: row.quota_type,
         places: row.places,
+        places_by_source_row: row.places_by_source_row,
         target_organization: row.target_organization,
         target_organization_inn: row.target_organization_inn,
+        target_organization_kpp: row.target_organization_kpp,
+        target_organization_ogrn: row.target_organization_ogrn,
         target_region: row.target_region,
+        campus_label_in_document: row.campus_label_in_document,
         source_url: sourceUrl(row),
       });
       }),
       requirements: mappedRequirements,
       exams: [...examMap.values()],
-      achievements: achievements.map((row) => ({
-        external_key: row.external_key,
-        campaign_year: String(campaign.year),
-        achievement_name: row.name,
-        additional_points: row.points,
-        required_document: row.required_document,
-        source_url: sourceUrl(row),
-      })),
+      achievements: mapAchievements(achievements, campaign.year),
       dates: dates.map((row) => ({
         external_key: row.external_key,
         campaign_year: String(campaign.year),
@@ -381,6 +464,18 @@
     };
   }
 
+  function mapAchievements(rows, campaignYear) {
+    return rows.map((row) => ({
+      external_key: row.external_key,
+      campaign_year: String(campaignYear),
+      achievement_name: row.name,
+      additional_points: row.points,
+      required_document: row.required_document,
+      description: row.description,
+      source_url: sourceUrl(row),
+    }));
+  }
+
   function loadAdmission() {
     return cached("admission", async () => {
       const api = window.AcademicData;
@@ -389,6 +484,67 @@
         return { data: await readSnapshot("data/admission.json", (value) => value?.data || value), source: "demo" };
       }
       return { data: await loadAdmissionFromApi(api), source: "api" };
+    });
+  }
+
+  function loadAdmissionAchievements() {
+    return cached("admission:achievements", async () => {
+      const api = window.AcademicData;
+      if (!api) throw new Error("Academic Data client is unavailable");
+      if (api.isDemoMode?.()) {
+        const result = await loadAdmission();
+        return { data: result.data.achievements || [], source: result.source };
+      }
+      const campaigns = await api.list("/v1/campaigns", { year: 2026 });
+      const campaign = campaigns.find((item) => Number(item.year) === 2026 && item.campaign_kind === "admission");
+      if (!campaign?.external_key) throw new Error("2026 admission campaign is unavailable");
+      const rows = await api.list("/v1/individual-achievements", { campaign_key: campaign.external_key });
+      return { data: mapAchievements(rows, campaign.year), source: "api" };
+    });
+  }
+
+  function loadAdmissionForPrograms(programs, { includeCampaignStatistics = true } = {}) {
+    const directionCodes = [...new Set(programs.map((program) => text(program.direction_code)).filter(Boolean))].sort();
+    const programKeys = new Set(programs.map((program) => text(program.external_key) || text(program.code)).filter(Boolean));
+    return loadAdmissionForDirections(directionCodes, [...programKeys], false, { includeCampaignStatistics });
+  }
+
+  function loadAdmissionForDirection(directionCode) {
+    const code = text(directionCode);
+    if (!code) return loadAdmission();
+    return loadAdmissionForDirections([code], [], true);
+  }
+
+  function loadAdmissionForDirections(directionCodes, programKeys, includeDetails, { includeCampaignStatistics = true } = {}) {
+    const cacheKey = JSON.stringify([directionCodes, [...programKeys].sort(), includeCampaignStatistics]);
+    return cached(`admission:directions:${includeDetails}:${cacheKey}`, async () => {
+      const api = window.AcademicData;
+      if (!api) throw new Error("Academic Data client is unavailable");
+      if (!api.isDemoMode?.()) {
+        const data = await loadAdmissionFromApi(api, directionCodes, { includeDetails, includeCampaignStatistics });
+        return { data, source: "api" };
+      }
+
+      const result = await loadAdmission();
+      const admission = result.data || {};
+      const byDirection = (rows) => (rows || []).filter((row) => directionCodes.includes(text(row.direction_code)));
+      return {
+        source: result.source,
+        data: {
+          ...admission,
+          pools: byDirection(admission.pools),
+          requirements: byDirection(admission.requirements),
+          history: byDirection(admission.history),
+          campaign_statistics: includeCampaignStatistics ? byDirection(admission.campaign_statistics) : [],
+          tuition: includeDetails ? byDirection(admission.tuition) : [],
+          dates: includeDetails ? admission.dates || [] : [],
+          achievements: includeDetails ? admission.achievements || [] : [],
+          offerings: (admission.offerings || []).filter((row) => (
+            directionCodes.includes(text(row.direction_code))
+            || programKeys.includes(text(row.educational_program_key || row.program_key))
+          )),
+        },
+      };
     });
   }
 
@@ -423,6 +579,7 @@
 
   function getSubjectClassification(item) {
     const classification = item?.subject_classification || item?.subjectClassification || null;
+    if (classification?.review_status && classification.review_status !== "classified") return null;
     const name = text(classification?.category_name) || text(item?.subject_category) || text(item?.subject_category_name);
     if (!name) return null;
     return {
@@ -615,6 +772,9 @@
     loadCurriculumForProgram,
     loadCurriculumForPrograms,
     loadAdmission,
+    loadAdmissionAchievements,
+    loadAdmissionForPrograms,
+    loadAdmissionForDirection,
     loadSnapshotInfo,
     formatSnapshotDate,
     getFavorites: () => readList(STORAGE.favorites),

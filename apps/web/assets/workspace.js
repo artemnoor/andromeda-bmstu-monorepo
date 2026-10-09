@@ -7,6 +7,7 @@
   const favoriteCount = $("#favoriteCount");
   const dialog = $("#programDialog");
   const dialogBody = $("#dialogBody");
+  let dialogOpener = null;
   const profileStorageKey = "andromeda.applicant.v1";
   const favoritesStorageKey = "andromeda.favorites.v1";
   const compareStorageKey = "andromeda.compare.v1";
@@ -95,8 +96,24 @@
 
   const text = value => typeof value === "string" ? value.trim() : value == null ? "" : String(value);
   const number = value => {
+    if (value === null || value === undefined || (typeof value === "string" && !value.trim())) return null;
     const parsed = Number(value);
     return Number.isFinite(parsed) ? parsed : null;
+  };
+  const conflictingPoolPlaces = pool => {
+    if (number(pool?.places) !== null) return [];
+    return [...new Set((pool?.places_by_source_row || [])
+      .map(row => number(row?.places))
+      .filter(value => value !== null))].sort((a, b) => a - b);
+  };
+  const numberPlural = (value, forms) => {
+    const integer = Math.abs(Math.trunc(value));
+    const lastTwo = integer % 100;
+    if (lastTwo >= 11 && lastTwo <= 14) return forms[2];
+    const last = integer % 10;
+    if (last === 1) return forms[0];
+    if (last >= 2 && last <= 4) return forms[1];
+    return forms[2];
   };
   const money = value => {
     const parsed = number(value);
@@ -157,11 +174,12 @@
 
   function departmentsFor(program) {
     const relations = Array.isArray(program.department_relations) ? program.department_relations : [];
-    const fromApi = relations.map(relation => {
+    const fromApi = relations.filter(relation => relation.verification_status === "verified").map(relation => {
       const department = state.departments.find(item => item.external_key === relation.department_key);
       return department ? { key: department.external_key, code: text(department.code), name: text(department.name), status: relation.verification_status } : null;
     }).filter(Boolean);
     if (fromApi.length) return fromApi;
+    if (relations.length) return [];
     return text(program.department_code || program.department)
       ? [{ key: "", code: text(program.department_code), name: text(program.department), status: "" }]
       : [];
@@ -224,7 +242,9 @@
   function programMeta(program) {
     const direction = directionFor(program);
     const departments = departmentsFor(program);
-    return [direction.name, ...departments.map(item => [item.code, item.name].filter(Boolean).join(" · "))].filter(Boolean);
+    const relations = Array.isArray(program.department_relations) ? program.department_relations : [];
+    const needsReview = relations.length > 0 && !relations.some(item => item.verification_status === "verified");
+    return [direction.name, ...departments.map(item => [item.code, item.name].filter(Boolean).join(" · ")), ...(needsReview ? ["Кафедра: связь не подтверждена"] : [])].filter(Boolean);
   }
 
   function makeProgramResult(program, matchReasons = []) {
@@ -262,7 +282,7 @@
     copy.append(meta);
 
     const bottom = node("div", "catalog-card-bottom");
-    const details = action("Карточка программы", () => openProgram(programKey(program)), "text-action");
+    const details = action("Карточка программы", event => openProgram(programKey(program), event.currentTarget), "text-action");
     const compare = action("Сравнить", () => {
       addToCompare(programKey(program));
       window.location.hash = "compare";
@@ -341,6 +361,13 @@
 
   window.addEventListener("hashchange", renderRoute);
   $("#dialogClose").addEventListener("click", () => dialog.close());
+  dialog.addEventListener("close", () => {
+    const opener = dialogOpener;
+    dialogOpener = null;
+    requestAnimationFrame(() => {
+      if (opener?.isConnected) opener.focus({ preventScroll: true });
+    });
+  });
   dialog.addEventListener("click", event => {
     if (event.target === dialog) dialog.close();
   });
@@ -541,7 +568,7 @@
       for (const item of programMeta(program).slice(0, 3)) meta.append(chip(item));
       content.append(meta);
       const actions = node("div", "favorite-actions");
-      actions.append(action("Открыть карточку", () => openProgram(key), "button quiet"));
+      actions.append(action("Открыть карточку", event => openProgram(key, event.currentTarget), "button quiet"));
       actions.append(action("Сравнить", () => { addToCompare(key); window.location.hash = "compare"; }, "button quiet"));
       actions.append(action("Убрать", () => { toggleFavorite(key); renderRoute(); }, "button danger"));
       card.append(content, actions);
@@ -587,7 +614,9 @@
 
   function formatDepartment(program) {
     const departments = departmentsFor(program);
-    return departments.map(item => [item.code, item.name].filter(Boolean).join(" · ")).join(" / ") || "Не указано в связанной записи";
+    if (departments.length) return departments.map(item => [item.code, item.name].filter(Boolean).join(" · ")).join(" / ");
+    if (Array.isArray(program.department_relations) && program.department_relations.length) return "Связь требует проверки";
+    return "Не указано в связанной записи";
   }
 
   function courseList(items) {
@@ -609,9 +638,10 @@
     return list;
   }
 
-  async function openProgram(key) {
+  async function openProgram(key, opener = document.activeElement) {
     const program = selectedProgram(key);
     if (!program) return;
+    dialogOpener = opener instanceof HTMLElement ? opener : null;
     const token = ++state.dialogToken;
     const direction = directionFor(program);
     dialogBody.replaceChildren();
@@ -736,7 +766,7 @@
       head.append(node("p", "", text(program.description) || "Описание профиля не указано в архиве."));
       const headButtons = node("div", "button-row");
       headButtons.style.marginTop = "14px";
-      headButtons.append(makeFavoriteButton(programKey(program)), action("Карточка", () => openProgram(programKey(program)), "text-action"));
+      headButtons.append(makeFavoriteButton(programKey(program)), action("Карточка", event => openProgram(programKey(program), event.currentTarget), "text-action"));
       head.append(headButtons);
 
       const facts = node("div", "compare-facts");
@@ -1068,12 +1098,19 @@
     const poolsPanel = node("section", "panel");
     addPanelHeading(poolsPanel, "Места и конкурсные категории", "Строки приведены отдельно по уровню конкурса и виду квоты; они не складываются автоматически.");
     const poolList = node("div", "admission-list");
-    const pools = facts.pools.filter(pool => number(pool.places) !== null);
-    if (!pools.length) poolList.append(node("p", "small-note", "В архиве нет числовых данных о местах для этого направления."));
+    const pools = facts.pools;
+    if (!pools.length) poolList.append(node("p", "small-note", "В архиве нет данных о местах для этого направления."));
     for (const pool of pools.slice(0, 28)) {
       const row = node("div", "admission-row");
       const scope = text(pool.department_code) ? `Кафедра ${text(pool.department_code)}` : text(pool.scope_level) === "direction" ? "Направление целиком" : text(pool.scope_level) || "Уровень не указан";
-      row.append(node("span", "", `${scope} · ${labelFunding(pool.funding_type)} · ${labelQuota(pool.quota_type)}`), node("strong", "", `${pool.places} мест`));
+      const places = number(pool.places);
+      const conflicts = conflictingPoolPlaces(pool);
+      const placesLabel = places === null
+        ? conflicts.length > 1
+          ? `В источнике расходятся значения: ${conflicts.join(" и ")}`
+          : "Количество мест не указано"
+        : `${places} ${numberPlural(places, ["место", "места", "мест"])}`;
+      row.append(node("span", "", `${scope} · ${labelFunding(pool.funding_type)} · ${labelQuota(pool.quota_type)}`), node("strong", "", placesLabel));
       poolList.append(row);
     }
     poolsPanel.append(poolList);

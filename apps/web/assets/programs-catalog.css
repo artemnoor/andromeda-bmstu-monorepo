@@ -102,13 +102,13 @@ main {
 .program-description { color: #68727e; font-size: 11px; line-height: 1.6; }
 .program-facts { gap: 8px; padding-top: 2px; color: #455261; font-size: 11px; line-height: 1.4; }
 .program-fact { align-items: baseline; gap: 9px; }
-.fact-label { flex-basis: 79px; color: #798493; font-size: 8px; letter-spacing: .08em; }
+.fact-label { flex-basis: 79px; color: var(--muted); font-size: 8px; letter-spacing: .08em; }
 .fact-value { color: #465361; }
 .expand-hint { color: #245f9e; font-size: 10px; }
 .expand-hint::after { width: 25px; height: 25px; border-color: #d9e4f1; background: #f8fbff; font-size: 15px; }
 .program-summary:hover .expand-hint { color: #0f4e91; }
 .card-bottom { min-height: 53px; padding: 11px 0; border-top-color: #e7e9ec; }
-.campus-tag { color: #78818d; font-size: 9px; }
+.campus-tag { color: var(--muted); font-size: 9px; }
 .card-links { gap: 13px; }
 .program-link { color: #3e6693; font-size: 10px; }
 .program-link:hover { color: #0757b2; }
@@ -120,7 +120,7 @@ main {
 .admission-list li { border: 1px solid #e6e9ed; background: #f8f9fa; font-size: 11px; }
 .admission-list span, .admission-muted { font-size: 10px; }
 .admission-source { font-size: 10px; }
-.catalog-footnote { margin-top: 23px; padding-top: 15px; border-top-color: #e0e3e5; color: #707984; font-size: 10px; }
+.catalog-footnote { margin-top: 23px; padding-top: 15px; border-top-color: #e0e3e5; color: var(--muted); font-size: 10px; }
 .catalog-footnote span:last-child { color: #303d4c; font-weight: 650; white-space: nowrap; }
 .empty-state, .loading-state, .error-state { padding: 52px 24px; border-color: #d9dfe5; border-radius: 19px; background: rgba(255,255,255,.78); }
 .loading-state h2, .empty-state h2 { color: #192331; font-size: 22px; }

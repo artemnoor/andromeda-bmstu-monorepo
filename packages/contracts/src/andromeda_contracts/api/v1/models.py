@@ -349,6 +349,12 @@ class CompetitionPoolRecord(SourcedRecord, TemporalFactRecord):
     department_code: str | None = None
     department_status: Literal["verified", "unverified", "unresolved", "not_stated"]
     scope_level: str | None = None
+    target_organization: str | None = None
+    target_organization_inn: str | None = None
+    target_organization_kpp: str | None = None
+    target_organization_ogrn: str | None = None
+    target_region: str | None = None
+    campus_label_in_document: str | None = None
     funding_type: str | None = None
     quota_type: str | None = None
     places: int | None = Field(default=None, ge=0)
