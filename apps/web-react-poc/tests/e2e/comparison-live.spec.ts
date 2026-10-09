@@ -158,7 +158,8 @@ test.beforeEach(async ({ page }) => {
   await clearPocStorage(page);
 });
 
-test("a live catalog choice persists into a one-program comparison after refresh", async ({ page, diagnostics }) => {
+test("live comparison preserves program-scoped admission and curriculum facts", async ({ page, diagnostics }) => {
+  test.setTimeout(45_000);
   await page.goto("/programs");
   await expect(page.getByRole("heading", { name: "Каталог программ" })).toBeVisible();
   const program = await discoverLiveCurriculumProgram(page);
@@ -252,6 +253,28 @@ test("a live catalog choice persists into a one-program comparison after refresh
   await expect(matrixResult).toContainText("Показано 0 из");
   await matrixSearch.fill("");
   await expect(matrixResult).toHaveText(initialMatrixCount);
+
+  expectLiveApiCalls(diagnostics, [...catalogEndpoints, "/api/v1/study-plans"]);
+  expectSuccessfulAdmissionCalls(diagnostics.apiResponses);
+  expectHealthyBrowser(diagnostics);
+});
+
+test("a live catalog choice persists into a one-program comparison after refresh", async ({ page, diagnostics }) => {
+  // This scenario checks persistence and successful hydration after a hard
+  // refresh. Refresh as soon as the selected program is rendered so the test
+  // measures the restored load once, rather than serializing two full compare
+  // loads along with the detailed curriculum assertions above.
+  test.setTimeout(45_000);
+  await page.goto("/programs");
+  await expect(page.getByRole("heading", { name: "Каталог программ" })).toBeVisible();
+  const program = await discoverLiveCurriculumProgram(page);
+  const card = page.getByRole("article").filter({ hasText: program.code }).first();
+  await card.getByRole("button", { name: /Сравнить/ }).click();
+  await expect(card.getByRole("button", { name: /В сравнении/ })).toHaveAttribute("aria-pressed", "true");
+  await page.getByRole("link", { name: /Открыть сравнение/ }).click();
+  await expect(page).toHaveURL(/\/compare$/);
+  await expect(page.getByRole("heading", { name: "Выбранные программы" })).toBeVisible();
+  await expect(page.getByRole("button", { name: `Убрать программу ${program.code} из сравнения` })).toBeVisible();
 
   await page.reload();
   await expect(page.getByRole("heading", { name: "Куда уходит учебное время" })).toBeVisible();
