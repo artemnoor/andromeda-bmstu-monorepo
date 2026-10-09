@@ -39,6 +39,7 @@ jobs:
       api_ingestion: ${{ steps.filter.outputs.api_ingestion }}
       directus: ${{ steps.filter.outputs.directus }}
       web: ${{ steps.filter.outputs.web }}
+      web_react_poc: ${{ steps.filter.outputs.web_react_poc }}
       unclassified: ${{ steps.filter.outputs.unclassified }}
     steps:
       - uses: actions/checkout@v4
@@ -123,6 +124,13 @@ jobs:
               - 'Makefile'
               - 'README.md'
               - '.github/workflows/**'
+            web_react_poc:
+              - 'apps/web-react-poc/**'
+              - 'services/api/**'
+              - 'packages/contracts/**'
+              - 'pyproject.toml'
+              - 'uv.lock'
+              - '.github/workflows/**'
             unclassified:
               - '**'
               - '!packages/db/**'
@@ -134,6 +142,8 @@ jobs:
               - '!services/ingestion/**'
               - '!services/ingestion-cli/**'
               - '!platform/directus/**'
+              - '!apps/web/**'
+              - '!apps/web-react-poc/**'
               - '!docker-compose.yml'
               - '!tests/**'
               - '!data/**'
@@ -325,6 +335,35 @@ jobs:
       - name: Run applicant web tests and production build
         run: make web-check
 
+  web-react-poc-check:
+    if: needs.changes.result == 'success' && needs.changes.outputs.web_react_poc == 'true' && github.ref != 'refs/heads/main'
+    needs: changes
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: apps/web-react-poc/package-lock.json
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install locked workspace for OpenAPI generation
+        run: |
+          python -m pip install uv==0.11.28
+          uv sync --locked --all-packages --group dev --no-editable
+      - name: Install locked React POC dependencies
+        run: npm ci --prefix apps/web-react-poc
+      - name: Check generated FastAPI client contract
+        run: npm --prefix apps/web-react-poc run api:check
+      - name: Typecheck, lint, test, and build the isolated React POC
+        run: |
+          npm --prefix apps/web-react-poc run typecheck
+          npm --prefix apps/web-react-poc run lint
+          npm --prefix apps/web-react-poc test
+          npm --prefix apps/web-react-poc run build
+
   web-browser-check:
     # Keep one browser/API integration status on every PR, independent of the
     # selective backend jobs above. The database and credentials are disposable.
@@ -354,9 +393,13 @@ jobs:
         with:
           node-version: '22'
           cache: npm
-          cache-dependency-path: apps/web/package-lock.json
+          cache-dependency-path: |
+            apps/web/package-lock.json
+            apps/web-react-poc/package-lock.json
       - name: Install locked web dependencies
         run: npm ci --prefix apps/web
+      - name: Install locked React POC dependencies
+        run: npm ci --prefix apps/web-react-poc
       - name: Run web unit tests and production build
         run: |
           npm --prefix apps/web test
@@ -413,6 +456,22 @@ jobs:
           PLAYWRIGHT_BROWSERS: chromium,firefox,webkit
           PLAYWRIGHT_LIVE_API: '1'
         run: npm --prefix apps/web run test:e2e
+      - name: Install React POC Playwright browsers
+        run: npm --prefix apps/web-react-poc exec -- playwright install --with-deps chromium firefox webkit
+      - name: Run React POC browser tests against the same PostgreSQL 16 API
+        env:
+          API_PROXY_TARGET: http://127.0.0.1:8000
+          CI: 'true'
+        run: npm --prefix apps/web-react-poc run test:e2e
+      - name: Build React POC for production-server comparison
+        run: npm --prefix apps/web-react-poc run build
+      - name: Compare original and React screens and collect repeated performance samples
+        env:
+          API_ORIGIN: http://127.0.0.1:8000
+          API_PROXY_TARGET: http://127.0.0.1:8000
+          BENCHMARK_ITERATIONS: '3'
+          CI: 'true'
+        run: npm --prefix apps/web-react-poc run test:paired
       - name: Upload Playwright reports, screenshots, and traces on failure
         if: failure()
         uses: actions/upload-artifact@v4
@@ -421,6 +480,18 @@ jobs:
           path: |
             artifacts/qa-stabilization/playwright-report/
             artifacts/qa-stabilization/playwright-results/
+            apps/web-react-poc/playwright-report/
+            apps/web-react-poc/test-results/e2e/
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: Upload React visual and performance report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: react-poc-visual-performance-${{ github.run_id }}
+          path: |
+            apps/web-react-poc/playwright-report/paired/
+            apps/web-react-poc/test-results/paired-visual-performance/
           if-no-files-found: ignore
           retention-days: 7
 
