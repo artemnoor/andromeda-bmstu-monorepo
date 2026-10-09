@@ -1,0 +1,12 @@
+{
+  "name": "andromeda-web",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "node tools/server.mjs",
+    "build": "node tools/build.mjs",
+    "preview": "node tools/server.mjs --dist",
+    "test": "node --test tests/smoke.test.mjs"
+  }
+}

@@ -1,0 +1,1528 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <link rel="icon" href="assets/andromeda-symbol.png" type="image/png">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#ffffff">
+  <title>Сравнение программ — Andromeda × BMSTU</title>
+  <link rel="stylesheet" href="app.css">
+  <link rel="stylesheet" href="assets/andromeda-header.css">
+  <script src="assets/andromeda-header.js" defer></script>
+  <style>
+    .compare-intro { grid-template-columns: minmax(0, 1fr) minmax(190px, 250px); }
+    .compare-intro { padding-top: clamp(34px, 5vw, 68px); padding-bottom: clamp(26px, 3.5vw, 46px); }
+    .compare-intro .app-title { max-width: 900px; font-size: clamp(46px, 6.5vw, 82px); line-height: .94; }
+    .compare-count { padding: 18px 20px; border: 1px solid var(--line); border-radius: 18px; background: var(--soft); }
+    .compare-count strong { display: block; font-size: clamp(25px, 4vw, 40px); font-weight: 500; letter-spacing: -.07em; font-variant-numeric: tabular-nums; }
+    .compare-count span { color: var(--muted); font-size: 11px; }
+
+    .compare-section { margin-top: clamp(38px, 6vw, 68px); }
+    .compare-section .section-heading { margin-top: 0; }
+    .compare-heading-actions { display: flex; align-items: center; gap: 12px; }
+    .table-scroll-note { margin: 0 0 9px; color: var(--muted); font-size: 11px; line-height: 1.45; }
+    .comparison-table { min-width: 940px; table-layout: fixed; }
+    .comparison-table th:first-child, .comparison-table td:first-child { position: sticky; left: 0; width: 172px; min-width: 172px; z-index: 2; background: #fff; }
+    .comparison-table thead th { position: sticky; top: 0; z-index: 5; min-width: 250px; vertical-align: top; background: #f8f9fb; letter-spacing: normal; text-transform: none; }
+    .comparison-table thead th:first-child { z-index: 6; background: #f8f9fb; }
+    .comparison-table tbody th:first-child { background: #f8f9fb; font-size: 11px; font-weight: 600; letter-spacing: normal; text-transform: none; }
+    .comparison-table td { min-width: 250px; }
+    .program-head { display: block; min-height: 95px; }
+    .program-head-copy { min-width: 0; }
+    .program-head-code { display: block; margin-bottom: 8px; color: var(--blue); font-size: 11px; font-weight: 650; line-height: 1.3; }
+    .program-head-name { margin: 0; font-size: 15px; font-weight: 600; line-height: 1.25; letter-spacing: -.025em; overflow-wrap: anywhere; }
+    .comparison-source-link { display: inline-flex; align-items: center; gap: 6px; color: var(--blue); font-size: 11px; font-weight: 600; text-decoration: none; }
+    .comparison-source-link:hover { text-decoration: underline; text-underline-offset: 3px; }
+    .overview-value { display: grid; gap: 4px; }
+    .overview-value strong { font-size: 13px; font-weight: 600; line-height: 1.35; font-variant-numeric: tabular-nums; }
+    .overview-value span { color: var(--muted); font-size: 11px; line-height: 1.45; }
+    .comparison-table .overview-value strong { overflow-wrap: anywhere; }
+    .comparison-table .overview-value .comparison-source-link { width: fit-content; margin-top: 3px; }
+
+    .workload-panel { overflow: hidden; border: 1px solid var(--line); border-radius: 20px; background: #fff; }
+    .workload-panel-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; padding: 20px 22px; border-bottom: 1px solid var(--line); }
+    .workload-panel-head p { max-width: 620px; margin: 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
+    .workload-panel-head strong { display: block; margin-bottom: 4px; color: var(--ink); font-size: 14px; font-weight: 600; }
+    .workload-switch { display: inline-flex; flex: 0 0 auto; gap: 3px; padding: 4px; border: 1px solid var(--line); border-radius: 999px; background: #f8f9fb; }
+    .workload-switch button { min-height: 36px; padding: 0 12px; border: 0; border-radius: 999px; background: transparent; color: var(--muted); font-size: 11px; font-weight: 600; cursor: pointer; }
+    .workload-switch button[aria-pressed="true"] { background: #fff; color: var(--ink); box-shadow: 0 1px 3px rgba(15, 31, 50, .12); }
+    .workload-legend { display: flex; flex-wrap: wrap; gap: 10px 20px; padding: 14px 22px 0; }
+    .workload-legend-item { display: inline-flex; align-items: center; gap: 8px; color: var(--muted); font-size: 11px; line-height: 1.35; }
+    .workload-legend-item strong { color: var(--ink); font-weight: 600; }
+    .workload-dot { width: 9px; height: 9px; flex: 0 0 auto; border-radius: 3px; background: var(--series-color); }
+    .workload-chart { display: grid; gap: 0; padding: 14px 22px 20px; }
+    .workload-row { display: grid; grid-template-columns: minmax(0, 1fr); gap: 11px; padding: 15px 0; border-top: 1px solid rgba(17, 17, 17, .09); }
+    .workload-row:first-child { border-top: 0; }
+    .workload-term { color: var(--ink); font-size: 12px; font-weight: 600; line-height: 1.4; }
+    .workload-series-grid { display: grid; grid-template-columns: repeat(var(--series-count, 3), minmax(0, 1fr)); gap: 14px; }
+    .workload-series { display: grid; grid-template-columns: minmax(64px, .38fr) minmax(52px, 1fr) auto; align-items: center; gap: 9px; min-width: 0; }
+    .workload-code { color: var(--muted); font-size: 10px; font-weight: 600; line-height: 1.3; overflow-wrap: anywhere; }
+    .workload-track { height: 8px; overflow: hidden; border-radius: 999px; background: #edf0f4; }
+    .workload-fill { display: block; width: var(--bar-width, 0%); height: 100%; border-radius: inherit; background: var(--series-color); transition: width .25s ease; }
+    .workload-value { min-width: 54px; color: var(--ink); font-size: 11px; font-weight: 600; text-align: right; font-variant-numeric: tabular-nums; }
+    .workload-empty-value { color: var(--muted); font-size: 10px; }
+    .workload-empty { grid-column: 1 / -1; padding: 20px; color: var(--muted); font-size: 12px; text-align: center; }
+    .category-program-head { display: grid; gap: 4px; }
+    .category-program-code { color: var(--blue); font-size: 11px; font-weight: 650; }
+    .category-program-name { color: var(--muted); font-size: 10px; font-weight: 500; line-height: 1.4; }
+    .category-comparison-board { overflow: hidden; border: 1px solid var(--line); border-radius: 22px; background: #fff; }
+    .category-board-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; padding: 22px; border-bottom: 1px solid var(--line); }
+    .category-board-title { margin: 8px 0 0; font-size: clamp(23px, 3vw, 34px); font-weight: 500; line-height: 1.05; letter-spacing: -.055em; }
+    .category-board-copy { max-width: 620px; margin: 9px 0 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
+    .category-count-tag { display: inline-flex; align-items: center; min-height: 25px; margin-top: 12px; padding: 0 9px; border: 1px solid rgba(0, 108, 220, .22); border-radius: 7px; background: #f4f8ff; color: var(--blue); font-size: 10px; font-weight: 650; }
+    .category-board-total { text-align: right; }
+    .category-board-total strong { display: block; font-size: 21px; font-weight: 550; letter-spacing: -.045em; font-variant-numeric: tabular-nums; }
+    .category-board-total span { display: block; margin-top: 3px; color: var(--muted); font-size: 10px; }
+    .category-program-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 380px), 1fr)); gap: 1px; background: var(--line); }
+    .category-program-card { min-width: 0; padding: 20px; background: #fff; }
+    .category-program-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; min-height: 74px; padding-left: 12px; border-left: 3px solid var(--program-color); }
+    .category-program-copy { min-width: 0; }
+    .category-program-code { display: block; margin-bottom: 5px; color: var(--program-color); font-size: 10px; font-weight: 700; }
+    .category-program-name { margin: 0; font-size: 12px; font-weight: 600; line-height: 1.35; letter-spacing: -.015em; }
+    .category-program-total { flex: 0 0 auto; text-align: right; }
+    .category-program-total strong { display: block; font-size: 15px; font-weight: 650; font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .category-program-total span { display: block; margin-top: 3px; color: var(--muted); font-size: 9px; line-height: 1.35; }
+    .category-chart-layout { display: grid; place-items: center; margin-top: 10px; }
+    .category-interactive-donut-wrap { position: relative; width: min(100%, 210px); margin-inline: auto; aspect-ratio: 1; }
+    .category-interactive-donut { display: block; width: 100%; height: 100%; overflow: visible; }
+    .category-donut-track { fill: none; stroke: #edf0f4; stroke-width: 24; }
+    .category-donut-segment { fill: none; stroke: var(--category-color); stroke-width: 24; stroke-linecap: butt; cursor: pointer; outline: none; transition: opacity .18s ease, stroke-width .18s ease, filter .18s ease; }
+    .category-donut-segment:hover, .category-donut-segment:focus-visible, .category-donut-segment.is-active { stroke-width: 29; filter: saturate(1.08); }
+    .category-donut-segment.is-dimmed { opacity: .25; }
+    .category-donut-segment:focus-visible { filter: drop-shadow(0 0 3px rgba(0, 108, 220, .8)); }
+    .category-donut-center { position: absolute; inset: 14%; display: grid; align-content: center; justify-items: center; text-align: center; pointer-events: none; }
+    .category-donut-center strong { max-width: 100%; color: var(--ink); font-size: clamp(22px, 3vw, 31px); font-weight: 550; line-height: 1; letter-spacing: -.055em; font-variant-numeric: tabular-nums; }
+    .category-donut-center span { max-width: 92px; margin-top: 6px; color: var(--muted); font-size: 9px; line-height: 1.25; }
+    .category-program-footnote { margin: 12px 0 0; color: var(--muted); font-size: 9px; line-height: 1.45; }
+    .category-subject-dialog { width: min(1120px, calc(100vw - 32px)); max-width: none; max-height: min(90svh, 920px); padding: 0; overflow: hidden; border: 1px solid rgba(17, 17, 17, .12); border-radius: 22px; color: var(--ink); background: #fff; box-shadow: 0 30px 100px rgba(18, 33, 55, .26); }
+    .category-subject-dialog::backdrop { background: rgba(15, 25, 40, .48); backdrop-filter: blur(5px); }
+    .category-dialog-shell { display: grid; grid-template-rows: auto minmax(0, 1fr); max-height: min(90svh, 920px); }
+    .category-dialog-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; padding: 24px 28px; border-bottom: 1px solid var(--line); background: rgba(255, 255, 255, .98); }
+    .category-dialog-title { margin: 7px 0 0; font-size: clamp(24px, 4vw, 36px); font-weight: 550; line-height: 1.05; letter-spacing: -.05em; }
+    .category-dialog-description { margin: 8px 0 0; color: var(--muted); font-size: 12px; line-height: 1.45; }
+    .category-dialog-close { display: grid; place-items: center; width: 40px; height: 40px; flex: 0 0 auto; border: 1px solid var(--line); border-radius: 50%; background: #fff; color: var(--muted); font-size: 24px; line-height: 1; cursor: pointer; }
+    .category-dialog-close:hover { border-color: var(--ink); color: var(--ink); }
+    .category-dialog-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: start; gap: 12px; overflow: auto; padding: 20px 24px 24px; }
+    .category-dialog-column { min-width: 0; overflow: hidden; border: 1px solid var(--line); border-radius: 15px; background: #fff; }
+    .category-dialog-column-head { padding: 16px; border-top: 3px solid var(--category-color); background: #f8f9fb; }
+    .category-dialog-direction-code { display: block; color: var(--blue); font-size: 10px; font-weight: 700; letter-spacing: .04em; }
+    .category-dialog-direction { margin: 7px 0 0; font-size: 16px; font-weight: 650; line-height: 1.25; letter-spacing: -.025em; }
+    .category-dialog-program { margin: 8px 0 0; color: var(--muted); font-size: 10px; line-height: 1.45; }
+    .category-dialog-total { display: block; margin-top: 12px; color: var(--ink); font-size: 11px; font-weight: 650; font-variant-numeric: tabular-nums; }
+    .category-dialog-subjects { display: grid; gap: 0; margin: 0; padding: 4px 16px 10px; list-style: none; }
+    .category-dialog-subjects li { min-width: 0; padding: 11px 0; border-bottom: 1px solid rgba(17, 17, 17, .08); }
+    .category-dialog-subjects li:last-child { border-bottom: 0; }
+    .category-dialog-subject-name { display: block; font-size: 11px; font-weight: 570; line-height: 1.4; overflow-wrap: anywhere; }
+    .category-dialog-subject-meta { display: block; margin-top: 4px; color: var(--muted); font-size: 9px; line-height: 1.4; }
+    .category-dialog-empty { margin: 0; padding: 16px; color: var(--muted); font-size: 11px; line-height: 1.5; }
+    .category-shared-section { padding: 20px 22px 22px; border-top: 1px solid var(--line); }
+    .category-shared-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 18px; }
+    .category-shared-title { margin: 7px 0 0; font-size: 21px; font-weight: 550; letter-spacing: -.045em; }
+    .category-shared-copy { margin: 6px 0 0; color: var(--muted); font-size: 11px; line-height: 1.45; }
+    .category-reset { min-height: 35px; padding: 0 12px; border: 1px solid var(--line); border-radius: 999px; background: #fff; color: var(--muted); font-size: 10px; font-weight: 600; cursor: pointer; transition: border-color .18s ease, color .18s ease, background .18s ease; }
+    .category-reset:hover { border-color: var(--ink); color: var(--ink); }
+    .category-shared-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr)); gap: 8px; margin-top: 15px; }
+    .category-shared-item { display: flex; flex-direction: column; align-items: stretch; min-width: 0; padding: 10px; border: 1px solid var(--line); border-radius: 12px; background: #fff; transition: border-color .18s ease, box-shadow .18s ease, background .18s ease, transform .18s ease; }
+    .category-shared-item:hover { transform: translateY(-1px); border-color: var(--category-color); }
+    .category-shared-item.is-active { border-color: var(--category-color); box-shadow: inset 0 0 0 1px var(--category-color); background: color-mix(in srgb, var(--category-color) 4%, white); }
+    .category-shared-select { display: grid; grid-template-columns: 11px minmax(0, 1fr); grid-template-areas: "dot name" "dot values"; column-gap: 9px; align-content: start; width: 100%; min-width: 0; padding: 2px; border: 0; border-radius: 7px; background: transparent; color: inherit; text-align: left; cursor: pointer; }
+    .category-shared-select.is-dimmed { opacity: .48; }
+    .category-shared-dot { grid-area: dot; width: 11px; height: 11px; margin-top: 2px; border-radius: 50%; background: var(--category-color); }
+    .category-shared-name { grid-area: name; min-width: 0; font-size: 11px; font-weight: 650; line-height: 1.35; }
+    .category-shared-values { grid-area: values; display: grid; gap: 3px; margin-top: 7px; color: var(--muted); font-size: 9px; line-height: 1.35; }
+    .category-shared-values strong { color: var(--ink); font-weight: 600; }
+    .category-details-trigger { align-self: flex-start; min-height: 29px; margin: 8px 0 0 20px; padding: 0 10px; border: 1px solid rgba(0, 108, 220, .2); border-radius: 999px; background: #f6f9ff; color: var(--blue); font-size: 10px; font-weight: 650; cursor: pointer; transition: background .18s ease, border-color .18s ease; }
+    .category-details-trigger:hover { border-color: var(--blue); background: #edf5ff; }
+    .category-distribution { padding: 20px 22px 22px; border-top: 1px solid var(--line); }
+    .category-distribution-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin-bottom: 13px; }
+    .category-distribution-heading h3 { margin: 6px 0 0; font-size: 20px; font-weight: 550; letter-spacing: -.045em; }
+    .category-distribution-note { max-width: 470px; margin: 0; color: var(--muted); font-size: 10px; line-height: 1.45; }
+    .category-distribution-wrap { overflow: auto; border: 1px solid var(--line); border-radius: 14px; }
+    .category-distribution-table { min-width: 700px; table-layout: fixed; }
+    .category-distribution-table th:first-child, .category-distribution-table td:first-child { position: sticky; left: 0; z-index: 2; width: 215px; min-width: 215px; background: #fff; }
+    .category-distribution-table thead th { position: sticky; top: 0; z-index: 5; min-width: 175px; background: #f8f9fb; vertical-align: top; letter-spacing: normal; text-transform: none; }
+    .category-distribution-table thead th:first-child { z-index: 6; background: #f8f9fb; }
+    .category-distribution-table tbody th:first-child { background: #f8f9fb; font-size: 10px; font-weight: 600; letter-spacing: normal; text-transform: none; }
+    .category-distribution-table td { min-width: 175px; }
+    .category-row-name { display: flex; align-items: flex-start; gap: 8px; line-height: 1.4; }
+    .category-row-dot { width: 8px; height: 8px; flex: 0 0 auto; margin-top: 3px; border-radius: 50%; background: var(--category-color); }
+    .category-distribution-cell { display: grid; gap: 6px; }
+    .category-distribution-values { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; font-variant-numeric: tabular-nums; }
+    .category-distribution-values strong { color: var(--ink); font-size: 11px; font-weight: 650; }
+    .category-distribution-values span { color: var(--muted); font-size: 9px; white-space: nowrap; }
+    .category-distribution-track { height: 6px; overflow: hidden; border-radius: 999px; background: #edf0f4; }
+    .category-distribution-fill { display: block; width: var(--bar-width, 0%); height: 100%; border-radius: inherit; background: var(--category-color); transition: width .25s ease; }
+    .category-distribution-empty { color: var(--muted); font-size: 10px; }
+    .compare-selection { margin-bottom: clamp(25px, 4vw, 42px); padding: 18px; border: 1px solid var(--line); border-radius: 18px; background: #fff; }
+    .compare-selection-head { display: flex; align-items: center; justify-content: space-between; gap: 18px; margin-bottom: 12px; }
+    .compare-selection-head h2 { margin: 0; font-size: 17px; font-weight: 550; letter-spacing: -.03em; }
+    .compare-selection-count { margin: 5px 0 0; color: var(--muted); font-size: 10px; }
+    .compare-selection-actions { display: flex; align-items: center; gap: 8px; }
+    .compare-selection-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); gap: 8px; }
+    .compare-selection-card { display: grid; grid-template-columns: minmax(0, 1fr) 34px; align-items: start; gap: 10px; min-width: 0; padding: 12px; border: 1px solid rgba(0, 108, 220, .22); border-radius: 12px; background: #f7faff; }
+    .compare-selection-copy { min-width: 0; }
+    .compare-selection-copy span { display: block; margin-bottom: 5px; color: var(--blue); font-size: 10px; font-weight: 700; }
+    .compare-selection-copy strong { display: -webkit-box; overflow: hidden; font-size: 11px; font-weight: 600; line-height: 1.4; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+    .compare-selection-remove { display: grid; place-items: center; width: 34px; height: 34px; border: 1px solid var(--line); border-radius: 50%; background: #fff; color: var(--muted); font-size: 17px; cursor: pointer; transition: border-color .18s ease, color .18s ease, background .18s ease; }
+    .compare-selection-remove:hover { border-color: #a72b2b; background: #fff8f7; color: #a72b2b; }
+    .compare-selection-empty { margin: 0; color: var(--muted); font-size: 11px; line-height: 1.45; }
+    .workload-details, .matrix-details { overflow: hidden; border: 1px solid var(--line); border-radius: 16px; background: #fff; }
+    .workload-details > summary, .matrix-details > summary { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 15px 18px; color: var(--ink); font-size: 12px; font-weight: 600; cursor: pointer; list-style: none; }
+    .workload-details > summary::-webkit-details-marker, .matrix-details > summary::-webkit-details-marker { display: none; }
+    .workload-details > summary::after, .matrix-details > summary::after { color: var(--blue); content: \"+\"; font-size: 18px; font-weight: 400; line-height: 1; }
+    .workload-details[open] > summary, .matrix-details[open] > summary { border-bottom: 1px solid var(--line); }
+    .workload-details[open] > summary::after, .matrix-details[open] > summary::after { content: \"−\"; }
+    .workload-details > .workload-panel { border: 0; border-radius: 0; }
+    .matrix-details { padding: 0 14px 14px; }
+    .matrix-details > summary { margin: 0 -14px 14px; }
+    .matrix-details[open] > summary { margin-bottom: 14px; }
+
+    .matrix-intro { display: flex; align-items: end; justify-content: space-between; gap: 20px; margin: 0 0 16px; }
+    .matrix-summary { margin: 7px 0 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
+    .matrix-controls { display: grid; grid-template-columns: minmax(220px, 1.4fr) repeat(2, minmax(165px, .8fr)); gap: 12px; margin: 0 0 14px; padding: 16px; border: 1px solid var(--line); border-radius: 16px; background: #f8f9fb; }
+    .matrix-field { display: grid; align-content: start; gap: 7px; min-width: 0; color: var(--muted); font-size: 11px; font-weight: 600; }
+    .matrix-field .filter-input, .matrix-field .filter-select { min-height: 44px; font-size: 12px; }
+    .matrix-results { min-height: 20px; margin: 0 0 9px; color: var(--muted); font-size: 11px; line-height: 1.45; }
+    .matrix-table { min-width: 980px; table-layout: fixed; }
+    .matrix-table th:first-child, .matrix-table td:first-child { position: sticky; left: 0; z-index: 2; width: 245px; min-width: 245px; background: #fff; }
+    .matrix-table thead th { position: sticky; top: 0; z-index: 5; min-width: 230px; background: #f8f9fb; vertical-align: top; letter-spacing: normal; text-transform: none; }
+    .matrix-table thead th:first-child { z-index: 6; background: #f8f9fb; }
+    .matrix-table td { min-width: 230px; }
+    .matrix-column-code { display: block; margin-bottom: 5px; color: var(--blue); font-size: 11px; font-weight: 650; }
+    .matrix-column-name { display: block; color: var(--ink); font-size: 11px; font-weight: 600; line-height: 1.35; }
+    .matrix-course-title { font-size: 12px; font-weight: 600; line-height: 1.4; overflow-wrap: anywhere; }
+    .common-course-tag { display: inline-flex; align-items: center; margin-top: 7px; padding: 3px 7px; border-radius: 999px; background: #edf5ff; color: var(--blue); font-size: 10px; font-weight: 600; line-height: 1.2; }
+    .matrix-course-entry { display: grid; gap: 6px; padding: 10px; border: 1px solid rgba(17, 17, 17, .1); border-radius: 10px; background: #fff; }
+    .matrix-course-entry + .matrix-course-entry { margin-top: 7px; }
+    .matrix-course-meta { display: flex; flex-wrap: wrap; gap: 5px 9px; color: var(--muted); font-size: 10px; line-height: 1.35; }
+    .matrix-category { display: inline-flex; max-width: 100%; padding: 3px 7px; border-radius: 6px; background: #f0f5fb; color: #425870; font-size: 10px; line-height: 1.35; overflow-wrap: anywhere; }
+    .matrix-missing { display: inline-flex; align-items: center; gap: 8px; color: #858991; font-size: 11px; }
+    .matrix-missing-mark { display: inline-grid; place-items: center; width: 25px; height: 25px; border: 1px solid var(--line); border-radius: 50%; background: #f8f9fb; font-size: 13px; }
+    .matrix-no-results { padding: 30px 16px !important; color: var(--muted); text-align: center; }
+    .matrix-footnote { margin: 12px 0 0; color: var(--muted); font-size: 11px; line-height: 1.5; }
+
+    @media (max-width: 950px) {
+      .compare-intro { grid-template-columns: 1fr; }
+      .compare-count { justify-self: start; min-width: 190px; }
+      .workload-series-grid { grid-template-columns: 1fr; gap: 10px; }
+      .category-program-card { padding: 17px; }
+      .category-dialog-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+    @media (max-width: 720px) {
+      .comparison-table thead th, .category-distribution-table thead th, .matrix-table thead th { top: 0; }
+      .workload-panel-head { align-items: flex-start; flex-direction: column; gap: 14px; }
+      .matrix-intro { align-items: flex-start; flex-direction: column; gap: 4px; }
+      .matrix-controls { grid-template-columns: 1fr; }
+      .category-board-head, .category-shared-head, .category-distribution-heading { align-items: flex-start; flex-direction: column; }
+      .compare-selection-head { align-items: flex-start; flex-direction: column; }
+      .category-board-total { text-align: left; }
+      .category-reset { align-self: flex-start; }
+    }
+    @media (max-width: 620px) {
+      .matrix-field .filter-input, .matrix-field .filter-select { font-size: 16px; }
+      .comparison-table { min-width: 790px; }
+      .comparison-table th:first-child, .comparison-table td:first-child { width: 130px; min-width: 130px; }
+      .comparison-table thead th, .comparison-table td { min-width: 220px; }
+      .category-program-grid { grid-template-columns: 1fr; }
+      .category-program-card { padding: 16px; }
+      .category-interactive-donut-wrap { width: min(100%, 150px); }
+      .category-distribution-table { min-width: 680px; }
+      .category-distribution-table th:first-child, .category-distribution-table td:first-child { width: 165px; min-width: 165px; }
+      .category-distribution-table thead th, .category-distribution-table td { min-width: 165px; }
+      .matrix-table { min-width: 800px; }
+      .matrix-table th:first-child, .matrix-table td:first-child { width: 180px; min-width: 180px; }
+      .matrix-table thead th, .matrix-table td { min-width: 210px; }
+      .workload-chart { padding-inline: 16px; }
+      .workload-legend { padding-inline: 16px; }
+      .workload-series { grid-template-columns: minmax(80px, .55fr) minmax(40px, 1fr) auto; gap: 8px; }
+      .workload-value { min-width: 48px; }
+      .category-dialog-head { padding: 18px; }
+      .category-dialog-grid { grid-template-columns: 1fr; gap: 9px; padding: 13px; }
+      .category-dialog-column-head { padding: 13px; }
+      .category-dialog-subjects { padding-inline: 13px; }
+    }
+    @media (max-width: 380px) {
+      .category-interactive-donut-wrap { width: 150px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .workload-fill { transition: none; }
+    }
+  </style>
+</head>
+<body class="has-andromeda-header">
+<main class="app-main">
+    <section class="app-intro compare-intro">
+    <div><h1 class="app-title">Сравни программы</h1><p class="app-description">Места, проходные баллы и условия поступления — рядом. Сопоставь бюджетные и платные места и историю зачисления.</p></div>
+      <div class="compare-count"><strong id="selectedCount">0 / 3</strong><span>программ выбрано</span></div>
+    </section>
+    <div id="compareContent" aria-live="polite" aria-busy="true"><div class="loading-state"><h2>Готовим сравнение</h2><p>Загружаем места и условия поступления.</p></div></div>
+  </main>
+  <script src="assets/academic-data.js"></script>
+  <script src="app.js"></script>
+  <script>
+    const root = document.getElementById("compareContent");
+    const selectedCount = document.getElementById("selectedCount");
+    const SERIES_COLORS = ["#006cdc", "#26364a", "#68798e"];
+    const CATEGORY_COLORS = ["#006cdc", "#497b5f", "#b77b2f", "#8165a7", "#b75b64", "#3f8190", "#65738b", "#789546", "#bc6a37", "#4f68a6", "#a24f89", "#7a8b41", "#527b9f", "#b17d5c", "#77708f", "#467a70"];
+    const selectedMetric = { key: "credits" };
+    const UNCLASSIFIED_CATEGORY_KEY = "__unclassified__";
+    let activeCategoryKey = null;
+    let compareRenderId = 0;
+
+    const addText = (parent, tag, className, value) => {
+      const node = document.createElement(tag);
+      if (className) node.className = className;
+      node.textContent = value;
+      parent.append(node);
+      return node;
+    };
+    const numberOrNull = (value) => {
+      if (value === null || value === undefined || value === "") return null;
+      const parsed = Number(value);
+      return Number.isFinite(parsed) ? parsed : null;
+    };
+    function sumMetric(rows, field) {
+      let value = 0;
+      let count = 0;
+      for (const row of rows || []) {
+        const metric = numberOrNull(row?.[field]);
+        if (metric === null) continue;
+        value += metric;
+        count += 1;
+      }
+      return { value, count };
+    }
+    const programKey = (program) => program.external_key || program.code;
+    const courseName = (item) => Andromeda.text(item.discipline) || Andromeda.text(item.course) || "Название не указано";
+    const semesterKey = (item) => Andromeda.text(item.semester) || "unknown";
+    function sortSemesters(values) {
+      return [...values].sort((a, b) => a === "unknown" ? 1 : b === "unknown" ? -1 : Number(a) - Number(b));
+    }
+
+    function renderEmpty(message) {
+      root.replaceChildren();
+      const empty = document.createElement("section");
+      empty.className = "empty-state";
+      addText(empty, "h2", "", "Добавь программы для сравнения");
+      addText(empty, "p", "", message);
+      const link = document.createElement("a");
+      link.className = "button button-blue";
+      link.href = "programs.html";
+      link.textContent = "Открыть каталог";
+      link.style.marginTop = "20px";
+      empty.append(link);
+      root.append(empty);
+      root.setAttribute("aria-busy", "false");
+    }
+
+    function renderSelectionPicker(programs) {
+      const section = document.createElement("section");
+      section.className = "compare-selection";
+      section.setAttribute("aria-labelledby", "compare-selection-title");
+      const head = document.createElement("div");
+      head.className = "compare-selection-head";
+      const copy = document.createElement("div");
+      addText(copy, "h2", "", "Выбранные программы");
+      addText(copy, "p", "compare-selection-count", Andromeda.getComparison().length + " из 3 можно сравнить одновременно");
+      head.append(copy);
+      const actions = document.createElement("div");
+      actions.className = "compare-selection-actions";
+      const catalog = document.createElement("a");
+      catalog.className = "button button-secondary";
+      catalog.href = "programs.html";
+      catalog.textContent = "Изменить выбор";
+      actions.append(catalog);
+      head.append(actions);
+      section.append(head);
+      const list = document.createElement("div");
+      list.className = "compare-selection-list";
+      const comparison = Andromeda.getComparison();
+      programs.forEach((program, index) => {
+        const key = comparison.find((value) => value === programKey(program) || value === program.code) || programKey(program);
+        const card = document.createElement("article");
+        card.className = "compare-selection-card";
+        card.style.setProperty("--program-color", SERIES_COLORS[index % SERIES_COLORS.length]);
+        const identity = document.createElement("div");
+        identity.className = "compare-selection-copy";
+        addText(identity, "span", "", program.code || "Код не указан");
+        addText(identity, "strong", "", program.name || "Название не указано");
+        card.append(identity);
+        const remove = document.createElement("button");
+        remove.type = "button";
+        remove.className = "compare-selection-remove";
+        remove.textContent = "×";
+        remove.setAttribute("aria-label", "Убрать программу " + (program.code || program.name) + " из сравнения");
+        remove.addEventListener("click", () => {
+          Andromeda.setComparison(Andromeda.getComparison().filter((value) => value !== key));
+          render();
+        });
+        card.append(remove);
+        list.append(card);
+      });
+      if (!programs.length) addText(list, "p", "compare-selection-empty", "Добавьте программы в каталоге, чтобы сравнить места и условия поступления.");
+      section.append(list);
+      return section;
+    }
+
+    function buildSemesterStats(rows) {
+      const groups = new Map();
+      for (const row of rows) {
+        const key = semesterKey(row);
+        if (!groups.has(key)) groups.set(key, { courses: [], credits: 0, creditsCount: 0, hours: 0, hoursCount: 0 });
+        const group = groups.get(key);
+        group.courses.push(row);
+        const credits = numberOrNull(row.credits);
+        const hours = numberOrNull(row.hours);
+        if (credits !== null) { group.credits += credits; group.creditsCount += 1; }
+        if (hours !== null) { group.hours += hours; group.hoursCount += 1; }
+      }
+      return groups;
+    }
+
+    function appendOverviewValue(cell, value, note, sourceUrl) {
+      const wrapper = document.createElement("div");
+      wrapper.className = "overview-value";
+      addText(wrapper, "strong", "", value);
+      if (note) addText(wrapper, "span", "", note);
+      const safeSource = Andromeda.safeUrl(sourceUrl);
+      if (safeSource) {
+        const link = document.createElement("a");
+        link.className = "comparison-source-link";
+        link.href = safeSource;
+        link.target = "_blank";
+        link.rel = "noopener noreferrer";
+        link.textContent = "Источник ↗";
+        wrapper.append(link);
+      }
+      cell.append(wrapper);
+    }
+
+    function matchHistoryDepartment(row, departmentCode) {
+      const code = Andromeda.text(row.department_code);
+      if (code) return code === departmentCode;
+      const labelParts = Andromeda.text(row.scope_label).split(/[^0-9a-zа-я]+/iu);
+      return labelParts.includes(departmentCode);
+    }
+
+    function getAdmissionPlaces(program, admission, fundingType) {
+      const directionCode = Andromeda.text(program.direction_code);
+      const departmentCode = Andromeda.text(program.department_code);
+      const matchingPools = (admission.pools || []).filter((pool) =>
+        Andromeda.text(pool.direction_code) === directionCode
+        && Andromeda.text(pool.campaign_year) === "2026"
+        && pool.funding_type === fundingType
+        && pool.quota_type === "general_competition",
+      );
+      const linkedPools = matchingPools.filter((pool) => (pool.program_keys || []).includes(programKey(program)));
+      const departmentPools = departmentCode
+        ? matchingPools.filter((pool) => pool.scope_level === "department" && Andromeda.text(pool.department_code) === departmentCode)
+        : [];
+      const directionPools = matchingPools.filter((pool) => pool.scope_level === "direction" && !Andromeda.text(pool.department_code));
+      const unresolvedPools = departmentCode
+        ? matchingPools.filter((pool) => pool.scope_level === "offering"
+          && Andromeda.text(pool.department_code) === departmentCode
+          && (pool.offering_link_statuses || []).includes("manual_review"))
+        : [];
+      const pools = linkedPools.length ? linkedPools : departmentPools.length ? departmentPools : directionPools;
+      const uniquePools = [...new Map(pools.map((pool, index) => [pool.external_key || `${fundingType}-${index}`, pool])).values()];
+      const places = uniquePools.reduce((sum, pool) => sum + (numberOrNull(pool.places) || 0), 0);
+      const hasPlaces = uniquePools.some((pool) => numberOrNull(pool.places) !== null);
+      const scope = linkedPools.length ? "предложение программы" : departmentPools.length ? "кафедра " + departmentCode : "направление " + directionCode;
+      if (!hasPlaces && unresolvedPools.length) {
+        return {
+          value: "Уточняется",
+          note: "Места есть в архиве, но связь предложения с этим профилем ещё проверяется.",
+          sourceUrl: unresolvedPools.find((pool) => Andromeda.safeUrl(pool.source_url))?.source_url,
+        };
+      }
+      return {
+        value: hasPlaces ? Andromeda.formatNumber(places) : "Нет данных",
+        note: hasPlaces ? "мест · общий конкурс · " + scope + " · 2026" : "Строка общего конкурса не опубликована для этого уровня.",
+        sourceUrl: uniquePools.find((pool) => Andromeda.safeUrl(pool.source_url))?.source_url,
+      };
+    }
+
+    function getHistoricalAdmissionResult(program, admission) {
+      const directionCode = Andromeda.text(program.direction_code);
+      const departmentCode = Andromeda.text(program.department_code);
+      const history = (admission.history || []).filter((row) =>
+        Andromeda.text(row.direction_code) === directionCode
+        && row.funding_type === "paid"
+        && numberOrNull(row.minimum_score) !== null,
+      );
+      const departmentHistory = departmentCode
+        ? history.filter((row) => row.scope_type === "department" && matchHistoryDepartment(row, departmentCode))
+        : [];
+      const historyAtSameLevel = departmentHistory.length
+        ? departmentHistory
+        : history.filter((row) => row.scope_type === "direction");
+      const latest = historyAtSameLevel.sort((a, b) =>
+        Number(b.admission_year || b.year || 0) - Number(a.admission_year || a.year || 0),
+      )[0];
+      if (!latest) return { value: "Нет данных", note: "Исторический балл не опубликован для этого направления." };
+      const year = Andromeda.text(latest.admission_year || latest.year) || "год не указан";
+      const admitted = numberOrNull(latest.admitted_count);
+      const scope = departmentHistory.length ? "кафедра " + departmentCode : "направление " + directionCode;
+      return {
+        value: Andromeda.formatNumber(numberOrNull(latest.minimum_score)) + " баллов",
+        note: "платное · минимум зачисленных · " + year + " · " + scope + (admitted === null ? "" : " · зачислено: " + Andromeda.formatNumber(admitted)),
+        sourceUrl: latest.source_url,
+      };
+    }
+
+    function getCampaignAdmissionResult(program, admission, fundingType) {
+      const directionCode = Andromeda.text(program.direction_code);
+      const results = (admission.campaign_statistics || []).filter((row) =>
+        Andromeda.text(row.direction_code) === directionCode
+        && row.funding_type === fundingType
+        && Andromeda.text(row.admission_year) === "2026"
+        && Andromeda.text(row.admission_stage) === "main"
+        && ["general", "other"].includes(Andromeda.text(row.competition_type))
+        && Andromeda.text(row.status) === "numeric"
+        && numberOrNull(row.score ?? row.minimum_score) !== null,
+      );
+      const latest = results.sort((a, b) =>
+        (Date.parse(b.snapshot_date || "") || 0) - (Date.parse(a.snapshot_date || "") || 0),
+      )[0];
+      if (latest) {
+        const score = numberOrNull(latest.score ?? latest.minimum_score);
+        const fundingLabel = fundingType === "budget" ? "бюджет · основной конкурс КЦП" : "платное · общий конкурс";
+        return {
+          value: Andromeda.formatNumber(score) + " баллов",
+          note: fundingLabel + " · список зачисленных · 2026",
+          sourceUrl: latest.source_url,
+        };
+      }
+      if (fundingType === "paid") return getHistoricalAdmissionResult(program, admission);
+      return {
+        value: "Нет данных",
+        note: "Числовой балл основного бюджетного конкурса не опубликован в доступном снимке базы.",
+      };
+    }
+
+    function getBudgetQuotaResults(program, admission) {
+      const quotaLabels = {
+        separate_quota: "Отдельная",
+        special_quota: "Особая",
+        targeted: "Целевая",
+      };
+      const rows = (admission.campaign_statistics || []).filter((row) =>
+        Andromeda.text(row.direction_code) === Andromeda.text(program.direction_code)
+        && row.funding_type === "budget"
+        && Andromeda.text(row.admission_year) === "2026"
+        && Andromeda.text(row.admission_stage) === "first"
+        && quotaLabels[Andromeda.text(row.competition_type)]
+        && Andromeda.text(row.status) === "numeric"
+        && numberOrNull(row.score ?? row.minimum_score) !== null,
+      ).sort((a, b) =>
+        (Date.parse(b.snapshot_date || "") || 0) - (Date.parse(a.snapshot_date || "") || 0),
+      );
+      const scores = new Map();
+      for (const row of rows) {
+        const type = Andromeda.text(row.competition_type);
+        if (!scores.has(type)) scores.set(type, row);
+      }
+      if (!scores.size) return { value: "Нет данных", note: "Числовые результаты бюджетных квот не опубликованы в доступном снимке базы." };
+      const value = [...scores.entries()]
+        .map(([type, row]) => quotaLabels[type] + " — " + Andromeda.formatNumber(numberOrNull(row.score ?? row.minimum_score)))
+        .join(" · ") + " баллов";
+      return {
+        value,
+        note: "Списки зачисленных 2026 · значения по отдельным квотам, не по общему конкурсу.",
+        sourceUrl: rows.find((row) => Andromeda.safeUrl(row.source_url))?.source_url,
+      };
+    }
+
+    function getExamRequirements(program, admission) {
+      const requirements = (admission.requirements || []).filter((row) =>
+        Andromeda.text(row.direction_code) === Andromeda.text(program.direction_code),
+      );
+      const exams = new Map();
+      for (const requirement of requirements) {
+        for (const exam of requirement.exams || []) {
+          const key = [exam.subject_code, exam.minimum_score, Boolean(exam.is_choice)].join("|");
+          if (!exams.has(key)) exams.set(key, exam);
+        }
+      }
+      const entries = [...exams.values()];
+      if (!entries.length) return { value: "Нет данных", note: "Минимальные баллы не найдены в архиве." };
+      const formatExam = (exam) => {
+        const minimum = numberOrNull(exam.minimum_score);
+        return Andromeda.examLabel(exam.subject_code) + (minimum === null ? " · порог не указан" : " · от " + Andromeda.formatNumber(minimum));
+      };
+      const mandatory = entries.filter((exam) => !exam.is_choice).map(formatExam);
+      const optional = entries.filter((exam) => exam.is_choice).map(formatExam);
+      const parts = [];
+      if (mandatory.length) parts.push("Обязательные: " + mandatory.join(", "));
+      if (optional.length) parts.push("На выбор: " + optional.join(" / "));
+      return {
+        value: parts.join(" · ") || "Нет данных",
+        note: "Минимальные баллы ЕГЭ по условиям 2026; варианты зависят от категории поступающего.",
+        sourceUrl: requirements.find((row) => Andromeda.safeUrl(row.source_url))?.source_url,
+      };
+    }
+
+    function getStudyOffer(program, admission) {
+      const programId = programKey(program);
+      let offers = (admission.offerings || []).filter((offer) =>
+        Andromeda.text(offer.educational_program_key) === programId,
+      );
+      if (!offers.length && program.direction_code && program.department_code) {
+        offers = (admission.offerings || []).filter((offer) =>
+          Andromeda.text(offer.direction_code) === Andromeda.text(program.direction_code)
+          && Andromeda.text(offer.department_code) === Andromeda.text(program.department_code)
+          && offer.catalog_join_status === "exact_code_department_name",
+        );
+      }
+      if (!offers.length) return { value: "Нет точного предложения приёма", note: "Связь с программой не подтверждена." };
+      const forms = [...new Set(offers.map((offer) => Andromeda.text(offer.study_form)).filter(Boolean))];
+      const durations = [...new Set(offers.map((offer) => Andromeda.text(offer.study_duration_label)).filter(Boolean))];
+      return {
+        value: forms.join(", ") || "Форма не указана",
+        note: durations.length ? "срок обучения · " + durations.join(", ") : "Срок обучения не указан.",
+        sourceUrl: offers.find((offer) => Andromeda.safeUrl(offer.source_url))?.source_url,
+      };
+    }
+
+    function renderAdmissionOverviewTable(programs, admission) {
+      const section = document.createElement("section");
+      section.className = "compare-section";
+      const heading = document.createElement("div");
+      heading.className = "section-heading";
+      const copy = document.createElement("div");
+      addText(copy, "p", "section-kicker", "Приём 2026 · списки зачисленных и архив");
+      addText(copy, "h2", "", "Места и проходные баллы");
+      addText(copy, "p", "", "Места и результаты взяты из архива. Проходной балл — минимум в опубликованном списке зачисленных; год и конкурсный уровень указаны под значением.");
+      heading.append(copy);
+      section.append(heading);
+      addText(section, "p", "table-scroll-note", "Сравни до трёх программ: на узком экране прокручивай таблицу по горизонтали.");
+
+      const wrap = document.createElement("div");
+      wrap.className = "table-wrap";
+      const table = document.createElement("table");
+      table.className = "data-table comparison-table";
+      const caption = document.createElement("caption");
+      caption.className = "sr-only";
+      caption.textContent = "Сравнение мест, проходных баллов и условий поступления в выбранные образовательные программы.";
+      table.append(caption);
+      const head = document.createElement("thead");
+      const headRow = document.createElement("tr");
+      const labelHead = addText(headRow, "th", "", "Показатель");
+      labelHead.scope = "col";
+
+      for (const program of programs) {
+        const th = document.createElement("th");
+        th.scope = "col";
+        const programHead = document.createElement("div");
+        programHead.className = "program-head";
+        const copyHead = document.createElement("div");
+        copyHead.className = "program-head-copy";
+        addText(copyHead, "span", "program-head-code", program.code || "Код не указан");
+        addText(copyHead, "h3", "program-head-name", program.name || "Название не указано");
+        programHead.append(copyHead);
+        th.append(programHead);
+        headRow.append(th);
+      }
+      head.append(headRow);
+      table.append(head);
+
+      const body = document.createElement("tbody");
+      const rows = [
+        ["Бюджетные места · общий конкурс", (program) => getAdmissionPlaces(program, admission, "budget")],
+        ["Платные места · общий конкурс", (program) => getAdmissionPlaces(program, admission, "paid")],
+        ["Проходной балл · бюджет · основной конкурс", (program) => getCampaignAdmissionResult(program, admission, "budget")],
+        ["Проходные баллы · бюджетные квоты", (program) => getBudgetQuotaResults(program, admission)],
+        ["Проходной балл · платное", (program) => getCampaignAdmissionResult(program, admission, "paid")],
+        ["Минимальные баллы ЕГЭ", (program) => getExamRequirements(program, admission)],
+        ["Форма и срок обучения", (program) => getStudyOffer(program, admission)],
+      ];
+      for (const [label, getInfo] of rows) {
+        const tr = document.createElement("tr");
+        const th = addText(tr, "th", "", label);
+        th.scope = "row";
+        programs.forEach((program) => {
+          const td = document.createElement("td");
+          const info = getInfo(program);
+          appendOverviewValue(td, info.value, info.note, info.sourceUrl);
+          tr.append(td);
+        });
+        body.append(tr);
+      }
+      table.append(body);
+      wrap.append(table);
+      section.append(wrap);
+      return section;
+    }
+
+    function renderWorkloadChart(programs, stats) {
+      const section = document.createElement("section");
+      section.className = "compare-section";
+      const heading = document.createElement("div");
+      heading.className = "section-heading";
+      const copy = document.createElement("div");
+      addText(copy, "p", "section-kicker", "Нагрузка");
+      addText(copy, "h2", "", "По семестрам");
+      addText(copy, "p", "", "Общие горизонтальные шкалы помогают сравнить нагрузку в одном и том же семестре.");
+      heading.append(copy);
+      section.append(heading);
+      const semesters = sortSemesters(new Set(stats.flatMap((map) => [...map.keys()])));
+
+      const panel = document.createElement("div");
+      panel.className = "workload-panel";
+      const panelHead = document.createElement("div");
+      panelHead.className = "workload-panel-head";
+      const description = document.createElement("div");
+      addText(description, "strong", "", "Выбери единицу измерения");
+      addText(description, "p", "", "Учитываются дисциплины с числовым значением; справа показана точная сумма.");
+      const switcher = document.createElement("div");
+      switcher.className = "workload-switch";
+      switcher.setAttribute("role", "group");
+      switcher.setAttribute("aria-label", "Единица нагрузки");
+      const controls = [];
+      for (const option of [{ key: "credits", label: "Зачётные единицы" }, { key: "hours", label: "Часы" }]) {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.textContent = option.label;
+        button.setAttribute("aria-pressed", String(selectedMetric.key === option.key));
+        button.dataset.metric = option.key;
+        button.addEventListener("click", () => {
+          selectedMetric.key = option.key;
+          controls.forEach((control) => control.setAttribute("aria-pressed", String(control.dataset.metric === selectedMetric.key)));
+          updateChart();
+        });
+        controls.push(button);
+        switcher.append(button);
+      }
+      panelHead.append(description, switcher);
+      panel.append(panelHead);
+
+      const legend = document.createElement("div");
+      legend.className = "workload-legend";
+      programs.forEach((program, index) => {
+        const item = document.createElement("span");
+        item.className = "workload-legend-item";
+        item.style.setProperty("--series-color", SERIES_COLORS[index]);
+        const dot = document.createElement("span");
+        dot.className = "workload-dot";
+        dot.setAttribute("aria-hidden", "true");
+        const label = document.createElement("strong");
+        label.textContent = program.code || program.name;
+        item.append(dot, label);
+        legend.append(item);
+      });
+      panel.append(legend);
+      const chart = document.createElement("div");
+      chart.className = "workload-chart";
+      chart.setAttribute("role", "group");
+      chart.setAttribute("aria-label", "Сравнение нагрузки по семестрам");
+      panel.append(chart);
+      const details = document.createElement("details");
+      details.className = "workload-details";
+      addText(details, "summary", "", "Показать сравнение по " + semesters.length + " семестрам");
+      details.append(panel);
+      section.append(details);
+
+      function updateChart() {
+        chart.replaceChildren();
+        if (!semesters.length) {
+          addText(chart, "p", "workload-empty", "В выбранных программах нет данных о семестрах.");
+          return;
+        }
+        const metricKey = selectedMetric.key;
+        const countKey = metricKey + "Count";
+        const unit = metricKey === "credits" ? "з.е." : "ч.";
+        const maximum = Math.max(0, ...stats.flatMap((map) => semesters.map((term) => map.get(term)?.[metricKey] || 0)));
+        for (const term of semesters) {
+          const row = document.createElement("div");
+          row.className = "workload-row";
+          addText(row, "strong", "workload-term", term === "unknown" ? "Семестр не указан" : term + " семестр");
+          const seriesGrid = document.createElement("div");
+          seriesGrid.className = "workload-series-grid";
+          seriesGrid.style.setProperty("--series-count", programs.length);
+          programs.forEach((program, index) => {
+            const metric = stats[index].get(term);
+            const count = metric?.[countKey] || 0;
+            const value = count ? metric[metricKey] : null;
+            const series = document.createElement("div");
+            series.className = "workload-series";
+            series.style.setProperty("--series-color", SERIES_COLORS[index]);
+            series.setAttribute("role", "group");
+            series.setAttribute("aria-label", (program.code || program.name) + ": " + (value === null ? "нет числовых данных" : Andromeda.formatNumber(value, metricKey === "credits" ? 1 : 0) + " " + unit));
+            addText(series, "span", "workload-code", program.code || program.name);
+            if (value === null) {
+              addText(series, "span", "workload-empty-value", "Нет данных");
+            } else {
+              const track = document.createElement("span");
+              track.className = "workload-track";
+              track.setAttribute("aria-hidden", "true");
+              const fill = document.createElement("span");
+              fill.className = "workload-fill";
+              const width = maximum ? Math.max(3, (value / maximum) * 100) : 0;
+              fill.style.setProperty("--bar-width", Math.min(100, width) + "%");
+              track.append(fill);
+              series.append(track);
+              addText(series, "span", "workload-value", Andromeda.formatNumber(value, metricKey === "credits" ? 1 : 0) + " " + unit);
+            }
+            seriesGrid.append(series);
+          });
+          row.append(seriesGrid);
+          chart.append(row);
+        }
+        addText(chart, "p", "matrix-footnote", "Длина полосы показывает сумму относительно максимума в выбранных программах и семестрах.");
+      }
+      updateChart();
+      return section;
+    }
+
+    function renderCategoryTable(programs, curriculumMap, plansByProgram, taxonomyCategories) {
+      const section = document.createElement("section");
+      section.className = "compare-section";
+      const summaries = programs.map((program) => {
+        const rows = curriculumMap.get(programKey(program)) || [];
+        const groups = new Map();
+        for (const item of rows) {
+          const classification = Andromeda.getSubjectClassification(item);
+          const key = classification
+            ? classification.code ? "code:" + classification.code : "name:" + classification.name.toLocaleLowerCase("ru-RU")
+            : UNCLASSIFIED_CATEGORY_KEY;
+          const name = classification?.name || "Категория не указана";
+          if (!groups.has(key)) groups.set(key, { key, name, code: classification?.code || "", items: [], hours: 0, hoursCount: 0 });
+          const group = groups.get(key);
+          group.items.push(item);
+          const hours = numberOrNull(item.hours);
+          if (hours !== null) { group.hours += hours; group.hoursCount += 1; }
+        }
+        return { program, rows, groups, hours: sumMetric(rows, "hours") };
+      });
+
+      const categoryMeta = new Map();
+      for (const category of taxonomyCategories || []) {
+        const code = Andromeda.text(category.category_code || category.code);
+        const name = Andromeda.text(category.name || category.category_name);
+        if (!code || !name) continue;
+        const key = "code:" + code;
+        if (!categoryMeta.has(key)) categoryMeta.set(key, { key, name, code });
+      }
+      for (const summary of summaries) {
+        for (const [key, group] of summary.groups) {
+          if (!categoryMeta.has(key)) categoryMeta.set(key, { key, name: group.name, code: group.code });
+        }
+      }
+      const categoryColorMap = new Map();
+      [...categoryMeta.values()]
+        .filter((category) => category.key !== UNCLASSIFIED_CATEGORY_KEY)
+        .sort((a, b) => (Number(a.code) || 0) - (Number(b.code) || 0) || a.name.localeCompare(b.name, "ru"))
+        .forEach((category, index) => categoryColorMap.set(category.key, CATEGORY_COLORS[index % CATEGORY_COLORS.length]));
+      const categoryColor = (key) => key === UNCLASSIFIED_CATEGORY_KEY ? "#b9c3cf" : categoryColorMap.get(key) || CATEGORY_COLORS[0];
+      for (const category of categoryMeta.values()) category.color = categoryColor(category.key);
+
+      const metricValue = (_summary, items) => sumMetric(items, "hours").value;
+      const metricCount = (_summary, items) => sumMetric(items, "hours").count;
+      const formatMetric = (value) => Andromeda.formatNumber(value) + " ч.";
+      const percent = (value, total, hasData = true) => {
+        if (!hasData || !total) return "—";
+        if (!value) return "0%";
+        const rounded = Math.round(value / total * 100);
+        return rounded < 1 ? "<1%" : rounded + "%";
+      };
+      const totalFor = (summary) => summary.hours.value;
+      const hasTotalFor = (summary) => summary.hours.count > 0;
+      const aggregateFor = (key) => summaries.reduce((sum, summary) => {
+        const group = summary.groups.get(key);
+        if (!group) return sum;
+        return sum + group.hours;
+      }, 0);
+      const allKeys = [...categoryMeta.keys()];
+      const visibleCategories = [...categoryMeta.values()]
+        .filter((category) => category.key !== UNCLASSIFIED_CATEGORY_KEY)
+        .sort((a, b) => (Number(a.code) || 0) - (Number(b.code) || 0) || a.name.localeCompare(b.name, "ru"));
+      if (categoryMeta.has(UNCLASSIFIED_CATEGORY_KEY)) visibleCategories.push(categoryMeta.get(UNCLASSIFIED_CATEGORY_KEY));
+      const visibleKeys = visibleCategories.map((category) => category.key);
+      const defaultCategory = visibleCategories.slice().sort((a, b) => aggregateFor(b.key) - aggregateFor(a.key))
+        .find((category) => category.key !== UNCLASSIFIED_CATEGORY_KEY && aggregateFor(category.key) > 0)
+        || visibleCategories[0]
+        || null;
+      if (!visibleKeys.includes(activeCategoryKey)) activeCategoryKey = defaultCategory?.key || null;
+
+      const itemsFor = (summary, key) => summary.groups.get(key)?.items || [];
+      const categoryValueFor = (summary, key) => metricValue(summary, itemsFor(summary, key));
+      const categoryHasMetric = (summary, key) => metricCount(summary, itemsFor(summary, key)) > 0
+        || (!itemsFor(summary, key).length && hasTotalFor(summary));
+      const hoursTotal = summaries.reduce((sum, summary) => sum + summary.hours.value, 0);
+      const combinedHasData = summaries.some((summary) => summary.hours.count > 0);
+
+      const board = document.createElement("div");
+      board.className = "category-comparison-board";
+      const boardHead = document.createElement("header");
+      boardHead.className = "category-board-head";
+      const lead = document.createElement("div");
+      addText(lead, "p", "section-kicker", "Структура учебных планов");
+      addText(lead, "h2", "category-board-title", "Куда уходит учебное время");
+      const taxonomyCategoryCount = visibleCategories.filter((category) => category.key !== UNCLASSIFIED_CATEGORY_KEY).length;
+      addText(lead, "p", "category-board-copy", "Сектора показывают долю учебных часов в каждой предметной категории.");
+      addText(lead, "span", "category-count-tag", "В классификаторе: " + Andromeda.formatNumber(taxonomyCategoryCount) + " категорий");
+      boardHead.append(lead);
+      const boardTotal = document.createElement("div");
+      boardTotal.className = "category-board-total";
+      const combinedValue = addText(boardTotal, "strong", "", combinedHasData ? formatMetric(hoursTotal) : "—");
+      combinedValue.setAttribute("aria-live", "polite");
+      addText(boardTotal, "span", "", "суммарно по выбранным программам");
+      boardHead.append(boardTotal);
+      board.append(boardHead);
+
+      const programGrid = document.createElement("div");
+      programGrid.className = "category-program-grid";
+      const programViews = [];
+      summaries.forEach((summary, programIndex) => {
+        const program = summary.program;
+        const plan = plansByProgram.get(programKey(program));
+        const card = document.createElement("article");
+        card.className = "category-program-card";
+        card.style.setProperty("--program-color", SERIES_COLORS[programIndex % SERIES_COLORS.length]);
+        const cardHead = document.createElement("header");
+        cardHead.className = "category-program-head";
+        const identity = document.createElement("div");
+        identity.className = "category-program-copy";
+        addText(identity, "span", "category-program-code", program.code || "Код не указан");
+        addText(identity, "h3", "category-program-name", program.name || "Название не указано");
+        cardHead.append(identity);
+        const totalBox = document.createElement("div");
+        totalBox.className = "category-program-total";
+        const shownTotal = hasTotalFor(summary) ? formatMetric(totalFor(summary)) : "—";
+        addText(totalBox, "strong", "", shownTotal);
+        const programCategoryCount = visibleCategories.filter((category) => category.key !== UNCLASSIFIED_CATEGORY_KEY && itemsFor(summary, category.key).length > 0).length;
+        const totalNote = summary.rows.length
+          ? programCategoryCount + "/" + taxonomyCategoryCount + " категорий в плане"
+          : plan?.status === "unavailable" ? "план пока недоступен" : "нет дисциплин в данных";
+        addText(totalBox, "span", "", totalNote);
+        cardHead.append(totalBox);
+        card.append(cardHead);
+
+        const chartLayout = document.createElement("div");
+        chartLayout.className = "category-chart-layout";
+        const donutWrap = document.createElement("div");
+        donutWrap.className = "category-interactive-donut-wrap";
+        const donut = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+        donut.classList.add("category-interactive-donut");
+        donut.setAttribute("viewBox", "0 0 220 220");
+        donut.setAttribute("role", "group");
+        donut.setAttribute("aria-label", "Распределение программы " + (program.code || program.name) + " по категориям");
+        const circumference = 2 * Math.PI * 75;
+        const track = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+        track.classList.add("category-donut-track");
+        track.setAttribute("cx", "110");
+        track.setAttribute("cy", "110");
+        track.setAttribute("r", "75");
+        donut.append(track);
+        let offset = 0;
+        for (const category of visibleCategories) {
+          const value = categoryValueFor(summary, category.key);
+          if (value <= 0 || !hasTotalFor(summary)) continue;
+          const arcLength = circumference * value / totalFor(summary);
+          const visibleLength = Math.min(circumference, Math.max(.7, arcLength - .4));
+          const arc = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+          arc.classList.add("category-donut-segment");
+          arc.dataset.categorySelect = category.key;
+          arc.style.setProperty("--category-color", category.color);
+          arc.setAttribute("cx", "110");
+          arc.setAttribute("cy", "110");
+          arc.setAttribute("r", "75");
+          arc.setAttribute("stroke-dasharray", visibleLength + " " + (circumference - visibleLength));
+          arc.setAttribute("stroke-dashoffset", String(-offset));
+          arc.setAttribute("transform", "rotate(-90 110 110)");
+          arc.setAttribute("role", "button");
+          arc.setAttribute("tabindex", "0");
+          arc.setAttribute("aria-label", category.name + ": " + formatMetric(value) + ", " + percent(value, totalFor(summary)));
+          arc.setAttribute("aria-pressed", "false");
+          arc.addEventListener("click", () => selectCategory(category.key));
+          arc.addEventListener("keydown", (event) => {
+            if (event.key === "Enter" || event.key === " ") { event.preventDefault(); selectCategory(category.key); }
+          });
+          donut.append(arc);
+          offset += arcLength;
+        }
+        donutWrap.append(donut);
+        const center = document.createElement("div");
+        center.className = "category-donut-center";
+        const centerValue = addText(center, "strong", "", "—");
+        const centerLabel = addText(center, "span", "", "Выберите категорию");
+        donutWrap.append(center);
+        chartLayout.append(donutWrap);
+
+        card.append(chartLayout);
+        if (summary.rows.length && summary.hours.count < summary.rows.length) {
+          addText(card, "p", "category-program-footnote", "Для части дисциплин часы не указаны. Доли рассчитаны по опубликованным значениям.");
+        }
+        programGrid.append(card);
+        programViews.push({ summary, centerValue, centerLabel });
+      });
+      board.append(programGrid);
+
+      const shared = document.createElement("section");
+      shared.className = "category-shared-section";
+      shared.setAttribute("aria-labelledby", "category-shared-title");
+      const sharedHead = document.createElement("div");
+      sharedHead.className = "category-shared-head";
+      const sharedCopy = document.createElement("div");
+      addText(sharedCopy, "p", "section-kicker", "Общая легенда");
+      addText(sharedCopy, "h3", "category-shared-title", "Одна категория — один цвет");
+      addText(sharedCopy, "p", "category-shared-copy", "Нажмите на категорию, чтобы выделить её на всех диаграммах и сравнить дисциплины.");
+      sharedHead.append(sharedCopy);
+      const reset = document.createElement("button");
+      reset.type = "button";
+      reset.className = "category-reset";
+      reset.textContent = "Сбросить выбор";
+      reset.addEventListener("click", () => selectCategory(defaultCategory?.key || null));
+      sharedHead.append(reset);
+      shared.append(sharedHead);
+      const sharedGrid = document.createElement("div");
+      sharedGrid.className = "category-shared-grid";
+      const sharedButtons = [];
+      for (const category of visibleCategories) {
+        const item = document.createElement("div");
+        item.className = "category-shared-item";
+        item.style.setProperty("--category-color", category.color);
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "category-shared-select";
+        button.dataset.categorySelect = category.key;
+        button.setAttribute("aria-pressed", "false");
+        const dot = document.createElement("span");
+        dot.className = "category-shared-dot";
+        dot.setAttribute("aria-hidden", "true");
+        addText(button, "span", "category-shared-name", category.name);
+        const values = document.createElement("span");
+        values.className = "category-shared-values";
+        summaries.forEach((summary) => {
+          const items = itemsFor(summary, category.key);
+          const value = metricValue(summary, items);
+          const hasValue = categoryHasMetric(summary, category.key);
+          const line = document.createElement("span");
+          const code = document.createElement("strong");
+          code.textContent = summary.program.code || "Программа";
+          line.append(code, document.createTextNode(" · " + (hasValue ? formatMetric(value) : "нет данных") + " · " + percent(value, totalFor(summary), hasValue)));
+          values.append(line);
+        });
+        button.prepend(dot);
+        button.append(values);
+        button.addEventListener("click", () => selectCategory(category.key));
+        sharedButtons.push(button);
+        const details = document.createElement("button");
+        details.type = "button";
+        details.className = "category-details-trigger";
+        details.textContent = "Подробнее";
+        details.setAttribute("aria-label", "Подробнее о категории «" + category.name + "»");
+        details.addEventListener("click", () => {
+          selectCategory(category.key);
+          openCategoryDetails(category);
+        });
+        item.append(button, details);
+        sharedGrid.append(item);
+      }
+      shared.append(sharedGrid);
+      board.append(shared);
+
+      const distribution = document.createElement("section");
+      distribution.className = "category-distribution";
+      const distributionHead = document.createElement("div");
+      distributionHead.className = "category-distribution-heading";
+      const distributionTitle = document.createElement("div");
+      addText(distributionTitle, "p", "section-kicker", "Сопоставление долей");
+      addText(distributionTitle, "h3", "", "Часы по категориям");
+      distributionHead.append(distributionTitle);
+      addText(distributionHead, "p", "category-distribution-note", "Все категории классификатора видны в таблице. Доли рассчитаны по опубликованным часам.");
+      distribution.append(distributionHead);
+      const tableWrap = document.createElement("div");
+      tableWrap.className = "category-distribution-wrap";
+      const table = document.createElement("table");
+      table.className = "data-table category-distribution-table";
+      addText(table, "caption", "sr-only", "Сравнение учебных часов по категориям предметов.");
+      const head = document.createElement("thead");
+      const headRow = document.createElement("tr");
+      const categoryHeader = addText(headRow, "th", "", "Категория предмета");
+      categoryHeader.scope = "col";
+      for (const summary of summaries) {
+        const th = document.createElement("th");
+        th.scope = "col";
+        const programHead = document.createElement("div");
+        programHead.className = "category-program-head";
+        addText(programHead, "span", "category-program-code", summary.program.code || "Код не указан");
+        addText(programHead, "span", "category-program-name", summary.program.name || "Название не указано");
+        th.append(programHead);
+        headRow.append(th);
+      }
+      head.append(headRow);
+      table.append(head);
+      const body = document.createElement("tbody");
+      const tableKeys = allKeys.sort((a, b) => aggregateFor(b) - aggregateFor(a) || (categoryMeta.get(a)?.name || "").localeCompare(categoryMeta.get(b)?.name || "", "ru"));
+      for (const key of tableKeys) {
+        const category = categoryMeta.get(key);
+        const row = document.createElement("tr");
+        row.dataset.categoryRow = key;
+        const rowHead = document.createElement("th");
+        rowHead.scope = "row";
+        const rowName = document.createElement("span");
+        rowName.className = "category-row-name";
+        rowName.style.setProperty("--category-color", category.color);
+        const dot = document.createElement("span");
+        dot.className = "category-row-dot";
+        dot.setAttribute("aria-hidden", "true");
+        addText(rowName, "span", "", category.name);
+        rowName.prepend(dot);
+        rowHead.append(rowName);
+        row.append(rowHead);
+        for (const summary of summaries) {
+          const cell = document.createElement("td");
+          const group = summary.groups.get(key);
+          const items = group?.items || [];
+          const value = metricValue(summary, items);
+          const count = metricCount(summary, items);
+          const total = totalFor(summary);
+          if (!summary.rows.length) {
+            addText(cell, "span", "category-distribution-empty", plansByProgram.get(programKey(summary.program))?.status === "unavailable" ? "План недоступен" : "Нет данных о плане");
+          } else if (!hasTotalFor(summary) || (group && !count)) {
+            addText(cell, "span", "category-distribution-empty", "Нет данных о часах");
+          } else {
+            const content = document.createElement("div");
+            content.className = "category-distribution-cell";
+            const labels = document.createElement("div");
+            labels.className = "category-distribution-values";
+            addText(labels, "strong", "", formatMetric(value));
+            addText(labels, "span", "", percent(value, total));
+            const track = document.createElement("span");
+            track.className = "category-distribution-track";
+            track.setAttribute("aria-hidden", "true");
+            const fill = document.createElement("span");
+            fill.className = "category-distribution-fill";
+            fill.style.setProperty("--category-color", category.color);
+            fill.style.setProperty("--bar-width", Math.min(100, total ? value / total * 100 : 0) + "%");
+            track.append(fill);
+            content.append(labels, track);
+            cell.append(content);
+          }
+          row.append(cell);
+        }
+        body.append(row);
+      }
+      if (!tableKeys.length) {
+        const row = document.createElement("tr");
+        const cell = addText(row, "td", "matrix-no-results", "Категории не указаны в данных выбранных программ.");
+        cell.colSpan = programs.length + 1;
+        body.append(row);
+      }
+      table.append(body);
+      tableWrap.append(table);
+      distribution.append(tableWrap);
+      board.append(distribution);
+      section.append(board);
+
+      const subjectDialog = document.createElement("dialog");
+      subjectDialog.className = "category-subject-dialog";
+      subjectDialog.setAttribute("aria-labelledby", "categorySubjectDialogTitle");
+      subjectDialog.setAttribute("aria-describedby", "categorySubjectDialogDescription");
+      const dialogShell = document.createElement("div");
+      dialogShell.className = "category-dialog-shell";
+      const dialogHead = document.createElement("header");
+      dialogHead.className = "category-dialog-head";
+      const dialogHeading = document.createElement("div");
+      addText(dialogHeading, "p", "section-kicker", "Состав категории");
+      const dialogTitle = addText(dialogHeading, "h2", "category-dialog-title", "Предметы по направлениям");
+      dialogTitle.id = "categorySubjectDialogTitle";
+      const dialogDescription = addText(dialogHeading, "p", "category-dialog-description", "Все дисциплины этой категории в выбранных учебных планах.");
+      dialogDescription.id = "categorySubjectDialogDescription";
+      const dialogClose = document.createElement("button");
+      dialogClose.type = "button";
+      dialogClose.className = "category-dialog-close";
+      dialogClose.setAttribute("aria-label", "Закрыть подробности категории");
+      dialogClose.textContent = "×";
+      dialogClose.addEventListener("click", () => subjectDialog.close());
+      dialogHead.append(dialogHeading, dialogClose);
+      const dialogGrid = document.createElement("div");
+      dialogGrid.className = "category-dialog-grid";
+      dialogShell.append(dialogHead, dialogGrid);
+      subjectDialog.append(dialogShell);
+      subjectDialog.addEventListener("click", (event) => {
+        if (event.target === subjectDialog) subjectDialog.close();
+      });
+      section.append(subjectDialog);
+
+      function openCategoryDetails(category) {
+        dialogTitle.textContent = category.name;
+        const totalHours = summaries.reduce((sum, summary) => sum + (summary.groups.get(category.key)?.hours || 0), 0);
+        dialogDescription.textContent = "Все дисциплины этой категории в выбранных учебных планах · " + formatMetric(totalHours) + " суммарно.";
+        dialogGrid.replaceChildren();
+        for (const summary of summaries) {
+          const program = summary.program;
+          const items = itemsFor(summary, category.key).slice().sort((a, b) => {
+            const semesterA = numberOrNull(semesterKey(a));
+            const semesterB = numberOrNull(semesterKey(b));
+            if (semesterA === null && semesterB !== null) return 1;
+            if (semesterB === null && semesterA !== null) return -1;
+            return (semesterA ?? 0) - (semesterB ?? 0) || courseName(a).localeCompare(courseName(b), "ru");
+          });
+          const column = document.createElement("article");
+          column.className = "category-dialog-column";
+          column.style.setProperty("--category-color", category.color);
+          const columnHead = document.createElement("header");
+          columnHead.className = "category-dialog-column-head";
+          addText(columnHead, "span", "category-dialog-direction-code", Andromeda.text(program.direction_code) || "Направление");
+          addText(columnHead, "h3", "category-dialog-direction", Andromeda.text(program.direction) || "Название направления не указано");
+          addText(columnHead, "p", "category-dialog-program", [program.code, program.name].filter(Boolean).join(" · "));
+          const hours = sumMetric(items, "hours");
+          addText(columnHead, "span", "category-dialog-total", formatMetric(hours.value) + " · " + items.length + " " + Andromeda.numberPlural(items.length, ["дисциплина", "дисциплины", "дисциплин"]));
+          column.append(columnHead);
+          if (!items.length) {
+            addText(column, "p", "category-dialog-empty", "В этом учебном плане предметов такой категории нет.");
+          } else {
+            const subjectList = document.createElement("ul");
+            subjectList.className = "category-dialog-subjects";
+            for (const item of items) {
+              const row = document.createElement("li");
+              addText(row, "strong", "category-dialog-subject-name", courseName(item));
+              const meta = [];
+              meta.push(semesterKey(item) === "unknown" ? "Семестр не указан" : semesterKey(item) + " семестр");
+              const itemHours = numberOrNull(item.hours);
+              meta.push(itemHours === null ? "часы не указаны" : formatMetric(itemHours));
+              if (Andromeda.text(item.assessment_type)) meta.push(Andromeda.text(item.assessment_type));
+              addText(row, "span", "category-dialog-subject-meta", meta.join(" · "));
+              subjectList.append(row);
+            }
+            column.append(subjectList);
+          }
+          dialogGrid.append(column);
+        }
+        subjectDialog.showModal();
+        dialogClose.focus();
+      }
+
+      function selectCategory(key) {
+        activeCategoryKey = key;
+        section.querySelectorAll("[data-category-select]").forEach((node) => {
+          const same = node.dataset.categorySelect === key;
+          node.classList.toggle("is-active", same);
+          node.classList.toggle("is-dimmed", Boolean(key) && !same);
+          node.setAttribute("aria-pressed", String(same));
+          node.closest(".category-shared-item")?.classList.toggle("is-active", same);
+        });
+        for (const view of programViews) {
+          const summary = view.summary;
+          const category = visibleCategories.find((item) => item.key === key);
+          const value = category ? categoryValueFor(summary, key) : 0;
+          const hasValue = category ? categoryHasMetric(summary, key) : false;
+          view.centerValue.textContent = hasValue ? percent(value, totalFor(summary)) : "—";
+          view.centerLabel.textContent = !summary.rows.length ? "План недоступен" : category?.name || "Выберите категорию";
+        }
+      }
+      selectCategory(activeCategoryKey);
+      return section;
+    }
+    function collectCourseMatrix(programs, curriculumMap) {
+      const groups = new Map();
+      for (const program of programs) {
+        const key = programKey(program);
+        for (const item of curriculumMap.get(key) || []) {
+          const name = courseName(item);
+          const normalized = name.toLocaleLowerCase("ru-RU");
+          const rowKey = name === "Название не указано"
+            ? normalized + ":" + key + ":" + (item.external_key || item.row_no || groups.size)
+            : normalized;
+          if (!groups.has(rowKey)) groups.set(rowKey, { name, itemsByProgram: new Map() });
+          const group = groups.get(rowKey);
+          if (!group.itemsByProgram.has(key)) group.itemsByProgram.set(key, []);
+          group.itemsByProgram.get(key).push(item);
+        }
+      }
+      const result = [...groups.values()];
+      const firstSemester = (entry) => {
+        const values = [...entry.itemsByProgram.values()].flat().map(semesterKey).filter((value) => value !== "unknown").map(Number);
+        return values.length ? Math.min(...values) : Infinity;
+      };
+      result.sort((a, b) => firstSemester(a) - firstSemester(b) || a.name.localeCompare(b.name, "ru"));
+      return result;
+    }
+
+    function createMatrixEntry(item) {
+      const box = document.createElement("div");
+      box.className = "matrix-course-entry";
+      const classification = Andromeda.getSubjectClassification(item);
+      if (classification) {
+        addText(box, "span", "matrix-category", classification.name);
+      } else {
+        addText(box, "span", "matrix-category", "Категория не указана");
+      }
+      const meta = [];
+      meta.push(semesterKey(item) === "unknown" ? "Семестр не указан" : semesterKey(item) + " семестр");
+      if (numberOrNull(item.credits) !== null) meta.push(Andromeda.formatNumber(item.credits, 1) + " з.е.");
+      if (numberOrNull(item.hours) !== null) meta.push(Andromeda.formatNumber(item.hours) + " ч.");
+      if (Andromeda.text(item.assessment_type)) meta.push(Andromeda.text(item.assessment_type));
+      addText(box, "span", "matrix-course-meta", meta.join(" · "));
+      return box;
+    }
+
+    function renderCourseMatrix(programs, curriculumMap) {
+      const section = document.createElement("section");
+      section.className = "compare-section";
+      const entries = collectCourseMatrix(programs, curriculumMap);
+      const commonCount = entries.filter((entry) => entry.itemsByProgram.size === programs.length).length;
+      const categoryOptions = [...new Set(entries.flatMap((entry) => [...entry.itemsByProgram.values()].flat().map(Andromeda.getSubjectClassification).filter(Boolean).map((item) => item.name)))].sort((a, b) => a.localeCompare(b, "ru"));
+      const semesterOptions = sortSemesters(new Set(entries.flatMap((entry) => [...entry.itemsByProgram.values()].flat().map(semesterKey))));
+
+      const heading = document.createElement("div");
+      heading.className = "section-heading";
+      const copy = document.createElement("div");
+      addText(copy, "p", "section-kicker", "Дисциплины");
+      addText(copy, "h2", "", "Матрица предметов");
+      const intro = addText(copy, "p", "matrix-summary", "");
+      intro.textContent = entries.length + " уникальных названий · " + commonCount + " встречаются во всех выбранных программах.";
+      heading.append(copy);
+      section.append(heading);
+      const details = document.createElement("details");
+      details.className = "matrix-details";
+      addText(details, "summary", "", "Открыть таблицу и фильтры");
+      section.append(details);
+
+      const controls = document.createElement("div");
+      controls.className = "matrix-controls";
+      const searchLabel = document.createElement("label");
+      searchLabel.className = "matrix-field";
+      addText(searchLabel, "span", "", "Найти дисциплину или категорию");
+      const search = document.createElement("input");
+      search.className = "filter-input";
+      search.type = "search";
+      search.id = "courseMatrixSearch";
+      search.autocomplete = "off";
+      search.placeholder = "Например, алгоритмы";
+      searchLabel.append(search);
+      controls.append(searchLabel);
+
+      const semesterLabel = document.createElement("label");
+      semesterLabel.className = "matrix-field";
+      addText(semesterLabel, "span", "", "Семестр");
+      const semesterSelect = document.createElement("select");
+      semesterSelect.className = "filter-select";
+      semesterSelect.id = "courseMatrixSemester";
+      semesterSelect.add(new Option("Все семестры", ""));
+      for (const value of semesterOptions) semesterSelect.add(new Option(value === "unknown" ? "Семестр не указан" : value + " семестр", value));
+      semesterLabel.append(semesterSelect);
+      controls.append(semesterLabel);
+
+      const categoryLabel = document.createElement("label");
+      categoryLabel.className = "matrix-field";
+      addText(categoryLabel, "span", "", "Категория предмета");
+      const categorySelect = document.createElement("select");
+      categorySelect.className = "filter-select";
+      categorySelect.id = "courseMatrixCategory";
+      categorySelect.add(new Option("Все категории", ""));
+      for (const category of categoryOptions) categorySelect.add(new Option(category, category));
+      categoryLabel.append(categorySelect);
+      controls.append(categoryLabel);
+      details.append(controls);
+
+      const results = document.createElement("p");
+      results.className = "matrix-results";
+      results.setAttribute("aria-live", "polite");
+      results.setAttribute("aria-atomic", "true");
+      details.append(results);
+      addText(details, "p", "table-scroll-note", "На узком экране таблицу можно прокручивать по горизонтали.");
+      const wrap = document.createElement("div");
+      wrap.className = "table-wrap";
+      const table = document.createElement("table");
+      table.className = "data-table matrix-table";
+      table.setAttribute("aria-describedby", "courseMatrixHelp");
+      const caption = document.createElement("caption");
+      caption.className = "sr-only";
+      caption.textContent = "Матрица дисциплин по выбранным образовательным программам.";
+      table.append(caption);
+      const head = document.createElement("thead");
+      const headRow = document.createElement("tr");
+      const courseHead = addText(headRow, "th", "", "Дисциплина");
+      courseHead.scope = "col";
+      for (const program of programs) {
+        const th = document.createElement("th");
+        th.scope = "col";
+        addText(th, "span", "matrix-column-code", program.code || "Код не указан");
+        addText(th, "span", "matrix-column-name", program.name || "Название не указано");
+        headRow.append(th);
+      }
+      head.append(headRow);
+      table.append(head);
+      const body = document.createElement("tbody");
+      table.append(body);
+      wrap.append(table);
+      details.append(wrap);
+      addText(details, "p", "matrix-footnote", "Совпадение определяется по полному названию предмета. «Не входит в план» означает, что такое название не найдено в данных выбранной программы.");
+      const help = document.createElement("span");
+      help.id = "courseMatrixHelp";
+      help.className = "sr-only";
+      help.textContent = "В каждой ячейке указаны категория предмета, семестр, зачётные единицы, часы и форма контроля, если эти данные есть в архиве.";
+      details.append(help);
+
+      function updateRows() {
+        const query = search.value.trim().toLocaleLowerCase("ru-RU");
+        const selectedSemester = semesterSelect.value;
+        const selectedCategory = categorySelect.value;
+        const visible = entries.filter((entry) => {
+          const items = [...entry.itemsByProgram.values()].flat();
+          const corpus = [entry.name, ...items.map((item) => Andromeda.getSubjectClassification(item)?.name || "")].join(" ").toLocaleLowerCase("ru-RU");
+          if (query && !corpus.includes(query)) return false;
+          if (selectedSemester && !items.some((item) => semesterKey(item) === selectedSemester)) return false;
+          if (selectedCategory && !items.some((item) => Andromeda.getSubjectClassification(item)?.name === selectedCategory)) return false;
+          return true;
+        });
+        results.textContent = "Показано " + visible.length + " из " + entries.length + " названий.";
+        body.replaceChildren();
+        if (!visible.length) {
+          const tr = document.createElement("tr");
+          const td = addText(tr, "td", "matrix-no-results", "По этим фильтрам дисциплин нет.");
+          td.colSpan = programs.length + 1;
+          body.append(tr);
+          return;
+        }
+        for (const entry of visible) {
+          const tr = document.createElement("tr");
+          const th = document.createElement("th");
+          th.scope = "row";
+          th.className = "matrix-course-title";
+          th.textContent = entry.name;
+          if (entry.itemsByProgram.size === programs.length) addText(th, "span", "common-course-tag", "Есть во всех");
+          tr.append(th);
+          for (const program of programs) {
+            const key = programKey(program);
+            const td = document.createElement("td");
+            const items = (entry.itemsByProgram.get(key) || []).slice().sort((a, b) => {
+              const aTerm = semesterKey(a), bTerm = semesterKey(b);
+              return aTerm === "unknown" ? 1 : bTerm === "unknown" ? -1 : Number(aTerm) - Number(bTerm);
+            });
+            if (!items.length) {
+              const missing = document.createElement("span");
+              missing.className = "matrix-missing";
+              addText(missing, "span", "matrix-missing-mark", "–");
+              addText(missing, "span", "", "Не входит в план");
+              td.append(missing);
+            } else {
+              for (const item of items) td.append(createMatrixEntry(item));
+            }
+            tr.append(td);
+          }
+          body.append(tr);
+        }
+      }
+      search.addEventListener("input", updateRows);
+      semesterSelect.addEventListener("change", updateRows);
+      categorySelect.addEventListener("change", updateRows);
+      updateRows();
+      return section;
+    }
+
+    async function loadSubjectTaxonomy(curriculumRows) {
+      const classification = curriculumRows
+        .map((row) => row.subject_classification || row.subjectClassification)
+        .find((value) => value?.taxonomy_key && value?.taxonomy_version);
+      const taxonomyKey = classification?.taxonomy_key || "bmstu-subject-domain-16";
+      const taxonomyVersion = classification?.taxonomy_version || "v1";
+      try {
+        const taxonomy = await window.AcademicData.get(
+          "/v1/subject-taxonomies/" + encodeURIComponent(taxonomyKey) + "/" + encodeURIComponent(taxonomyVersion)
+        );
+        return Array.isArray(taxonomy?.categories) ? taxonomy.categories : [];
+      } catch {
+        if (!window.AcademicData.isDemoMode?.()) return [];
+        try {
+          const response = await fetch("data/prof-test-profiles.json", { cache: "no-cache" });
+          if (!response.ok) return [];
+          const snapshot = await response.json();
+          return snapshot.taxonomy?.taxonomy_key === taxonomyKey
+            && snapshot.taxonomy?.taxonomy_version === taxonomyVersion
+            && Array.isArray(snapshot.taxonomy.categories)
+            ? snapshot.taxonomy.categories
+            : [];
+        } catch {
+          return [];
+        }
+      }
+    }
+
+    async function render() {
+      const renderId = ++compareRenderId;
+      const selected = Andromeda.getComparison();
+      selectedCount.textContent = selected.length + " / 3";
+      if (!selected.length) {
+        renderEmpty("В каталоге отметь до трёх профилей кнопкой «Сравнить». Выбор сохранится в этом браузере.");
+        return;
+      }
+      root.setAttribute("aria-busy", "true");
+      try {
+        const programResult = await Andromeda.loadPrograms();
+        const allPrograms = programResult.data;
+        const programs = selected.map((key) => allPrograms.find((program) => (program.external_key || program.code) === key || program.code === key)).filter(Boolean);
+        if (!programs.length) {
+          renderEmpty("Сохранённые профили не найдены в текущем снимке базы. Вернись в каталог и выбери программы заново.");
+          return;
+        }
+        let admission = {};
+        try {
+          admission = (await Andromeda.loadAdmission()).data || {};
+        } catch {
+          admission = {};
+        }
+        const curriculumLoading = document.createElement("section");
+        curriculumLoading.className = "compare-section curriculum-loading-note";
+        curriculumLoading.setAttribute("role", "status");
+        addText(curriculumLoading, "p", "section-kicker", "Учебные планы");
+        addText(curriculumLoading, "p", "", "Загружаем планы, чтобы построить круговые диаграммы и сравнить часы по семестрам…");
+        root.replaceChildren(
+          renderSelectionPicker(programs),
+          renderAdmissionOverviewTable(programs, admission),
+          curriculumLoading,
+        );
+        root.setAttribute("aria-busy", "false");
+
+        let curriculumResult = { data: [], plans: [], source: "unavailable" };
+        try {
+          curriculumResult = await Andromeda.loadCurriculumForPrograms(programs.map(programKey));
+        } catch (curriculumError) {
+          console.warn("Учебные планы для сравнения недоступны", curriculumError);
+        }
+        if (renderId !== compareRenderId) return;
+        const curriculumMap = new Map(programs.map((program) => [programKey(program), []]));
+        const keyByCode = new Map(programs.map((program) => [Andromeda.text(program.code), programKey(program)]));
+        for (const row of curriculumResult.data || []) {
+          const rowKey = Andromeda.text(row.program_key);
+          const key = curriculumMap.has(rowKey) ? rowKey : keyByCode.get(Andromeda.text(row.program_code));
+          if (key && curriculumMap.has(key)) curriculumMap.get(key).push(row);
+        }
+
+        const plansByProgram = new Map();
+        for (const program of programs) {
+          const key = programKey(program);
+          const programPlans = (curriculumResult.plans || []).filter((plan) => Andromeda.text(plan.program_key) === key);
+          plansByProgram.set(key, {
+            status: programPlans.some((plan) => plan.status === "parsed")
+              ? "parsed"
+            : programPlans[0]?.status || (["snapshot", "mixed", "unavailable"].includes(curriculumResult.source) && curriculumMap.get(key).length ? "parsed" : "unavailable"),
+          });
+        }
+        const taxonomy = await loadSubjectTaxonomy(curriculumResult.data || []);
+        if (renderId !== compareRenderId) return;
+        curriculumLoading.remove();
+        const stats = programs.map((program) => buildSemesterStats(curriculumMap.get(programKey(program)) || []));
+        root.append(
+          renderWorkloadChart(programs, stats),
+          renderCategoryTable(programs, curriculumMap, plansByProgram, taxonomy),
+          renderCourseMatrix(programs, curriculumMap),
+        );
+      } catch (caughtError) {
+        if (renderId !== compareRenderId) return;
+        console.error("Не удалось построить сравнение программ", caughtError);
+        root.replaceChildren();
+        const error = document.createElement("div");
+        error.className = "error-banner";
+        error.textContent = "Не удалось подготовить сравнение. Обнови страницу или выбери программы заново.";
+        root.append(error);
+        root.setAttribute("aria-busy", "false");
+      }
+    }
+    render();
+  </script>
+</body>
+</html>

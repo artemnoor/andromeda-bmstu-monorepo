@@ -1,0 +1,754 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <link rel="icon" href="assets/andromeda-symbol.png" type="image/png">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#ffffff">
+  <meta name="description" content="Каталог образовательных программ бакалавриата и специалитета МГТУ имени Н. Э. Баумана.">
+  <title>Каталог программ — Andromeda × BMSTU</title>
+  <link rel="stylesheet" href="app.css">
+  <link rel="stylesheet" href="assets/andromeda-header.css">
+  <script src="assets/andromeda-header.js" defer></script>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #111111;
+      --muted: #70727a;
+      --line: rgba(17, 17, 17, .18);
+      --blue: #006cdc;
+      --paper: #fff;
+      --page-background: #fafafa;
+      --soft: #f4f7fb;
+      --page-gutter: clamp(22px, 5vw, 72px);
+    }
+
+    *, *::before, *::after { box-sizing: border-box; }
+    html { min-width: 320px; background-color: var(--page-background); background-image: var(--paper-texture); background-repeat: repeat; background-size: 180px 180px; background-blend-mode: multiply; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background-color: var(--page-background);
+      background-image: var(--paper-texture);
+      background-repeat: repeat;
+      background-size: 180px 180px;
+      background-blend-mode: multiply;
+      font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+    button, input, select { font: inherit; }
+    a { color: inherit; }
+
+    .site-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      min-height: 92px;
+      padding: 18px var(--page-gutter);
+      border-bottom: 1px solid var(--line);
+    }
+    .brand { display: inline-flex; align-items: center; gap: 13px; text-decoration: none; }
+    .brand img { display: block; width: 42px; height: 42px; object-fit: contain; }
+    .brand span { font-size: 12px; font-weight: 650; letter-spacing: .04em; }
+    .back-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      min-height: 44px;
+      padding: 0 17px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      font-size: 13px;
+      text-decoration: none;
+      transition: border-color .2s ease, background .2s ease, color .2s ease;
+    }
+    .back-link:hover { border-color: var(--ink); background: var(--ink); color: #fff; }
+    .back-link:focus-visible, .program-link:focus-visible, .filter-control:focus-visible, .search-input:focus-visible {
+      outline: 3px solid rgba(0, 108, 220, .35);
+      outline-offset: 3px;
+    }
+    .back-arrow { font-size: 17px; line-height: 1; }
+
+    main { width: min(100%, 1600px); margin-inline: auto; padding: 0 var(--page-gutter) 88px; }
+    .intro {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(180px, 270px);
+      align-items: end;
+      gap: 32px;
+      padding: clamp(64px, 10vw, 138px) 0 clamp(42px, 6vw, 76px);
+    }
+    .eyebrow, .micro-label {
+      margin: 0;
+      color: var(--blue);
+      font-size: 11px;
+      font-weight: 650;
+      line-height: 1.4;
+      letter-spacing: .13em;
+      text-transform: uppercase;
+    }
+    h1 {
+      max-width: 960px;
+      margin: 20px 0 0;
+      font-size: clamp(58px, 10vw, 138px);
+      font-weight: 500;
+      line-height: .86;
+      letter-spacing: -.085em;
+      text-wrap: balance;
+    }
+    .intro-note { justify-self: end; max-width: 245px; padding-bottom: 7px; }
+    .intro-note p { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.55; }
+    .intro-note strong { display: block; margin-bottom: 8px; color: var(--ink); font-size: 13px; font-weight: 600; }
+
+    .catalog-panel { border-top: 1px solid var(--ink); }
+    .catalog-toolbar {
+      display: grid;
+      grid-template-columns: minmax(240px, 1.5fr) repeat(2, minmax(180px, .8fr)) auto;
+      align-items: center;
+      gap: 12px;
+      padding: 18px 0 22px;
+    }
+    .search-wrap { position: relative; min-width: 0; }
+    .search-icon { position: absolute; top: 50%; left: 17px; width: 16px; height: 16px; transform: translateY(-50%); pointer-events: none; }
+    .search-input, .filter-control {
+      width: 100%;
+      min-height: 54px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: #fff;
+      color: var(--ink);
+      font-size: 14px;
+    }
+    .search-input { padding: 0 17px 0 46px; }
+    .search-input::placeholder { color: #999ba0; }
+    .filter-control { padding: 0 38px 0 15px; }
+    .toolbar-reset {
+      min-height: 44px;
+      padding: 0 8px;
+      border: 0;
+      background: transparent;
+      color: var(--muted);
+      font-size: 13px;
+      cursor: pointer;
+      text-decoration: underline;
+      text-decoration-color: transparent;
+      text-underline-offset: 4px;
+      transition: color .2s ease, text-decoration-color .2s ease;
+    }
+    .toolbar-reset:hover { color: var(--ink); text-decoration-color: currentColor; }
+    .result-line {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      min-height: 54px;
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .result-count { color: var(--ink); font-weight: 600; }
+    .data-state { display: inline-flex; align-items: center; gap: 8px; text-align: right; }
+    .data-dot { width: 7px; height: 7px; flex: 0 0 auto; border-radius: 50%; background: var(--blue); }
+
+    .program-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+    .program-card {
+      position: relative;
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      min-height: 300px;
+      padding: clamp(22px, 3vw, 34px);
+      overflow: hidden;
+      border: 1px solid rgba(17, 17, 17, .35);
+      border-radius: 25px;
+      background: var(--paper);
+      transition: border-color .2s ease, transform .35s cubic-bezier(.16, 1, .3, 1), box-shadow .35s ease;
+    }
+    .program-card::after {
+      position: absolute;
+      right: 0;
+      bottom: 0;
+      width: 92px;
+      height: 92px;
+      background: radial-gradient(circle, rgba(0, 108, 220, .7) .7px, transparent .9px);
+      background-size: 5px 5px;
+      content: "";
+      opacity: .12;
+      pointer-events: none;
+      mask-image: linear-gradient(135deg, transparent, #000);
+    }
+    .program-card:hover { transform: translateY(-3px); border-color: rgba(17, 17, 17, .7); box-shadow: 0 18px 48px rgba(17, 17, 17, .07); }
+    .card-top, .card-bottom { position: relative; z-index: 1; display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; }
+    .card-top { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 12px; }
+    .program-code { display: inline-flex; align-items: center; justify-self: start; min-width: 0; max-width: 100%; min-height: 32px; padding: 0 11px; overflow: hidden; border: 1px solid rgba(0, 108, 220, .24); border-radius: 8px; background: rgba(0, 108, 220, .045); color: var(--blue); font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; letter-spacing: 0; text-overflow: ellipsis; white-space: nowrap; }
+    .program-title { display: block; max-width: 650px; margin: 0; font-size: clamp(23px, 2.7vw, 35px); font-weight: 500; line-height: 1.06; letter-spacing: -.05em; text-wrap: pretty; }
+    .program-description { display: -webkit-box; overflow: hidden; margin: 0; color: var(--muted); font-size: 13px; line-height: 1.5; -webkit-box-orient: vertical; -webkit-line-clamp: 3; }
+    .program-facts { display: grid; gap: 8px; color: var(--muted); font-size: 13px; line-height: 1.45; }
+    .program-fact { display: flex; gap: 9px; min-width: 0; }
+    .fact-label { flex: 0 0 78px; color: rgba(17, 17, 17, .42); font-size: 10px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; }
+    .fact-value { min-width: 0; }
+    .card-bottom { align-items: center; padding-top: 17px; border-top: 1px solid var(--line); }
+    .card-links { display: flex; align-items: center; justify-content: flex-end; gap: 16px; flex-wrap: wrap; }
+    .campus-tag { color: var(--muted); font-size: 11px; line-height: 1.35; }
+    .program-link { display: inline-flex; align-items: center; gap: 9px; color: var(--blue); font-size: 12px; font-weight: 650; text-decoration: none; white-space: nowrap; }
+    .program-link:hover { text-decoration: underline; text-underline-offset: 4px; }
+    .program-link[aria-disabled="true"] { color: #999ba0; pointer-events: none; }
+    .link-arrow { font-size: 16px; line-height: 1; transition: transform .2s ease; }
+    .program-link:hover .link-arrow { transform: translate(2px, -2px); }
+    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+    .program-actions { display: flex; align-items: center; gap: 8px; }
+    .card-action { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-width: 140px; min-height: 46px; padding: 0 17px; border: 1px solid var(--blue); border-radius: 999px; background: var(--blue); color: #fff; font-size: 13px; font-weight: 700; cursor: pointer; box-shadow: 0 6px 16px rgba(0, 108, 220, .2); transition: transform .16s ease, border-color .16s ease, color .16s ease, background-color .16s ease, box-shadow .16s ease; }
+    .card-action:hover { transform: translateY(-1px); border-color: #0058bd; background: #0058bd; color: #fff; box-shadow: 0 9px 22px rgba(0, 108, 220, .26); }
+    .card-action[aria-pressed="true"] { border-color: var(--ink); background: var(--ink); color: #fff; box-shadow: none; }
+    .card-action[aria-pressed="true"]:hover { border-color: #292929; background: #292929; }
+    .card-action:focus-visible { outline: 3px solid rgba(0, 108, 220, .32); outline-offset: 3px; }
+    .card-action:active { transform: scale(.96); }
+    .program-expander { min-width: 0; }
+    .program-summary { display: grid; gap: 17px; padding: 38px 0 30px; list-style: none; cursor: pointer; }
+    .program-summary::-webkit-details-marker { display: none; }
+    .program-summary:focus-visible { outline: 2px solid var(--blue); outline-offset: 5px; border-radius: 4px; }
+    .program-summary .program-description { display: -webkit-box; -webkit-line-clamp: 3; }
+    .program-expander[open] .program-summary .program-description { display: block; overflow: visible; }
+    .expand-hint { display: flex; align-items: center; justify-content: space-between; gap: 12px; color: var(--blue); font-size: 12px; font-weight: 650; }
+    .expand-hint::after { display: grid; width: 28px; height: 28px; flex: 0 0 auto; place-items: center; border: 1px solid rgba(0, 108, 220, .25); border-radius: 50%; content: "+"; font-size: 17px; font-weight: 400; }
+    .program-expander[open] .expand-hint::after { content: "−"; }
+    .admission-panel { display: grid; gap: 25px; padding: 23px 0 30px; border-top: 1px solid var(--line); animation: admission-reveal .28s ease both; }
+    @keyframes admission-reveal { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
+    .admission-section { display: grid; gap: 12px; min-width: 0; }
+    .admission-section h3 { margin: 0; font-size: 15px; font-weight: 600; letter-spacing: -.025em; }
+    .admission-note { margin: -5px 0 0; color: var(--muted); font-size: 11px; line-height: 1.5; }
+    .admission-metrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+    .admission-metric { display: grid; gap: 4px; padding: 14px; border-radius: 13px; background: #f5f8fc; }
+    .admission-metric span { color: var(--muted); font-size: 10px; }
+    .admission-metric strong { font-size: clamp(21px, 3vw, 28px); font-weight: 550; letter-spacing: -.05em; font-variant-numeric: tabular-nums; }
+    .admission-list { display: grid; gap: 9px; margin: 0; padding: 0; list-style: none; }
+    .admission-list li { display: grid; gap: 5px; padding: 11px 13px; border-radius: 11px; background: rgba(17, 17, 17, .035); font-size: 12px; line-height: 1.45; }
+    .admission-list strong { font-weight: 600; }
+    .admission-list span, .admission-muted { color: var(--muted); font-size: 11px; line-height: 1.45; }
+    .admission-history-wrap { overflow-x: auto; }
+    .admission-history { width: 100%; min-width: 440px; border-collapse: collapse; font-size: 11px; text-align: left; }
+    .admission-history th { padding: 0 8px 9px; color: var(--muted); font-size: 9px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; }
+    .admission-history td { padding: 9px 8px; border-top: 1px solid var(--line); vertical-align: top; font-variant-numeric: tabular-nums; }
+    .admission-history td:first-child { font-weight: 650; white-space: nowrap; }
+    .admission-expand { padding-top: 4px; }
+    .admission-expand summary { width: fit-content; color: var(--blue); font-size: 11px; font-weight: 600; cursor: pointer; }
+    .admission-targets { display: grid; gap: 7px; margin: 12px 0 0; padding: 0; list-style: none; }
+    .admission-source { width: fit-content; color: var(--blue); font-size: 11px; font-weight: 600; text-decoration: none; }
+    .admission-source:hover { text-decoration: underline; text-underline-offset: 3px; }
+    .compare-bar { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin: 0 0 20px; padding: 13px 16px; border: 1px solid rgba(0, 108, 220, .24); border-radius: 14px; background: #f5f9ff; }
+    .compare-bar[hidden] { display: none; }
+    .compare-bar span { color: var(--muted); font-size: 12px; }
+    .compare-bar a { color: var(--blue); font-size: 12px; font-weight: 650; text-decoration: none; }
+    .compare-bar a:hover { text-decoration: underline; text-underline-offset: 4px; }
+
+    .empty-state, .loading-state, .error-state { grid-column: 1 / -1; padding: 60px 24px; border: 1px dashed var(--line); border-radius: 24px; text-align: center; }
+    .empty-state h2, .loading-state h2 { margin: 0 0 10px; font-size: 24px; font-weight: 500; letter-spacing: -.04em; }
+    .empty-state p, .loading-state p, .error-state p { max-width: 460px; margin: 0 auto; color: var(--muted); font-size: 14px; line-height: 1.5; }
+    .error-state { color: #9b2c2c; }
+    .catalog-footnote { display: flex; justify-content: space-between; gap: 24px; margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--line); color: var(--muted); font-size: 11px; line-height: 1.5; }
+    .catalog-footnote a { color: var(--blue); text-decoration: none; }
+    .catalog-footnote a:hover { text-decoration: underline; text-underline-offset: 3px; }
+
+    @media (max-width: 900px) {
+      .catalog-toolbar { grid-template-columns: minmax(220px, 1.5fr) repeat(2, minmax(150px, 1fr)); }
+      .toolbar-reset { grid-column: 1 / -1; justify-self: start; }
+      .program-grid { grid-template-columns: 1fr; }
+      .program-card { min-height: 270px; }
+    }
+    @media (max-width: 640px) {
+      :root { --page-gutter: 22px; }
+      .site-header { min-height: 76px; }
+      .brand img { width: 35px; height: 35px; }
+      .brand span { font-size: 10px; }
+      .back-link { min-height: 40px; padding-inline: 12px; font-size: 12px; }
+      .intro { grid-template-columns: 1fr; gap: 28px; padding-top: 66px; }
+      h1 { font-size: clamp(58px, 17vw, 92px); }
+      .intro-note { justify-self: start; max-width: 320px; }
+      .catalog-toolbar { grid-template-columns: 1fr; padding-block: 15px 18px; }
+      .filter-control, .search-input { min-height: 50px; }
+      .toolbar-reset { grid-column: auto; }
+      .result-line { align-items: flex-start; flex-direction: column; justify-content: center; gap: 5px; padding-block: 11px; }
+      .data-state { text-align: left; }
+      .program-card { min-height: 280px; padding: 22px; border-radius: 21px; }
+      .program-summary { padding-block: 31px 26px; }
+      .program-title { font-size: 27px; }
+      .card-bottom { align-items: flex-start; flex-direction: column; gap: 14px; }
+      .card-links { justify-content: flex-start; }
+      .catalog-footnote { flex-direction: column; gap: 8px; }
+      main { padding-bottom: 54px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; }
+    }
+  </style>
+  <link rel="stylesheet" href="assets/programs-catalog.css">
+</head>
+<body class="has-andromeda-header">
+<main>
+    <section class="intro catalog-hero" aria-labelledby="page-title">
+      <div class="catalog-hero-copy">
+        <p class="eyebrow"><span class="hero-index" aria-hidden="true">01</span> МГТУ имени Баумана · набор 2026</p>
+        <h1 id="page-title">Каталог<br><em>программ</em></h1>
+        <p class="catalog-hero-description">Бакалавриат и специалитет — все образовательные программы университета в одном месте.</p>
+      </div>
+      <div class="catalog-hero-stats" aria-label="Состав каталога">
+        <div class="catalog-stat-primary">
+          <div><span class="catalog-stat-label">В каталоге</span><strong id="catalogProgramTotal">—</strong><span class="catalog-stat-unit" id="catalogProgramUnit">программ</span></div>
+          <svg class="catalog-orbit" viewBox="0 0 160 160" aria-hidden="true">
+            <ellipse cx="80" cy="80" rx="65" ry="27" transform="rotate(-34 80 80)" />
+            <ellipse cx="80" cy="80" rx="65" ry="27" transform="rotate(34 80 80)" />
+            <circle cx="80" cy="80" r="5" />
+            <circle cx="132" cy="48" r="3" />
+          </svg>
+        </div>
+        <div class="catalog-stat-secondary">
+          <div><strong id="catalogDirectionTotal">—</strong><span id="catalogDirectionUnit">направлений</span></div>
+          <div><strong id="catalogDepartmentTotal">—</strong><span id="catalogDepartmentUnit">кафедр</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="catalog-panel" aria-label="Каталог образовательных программ">
+      <header class="catalog-toolbar-heading">
+        <div>
+          <p class="micro-label">Найди своё направление</p>
+          <h2>Все программы</h2>
+        </div>
+        <span class="result-count" id="resultCount" aria-live="polite">Загружаем программы…</span>
+      </header>
+      <div class="catalog-toolbar">
+        <label class="search-wrap catalog-search">
+          <span class="toolbar-label">Поиск по каталогу</span>
+          <span class="search-control">
+            <svg class="search-icon" aria-hidden="true" viewBox="0 0 20 20" fill="none">
+              <circle cx="8.7" cy="8.7" r="5.7" stroke="currentColor" stroke-width="1.5"></circle>
+              <path d="m13 13 4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path>
+            </svg>
+            <input class="search-input" id="searchInput" type="search" placeholder="Название, код, направление…" autocomplete="off">
+          </span>
+        </label>
+        <label class="catalog-filter">
+          <span class="toolbar-label">Направление</span>
+          <select class="filter-control" id="directionFilter" aria-label="Фильтр по направлению">
+            <option value="">Все направления</option>
+          </select>
+        </label>
+        <label class="catalog-filter">
+          <span class="toolbar-label">Кафедра</span>
+          <select class="filter-control" id="departmentFilter" aria-label="Фильтр по кафедре">
+            <option value="">Все кафедры</option>
+          </select>
+        </label>
+        <button class="toolbar-reset" id="resetFilters" type="button"><span aria-hidden="true">↺</span> Сбросить</button>
+      </div>
+
+      <p class="sr-only" id="catalogFeedback" role="status" aria-live="polite"></p>
+      <div class="compare-bar" id="compareBar" hidden><span id="compareSummary"></span><a href="compare.html">Открыть сравнение <span aria-hidden="true">↗</span></a></div>
+
+      <div class="program-grid" id="programGrid" aria-live="polite" aria-busy="true">
+        <div class="loading-state">
+          <h2>Собираем каталог</h2>
+          <p>Загружаем программы и официальные источники приёма.</p>
+        </div>
+      </div>
+
+      <footer class="catalog-footnote">
+        <span>Изучай программы и сверяй детали с учебными планами и документами университета.</span>
+        <span>МГТУ имени Баумана · 2026</span>
+      </footer>
+    </section>
+  </main>
+
+  <script src="assets/academic-data.js"></script>
+  <script src="app.js"></script>
+  <script>
+    const grid = document.getElementById("programGrid");
+    const count = document.getElementById("resultCount");
+    const catalogFeedback = document.getElementById("catalogFeedback");
+    const catalogProgramTotal = document.getElementById("catalogProgramTotal");
+    const catalogDirectionTotal = document.getElementById("catalogDirectionTotal");
+    const catalogDepartmentTotal = document.getElementById("catalogDepartmentTotal");
+    const catalogProgramUnit = document.getElementById("catalogProgramUnit");
+    const catalogDirectionUnit = document.getElementById("catalogDirectionUnit");
+    const catalogDepartmentUnit = document.getElementById("catalogDepartmentUnit");
+    const searchInput = document.getElementById("searchInput");
+    const directionFilter = document.getElementById("directionFilter");
+    const departmentFilter = document.getElementById("departmentFilter");
+    const resetButton = document.getElementById("resetFilters");
+    const compareBar = document.getElementById("compareBar");
+    const compareSummary = document.getElementById("compareSummary");
+    const initialCode = new URLSearchParams(location.search).get("code");
+    let programs = [];
+    let admissionPromise = null;
+
+    const text = Andromeda.text;
+    const addText = (parent, tag, className, value) => {
+      const node = document.createElement(tag);
+      if (className) node.className = className;
+      node.textContent = value;
+      parent.append(node);
+      return node;
+    };
+    const setCatalogFeedback = (message) => { catalogFeedback.textContent = message; };
+    const profileKey = (item) => text(item.external_key) || text(item.externalKey) || text(item.code);
+
+    function loadAdmissionData() {
+      if (!admissionPromise) {
+        admissionPromise = Andromeda.loadAdmission().then((result) => result.data || {}).catch(() => ({}));
+      }
+      return admissionPromise;
+    }
+
+    function updateCompareBar() {
+      const selected = Andromeda.getComparison();
+      compareBar.hidden = selected.length === 0;
+      compareSummary.textContent = `В сравнении ${selected.length} из 3 ${Andromeda.numberPlural(selected.length, ["программа", "программы", "программ"])}`;
+    }
+
+    function populateFilters() {
+      const directions = new Map();
+      const departments = new Map();
+      for (const item of programs) {
+        if (text(item.direction_code)) directions.set(item.direction_code, text(item.direction) || item.direction_code);
+        if (text(item.department_code)) departments.set(item.department_code, text(item.department) || item.department_code);
+      }
+      for (const [code, name] of [...directions].sort((a, b) => a[0].localeCompare(b[0], "ru"))) directionFilter.add(new Option(`${code} · ${name}`, code));
+      for (const [code, name] of [...departments].sort((a, b) => a[0].localeCompare(b[0], "ru"))) departmentFilter.add(new Option(`${code} · ${name}`, code));
+      catalogProgramTotal.textContent = Andromeda.formatNumber(programs.length);
+      catalogDirectionTotal.textContent = Andromeda.formatNumber(directions.size);
+      catalogDepartmentTotal.textContent = Andromeda.formatNumber(departments.size);
+      catalogProgramUnit.textContent = Andromeda.numberPlural(programs.length, ["программа", "программы", "программ"]);
+      catalogDirectionUnit.textContent = Andromeda.numberPlural(directions.size, ["направление", "направления", "направлений"]);
+      catalogDepartmentUnit.textContent = Andromeda.numberPlural(departments.size, ["кафедра", "кафедры", "кафедр"]);
+    }
+
+    const numberValue = (value) => {
+      if (value === null || value === undefined || value === "") return null;
+      const number = Number(value);
+      return Number.isFinite(number) ? number : null;
+    };
+    const formatValue = (value) => {
+      const number = numberValue(value);
+      return number === null ? "—" : Andromeda.formatNumber(number);
+    };
+    const fundingLabel = (value) => value === "budget" ? "бюджет" : value === "paid" ? "платное" : text(value) || "вид не указан";
+    const quotaLabel = (value) => ({ general_competition: "Общий конкурс", special: "Особая квота", separate: "Отдельная квота", targeted: "Целевой приём" }[value] || text(value) || "Квота не указана");
+    const scopeLabel = (value) => value === "department" ? "кафедра" : value === "direction_and_target_organization" ? "направление и организация" : value === "offering" ? "предложение программы" : "направление";
+
+    function appendAdmissionSource(container, url, label = "Официальный источник ↗") {
+      const safe = Andromeda.safeUrl(url);
+      if (!safe) return;
+      const link = document.createElement("a");
+      link.className = "admission-source"; link.href = safe; link.target = "_blank"; link.rel = "noopener noreferrer";
+      link.textContent = label; container.append(link);
+    }
+
+    function addAdmissionSection(target, title, noteText = "") {
+      const section = document.createElement("section"); section.className = "admission-section";
+      addText(section, "h3", "", title);
+      if (noteText) addText(section, "p", "admission-note", noteText);
+      target.append(section);
+      return section;
+    }
+
+    function getProgramPools(item, admission, year) {
+      const directionCode = text(item.direction_code);
+      const departmentCode = text(item.department_code);
+      const rows = (admission.pools || []).filter((pool) => text(pool.direction_code) === directionCode && text(pool.campaign_year) === String(year));
+      const generalRows = rows.filter((pool) => pool.quota_type === "general_competition");
+      const key = profileKey(item);
+      const linkedOfferRows = generalRows.filter((pool) => (pool.program_keys || []).includes(key));
+      if (linkedOfferRows.length) return { rows, scopeRows: linkedOfferRows, scope: "предложение приёма, связанное с профилем" };
+      const departmentRows = departmentCode ? generalRows.filter((pool) => pool.scope_level === "department" && text(pool.department_code) === departmentCode) : [];
+      const scopeRows = departmentRows.length ? departmentRows : generalRows.filter((pool) => pool.scope_level === "direction" && !text(pool.department_code));
+      const unresolvedOfferRows = generalRows.filter((pool) => pool.scope_level === "offering"
+        && text(pool.department_code) === departmentCode
+        && (pool.offering_link_statuses || []).includes("manual_review"));
+      if (!scopeRows.length && unresolvedOfferRows.length) {
+        return { rows, scopeRows: [], scope: "связь предложения с профилем уточняется", unresolved: true };
+      }
+      return { rows, scopeRows, scope: departmentRows.length ? `кафедра ${departmentCode}` : `направление ${directionCode}` };
+    }
+
+    function renderSeatDetails(target, item, admission) {
+      const directionCode = text(item.direction_code);
+      const relevant = (admission.pools || []).filter((pool) => text(pool.direction_code) === directionCode);
+      const years = relevant.map((pool) => numberValue(pool.campaign_year)).filter((year) => year !== null);
+      const year = years.length ? Math.max(...years) : null;
+      if (year === null) {
+        const section = addAdmissionSection(target, "Места на приём");
+        addText(section, "p", "admission-muted", "Распределение мест для этого направления не найдено в доступных источниках.");
+        return;
+      }
+      const { rows, scopeRows, scope, unresolved } = getProgramPools(item, admission, year);
+      const section = addAdmissionSection(target, `Места на приём ${year}`, `План мест по общему конкурсу: ${scope}. Квоты показаны отдельно и не складываются с общим конкурсом. Число заявлений на место в доступных данных не опубликовано.`);
+      const metrics = document.createElement("div"); metrics.className = "admission-metrics";
+      const placeSources = new Set();
+      for (const [type, label] of [["budget", "Бюджет · общий конкурс"], ["paid", "Платное · общий конкурс"]]) {
+        const matched = scopeRows.filter((pool) => pool.funding_type === type && pool.quota_type === "general_competition");
+        const total = matched.reduce((sum, pool) => sum + (numberValue(pool.places) || 0), 0);
+        const hasValue = matched.some((pool) => numberValue(pool.places) !== null);
+        const metric = document.createElement("div"); metric.className = "admission-metric";
+        addText(metric, "span", "", label);
+        addText(metric, "strong", "", hasValue ? formatValue(total) : unresolved ? "Уточняется" : "—");
+        metrics.append(metric);
+        for (const pool of matched) if (Andromeda.safeUrl(pool.source_url)) placeSources.add(Andromeda.safeUrl(pool.source_url));
+      }
+      section.append(metrics);
+      if (unresolved) addText(section, "p", "admission-note", "В архиве есть места по этому направлению и кафедре, но связь предложения с конкретным профилем ещё проверяется. Поэтому эти числа не приписаны программе.");
+      for (const source of placeSources) appendAdmissionSource(section, source, "Документ о местах ↗");
+
+      const quotas = rows.filter((pool) => pool.quota_type !== "general_competition");
+      if (!quotas.length) return;
+      const groups = new Map();
+      for (const pool of quotas) {
+        const key = [pool.quota_type, pool.funding_type, pool.scope_level].join("|");
+        if (!groups.has(key)) groups.set(key, []);
+        groups.get(key).push(pool);
+      }
+      const list = document.createElement("ul"); list.className = "admission-list";
+      for (const poolRows of groups.values()) {
+        const first = poolRows[0];
+        const total = poolRows.reduce((sum, pool) => sum + (numberValue(pool.places) || 0), 0);
+        const row = document.createElement("li");
+        addText(row, "strong", "", `${quotaLabel(first.quota_type)} · ${fundingLabel(first.funding_type)}: ${formatValue(total)} ${Andromeda.numberPlural(total, ["место", "места", "мест"])}`);
+        addText(row, "span", "", `Масштаб данных: ${scopeLabel(first.scope_level)}${first.scope_level === "direction_and_target_organization" ? ` · ${poolRows.length} распределений` : ""}. Это отдельная квота.`);
+        list.append(row);
+      }
+      section.append(list);
+
+      const targeted = quotas.filter((pool) => pool.quota_type === "targeted");
+      if (targeted.length) {
+        const total = targeted.reduce((sum, pool) => sum + (numberValue(pool.places) || 0), 0);
+        const details = document.createElement("details"); details.className = "admission-expand";
+        addText(details, "summary", "", `Целевые места по организациям · ${formatValue(total)} мест`);
+        const targetList = document.createElement("ul"); targetList.className = "admission-targets admission-list";
+        for (const pool of targeted) {
+          const row = document.createElement("li");
+          addText(row, "strong", "", text(pool.target_organization) || "Организация не указана");
+          addText(row, "span", "", `${formatValue(pool.places)} ${Andromeda.numberPlural(numberValue(pool.places) || 0, ["место", "места", "мест"])} · ${fundingLabel(pool.funding_type)}${text(pool.target_region) ? ` · ${text(pool.target_region)}` : ""}${text(pool.target_organization_inn) && text(pool.target_organization_inn) !== "-" ? ` · ИНН ${text(pool.target_organization_inn)}` : ""}`);
+          targetList.append(row);
+        }
+        details.append(targetList); section.append(details);
+      }
+      appendAdmissionSource(section, quotas.find((pool) => Andromeda.safeUrl(pool.source_url))?.source_url, "Документы о квотах ↗");
+    }
+
+    function matchDepartment(row, departmentCode) {
+      if (text(row.department_code)) return text(row.department_code) === departmentCode;
+      return text(row.scope_label).toLocaleLowerCase("ru-RU").split(/[^0-9a-zа-я]+/iu).includes(departmentCode.toLocaleLowerCase("ru-RU"));
+    }
+
+    function renderHistoryDetails(target, item, admission, campaignYear) {
+      const directionCode = text(item.direction_code);
+      const departmentCode = text(item.department_code);
+      const all = (admission.history || []).filter((row) => text(row.direction_code) === directionCode && numberValue(row.admission_year || row.year) !== null && numberValue(row.admission_year || row.year) < campaignYear);
+      const exactDepartment = departmentCode ? all.filter((row) => row.scope_type === "department" && matchDepartment(row, departmentCode)) : [];
+      const rows = (exactDepartment.length ? exactDepartment : all.filter((row) => row.scope_type === "direction"))
+        .sort((a, b) => Number(b.admission_year || b.year) - Number(a.admission_year || a.year));
+      const section = addAdmissionSection(target, "Результаты прошлых лет", rows.length ? `Показана история за последние ${Math.min(rows.length, 6)} лет на уровне ${exactDepartment.length ? `кафедры ${departmentCode}` : `направления ${directionCode}`}. Это фактические данные, не прогноз.` : "Для этого направления нет подтверждённых результатов за прошлые годы.");
+      if (!rows.length) return;
+      const tableWrap = document.createElement("div"); tableWrap.className = "admission-history-wrap";
+      const table = document.createElement("table"); table.className = "admission-history";
+      const caption = document.createElement("caption"); caption.className = "sr-only"; caption.textContent = "Статистика прошлых лет по баллам и числу зачисленных"; table.append(caption);
+      const head = document.createElement("thead"); const headRow = document.createElement("tr");
+      for (const label of ["Год · основа", "Мин. балл", "Средний", "Макс.", "Зачислено"]) addText(headRow, "th", "", label);
+      head.append(headRow); table.append(head);
+      const body = document.createElement("tbody");
+      for (const rowData of rows.slice(0, 6)) {
+        const row = document.createElement("tr");
+        addText(row, "td", "", `${text(rowData.admission_year || rowData.year)} · ${fundingLabel(rowData.funding_type)}`);
+        addText(row, "td", "", formatValue(rowData.minimum_score));
+        addText(row, "td", "", formatValue(rowData.average_score));
+        addText(row, "td", "", formatValue(rowData.maximum_score));
+        addText(row, "td", "", formatValue(rowData.admitted_count));
+        body.append(row);
+      }
+      table.append(body); tableWrap.append(table); section.append(tableWrap);
+      addText(section, "p", "admission-note", "Минимум — минимальный балл среди зачисленных. Прочерк означает, что показатель не опубликован.");
+      if (!rows.some((row) => row.funding_type === "budget")) addText(section, "p", "admission-note", "Исторический бюджетный проходной балл в доступном архиве не опубликован.");
+      appendAdmissionSource(section, rows.find((row) => Andromeda.safeUrl(row.source_url))?.source_url, "Архив результатов приёма ↗");
+    }
+
+    function renderRequirements(target, item, admission, campaignYear) {
+      const requirements = (admission.requirements || []).filter((row) => text(row.direction_code) === text(item.direction_code));
+      const byKey = new Map();
+      for (const requirement of requirements) for (const exam of requirement.exams || []) {
+        const key = [exam.subject_code, exam.minimum_score, Boolean(exam.is_choice)].join("|");
+        if (!byKey.has(key)) byKey.set(key, exam);
+      }
+      const exams = [...byKey.values()];
+      const section = addAdmissionSection(target, `Минимальные баллы ЕГЭ · ${campaignYear}`, "Сводка доступных вариантов для направления; набор предметов зависит от категории поступающего.");
+      if (!exams.length) {
+        addText(section, "p", "admission-muted", "Требования к ЕГЭ не найдены в доступных данных.");
+        return;
+      }
+      for (const [label, list] of [["Обязательные предметы", exams.filter((exam) => !exam.is_choice)], ["Предмет на выбор", exams.filter((exam) => exam.is_choice)]]) {
+        if (!list.length) continue;
+        const row = document.createElement("div"); row.className = "admission-list";
+        const line = document.createElement("li");
+        addText(line, "strong", "", label);
+        addText(line, "span", "", list.map((exam) => `${Andromeda.examLabel(exam.subject_code)} от ${formatValue(exam.minimum_score)}`).join(label === "Предмет на выбор" ? " или " : ", "));
+        row.append(line); section.append(row);
+      }
+      appendAdmissionSource(section, requirements.find((row) => Andromeda.safeUrl(row.source_url))?.source_url, "Требования приёма ↗");
+    }
+
+    function renderOfferingDetails(target, item, admission, campaignYear) {
+      let offers = (admission.offerings || []).filter((offer) => text(offer.educational_program_key) === profileKey(item));
+      if (!offers.length && item.direction_code && item.department_code) {
+        offers = (admission.offerings || []).filter((offer) => text(offer.direction_code) === text(item.direction_code)
+          && text(offer.department_code) === text(item.department_code) && offer.catalog_join_status === "exact_code_department_name");
+      }
+      const section = addAdmissionSection(target, "Форма обучения и программа");
+      const campaignOffers = offers.filter((offer) => !text(offer.campaign_year) || text(offer.campaign_year) === String(campaignYear));
+      const sourceOffers = campaignOffers.length ? campaignOffers : offers;
+      if (!sourceOffers.length) {
+        addText(section, "p", "admission-muted", "Точная связь предложения приёма с этой программой не найдена.");
+        return;
+      }
+      const forms = [...new Set(sourceOffers.map((offer) => text(offer.study_form)).filter(Boolean))];
+      const durations = [...new Set(sourceOffers.map((offer) => text(offer.study_duration_label)).filter(Boolean))];
+      addText(section, "p", "admission-muted", [`Форма: ${forms.join(", ") || "не указана"}`, `Срок: ${durations.join(", ") || "не указан"}`, `Набор: ${campaignYear}`].join(" · "));
+      appendAdmissionSource(section, sourceOffers.find((offer) => Andromeda.safeUrl(offer.source_url))?.source_url, "Правила и перечень мест ↗");
+    }
+
+    async function showAdmissionDetails(details, item, target) {
+      if (details.dataset.loaded === "true" || details.dataset.loaded === "loading") return;
+      details.dataset.loaded = "loading";
+      target.replaceChildren();
+      addText(target, "p", "admission-muted", "Загружаем статистику и условия приёма…");
+      try {
+        const admission = await loadAdmissionData();
+        const years = (admission.pools || []).map((pool) => numberValue(pool.campaign_year)).filter((year) => year !== null);
+        const campaignYear = years.length ? Math.max(...years) : new Date().getFullYear();
+        target.replaceChildren();
+        renderSeatDetails(target, item, admission);
+        renderHistoryDetails(target, item, admission, campaignYear);
+        renderRequirements(target, item, admission, campaignYear);
+        renderOfferingDetails(target, item, admission, campaignYear);
+        details.dataset.loaded = "true";
+      } catch (error) {
+        console.error("Не удалось отобразить условия приёма программы", error);
+        target.replaceChildren();
+        addText(target, "p", "admission-muted", "Не удалось загрузить статистику поступления. Попробуйте открыть карточку ещё раз.");
+        details.dataset.loaded = "false";
+      }
+    }
+
+    function createCard(item) {
+      const code = text(item.code);
+      const key = profileKey(item);
+      const card = document.createElement("article"); card.className = "program-card";
+      const top = document.createElement("div"); top.className = "card-top";
+      const programCode = addText(top, "span", "program-code", code);
+      programCode.title = code;
+      const actions = document.createElement("div"); actions.className = "program-actions";
+      const compareButton = document.createElement("button"); compareButton.type = "button"; compareButton.className = "card-action";
+      const compared = Andromeda.getComparison().includes(key);
+      compareButton.setAttribute("aria-pressed", String(compared));
+      compareButton.textContent = compared ? "✓ В сравнении" : "+ Сравнить";
+      compareButton.addEventListener("click", async () => {
+        const selected = Andromeda.getComparison();
+        if (!selected.includes(key) && selected.length >= 3) {
+          if (await Andromeda.askClearComparison()) {
+            Andromeda.setComparison([]);
+            setCatalogFeedback("Список очищен. Нажми «Сравнить» ещё раз, чтобы добавить эту программу.");
+            render();
+          }
+          return;
+        }
+        Andromeda.toggleComparison(key, !selected.includes(key));
+        setCatalogFeedback("");
+        updateCompareBar();
+        compareButton.setAttribute("aria-pressed", String(!selected.includes(key)));
+        compareButton.textContent = selected.includes(key) ? "+ Сравнить" : "✓ В сравнении";
+      });
+      actions.append(compareButton); top.append(actions); card.append(top);
+
+      const details = document.createElement("details"); details.className = "program-expander";
+      const summary = document.createElement("summary"); summary.className = "program-summary";
+      const title = addText(summary, "span", "program-title", text(item.name));
+      title.setAttribute("role", "heading");
+      title.setAttribute("aria-level", "2");
+      if (text(item.description)) addText(summary, "span", "program-description", text(item.description));
+      const facts = document.createElement("span"); facts.className = "program-facts";
+      const directionName = [text(item.direction_code), text(item.direction)].filter(Boolean).join(" · ");
+      const departmentName = [text(item.department_code), text(item.department)].filter(Boolean).join(" · ");
+      for (const [label, value] of [["Направление", directionName], ["Кафедра", departmentName]]) {
+        if (!value) continue;
+        const row = document.createElement("span"); row.className = "program-fact";
+        addText(row, "span", "fact-label", label); addText(row, "span", "fact-value", value); facts.append(row);
+      }
+      summary.append(facts);
+      addText(summary, "span", "expand-hint", "Открыть места, баллы и условия поступления");
+      details.append(summary);
+      const admissionPanel = document.createElement("div"); admissionPanel.className = "admission-panel";
+      details.append(admissionPanel);
+      details.addEventListener("toggle", () => {
+        if (details.open) showAdmissionDetails(details, item, admissionPanel);
+      });
+      card.append(details);
+      card.addEventListener("click", (event) => {
+        if (!(event.target instanceof Element) || event.target.closest("a, button, summary, details")) return;
+        details.open = !details.open;
+      });
+
+      const bottom = document.createElement("div"); bottom.className = "card-bottom";
+      const plan = item.study_plan && typeof item.study_plan === "object" ? item.study_plan : {};
+      const planLabel = [text(plan.education_year), Andromeda.planStatusLabel(plan.status)].filter(Boolean).join(" · ");
+      addText(bottom, "span", "campus-tag", planLabel || "МГТУ · Москва");
+      const links = document.createElement("div"); links.className = "card-links";
+      const addLink = (value, label) => {
+        const url = Andromeda.safeUrl(value);
+        if (!url) return;
+        const link = document.createElement("a"); link.className = "program-link"; link.href = url; link.target = "_blank"; link.rel = "noopener noreferrer";
+        link.append(document.createTextNode(label)); addText(link, "span", "link-arrow", "↗"); links.append(link);
+      };
+      addLink(text(item.study_plan_url) || text(plan.document_url), "Учебный план");
+      if (text(item.source_url) !== text(item.study_plan_url)) addLink(item.source_url, "Источник");
+      if (!links.childElementCount) addText(links, "span", "campus-tag", "Источник не указан");
+      bottom.append(links); card.append(bottom);
+      return card;
+    }
+
+    function render() {
+      const query = searchInput.value.trim().toLocaleLowerCase("ru-RU");
+      const selectedDirection = directionFilter.value;
+      const selectedDepartment = departmentFilter.value;
+      const filtered = programs.filter((item) => {
+        if (selectedDirection && item.direction_code !== selectedDirection) return false;
+        if (selectedDepartment && item.department_code !== selectedDepartment) return false;
+        return !query || [item.name, item.code, item.description, item.direction, item.direction_code, item.department, item.department_code]
+          .some((value) => text(value).toLocaleLowerCase("ru-RU").includes(query));
+      });
+      grid.replaceChildren();
+      count.textContent = `${filtered.length} ${Andromeda.numberPlural(filtered.length, ["программа", "программы", "программ"])}`;
+      if (!filtered.length) {
+        const empty = document.createElement("div"); empty.className = "empty-state";
+        addText(empty, "h2", "", "Ничего не нашлось");
+        addText(empty, "p", "", "Измените поисковый запрос или сбросьте фильтры, чтобы увидеть другие программы."); grid.append(empty);
+      } else {
+        const fragment = document.createDocumentFragment();
+        filtered.forEach((item) => fragment.append(createCard(item)));
+        grid.append(fragment);
+      }
+      grid.setAttribute("aria-busy", "false");
+      updateCompareBar();
+    }
+
+    searchInput.addEventListener("input", render);
+    directionFilter.addEventListener("change", render);
+    departmentFilter.addEventListener("change", render);
+    resetButton.addEventListener("click", () => { searchInput.value = ""; directionFilter.value = ""; departmentFilter.value = ""; setCatalogFeedback(""); searchInput.focus(); render(); });
+
+    Andromeda.loadPrograms().then(async (result) => {
+      programs = result.data.filter((item) => item && text(item.code) && text(item.name));
+      if (initialCode) searchInput.value = initialCode;
+      populateFilters(); render();
+    }).catch(() => {
+      count.textContent = "Каталог сейчас недоступен"; setCatalogFeedback("Не удалось загрузить каталог программ."); grid.setAttribute("aria-busy", "false"); grid.replaceChildren();
+      const error = document.createElement("div"); error.className = "error-state";
+      addText(error, "p", "", "Не удалось подключиться к каталогу. Обновите страницу или проверьте источник данных."); grid.append(error);
+    });
+  </script>
+</body>
+</html>

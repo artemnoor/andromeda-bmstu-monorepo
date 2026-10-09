@@ -9,11 +9,13 @@ from andromeda_contracts.api.v1.models import (
     AdmissionExamRecord,
     AdmissionOfferingRecord,
     CampaignCalendarEventRecord,
+    CompetitionPoolRecord,
     CurriculumItemRecord,
     DepartmentRecord,
     DirectionRecord,
     EducationalProgramRecord,
     HealthRecord,
+    IndividualAchievementRecord,
     ManualReviewRecord,
     OfficialAdmissionStatisticRecord,
     PageResponse,
@@ -21,6 +23,7 @@ from andromeda_contracts.api.v1.models import (
     ReleaseMetadataRecord,
     RequirementTreeRecord,
     StudyPlanRecord,
+    SubjectTaxonomyRecord,
     TuitionRecord,
 )
 from fastapi import APIRouter, Depends, Query
@@ -212,6 +215,37 @@ def exams(
 @router.get("/exams/{key:path}", response_model=AdmissionExamRecord)
 def exam(key: str, queries: AcademicDataQueries = _QUERIES_DEPENDENCY) -> AdmissionExamRecord:
     return queries.exam(key)
+
+
+@router.get(
+    "/individual-achievements", response_model=PageResponse[IndividualAchievementRecord]
+)
+def individual_achievements(
+    campaign_key: str | None = Query(default=None, min_length=1, max_length=256),
+    limit: int = Query(default=50, ge=1, le=100),
+    cursor: str | None = Query(default=None, min_length=1, max_length=1024),
+    queries: AcademicDataQueries = _QUERIES_DEPENDENCY,
+) -> PageResponse[IndividualAchievementRecord]:
+    return queries.achievements(limit, cursor, campaign_key=campaign_key)
+
+
+@router.get("/subject-taxonomies/{taxonomy_key}/{taxonomy_version}", response_model=SubjectTaxonomyRecord)
+def subject_taxonomy(
+    taxonomy_key: str,
+    taxonomy_version: str,
+    queries: AcademicDataQueries = _QUERIES_DEPENDENCY,
+) -> SubjectTaxonomyRecord:
+    return queries.subject_taxonomy(taxonomy_key, taxonomy_version)
+
+
+@router.get("/competition-pools", response_model=PageResponse[CompetitionPoolRecord])
+def competition_pools(
+    campaign_key: str | None = Query(default=None, min_length=1, max_length=256),
+    limit: int = Query(default=50, ge=1, le=100),
+    cursor: str | None = Query(default=None, min_length=1, max_length=1024),
+    queries: AcademicDataQueries = _QUERIES_DEPENDENCY,
+) -> PageResponse[CompetitionPoolRecord]:
+    return queries.competition_pools(limit, cursor, campaign_key=campaign_key)
 
 
 @router.get("/place-quotas", response_model=PageResponse[PlaceQuotaRecord])

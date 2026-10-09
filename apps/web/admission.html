@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <link rel="icon" href="assets/andromeda-symbol.png" type="image/png">
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="theme-color" content="#ffffff">
+  <title>Поступление — Andromeda × BMSTU</title><link rel="stylesheet" href="app.css">
+  <link rel="stylesheet" href="assets/andromeda-header.css">
+  <script src="assets/andromeda-header.js" defer></script>
+  <style>
+    .admission-filters { display:grid;grid-template-columns:minmax(0,1fr) minmax(180px,.55fr);gap:12px;align-items:end;margin-bottom:16px }
+    .status-card { display:grid;gap:7px;padding:18px;border-radius:16px;background:var(--soft) }
+    .status-card strong { font-size:14px;font-weight:600 }
+    .status-card span { color:var(--muted);font-size:11px;line-height:1.45 }
+    .admission-grid { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;align-items:start }
+    .admission-section { min-width:0;padding:clamp(20px,3vw,28px);border:1px solid var(--line);border-radius:20px }
+    .admission-section.wide { grid-column:1/-1 }
+    .admission-section h2 { margin:0;font-size:clamp(22px,3vw,34px);font-weight:500;line-height:1.05;letter-spacing:-.055em }
+    .admission-section > p { margin:9px 0 18px;color:var(--muted);font-size:11px;line-height:1.55 }
+    .section-count { color:var(--muted);font-size:10px }
+    .requirement-tree { display:grid;gap:10px }
+    .tree-group { display:grid;gap:10px;margin:0;padding:14px;border:1px solid var(--line);border-radius:15px }
+    .tree-group > .tree-group { margin-left:8px;background:#f9fafb }
+    .tree-label { display:flex;align-items:center;justify-content:space-between;gap:12px;color:var(--blue);font-size:10px;font-weight:650;letter-spacing:.06em;text-transform:uppercase }
+    .tree-children { display:grid;gap:8px }
+    .exam-rule { display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:12px;padding:11px 12px;border:1px solid var(--line);border-radius:12px;background:#fff }
+    .exam-rule strong { display:block;font-size:12px;font-weight:600 }
+    .exam-rule span { display:block;margin-top:4px;color:var(--muted);font-size:10px }
+    .exam-score { min-width:62px;text-align:right;color:var(--ink)!important;font-size:14px!important;font-weight:650 }
+    .score-evaluation { margin-top:13px;padding:12px 14px;border-radius:12px;background:#f5f9ff;color:#17558e;font-size:11px;line-height:1.45 }
+    .offering-list,.pool-list,.timeline-list,.tuition-list,.history-list { display:grid;gap:9px }
+    .offering-row,.pool-row,.timeline-item,.tuition-row,.history-row { display:grid;gap:9px;padding:13px;border:1px solid var(--line);border-radius:13px }
+    .offering-row strong,.pool-row strong,.timeline-item strong,.tuition-row strong,.history-row strong { font-size:12px;font-weight:600;line-height:1.4 }
+    .row-meta { display:flex;flex-wrap:wrap;gap:6px }
+    .pool-group { display:grid;gap:10px;margin-top:16px }
+    .pool-group h3 { margin:0;font-size:12px;font-weight:650;letter-spacing:.02em }
+    .pool-row { grid-template-columns:minmax(0,1fr) auto;align-items:start }
+    .pool-places { color:var(--blue);font-size:21px;font-weight:500;letter-spacing:-.05em;white-space:nowrap }
+    .pool-labels { display:grid;gap:7px }
+    .pool-warning { padding:9px 11px;border-radius:10px;background:#fff8e9;color:#775916;font-size:10px;line-height:1.4 }
+    .timeline-item { grid-template-columns:100px minmax(0,1fr);gap:14px }
+    .timeline-date { color:var(--blue);font-size:12px;font-weight:650;line-height:1.4 }
+    .timeline-context { margin:8px 0 0;color:var(--muted);font-size:10px;line-height:1.5 }
+    .timeline-item details summary { color:var(--blue);font-size:10px;cursor:pointer }
+    .achievement-filter { margin-bottom:12px }
+    .achievement-list { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px }
+    .achievement-row { display:grid;gap:8px;padding:13px;border:1px solid var(--line);border-radius:13px }
+    .achievement-choice { display:grid;grid-template-columns:18px minmax(0,1fr);gap:10px;cursor:pointer }
+    .achievement-choice input { width:16px;height:16px;margin:2px 0 0;accent-color:var(--blue) }
+    .achievement-choice strong { display:-webkit-box;overflow:hidden;font-size:11px;font-weight:600;line-height:1.45;overflow-wrap:anywhere;-webkit-box-orient:vertical;-webkit-line-clamp:4 }
+    .achievement-points { display:block;margin-top:5px;color:var(--blue);font-size:10px;font-weight:650 }
+    .achievement-details { margin-left:28px }
+    .achievement-details summary { width:fit-content;color:var(--blue);font-size:10px;cursor:pointer }
+    .achievement-details p { margin:7px 0 0;color:var(--muted);font-size:10px;line-height:1.45;overflow-wrap:anywhere }
+    .achievement-source { display:inline-block;margin-top:7px;color:var(--blue);font-size:10px;text-decoration:none }
+    .achievement-source:hover { text-decoration:underline;text-underline-offset:3px }
+    .history-note { padding:12px 14px;border-radius:12px;background:var(--soft);color:var(--muted);font-size:10px;line-height:1.5 }
+    .fine-print { margin-top:18px;color:var(--muted);font-size:10px;line-height:1.55 }
+    @media(max-width:780px){.admission-grid{grid-template-columns:1fr}.admission-section.wide{grid-column:auto}.achievement-list{grid-template-columns:1fr}}
+    @media(max-width:560px){.admission-filters{grid-template-columns:1fr}.timeline-item{grid-template-columns:1fr;gap:6px}.pool-row{grid-template-columns:1fr}.pool-places{text-align:left}}
+  </style>
+</head>
+<body class="has-andromeda-header">
+<main class="app-main">
+    <section class="app-intro"><div><p class="app-eyebrow">Архив условий · кампания 2026</p><h1 class="app-title">Поступай<br>осознанно</h1><p class="app-description">Минимальные экзамены, предложения приёма, места и индивидуальные достижения — с привязкой к документам источника.</p></div><div class="status-card"><strong>Проверяй уровень строки</strong><span>Места на уровне направления, кафедры и целевой организации показаны отдельно. Суммы не складываем, чтобы не задвоить квоты.</span><a class="source-link" href="profile.html">Сохранить баллы и документы в профиле ↗</a></div></section>
+    <div class="admission-filters">
+      <label class="control-label"><span>Направление</span><select class="filter-select" id="directionFilter"><option value="">Выбери направление</option></select></label>
+      <label class="control-label"><span>Финансирование мест</span><select class="filter-select" id="fundingFilter"><option value="">Все варианты</option><option value="budget">Бюджет</option><option value="paid">Платное</option></select></label>
+    </div>
+    <div class="data-note" id="dataStatus">Загружаем архив приёма</div>
+    <div class="admission-grid" style="margin-top:16px">
+      <section class="admission-section" id="requirementsSection"><div class="row"><p class="section-kicker">01 / Экзамены</p><span class="section-count" id="requirementCount"></span></div><h2>Что нужно сдать</h2><p>Дерево условий сохраняет связки «нужны все» и «выбрать один из вариантов». Минимум — порог успешного испытания, не проходной балл.</p><div class="requirement-tree" id="requirements"></div><div id="scoreEvaluation"></div></section>
+      <section class="admission-section"><div class="row"><p class="section-kicker">02 / Набор</p><span class="section-count" id="offeringCount"></span></div><h2>Формы обучения</h2><p>Название программы взято из предложения приёма. Связь с профилем каталога отмечаем только при сохранённом внешнем ключе.</p><div class="offering-list" id="offerings"></div></section>
+      <section class="admission-section wide"><div class="row"><p class="section-kicker">03 / Места и квоты</p><span class="section-count" id="poolCount"></span></div><h2>Места по уровням</h2><p>Каждая строка остаётся самостоятельной. Не складывай строки разных уровней, типов финансирования и квот.</p><div class="pool-list" id="pools"></div></section>
+      <section class="admission-section wide"><div class="row"><p class="section-kicker">04 / Даты</p><span class="section-count" id="dateCount"></span></div><h2>Календарь кампании</h2><p>Архив дат и контекста из документов приёма 2026. Сверяй полное условие по исходному источнику.</p><div class="timeline-list" id="timeline"></div></section>
+      <section class="admission-section wide"><div class="row"><p class="section-kicker">05 / Индивидуальные достижения</p><span class="section-count" id="achievementCount"></span></div><h2>Документы, которые можно учесть</h2><p>Перечень, баллы и подтверждения показаны по архивной политике. Отметки сохраняются в профиле браузера. Общую сумму не считаем: правила совместного учёта и возможный предел баллов не подтверждены в структурированных данных.</p><label class="control-label achievement-filter"><span>Найти достижение</span><input class="filter-input" id="achievementSearch" type="search" placeholder="Например, ГТО или волонтёрство"></label><div class="achievement-list" id="achievements"></div><p class="fine-print">Отметки в профиле — личный список документов, а не подтверждение приёмной комиссии. Полный список условий и баллов — по ссылкам на источник.</p></section>
+      <section class="admission-section"><div class="row"><p class="section-kicker">06 / Стоимость</p><span class="section-count" id="tuitionCount"></span></div><h2>Обучение по договору</h2><p>Суммы показаны с учебным годом и источником.</p><div class="tuition-list" id="tuition"></div></section>
+      <section class="admission-section"><div class="row"><p class="section-kicker">07 / Архив</p><span class="section-count" id="historyCount"></span></div><h2>Результаты прошлых лет</h2><p>Исторические минимальные и средние результаты не являются проходными баллами кампании 2026.</p><div class="history-note">Наборы могут различаться по году, уровню конкурса, финансированию и форме обучения. Сравнивай только строки с одинаковыми условиями.</div><div class="history-list" id="history" style="margin-top:10px"></div></section>
+    </div>
+  </main>
+  <script src="assets/academic-data.js"></script>
+  <script src="app.js"></script>
+  <script>
+    const directionFilter=document.getElementById("directionFilter"),fundingFilter=document.getElementById("fundingFilter"),requirementsNode=document.getElementById("requirements"),offeringsNode=document.getElementById("offerings"),poolsNode=document.getElementById("pools"),timelineNode=document.getElementById("timeline"),tuitionNode=document.getElementById("tuition"),historyNode=document.getElementById("history"),achievementsNode=document.getElementById("achievements"),achievementSearch=document.getElementById("achievementSearch"),dataStatus=document.getElementById("dataStatus");
+    let programs=[],admission={};
+    const add=(parent,tag,cls,value)=>{const n=document.createElement(tag);if(cls)n.className=cls;n.textContent=value;parent.append(n);return n;};
+    const sources=(parent,url,label="Источник ↗")=>{const href=Andromeda.safeUrl(url);if(!href)return;const a=document.createElement("a");a.className="source-link";a.href=href;a.target="_blank";a.rel="noopener noreferrer";a.textContent=label;parent.append(a);};
+    const fundingName=(x)=>({budget:"Бюджет",paid:"Платное"}[x]||Andromeda.text(x)||"Не указано");
+    const quotaName=(x)=>({general_competition:"Общий конкурс",special:"Особая квота",separate:"Отдельная квота",targeted:"Целевое обучение"}[x]||Andromeda.text(x)||"Тип не указан");
+    const scopeName=(x)=>({direction:"Уровень направления",department:"Уровень кафедры",direction_and_target_organization:"Целевая организация"}[x]||Andromeda.text(x)||"Уровень не указан");
+    function programsForDirection(code){return programs.filter(p=>p.direction_code===code);}
+    function getScores(){return Andromeda.getProfile().scores||{};}
+    function examScore(exam){const v=getScores()[exam.subject_code];return v==null||v===""?null:Number(v);}
+    function evaluate(node){
+      if(node?.exam){const exam=node.exam,score=examScore(exam),min=Number(exam.minimum_score);if(score===null||!Number.isFinite(min))return null;return score>=min;}
+      const children=Array.isArray(node?.children)?node.children:[];if(!children.length)return null;const values=children.map(evaluate);const op=Andromeda.text(node.operator).toUpperCase();
+      if(op==="AND"){if(values.includes(false))return false;return values.every(x=>x===true)?true:null;}
+      const required=op==="AT_LEAST"?Math.max(1,Number(node.min_count)||1):1;const yes=values.filter(x=>x===true).length;const unknown=values.filter(x=>x===null).length;if(yes>=required)return true;if(yes+unknown<required)return false;return null;
+    }
+    function renderTreeNode(node){
+      if(node?.exam){const exam=node.exam,wrap=document.createElement("div");wrap.className="exam-rule";const copy=document.createElement("div");add(copy,"strong","",Andromeda.examLabel(exam.subject_code));const score=examScore(exam);const note=score===null?"Добавь балл в профиле для сверки":score>=Number(exam.minimum_score)?`Твой балл ${score} · минимум пройден`:`Твой балл ${score} · ниже минимума`;add(copy,"span","",note);wrap.append(copy);add(wrap,"span","exam-score",`от ${Andromeda.formatNumber(exam.minimum_score)} баллов`);return wrap;}
+      const group=document.createElement("section");group.className="tree-group";const op=Andromeda.text(node?.operator).toUpperCase();const count=op==="AT_LEAST"?Number(node.min_count)||1:1;const label=op==="AND"?"Нужны все условия":op==="OR"?`Выбрать ${count} из вариантов`:op==="AT_LEAST"?`Нужно выполнить не менее ${count} условий`:"Условия";add(group,"div","tree-label",label);const children=document.createElement("div");children.className="tree-children";for(const child of node?.children||[])children.append(renderTreeNode(child));group.append(children);return group;
+    }
+    function renderRequirements(code){
+      requirementsNode.replaceChildren();const rows=admission.requirements.filter(x=>x.direction_code===code);document.getElementById("requirementCount").textContent=`${rows.length} ${Andromeda.numberPlural(rows.length,["набор условий","набора условий","наборов условий"])}`;
+      if(!rows.length){add(requirementsNode,"p","muted small","Для выбранного направления требований в архиве не найдено.");document.getElementById("scoreEvaluation").replaceChildren();return;}
+      let states=[];
+      for(const row of rows){requirementsNode.append(renderTreeNode(row.requirement_tree));states.push(evaluate(row.requirement_tree));const link=Andromeda.safeUrl(row.source_url);if(link){const a=document.createElement("a");a.className="source-link";a.href=link;a.target="_blank";a.rel="noopener noreferrer";a.textContent="Источник требований ↗";requirementsNode.append(a);}}
+      const state=states.includes(false)?"По внесённым баллам часть минимумов не достигнута.":states.every(x=>x===true)?"По внесённым баллам все показанные минимумы выполнены.":"Заполни баллы ЕГЭ в профиле, чтобы сверить их с минимальными порогами.";
+      document.getElementById("scoreEvaluation").replaceChildren();add(document.getElementById("scoreEvaluation"),"div","score-evaluation",`${state} Это проверка минимума испытаний, не прогноз конкурса.`);
+    }
+    function renderOfferings(code){
+      offeringsNode.replaceChildren();const rows=admission.offerings.filter(x=>x.direction_code===code&&(!x.campaign_year||x.campaign_year==="2026"));document.getElementById("offeringCount").textContent=`${rows.length} ${Andromeda.numberPlural(rows.length,["предложение","предложения","предложений"])}`;
+      if(!rows.length){add(offeringsNode,"p","muted small","Предложения приёма по направлению не найдены.");return;}
+      for(const row of rows){const card=document.createElement("article");card.className="offering-row";add(card,"strong","",row.program_name_in_document||"Название в документе не указано");const meta=document.createElement("div");meta.className="row-meta";for(const value of [row.study_form,row.language,row.department_code])if(value)add(meta,"span","tag",value);const linked=programs.find(p=>p.external_key===row.educational_program_key);add(meta,"span",`tag ${linked?"tag-blue":""}`,linked?`Связано: ${linked.code}`:"Нет подтверждённой связи с профилем");card.append(meta);if(linked){const a=document.createElement("a");a.className="source-link";a.href=`programs.html?code=${encodeURIComponent(linked.code)}`;a.textContent="Открыть профиль ↗";card.append(a);}sources(card,row.source_url);offeringsNode.append(card);}
+    }
+    function renderPools(code){
+      poolsNode.replaceChildren();const funding=fundingFilter.value;const rows=admission.pools.filter(x=>x.direction_code===code&&(!x.campaign_year||x.campaign_year==="2026")&&(!funding||x.funding_type===funding));document.getElementById("poolCount").textContent=`${rows.length} ${Andromeda.numberPlural(rows.length,["строка","строки","строк"])}`;
+      if(!rows.length){add(poolsNode,"p","muted small","По выбранным условиям строки о местах не найдены.");return;}
+      const groups=new Map();for(const row of rows){const groupKey=row.scope_level||"unknown";if(!groups.has(groupKey))groups.set(groupKey,[]);groups.get(groupKey).push(row);}
+      for(const [scope,items] of groups){const section=document.createElement("section");section.className="pool-group";add(section,"h3","",scopeName(scope));for(const row of items){const card=document.createElement("article");card.className="pool-row";const labels=document.createElement("div");labels.className="pool-labels";add(labels,"strong","",[row.department_code?`Кафедра ${row.department_code}`:"",row.target_organization].filter(Boolean).join(" · ")||"Для направления");const meta=document.createElement("div");meta.className="row-meta";add(meta,"span","tag",fundingName(row.funding_type));add(meta,"span","tag",quotaName(row.quota_type));labels.append(meta);if(row.target_region)add(labels,"span","small muted",row.target_region);if(row.conflicting_reported_places)add(labels,"span","pool-warning",`В источниках отмечено расхождение: ${row.conflicting_reported_places}`);sources(labels,row.source_url);card.append(labels);add(card,"span","pool-places",row.places==null?"—":Andromeda.formatNumber(row.places));section.append(card);}poolsNode.append(section);}
+    }
+    function renderDates(){
+      timelineNode.replaceChildren();const rows=[...(admission.dates||[])].filter(x=>!x.campaign_year||x.campaign_year==="2026").sort((a,b)=>(a.date||"9999").localeCompare(b.date||"9999")||Andromeda.text(a.date_text).localeCompare(Andromeda.text(b.date_text),"ru"));document.getElementById("dateCount").textContent=`${rows.length} записей`;
+      if(!rows.length){add(timelineNode,"p","muted small","Даты кампании не найдены.");return;}
+      for(const row of rows){const item=document.createElement("article");item.className="timeline-item";add(item,"div","timeline-date",[row.date_text,row.time].filter(Boolean).join(" · ")||row.date||"Дата не указана");const copy=document.createElement("div");add(copy,"strong","",row.date||"Дата из текста документа");const context=Andromeda.text(row.context);if(context){const details=document.createElement("details");const summary=document.createElement("summary");summary.textContent="Контекст из источника";details.append(summary);add(details,"p","timeline-context",context);copy.append(details);}sources(copy,row.source_url);item.append(copy);timelineNode.append(item);}
+    }
+    function renderAchievements(){
+      achievementsNode.replaceChildren();const query=achievementSearch.value.trim().toLocaleLowerCase("ru-RU");const profile=Andromeda.getProfile();const selected=new Set(profile.achievements);const rows=(admission.achievements||[]).filter(x=>!query||[x.achievement_name,x.required_document].some(v=>Andromeda.text(v).toLocaleLowerCase("ru-RU").includes(query))).sort((a,b)=>Andromeda.text(a.achievement_name).localeCompare(Andromeda.text(b.achievement_name),"ru"));document.getElementById("achievementCount").textContent=`${rows.length} из ${(admission.achievements||[]).length}`;
+      if(!rows.length){add(achievementsNode,"p","muted small","По этому запросу достижений нет.");return;}
+      for(const row of rows){
+        const option=document.createElement("div");option.className="achievement-row";const label=document.createElement("label");label.className="achievement-choice";const check=document.createElement("input");check.type="checkbox";const key=row.external_key||row.achievement_name;check.checked=selected.has(key);
+        check.addEventListener("change",()=>{const values=new Set(Andromeda.getProfile().achievements);if(check.checked)values.add(key);else values.delete(key);Andromeda.setProfile({...Andromeda.getProfile(),achievements:[...values]});});
+        const copy=document.createElement("span");add(copy,"strong","",row.achievement_name||"Достижение без названия");const score=Number(row.additional_points);const hasScore=row.additional_points!==null&&row.additional_points!==undefined&&row.additional_points!=="";add(copy,"span","achievement-points",hasScore&&Number.isFinite(score)?`${score} баллов по записи`:"Баллы не указаны в записи");label.append(check,copy);option.append(label);
+        const details=document.createElement("details");details.className="achievement-details";const summary=document.createElement("summary");summary.textContent="Документ и полное правило";details.append(summary);add(details,"p","",row.achievement_name||"Название достижения не указано");if(row.description)add(details,"p","",row.description);add(details,"p","",row.required_document||"Подтверждающий документ не уточнён");
+        const url=Andromeda.safeUrl(row.source_url);if(url){const a=document.createElement("a");a.className="achievement-source";a.href=url;a.target="_blank";a.rel="noopener noreferrer";a.textContent="Правила и источник ↗";details.append(a);}option.append(details);achievementsNode.append(option);
+      }
+    }
+    function renderTuition(code){
+      tuitionNode.replaceChildren();const rows=(admission.tuition||[]).filter(x=>x.direction_code===code).sort((a,b)=>Andromeda.text(b.study_year_label).localeCompare(Andromeda.text(a.study_year_label),"ru"));document.getElementById("tuitionCount").textContent=`${rows.length} ${Andromeda.numberPlural(rows.length,["запись","записи","записей"])}`;
+      if(!rows.length){add(tuitionNode,"p","muted small","Стоимость по этому направлению в архиве не найдена.");return;}
+      for(const row of rows){const card=document.createElement("article");card.className="tuition-row";const amount=Number(row.annual_amount_rub);const hasAmount=row.annual_amount_rub!==null&&row.annual_amount_rub!==undefined&&row.annual_amount_rub!=="";add(card,"strong","",hasAmount&&Number.isFinite(amount)?`${Andromeda.formatNumber(amount)} ₽ в год`:row.amount_values?JSON.stringify(row.amount_values):"Сумма не указана");add(card,"span","small muted",[row.study_year_label,row.campus_scope].filter(Boolean).join(" · ")||"Учебный год не указан");sources(card,row.source_url);tuitionNode.append(card);}
+    }
+    function renderHistory(code){
+      historyNode.replaceChildren();const rows=(admission.history||[]).filter(x=>x.direction_code===code).sort((a,b)=>Andromeda.text(b.admission_year).localeCompare(Andromeda.text(a.admission_year),"ru"));document.getElementById("historyCount").textContent=`${rows.length} ${Andromeda.numberPlural(rows.length,["строка","строки","строк"])}`;
+      if(!rows.length){add(historyNode,"p","muted small","Исторические результаты по этому направлению не найдены.");return;}
+      for(const row of rows.slice(0,30)){const card=document.createElement("article");card.className="history-row";add(card,"strong","",`${row.admission_year||"Год не указан"} · ${fundingName(row.funding_type)} · ${row.scope_label||row.scope_type||"Уровень не указан"}`);const fields=[row.study_form&&`Форма: ${row.study_form}`,row.minimum_score&&`Минимум: ${row.minimum_score}`,row.average_score&&`Средний: ${row.average_score}`,row.admitted_count&&`Зачислено: ${row.admitted_count}`,row.snapshot_date&&`Снимок: ${row.snapshot_date}`].filter(Boolean);add(card,"span","small muted",fields.join(" · ")||"Подробности не извлечены");sources(card,row.source_url);historyNode.append(card);}
+      if(rows.length>30)add(historyNode,"p","small muted",`Показаны первые 30 из ${rows.length} архивных строк.`);
+    }
+    function render(){const code=directionFilter.value;if(!code){for(const node of [requirementsNode,offeringsNode,poolsNode,tuitionNode,historyNode])node.replaceChildren();add(requirementsNode,"p","muted small","Выбери направление, чтобы увидеть его требования, предложения и места.");return;}renderRequirements(code);renderOfferings(code);renderPools(code);renderTuition(code);renderHistory(code);}
+    directionFilter.addEventListener("change",render);fundingFilter.addEventListener("change",render);achievementSearch.addEventListener("input",renderAchievements);
+    async function init(){try{const [programResult,admissionResult,snapshot]=await Promise.all([Andromeda.loadPrograms(),Andromeda.loadAdmission(),Andromeda.loadSnapshotInfo()]);programs=programResult.data;admission=admissionResult.data;const directions=new Map();for(const p of programs)if(p.direction_code)directions.set(p.direction_code,p.direction||p.direction_code);for(const [code,name] of [...directions].sort((a,b)=>a[0].localeCompare(b[0],"ru")))directionFilter.add(new Option(`${code} · ${name}`,code));const initial=new URLSearchParams(location.search).get("direction")||Andromeda.getProfile().targetDirection||"";if(directions.has(initial))directionFilter.value=initial;dataStatus.textContent=admissionResult.source==="api"?"Актуальные данные через API каталога":`ДЕМО · ${snapshot.source||"локальный JSON-снимок"} · выгрузка от ${Andromeda.formatSnapshotDate(snapshot.exported_at)}`;render();renderDates();renderAchievements();}catch{dataStatus.textContent="API каталога временно недоступен";for(const node of [requirementsNode,offeringsNode,poolsNode,timelineNode,achievementsNode,tuitionNode,historyNode]){node.replaceChildren();add(node,"p","error-banner","Не удалось загрузить данные поступления из API каталога.");}}}
+    init();
+  </script>
+</body>
+</html>

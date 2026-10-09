@@ -1,0 +1,259 @@
+body.has-andromeda-header {
+  padding-top: clamp(92px, 10vh, 124px);
+}
+
+body.has-andromeda-header .workspace-source-status {
+  justify-content: flex-end;
+  margin-bottom: 16px;
+}
+
+body.has-andromeda-header .workspace-nav {
+  position: static;
+  z-index: auto;
+  width: 100%;
+  margin: 0 auto 30px;
+  padding-block: 0 12px;
+  border-bottom: 1px solid var(--line);
+  background: transparent;
+  backdrop-filter: none;
+}
+
+.andromeda-site-header {
+  position: fixed;
+  z-index: 90;
+  inset: 0 0 auto;
+  height: clamp(92px, 10vh, 124px);
+  background-color: #fafafa;
+  background-image: url("paper-noise.svg");
+  background-repeat: repeat;
+  background-size: 180px 180px;
+  background-blend-mode: multiply;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, .04);
+  pointer-events: none;
+}
+
+.andromeda-site-header::after {
+  position: absolute;
+  inset-inline: clamp(18px, 4vw, 56px);
+  inset-block-end: 0;
+  height: 2px;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, .16);
+  content: "";
+}
+
+.andromeda-site-logo {
+  position: fixed;
+  z-index: 91;
+  inset-block-start: clamp(18px, 3.2vw, 42px);
+  inset-inline-start: clamp(18px, 4vw, 56px);
+  display: block;
+  width: clamp(78px, 7vw, 108px);
+  line-height: 0;
+}
+
+.andromeda-site-logo img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.andromeda-site-logo:focus-visible {
+  outline: 3px solid rgba(0, 108, 220, .55);
+  outline-offset: 4px;
+}
+
+.andromeda-menu-backdrop {
+  position: fixed;
+  z-index: 100;
+  inset: 0;
+  background: rgba(15, 15, 15, .16);
+  opacity: 0;
+  pointer-events: none;
+  backdrop-filter: blur(0);
+  -webkit-backdrop-filter: blur(0);
+  transition: opacity .8s ease, backdrop-filter .9s ease, -webkit-backdrop-filter .9s ease;
+}
+
+body.menu-open .andromeda-menu-backdrop {
+  opacity: 1;
+  pointer-events: auto;
+  backdrop-filter: blur(7px);
+  -webkit-backdrop-filter: blur(7px);
+}
+
+.andromeda-menu-shell {
+  position: fixed;
+  z-index: 200;
+  inset-block: 18px;
+  inset-inline-end: 18px;
+  width: min(72vw, 1050px);
+  pointer-events: none;
+}
+
+body.menu-open .andromeda-menu-shell { pointer-events: auto; }
+
+.andromeda-menu-panel {
+  position: absolute;
+  inset: 0;
+  overflow: auto;
+  border-radius: 56px;
+  background: #303030;
+  color: #f4f1ea;
+  box-shadow: 0 35px 100px rgba(0, 0, 0, .28), 0 10px 35px rgba(0, 0, 0, .14);
+  clip-path: inset(0 0 calc(100% - 64px) calc(100% - 64px) round 32px);
+  transform: scale(.94);
+  transform-origin: top right;
+  opacity: 0;
+  transition: clip-path 1.05s cubic-bezier(.76, 0, .24, 1), transform 1.05s cubic-bezier(.16, 1, .3, 1), opacity .18s ease;
+}
+
+body.menu-open .andromeda-menu-panel {
+  border-radius: 56px;
+  clip-path: inset(0 round 56px);
+  transform: scale(1);
+  opacity: 1;
+}
+
+.andromeda-menu-content {
+  position: relative;
+  z-index: 5;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  align-content: space-between;
+  min-height: 100%;
+  padding: 118px clamp(30px, 5vw, 72px) 45px;
+}
+
+.andromeda-menu-button {
+  position: fixed;
+  z-index: 500;
+  inset-block-start: 31px;
+  inset-inline-end: 31px;
+  display: grid;
+  width: 58px;
+  height: 58px;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: #111;
+  cursor: pointer;
+  transition: transform .45s cubic-bezier(.16, 1, .3, 1), background .55s ease;
+}
+
+.andromeda-menu-button:hover { transform: scale(1.07); }
+.andromeda-menu-button:focus-visible { outline: 3px solid rgba(0, 108, 220, .7); outline-offset: 4px; }
+
+.andromeda-menu-button span {
+  position: absolute;
+  width: 22px;
+  height: 2px;
+  background: #fff;
+  transition: transform .55s cubic-bezier(.16, 1, .3, 1), top .55s cubic-bezier(.16, 1, .3, 1), background .4s ease;
+}
+
+.andromeda-menu-button span:first-child { top: 24px; }
+.andromeda-menu-button span:last-child { top: 32px; }
+body.menu-open .andromeda-menu-button { background: #fff; }
+body.menu-open .andromeda-menu-button span { top: 28px; background: #111; }
+body.menu-open .andromeda-menu-button span:first-child { transform: rotate(45deg); }
+body.menu-open .andromeda-menu-button span:last-child { transform: rotate(-45deg); }
+
+.andromeda-menu-list {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.andromeda-menu-item { overflow: hidden; border-bottom: 1px solid rgba(255, 255, 255, .14); }
+.andromeda-menu-item:first-child { border-top: 1px solid rgba(255, 255, 255, .14); }
+
+.andromeda-menu-link {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr);
+  align-items: center;
+  column-gap: 24px;
+  padding: 12px 0 14px;
+  color: inherit;
+  text-decoration: none;
+  opacity: 0;
+  transform: translateY(55px) scale(.98);
+  filter: blur(9px);
+  transition: transform .75s cubic-bezier(.16, 1, .3, 1), opacity .55s ease, filter .65s ease;
+}
+
+body.menu-open .andromeda-menu-link {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  filter: blur(0);
+}
+
+body.menu-open .andromeda-menu-item:nth-child(1) .andromeda-menu-link { transition-delay: .38s; }
+body.menu-open .andromeda-menu-item:nth-child(2) .andromeda-menu-link { transition-delay: .45s; }
+body.menu-open .andromeda-menu-item:nth-child(3) .andromeda-menu-link { transition-delay: .52s; }
+body.menu-open .andromeda-menu-item:nth-child(4) .andromeda-menu-link { transition-delay: .59s; }
+.andromeda-menu-number { width: 32px; font-size: 11px; opacity: .38; }
+.andromeda-menu-label { font-size: clamp(32px, 4.4vw, 68px); line-height: .95; letter-spacing: -.065em; transition: transform .45s cubic-bezier(.16, 1, .3, 1), opacity .35s ease; }
+.andromeda-menu-link:hover .andromeda-menu-label { transform: translateX(18px); opacity: .66; }
+.andromeda-menu-link[aria-current="page"] .andromeda-menu-number { color: #73b5ff; opacity: 1; }
+
+.andromeda-menu-footer {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 30px;
+  padding-top: 28px;
+  opacity: 0;
+  transform: translateY(22px);
+  transition: opacity .6s ease, transform .75s cubic-bezier(.16, 1, .3, 1);
+}
+
+body.menu-open .andromeda-menu-footer { opacity: 1; transform: translateY(0); transition-delay: .67s; }
+.andromeda-menu-footer span { color: #fff; font-size: 12px; line-height: 1.5; opacity: .48; }
+.andromeda-menu-footer span:last-child { text-align: right; }
+
+@media (max-width: 800px) {
+  .andromeda-site-logo { inset-block-start: 25px; inset-inline-start: 22px; }
+  .andromeda-menu-shell { inset-block: 10px; inset-inline: 10px; width: auto; }
+  .andromeda-menu-panel { border-radius: 40px; clip-path: inset(0 0 calc(100% - 58px) calc(100% - 58px) round 29px); }
+  body.menu-open .andromeda-menu-panel { clip-path: inset(0 round 40px); }
+  .andromeda-menu-button { inset-block-start: 22px; inset-inline-end: 22px; width: 54px; height: 54px; }
+  .andromeda-menu-button span:first-child { top: 22px; }
+  .andromeda-menu-button span:last-child { top: 30px; }
+  body.menu-open .andromeda-menu-button span { top: 26px; }
+  .andromeda-menu-content { padding: 96px 26px 28px; }
+  .andromeda-menu-label { font-size: clamp(24px, 6vw, 48px); }
+  .andromeda-menu-number { width: 26px; }
+}
+
+@media (max-width: 520px) {
+  .andromeda-menu-shell { inset: max(8px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left)); }
+  .andromeda-menu-panel, body.menu-open .andromeda-menu-panel { border-radius: 32px; }
+  .andromeda-menu-panel { clip-path: inset(0 0 calc(100% - 54px) calc(100% - 54px) round 27px); }
+  body.menu-open .andromeda-menu-panel { clip-path: inset(0 round 32px); }
+  .andromeda-menu-button { inset-block-start: max(16px, env(safe-area-inset-top)); inset-inline-end: max(16px, env(safe-area-inset-right)); width: 48px; height: 48px; }
+  .andromeda-menu-button span:first-child { top: 19px; }
+  .andromeda-menu-button span:last-child { top: 27px; }
+  body.menu-open .andromeda-menu-button span { top: 23px; }
+  .andromeda-menu-content { padding: 84px clamp(20px, 6vw, 34px) 24px; }
+  .andromeda-menu-label { font-size: clamp(32px, 10.5vw, 58px); }
+  .andromeda-menu-footer { grid-template-columns: 1fr; gap: 8px; padding-top: 24px; }
+  .andromeda-menu-footer span:last-child { text-align: left; }
+}
+
+@media (max-width: 360px) {
+  .andromeda-menu-number { width: 22px; }
+  .andromeda-menu-content { padding-inline: 18px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .andromeda-menu-backdrop,
+  .andromeda-menu-panel,
+  .andromeda-menu-button,
+  .andromeda-menu-button span,
+  .andromeda-menu-link,
+  .andromeda-menu-label,
+  .andromeda-menu-footer { transition-duration: .01ms; }
+}

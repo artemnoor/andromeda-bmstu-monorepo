@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <link rel="icon" href="assets/andromeda-symbol.png" type="image/png">
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="theme-color" content="#ffffff">
+  <title>Избранное — Andromeda × BMSTU</title><link rel="stylesheet" href="app.css">
+  <link rel="stylesheet" href="assets/andromeda-header.css">
+  <script src="assets/andromeda-header.js" defer></script>
+  <style>
+    .favorite-card { display:grid;grid-template-rows:auto 1fr auto;gap:18px;min-height:270px;padding:24px;border:1px solid rgba(17,17,17,.35);border-radius:22px;transition:transform .3s ease,box-shadow .3s ease }
+    .favorite-card:hover { transform:translateY(-3px);box-shadow:0 16px 40px rgba(17,17,17,.07) }
+    .favorite-top,.favorite-bottom { display:flex;align-items:center;justify-content:space-between;gap:14px }
+    .favorite-code { color:var(--blue);font-size:11px;font-weight:650 }
+    .favorite-card h2 { margin:0;font-size:clamp(23px,3vw,34px);font-weight:500;line-height:1.04;letter-spacing:-.055em }
+    .favorite-card p { margin:10px 0 0;color:var(--muted);font-size:12px;line-height:1.5 }
+    .favorite-actions { display:flex;align-items:center;gap:10px;flex-wrap:wrap }
+    .favorite-remove { padding:8px 0;border:0;background:transparent;color:var(--muted);font-size:11px;text-decoration:underline;text-decoration-color:transparent;text-underline-offset:3px;cursor:pointer }
+    .favorite-remove:hover { color:#a72b2b;text-decoration-color:currentColor }
+    @media(max-width:620px){.favorite-bottom{align-items:flex-start;flex-direction:column}}
+  </style>
+</head>
+<body class="has-andromeda-header">
+<main class="app-main">
+    <section class="app-intro"><div><p class="app-eyebrow">Личная подборка</p><h1 class="app-title">Не потеряй<br>своё</h1><p class="app-description">Собранные профили можно открыть, убрать из списка или отправить в сравнение.</p></div><div class="app-intro-note"><strong>Только в этом браузере</strong>Избранное сохраняется локально на устройстве и не передаётся в базу.</div></section>
+    <div class="row" style="margin-bottom:18px"><span class="data-note" id="favoriteCount">Загружаем избранное…</span><a class="button button-secondary" href="programs.html">Добавить программы</a></div>
+    <div class="card-grid" id="favoriteGrid" aria-live="polite" aria-busy="true"><div class="loading-state"><h2>Открываем подборку</h2><p>Загружаем данные каталога.</p></div></div>
+  </main>
+  <script src="assets/academic-data.js"></script>
+  <script src="app.js"></script>
+  <script>
+    const grid=document.getElementById("favoriteGrid"),count=document.getElementById("favoriteCount");
+    const add=(parent,tag,cls,value)=>{const n=document.createElement(tag);if(cls)n.className=cls;n.textContent=value;parent.append(n);return n;};
+    function empty(){grid.replaceChildren();const box=document.createElement("section");box.className="empty-state";add(box,"h2","","Пока ничего не сохранено");add(box,"p","","В каталоге нажми «Избранное» на понравившейся программе, чтобы вернуться к ней позже.");grid.append(box);grid.setAttribute("aria-busy","false");}
+    async function render(){
+      try{
+        const [result]=await Promise.all([Andromeda.loadPrograms()]);const chosen=Andromeda.getFavorites();
+        const items=chosen.map((key)=>result.data.find((item)=>(item.external_key||item.code)===key||item.code===key)).filter(Boolean);
+        count.textContent=`${items.length} ${Andromeda.numberPlural(items.length,["программа сохранена","программы сохранены","программ сохранено"])}`;
+        if(!items.length){empty();return;}
+        grid.replaceChildren();
+        for(const item of items){
+          const card=document.createElement("article");card.className="favorite-card";
+          const top=document.createElement("div");top.className="favorite-top";add(top,"span","favorite-code",item.code);add(top,"span","tag tag-blue",`${item.direction_code||""}${item.direction?` · ${item.direction}`:""}`);card.append(top);
+          const body=document.createElement("div");add(body,"h2","",item.name);if(item.description)add(body,"p","",item.description);add(body,"p","",[item.department_code,item.department].filter(Boolean).join(" · ")||"Кафедра не указана");card.append(body);
+          const bottom=document.createElement("div");bottom.className="favorite-bottom";const actions=document.createElement("div");actions.className="favorite-actions";
+          const open=document.createElement("a");open.className="button button-secondary";open.href=`programs.html?code=${encodeURIComponent(item.code)}`;open.textContent="Карточка программы";actions.append(open);
+          const compare=document.createElement("button");compare.type="button";compare.className="button button-blue";const key=item.external_key||item.code;const isCompared=Andromeda.getComparison().includes(key);compare.textContent=isCompared?"В сравнении":"Сравнить";compare.setAttribute("aria-pressed",String(isCompared));compare.addEventListener("click",async()=>{const current=Andromeda.getComparison();if(!current.includes(key)&&current.length>=3){if(await Andromeda.askClearComparison()){Andromeda.setComparison([]);render();}return;}Andromeda.toggleComparison(key,!current.includes(key));compare.setAttribute("aria-pressed",String(!current.includes(key)));compare.textContent=current.includes(key)?"Сравнить":"В сравнении";});actions.append(compare);bottom.append(actions);
+          const remove=document.createElement("button");remove.type="button";remove.className="favorite-remove";remove.textContent="Убрать из избранного";remove.addEventListener("click",()=>{Andromeda.toggleFavorite(key,false);render();});bottom.append(remove);card.append(bottom);grid.append(card);
+        }
+        grid.setAttribute("aria-busy","false");
+      }catch{count.textContent="Каталог недоступен";grid.replaceChildren();const e=document.createElement("div");e.className="error-banner";e.textContent="Не удалось загрузить сохранённые программы.";grid.append(e);grid.setAttribute("aria-busy","false");}
+    }
+    render();
+  </script>
+</body>
+</html>

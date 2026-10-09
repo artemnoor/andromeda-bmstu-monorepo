@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <link rel="icon" href="assets/andromeda-symbol.png" type="image/png">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#ffffff">
+  <title>Личный маршрут — Andromeda × BMSTU</title>
+  <link rel="stylesheet" href="assets/workspace.css">
+  <link rel="stylesheet" href="assets/andromeda-header.css">
+  <script src="assets/academic-data.js" defer></script>
+  <script src="assets/workspace.js" defer></script>
+  <script src="assets/andromeda-header.js" defer></script>
+</head>
+<body class="has-andromeda-header">
+  <main class="workspace-main">
+    <div class="source-status workspace-source-status" id="sourceStatus" role="status" aria-live="polite">
+      <span class="status-dot" aria-hidden="true"></span>
+      <span>Подключаем API каталога</span>
+    </div>
+    <section class="workspace-intro" aria-labelledby="viewTitle">
+      <p class="eyebrow" id="viewKicker">ANDROMEDA × BMSTU · ЛИЧНЫЙ МАРШРУТ</p>
+      <h1 id="viewTitle">Проф-тест</h1>
+      <p class="view-description" id="viewDescription">Подберём программы по интересам и реальным часам учебных планов.</p>
+    </section>
+    <nav class="workspace-nav" aria-label="Разделы личного маршрута">
+      <a href="index.html#top" class="workspace-tab">Главная</a>
+      <a href="#recommend" class="workspace-tab" data-route="recommend">Проф-тест</a>
+      <a href="#compare" class="workspace-tab" data-route="compare">Сравнить программы</a>
+      <a href="#catalog" class="workspace-tab" data-route="catalog">Каталог программ</a>
+    </nav>
+    <div class="workspace-view" id="workspaceView" aria-live="polite">
+      <div class="loading-panel">
+        <span class="loader" aria-hidden="true"></span>
+        <p>Загружаем каталог и источники данных…</p>
+      </div>
+    </div>
+  </main>
+
+  <dialog class="program-dialog" id="programDialog" aria-labelledby="dialogTitle">
+    <div class="dialog-toolbar">
+      <span class="eyebrow">ПРОФИЛЬ ПРОГРАММЫ</span>
+      <button class="icon-button" id="dialogClose" type="button" aria-label="Закрыть">×</button>
+    </div>
+    <div id="dialogBody"></div>
+  </dialog>
+
+  <footer class="workspace-footer">
+    <span>Архив источников МГТУ · приём 2026</span>
+    <a href="/docs" target="_blank" rel="noopener noreferrer">О данных и источниках <span aria-hidden="true">↗</span></a>
+  </footer>
+</body>
+</html>
