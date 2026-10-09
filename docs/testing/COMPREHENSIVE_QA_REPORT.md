@@ -11,10 +11,12 @@ This report records observed checks, defects and remaining limits. “Coverage�
 
 | Area | Tests / scope | Passed | Failed | Skipped | Measured code coverage / result |
 |---|---:|---:|---:|---:|---|
-| Python full regression | `uv run --no-sync pytest -q` | 118 | 0 | 1 | Line/branch coverage not measured; 1 existing Starlette/httpx deprecation warning; 1973.81 sec |
+| Python full regression (local PostgreSQL 16.15) | `uv run --no-sync pytest -q` | 118 | 0 | 1 | Line/branch coverage not measured; 1 existing Starlette/httpx deprecation warning; 1572.22 sec |
+| Python full regression (GitHub Actions, Python 3.11 / PostgreSQL 16) | `make test` | 118 | 0 | 1 | 1 existing Starlette/httpx deprecation warning; 1493.17 sec |
 | Frontend unit/integration | Node 22, `npm test` | 23 | 0 | 0 | 23 tests passed |
 | Playwright focused semantics | 12 AND/OR/AT_LEAST cases plus one comparison/chart interaction, Chromium/Firefox/WebKit | 39 | 0 | 0 | 13 scenarios per browser; focused rerun passed on all three engines |
-| Playwright complete suite | 270 tests; Chromium, Firefox and WebKit, live Browser → Node → FastAPI → PostgreSQL plus deterministic failure fixtures | 229 | 0 | 41 | Final all-engine local run; skips are scoped axe/visual cases and unsupported Windows symlink checks |
+| Playwright complete suite (local) | 270 tests; Chromium, Firefox and WebKit, live Browser → Node → FastAPI → PostgreSQL plus deterministic failure fixtures | 229 | 0 | 41 | Skips are scoped axe/visual cases and Windows-only symlink checks |
+| Playwright live suite (GitHub Actions) | 270 tests; Chromium, Firefox and WebKit against isolated PostgreSQL-backed FastAPI | 232 | 0 | 38 | All live academic DTO assertions passed; skipped axe/visual cases are scoped to Chromium and three Windows-only symlink cases are supported on Linux |
 | Frontend production build | `npm run build` | 9 pages | 0 | 0 | All nine original HTML pages/assets validated and emitted |
 | Ruff | `uv run --no-sync ruff check .` | Pass | 0 | 0 | Repository-wide; no findings |
 | PostgreSQL migrations, import, release lifecycle, proposals and permissions | Isolated PostgreSQL 16.15 | Included in 118 passed | — | — | Fresh migration and seeded API release at `b62d4e91a8c3`; backup/restore rehearsal passed |
@@ -27,7 +29,7 @@ The single Python skip is `tests/integration/test_directus_runtime.py`, which re
 
 ## B. Frontend coverage matrix
 
-The final complete local Playwright suite passed in Chromium, Firefox and WebKit in one run: 229 passed, 41 scoped skips, 0 failures (270 tests total). The 41 skips are 18 Firefox and 18 WebKit axe cases, three Windows symlink cases, and two non-Chromium visual screenshot cases. An earlier Firefox teardown error did not recur in the final complete run. A focused 39-test run (12 requirement cases plus one comparison/chart interaction in each engine) also passed. Fixed-width visual captures use Chromium. The six visual viewport sizes are 1920×1080, 1440×900, 1280×800, 768×1024, 390×844 and 375×667.
+The final complete local Playwright suite passed in Chromium, Firefox and WebKit in one run: 229 passed, 41 scoped skips, 0 failures (270 tests total). The GitHub live browser job passed 232 with 38 scoped skips and no failures on the same 270-case suite. The local skips are 18 Firefox and 18 WebKit axe cases, three Windows symlink cases, and two non-Chromium visual screenshot cases; Linux CI runs the symlink checks. An earlier Firefox teardown error did not recur in the final complete run. A focused 39-test run (12 requirement cases plus one comparison/chart interaction in each engine) also passed. Fixed-width visual captures use Chromium. The six visual viewport sizes are 1920×1080, 1440×900, 1280×800, 768×1024, 390×844 and 375×667.
 
 | Page | Scenarios exercised | Browsers / viewports | Findings and changes |
 |---|---|---|---|
@@ -100,9 +102,10 @@ No screenshot or source archive was added to Git. The visual comparison report a
 | QA-09 | P2 | Node static server | Development root could serve package files, tests and server source if reachable | Restrict static paths, reject traversal/symlink escapes and non-read methods; `server-security.spec.js` | Verified in final browser run (Windows symlink case skipped; Linux CI executes it) |
 | QA-10 | P2 | Web runtime reliability | Browser/API proxy requests could remain pending on an unresponsive upstream | Add finite browser and proxy deadlines; stalled browser and Node-upstream regression tests | Verified in final browser/unit runs |
 | QA-11 | P2 | Responsive layout | Original home/favorites had horizontal overflow at narrow widths | Constrain migrated layout and test all nine pages at 390/375px plus other viewports | Verified by six-size browser capture |
-| QA-12 | P2 | PR CI | Proposal domain/binding unit tests were omitted from selective pull-request jobs | Add both suites to the domain/API contract job | Awaiting GitHub Actions confirmation |
+| QA-12 | P2 | PR CI | Proposal domain/binding unit tests were omitted from selective pull-request jobs | Add both suites to the domain/API contract job | Verified by GitHub Actions run 37942996532 |
 | QA-13 | P2 | First-screen navigation | The visible logo anchor had `pointer-events: none`, so a normal pointer click could not follow its home link | Enable pointer events; add a real click test for home and menu catalog destinations | Verified in Chromium, Firefox and WebKit |
 | QA-14 | P2 | Admission place totals | Nullable `places` values were treated as zero, hiding incomplete totals; conflicting source-row counts were shown as simply missing | Keep totals incomplete when any row is unknown; display source conflicts and reported values in catalog, comparison and workspace; `partial-admission-totals.spec.js` covers unknown, zero and conflicting values | Verified in final 270-test run; live PostgreSQL API oracle also passed |
+| QA-15 | P2 | Proposal PostgreSQL regression fixture | Randomized candidate count could equal the active release count, causing ingestion to reject the fixture before the wrong-target publication invariant was reached | Derive the count as active `admitted_count + 1` and assert the exact source row appears once; 4 tampering variants pass locally and full GitHub regression passes | Verified in final local and CI runs |
 
 ## F. Performance
 
@@ -118,7 +121,7 @@ These checks do not substitute for a deployed reverse-proxy/header review, produ
 
 ## H. AI Factory and independent review
 
-The AIF Ultra plan is in `.ai-factory/plans/andromeda-comprehensive-testing-qa-stabilization/`. Twelve unique agents were used over the task; the environment supports four simultaneous agents including the coordinator, so concurrency was capped at four. Responsibilities and handoffs:
+The AIF Ultra plan is in `.ai-factory/plans/andromeda-comprehensive-testing-qa-stabilization/`. Thirteen unique agents were used over the task; the environment supports four simultaneous agents including the coordinator, so concurrency was capped at four. Responsibilities and handoffs:
 
 | Agent | Responsibility / result |
 |---|---|
@@ -134,6 +137,7 @@ The AIF Ultra plan is in `.ai-factory/plans/andromeda-comprehensive-testing-qa-s
 | `visual_six_viewports` | Captured and compared the original/current pages at six widths (108 captures plus heatmaps) |
 | `independent_review` | Read-only first review; no P0/P1 blocker reported |
 | `final_independent_review` | Found misleading requirement success wording and a P2 where conflicting source counts looked missing; both were fixed with regression coverage. Final independent review confirmed both findings are closed and reported no remaining actionable data-correctness or test false-positive issue. |
+| `flake_regression_review` | Independently traced the randomized-count CI failure, confirmed the active-release-relative fix, and recommended an exact-row assertion; the final helper has no remaining actionable issue. |
 
 The main agent integrated edits, reran regressions and owns the final report. The reviewer did not run tests; test results below are from direct local executions and GitHub Actions.
 
@@ -143,16 +147,15 @@ The branch adds a required repository lint job, Node 22 locked frontend tests/bu
 
 | Item | Result |
 |---|---|
-| Pull request | Pending creation |
-| Commit | Pending |
-| GitHub Actions | Pending PR run; Linux job is configured for Chromium, Firefox and WebKit |
-| Merge | Pending CI and repository rules |
+| Pull request | [#8](https://github.com/artemnoor/andromeda-bmstu-monorepo/pull/8) |
+| Commit | `1fabd7c259f20e76df5cc538747f10228babe8ca` |
+| GitHub Actions | [run 37942996532](https://github.com/artemnoor/andromeda-bmstu-monorepo/actions/runs/37942996532) passed all jobs: lint, frontend unit/build, live Playwright, API/ingestion, DB lifecycle/backup-restore, Directus permissions and domain/API contracts |
 
 ## J. Remaining issues
 
 ### Blocking
 
-- The local full browser suite passes and the final independent review found no remaining actionable data-correctness or test false-positive issue. GitHub Actions result remains pending.
+- No known P0/P1 defects remain after the final local regression, live three-engine browser job, full GitHub suite and independent review passed. The only skipped integration is the authenticated Directus HTTP smoke, which requires a running local Directus service; PostgreSQL permission tests passed in CI.
 
 ### Non-blocking
 

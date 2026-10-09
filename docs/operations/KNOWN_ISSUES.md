@@ -39,6 +39,10 @@
   error occurred during an earlier run but did not recur in the final full
   three-engine run. The nine-page axe scan runs in Chromium at desktop and
   mobile sizes.
+- GitHub Actions run [37942996532](https://github.com/artemnoor/andromeda-bmstu-monorepo/actions/runs/37942996532)
+  passed the live browser suite with 232 passed, 0 failed, and 38 scoped skips
+  across Chromium, Firefox, and WebKit, plus the full Python, database,
+  API/ingestion, Directus permission, lint, and frontend build checks.
 - Six-viewport original/current screenshots cover all nine pages. The static
   home and first-screen pages are pixel-aligned; dynamic-page pixel deltas are
   not parity scores because the archived frontend API was stubbed while the
