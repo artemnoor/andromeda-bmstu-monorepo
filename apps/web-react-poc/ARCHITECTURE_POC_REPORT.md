@@ -32,8 +32,8 @@ Results below are from the final local source state before delivery. Generated b
 |---|---:|
 | React POC unit/component tests | 53 passed across 9 files; coverage run passed |
 | React POC coverage | Statements 53.57%, branches 41.71%, functions 48.21%, lines 56.68% |
-| React POC Playwright E2E | 48 passed across Chromium, Firefox, and WebKit (16 tests per browser, including live API, navigation, comparison, accessibility, and quota-scope checks) |
-| Paired original-versus-React QA | 25 passed: 24 screen/viewport comparisons and one repeated benchmark (five measured runs per app/scenario) |
+| React POC Playwright E2E | 51 passed across Chromium, Firefox, and WebKit (17 tests per browser, including live API, navigation, comparison, accessibility, and quota-scope checks) |
+| Paired original-versus-React QA | 25 passed after the final style change: 24 screen/viewport comparisons and one repeated benchmark (five measured runs per app/scenario) |
 | Existing vanilla frontend unit tests | 23 passed |
 | Existing vanilla frontend Playwright E2E | 229 passed, 41 skipped by the configured browser matrix (axe checks outside Chromium, symlink cases, and screenshot checks outside Chromium) |
 | Existing vanilla production build | Passed |
@@ -52,11 +52,11 @@ The paired suite ran original and React pages in Chromium using identical isolat
 | Home | 0–0.01% | 0% |
 | Catalog | 0% | 0% |
 | Empty comparison | 0.29–0.84% | 0–0.26% |
-| Populated comparison | 4.87–9.73% (semantic-masked: 4.80–9.60%) | 1.39–2.10% |
+| Populated comparison | 4.86–9.73% (semantic-masked: 4.79–9.60%) | 1.39–2.10% |
 
-The comparison screen’s remaining pixel delta is concentrated in longer source/provenance text and narrow-screen wrapping. A small exact mask covers category/value cells where the original renders `0` but the API-backed React view correctly preserves unknown data as `—`; the raw pixel result is reported alongside the masked value. The mask does not cover layout, chart geometry, labels, row boundaries, or page height. The populated 390px screen is the largest remaining difference at 9.73%, below the paired test’s 10% threshold. Visual similarity is strong, but this is not a claim of pixel identity.
+The comparison screen’s remaining pixel delta is concentrated in longer source/provenance text and narrow-screen wrapping. A small exact mask covers category/value cells where the original renders `0` but the API-backed React view correctly preserves unknown data as `—`; the raw pixel result is reported alongside the masked value. The mask does not cover layout, chart geometry, labels, row boundaries, or page height. The populated 390px screen is the largest remaining difference at 9.73% raw and 9.60% semantic-masked, below the paired test’s 10% threshold. Visual similarity is strong, but this is not a claim of pixel identity.
 
-The final fix matched the original category-table 620px breakpoint and header geometry. Regression assertions cover narrow mobile row widths/heights and matrix placement. Earlier stale paired artifacts were avoided by making the paired runner perform a production build before capture.
+The final fixes matched the original category-table 620px breakpoint and header geometry. They also restored the dimmed category markers while retaining readable text; the populated comparison passes axe’s WCAG 2.1 AA checks and the six-viewport paired run remains within its existing limit. Regression assertions cover narrow mobile row widths/heights and matrix placement. The paired runner performs a production build before capture to prevent stale artifacts.
 
 ## Defects found and fixed
 
@@ -66,6 +66,7 @@ The final fix matched the original category-table 620px breakpoint and header ge
 | P2 | Comparison responsive table | The React category table used a 380px breakpoint where the original uses 620px; its header wrapper also differed. | Match the original breakpoint/header geometry and assert row width/height across paired viewport captures. |
 | P2 | Admission offer summary | An exact offering with a known duration but unknown study form hid the form field entirely. | Render “Форма обучения: не указана” and cover it with a unit regression. |
 | P2 | Home and shared navigation modal | Each menu focus trap included its close button while that button sat outside the `aria-modal` dialog subtree; the homepage and shared header also use separate menu implementations. | Put each open-state close button inside the corresponding dialog shell, keep the closed-state opener outside, and restore focus after the dialog closes. E2E tests exercise both implementations, including keyboard wrapping and Escape restoration in all three browser engines. |
+| P2 | Comparison category legend | A full opacity treatment matched the legacy inactive state but reduced small category/value text below WCAG AA contrast. | Keep inactive labels at the readable muted color and apply the legacy 48% treatment to decorative category dots only. The populated comparison now passes axe and remains within the paired visual threshold. |
 
 The initial live-test premise that a direction-and-organization pool should appear on any program in its direction was rejected after inspecting the seed: it contains both main-campus and branch rows, while the DTO exposes no verified campus identity. The replacement browser regression proves that the branch row stays off a Moscow program card even when the pool has a broad link to one of that program's exact offerings.
 
@@ -83,21 +84,21 @@ Measurements used production builds of both apps, Chromium, a 1440×900 viewport
 
 | Scenario | Vanilla ready ms (p95) | React ready ms (p95) | Vanilla action ms (p95) | React action ms (p95) | API requests, V/R | JS transferred bytes, V/R | Total transferred bytes, V/R | Resources, V/R |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
-| Home | 122.2 (127.4) | 149.2 (161.0) | — | — | 0 / 0 | 23,213 / 119,170 | 3,059,547 / 3,116,152 | 5 / 11 |
-| Catalog, 50 rows | 313.4 (319.0) | 388.7 (393.8) | 28.2 (28.7) | 29.9 (31.8) | 3 / 5 | 60,743 / 132,065 | 968,235 / 962,070 | 12 / 19 |
-| Catalog, 100 rows | 417.7 (486.9) | 419.8 (470.7) | 46.4 (58.2) | 42.8 (66.9) | 3 / 5 | 60,743 / 132,065 | 1,137,187 / 1,131,022 | 12 / 19 |
-| Catalog, 500 rows | 1,040.5 (1,068.7) | 732.7 (741.9) | 114.1 (142.3) | 156.2 (160.3) | 7 / 9 | 60,743 / 132,065 | 2,489,959 / 2,483,194 | 16 / 21 |
-| Compare, two live programs | 1,454.5 (1,467.3) | 2,454.8 (2,462.4) | — | — | 15 / 21 | 60,743 / 141,070 | 2,533,280 / 2,576,540 | 23 / 34 |
+| Home | 123.6 (132.6) | 137.9 (154.5) | — | — | 0 / 0 | 23,213 / 119,173 | 3,059,547 / 3,116,156 | 5 / 11 |
+| Catalog, 50 rows | 303.8 (327.7) | 387.3 (396.6) | 26.8 (35.9) | 33.1 (45.6) | 3 / 5 | 60,743 / 132,066 | 968,235 / 962,073 | 12 / 19 |
+| Catalog, 100 rows | 366.8 (371.1) | 426.0 (444.8) | 38.9 (41.2) | 42.4 (82.0) | 3 / 5 | 60,743 / 132,066 | 1,137,187 / 1,131,025 | 12 / 19 |
+| Catalog, 500 rows | 1,082.1 (1,102.1) | 752.9 (761.1) | 114.9 (123.3) | 140.8 (162.1) | 7 / 9 | 60,743 / 132,066 | 2,489,959 / 2,483,797 | 16 / 23 |
+| Compare, two live programs | 1,476.8 (1,991.0) | 2,464.9 (2,497.9) | — | — | 15 / 21 | 60,743 / 141,070 | 2,529,292 / 2,572,562 | 23 / 34 |
 
 The additional React requests include active-release and cursor consistency checks; these counts alone do not establish N+1 behavior. Route-level data composition and repeated release guards are candidates for optimization while retaining fail-closed consistency. Transferred JavaScript is materially larger in the POC: about 5.1× on home, 2.2× on catalog, and 2.3× on comparison. The two-program comparison ready time is about 1.69× the vanilla median and is the clearest performance issue to address before broader migration. At 500 synthetic rows React reached the page-ready condition faster, while filtering was about 28% slower; this single setup is not evidence that one stack is broadly faster.
 
-Median long-task count was zero in all scenarios. Median CLS was 0 for vanilla home/catalog, 0.03 for React catalog, 0.09 for vanilla comparison, and 0 for React comparison. Chromium `performance.memory.usedJSHeapSize` returned the same 10 MB in every sample, so it was not a useful comparative memory measure. No cross-browser performance claim is made; the Firefox and WebKit results are functional E2E only.
+Median long-task count was zero in all scenarios. Median CLS was 0 for vanilla home/catalog, 0.03 for React catalog, 0.09 for vanilla comparison, and 0 for React comparison. Chromium `performance.memory.usedJSHeapSize` returned the same 10 MB in every sample, so it was not a useful comparative memory measure. No cross-browser performance claim is made; the Firefox and WebKit results are functional E2E only. The final visual/accessibility CSS change was followed by another complete 24-pair visual pass and five-sample benchmark.
 
 ## Architecture assessment
 
 | Criterion | Existing vanilla frontend | React prototype |
 |---|---|---|
-| Startup JavaScript transferred | 23,213 bytes (home), 60,743 bytes (catalog/compare) | 119,170 bytes (home), 132,065 bytes (catalog), 141,070 bytes (compare) |
+| Startup JavaScript transferred | 23,213 bytes (home), 60,743 bytes (catalog/compare) | 119,173 bytes (home), 132,066 bytes (catalog), 141,070 bytes (compare) |
 | Shared API integration | Existing `academic-data.js` adapter and endpoint behavior | One typed OpenAPI-backed API adapter, generated schema, runtime validation and release guards |
 | Application code shape | 65 tracked files across nine pages and shared scripts/assets | 29 app/src TypeScript/TSX/CSS modules for the three POC routes |
 | UI/testing | Existing scripts and established Playwright coverage | Route/component boundaries plus Vitest and three-browser Playwright; direct calculation unit tests |
