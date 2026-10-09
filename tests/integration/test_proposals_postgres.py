@@ -560,16 +560,32 @@ def _reviewed_ingestion_candidate(
 ) -> dict[str, object]:
     """Build an accepted exact-key ingestion candidate and retain its review event identity."""
 
+    base_bundle, base_release_id, base_hash = _export_active_bundle(
+        engine, settings, tmp_path / f"review-base-{uuid4().hex}"
+    )
+    with BundleReader(base_bundle) as reader:
+        base_statistics = [
+            json.loads(line)
+            for line in reader.read_bytes("data/historical_admission_statistics.jsonl")
+            .decode("utf-8")
+            .splitlines()
+            if line.strip()
+        ]
+    base_target = next(
+        row for row in base_statistics if row["external_key"] == FIXTURE_STATISTIC_KEY
+    )
+    base_count = base_target.get("admitted_count")
+    if not isinstance(base_count, int) or isinstance(base_count, bool):
+        raise TypeError("the reviewed admission fixture needs a known active count")
+
     fixture_variant = tmp_path / f"fixture-variant-{uuid4().hex}"
     shutil.copytree(FIXTURE_DIR, fixture_variant)
     admission_page = fixture_variant / "admission_information.html"
     html = admission_page.read_text(encoding="utf-8")
-    changed_count = 13 + int(uuid4().hex[:2], 16)
-    html = html.replace(
-        "<tr><td>01.03.02</td><td>12</td>",
-        f"<tr><td>01.03.02</td><td>{changed_count}</td>",
-        1,
-    )
+    changed_count = base_count + 1
+    source_row = "<tr><td>01.03.02</td><td>12</td>"
+    assert html.count(source_row) == 1, "expected one exact admission count row in the fixture"
+    html = html.replace(source_row, f"<tr><td>01.03.02</td><td>{changed_count}</td>", 1)
     admission_page.write_text(html, encoding="utf-8")
     source_manifest = fixture_variant / "source_manifest.json"
     manifest = json.loads(source_manifest.read_text(encoding="utf-8"))
@@ -584,9 +600,6 @@ def _reviewed_ingestion_candidate(
         encoding="utf-8",
     )
 
-    base_bundle, base_release_id, base_hash = _export_active_bundle(
-        engine, settings, tmp_path / f"review-base-{uuid4().hex}"
-    )
     capture = capture_sources(
         mode="fixture",
         fixture_dir=fixture_variant,
