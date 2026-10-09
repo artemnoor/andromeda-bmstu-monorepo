@@ -241,11 +241,14 @@ def subject_taxonomy(
 @router.get("/competition-pools", response_model=PageResponse[CompetitionPoolRecord])
 def competition_pools(
     campaign_key: str | None = Query(default=None, min_length=1, max_length=256),
+    direction_code: str | None = Query(default=None, min_length=1, max_length=32),
     limit: int = Query(default=50, ge=1, le=100),
     cursor: str | None = Query(default=None, min_length=1, max_length=1024),
     queries: AcademicDataQueries = _QUERIES_DEPENDENCY,
 ) -> PageResponse[CompetitionPoolRecord]:
-    return queries.competition_pools(limit, cursor, campaign_key=campaign_key)
+    return queries.competition_pools(
+        limit, cursor, campaign_key=campaign_key, direction_code=direction_code
+    )
 
 
 @router.get("/place-quotas", response_model=PageResponse[PlaceQuotaRecord])

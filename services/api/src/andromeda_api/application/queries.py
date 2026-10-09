@@ -191,12 +191,18 @@ class AcademicDataQueries:
         return self._offering(self._required("program_offerings", key))
 
     def competition_pools(
-        self, limit: int, cursor: str | None, campaign_key: str | None = None
+        self,
+        limit: int,
+        cursor: str | None,
+        campaign_key: str | None = None,
+        direction_code: str | None = None,
     ) -> PageResponse[CompetitionPoolRecord]:
         filters: dict[str, Any] = {}
         if campaign_key is not None:
             campaign = self._required("admission_campaigns", campaign_key)
             filters["campaign_id"] = campaign["id"]
+        if direction_code is not None:
+            filters["direction_code"] = direction_code
         return self._page(
             "competition_pools",
             CompetitionPoolRecord,
@@ -609,10 +615,26 @@ class AcademicDataQueries:
             semester=row["semester"],
             credits=row["credits"],
             hours=row["total_hours"] if row["total_hours"] is not None else row["hours"],
-            lecture_hours=row["total_lecture_hours"] or row["lecture_hours"],
-            practice_hours=row["total_practice_hours"] or row["practice_hours"],
-            lab_hours=row["total_lab_hours"] or row["lab_hours"],
-            self_study_hours=row["total_self_study_hours"] or row["self_study_hours"],
+            lecture_hours=(
+                row["total_lecture_hours"]
+                if row["total_lecture_hours"] is not None
+                else row["lecture_hours"]
+            ),
+            practice_hours=(
+                row["total_practice_hours"]
+                if row["total_practice_hours"] is not None
+                else row["practice_hours"]
+            ),
+            lab_hours=(
+                row["total_lab_hours"]
+                if row["total_lab_hours"] is not None
+                else row["lab_hours"]
+            ),
+            self_study_hours=(
+                row["total_self_study_hours"]
+                if row["total_self_study_hours"] is not None
+                else row["self_study_hours"]
+            ),
             total_hours=row["total_hours"],
             control_form=row["assessment_type"],
             department_name=row["department_name"],
@@ -723,6 +745,12 @@ class AcademicDataQueries:
                 else "not_stated"
             ),
             scope_level=row["scope_level"],
+            target_organization=row["target_organization"],
+            target_organization_inn=row["target_organization_inn"],
+            target_organization_kpp=row["target_organization_kpp"],
+            target_organization_ogrn=row["target_organization_ogrn"],
+            target_region=row["target_region"],
+            campus_label_in_document=row["campus_label_in_document"],
             funding_type=self._lookup_code("funding_types", row["funding_type_id"]),
             quota_type=self._lookup_code("quota_types", row["quota_type_id"]),
             places=row["places"],

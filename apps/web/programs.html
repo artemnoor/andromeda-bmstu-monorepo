@@ -14,7 +14,7 @@
     :root {
       color-scheme: light;
       --ink: #111111;
-      --muted: #70727a;
+      --muted: #6b6e75;
       --line: rgba(17, 17, 17, .18);
       --blue: #006cdc;
       --paper: #fff;
@@ -183,7 +183,7 @@
     .program-description { display: -webkit-box; overflow: hidden; margin: 0; color: var(--muted); font-size: 13px; line-height: 1.5; -webkit-box-orient: vertical; -webkit-line-clamp: 3; }
     .program-facts { display: grid; gap: 8px; color: var(--muted); font-size: 13px; line-height: 1.45; }
     .program-fact { display: flex; gap: 9px; min-width: 0; }
-    .fact-label { flex: 0 0 78px; color: rgba(17, 17, 17, .42); font-size: 10px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; }
+    .fact-label { flex: 0 0 78px; color: var(--muted); font-size: 10px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; }
     .fact-value { min-width: 0; }
     .card-bottom { align-items: center; padding-top: 17px; border-top: 1px solid var(--line); }
     .card-links { display: flex; align-items: center; justify-content: flex-end; gap: 16px; flex-wrap: wrap; }
@@ -377,7 +377,7 @@
     const compareSummary = document.getElementById("compareSummary");
     const initialCode = new URLSearchParams(location.search).get("code");
     let programs = [];
-    let admissionPromise = null;
+    const admissionPromises = new Map();
 
     const text = Andromeda.text;
     const addText = (parent, tag, className, value) => {
@@ -390,11 +390,23 @@
     const setCatalogFeedback = (message) => { catalogFeedback.textContent = message; };
     const profileKey = (item) => text(item.external_key) || text(item.externalKey) || text(item.code);
 
-    function loadAdmissionData() {
-      if (!admissionPromise) {
-        admissionPromise = Andromeda.loadAdmission().then((result) => result.data || {}).catch(() => ({}));
+    function loadAdmissionData(item) {
+      const directionCode = text(item?.direction_code);
+      const cacheKey = `${directionCode || "__no_direction__"}:${profileKey(item)}`;
+      if (!admissionPromises.has(cacheKey)) {
+        const admissionPromise = Andromeda.loadAdmissionForPrograms([item], { includeCampaignStatistics: false }).then((result) => {
+          const data = result?.data;
+          if (!data || typeof data !== "object" || Array.isArray(data)) {
+            throw new Error("Admission data is unavailable");
+          }
+          return data;
+        }).catch((error) => {
+          admissionPromises.delete(cacheKey);
+          throw error;
+        });
+        admissionPromises.set(cacheKey, admissionPromise);
       }
-      return admissionPromise;
+      return admissionPromises.get(cacheKey);
     }
 
     function updateCompareBar() {
@@ -468,6 +480,29 @@
       return { rows, scopeRows, scope: departmentRows.length ? `кафедра ${departmentCode}` : `направление ${directionCode}` };
     }
 
+    function poolPlacesSummary(poolRows) {
+      const values = poolRows.map((pool) => numberValue(pool.places));
+      if (!values.length || values.some((value) => value === null)) {
+        const reported = [...new Set(poolRows.flatMap((pool) => (pool.places_by_source_row || [])
+          .map((sourceRow) => numberValue(sourceRow?.places))
+          .filter((value) => value !== null)))].sort((a, b) => a - b);
+        if (reported.length > 1) return `Значение не подтверждено: в исходных строках ${reported.join(" и ")}`;
+        return "Количество мест не указано в источниках";
+      }
+      const total = values.reduce((sum, value) => sum + value, 0);
+      return `${formatValue(total)} ${Andromeda.numberPlural(total, ["место", "места", "мест"])}`;
+    }
+
+    function conflictingPlaceValues(poolRows) {
+      return poolRows.flatMap((pool) => {
+        if (numberValue(pool.places) !== null) return [];
+        const reported = [...new Set((pool.places_by_source_row || [])
+          .map((sourceRow) => numberValue(sourceRow?.places))
+          .filter((value) => value !== null))].sort((a, b) => a - b);
+        return reported.length > 1 ? [reported] : [];
+      });
+    }
+
     function renderSeatDetails(target, item, admission) {
       const directionCode = text(item.direction_code);
       const relevant = (admission.pools || []).filter((pool) => text(pool.direction_code) === directionCode);
@@ -484,11 +519,30 @@
       const placeSources = new Set();
       for (const [type, label] of [["budget", "Бюджет · общий конкурс"], ["paid", "Платное · общий конкурс"]]) {
         const matched = scopeRows.filter((pool) => pool.funding_type === type && pool.quota_type === "general_competition");
-        const total = matched.reduce((sum, pool) => sum + (numberValue(pool.places) || 0), 0);
-        const hasValue = matched.some((pool) => numberValue(pool.places) !== null);
+        const values = matched.map((pool) => numberValue(pool.places));
+        const knownValues = values.filter((value) => value !== null);
+        const unknownCount = values.length - knownValues.length;
+        const conflicts = conflictingPlaceValues(matched);
+        const total = knownValues.reduce((sum, value) => sum + value, 0);
+        const complete = values.length > 0 && unknownCount === 0;
         const metric = document.createElement("div"); metric.className = "admission-metric";
         addText(metric, "span", "", label);
-        addText(metric, "strong", "", hasValue ? formatValue(total) : unresolved ? "Уточняется" : "—");
+        const valueLabel = complete
+          ? formatValue(total)
+          : conflicts.length && !knownValues.length
+            ? "Конфликт в источнике"
+            : knownValues.length
+            ? "Частичные данные"
+            : values.length
+              ? "Не указано"
+              : unresolved ? "Уточняется" : "—";
+        addText(metric, "strong", "", valueLabel);
+        if (conflicts.length) {
+          const reported = [...new Set(conflicts.flat())].sort((a, b) => a - b);
+          addText(metric, "span", "admission-note", `Исходные строки содержат разные значения: ${reported.map(formatValue).join(" и ")}. Полная сумма не подтверждена.`);
+        } else if (knownValues.length && unknownCount) {
+          addText(metric, "span", "admission-note", `Опубликовано ${knownValues.length} из ${values.length} значений; полная сумма не подтверждена.`);
+        }
         metrics.append(metric);
         for (const pool of matched) if (Andromeda.safeUrl(pool.source_url)) placeSources.add(Andromeda.safeUrl(pool.source_url));
       }
@@ -507,9 +561,8 @@
       const list = document.createElement("ul"); list.className = "admission-list";
       for (const poolRows of groups.values()) {
         const first = poolRows[0];
-        const total = poolRows.reduce((sum, pool) => sum + (numberValue(pool.places) || 0), 0);
         const row = document.createElement("li");
-        addText(row, "strong", "", `${quotaLabel(first.quota_type)} · ${fundingLabel(first.funding_type)}: ${formatValue(total)} ${Andromeda.numberPlural(total, ["место", "места", "мест"])}`);
+        addText(row, "strong", "", `${quotaLabel(first.quota_type)} · ${fundingLabel(first.funding_type)}: ${poolPlacesSummary(poolRows)}`);
         addText(row, "span", "", `Масштаб данных: ${scopeLabel(first.scope_level)}${first.scope_level === "direction_and_target_organization" ? ` · ${poolRows.length} распределений` : ""}. Это отдельная квота.`);
         list.append(row);
       }
@@ -517,14 +570,23 @@
 
       const targeted = quotas.filter((pool) => pool.quota_type === "targeted");
       if (targeted.length) {
-        const total = targeted.reduce((sum, pool) => sum + (numberValue(pool.places) || 0), 0);
         const details = document.createElement("details"); details.className = "admission-expand";
-        addText(details, "summary", "", `Целевые места по организациям · ${formatValue(total)} мест`);
+        addText(details, "summary", "", `Целевые места по организациям · ${poolPlacesSummary(targeted)}`);
         const targetList = document.createElement("ul"); targetList.className = "admission-targets admission-list";
         for (const pool of targeted) {
           const row = document.createElement("li");
           addText(row, "strong", "", text(pool.target_organization) || "Организация не указана");
-          addText(row, "span", "", `${formatValue(pool.places)} ${Andromeda.numberPlural(numberValue(pool.places) || 0, ["место", "места", "мест"])} · ${fundingLabel(pool.funding_type)}${text(pool.target_region) ? ` · ${text(pool.target_region)}` : ""}${text(pool.target_organization_inn) && text(pool.target_organization_inn) !== "-" ? ` · ИНН ${text(pool.target_organization_inn)}` : ""}`);
+          const places = numberValue(pool.places);
+          const placeLabel = places === null ? "Количество мест не подтверждено" : `${formatValue(places)} ${Andromeda.numberPlural(places, ["место", "места", "мест"])}`;
+          addText(row, "span", "", [
+            placeLabel,
+            fundingLabel(pool.funding_type),
+            text(pool.target_region),
+            text(pool.campus_label_in_document) && `Кампус в источнике: ${text(pool.campus_label_in_document)}`,
+            text(pool.target_organization_inn) && text(pool.target_organization_inn) !== "-" && `ИНН ${text(pool.target_organization_inn)}`,
+            text(pool.target_organization_kpp) && text(pool.target_organization_kpp) !== "-" && `КПП ${text(pool.target_organization_kpp)}`,
+            text(pool.target_organization_ogrn) && text(pool.target_organization_ogrn) !== "-" && `ОГРН ${text(pool.target_organization_ogrn)}`,
+          ].filter(Boolean).join(" · "));
           targetList.append(row);
         }
         details.append(targetList); section.append(details);
@@ -572,7 +634,7 @@
       const requirements = (admission.requirements || []).filter((row) => text(row.direction_code) === text(item.direction_code));
       const byKey = new Map();
       for (const requirement of requirements) for (const exam of requirement.exams || []) {
-        const key = [exam.subject_code, exam.minimum_score, Boolean(exam.is_choice)].join("|");
+        const key = [exam.subject_code, exam.minimum_score, exam.is_choice === true ? "choice" : exam.is_choice === false ? "required" : "unknown"].join("|");
         if (!byKey.has(key)) byKey.set(key, exam);
       }
       const exams = [...byKey.values()];
@@ -581,7 +643,7 @@
         addText(section, "p", "admission-muted", "Требования к ЕГЭ не найдены в доступных данных.");
         return;
       }
-      for (const [label, list] of [["Обязательные предметы", exams.filter((exam) => !exam.is_choice)], ["Предмет на выбор", exams.filter((exam) => exam.is_choice)]]) {
+      for (const [label, list] of [["Обязательные предметы", exams.filter((exam) => exam.is_choice === false)], ["Предмет на выбор", exams.filter((exam) => exam.is_choice === true)], ["Тип условия не указан", exams.filter((exam) => exam.is_choice !== true && exam.is_choice !== false)]]) {
         if (!list.length) continue;
         const row = document.createElement("div"); row.className = "admission-list";
         const line = document.createElement("li");
@@ -617,7 +679,7 @@
       target.replaceChildren();
       addText(target, "p", "admission-muted", "Загружаем статистику и условия приёма…");
       try {
-        const admission = await loadAdmissionData();
+        const admission = await loadAdmissionData(item);
         const years = (admission.pools || []).map((pool) => numberValue(pool.campaign_year)).filter((year) => year !== null);
         const campaignYear = years.length ? Math.max(...years) : new Date().getFullYear();
         target.replaceChildren();
@@ -672,7 +734,8 @@
       if (text(item.description)) addText(summary, "span", "program-description", text(item.description));
       const facts = document.createElement("span"); facts.className = "program-facts";
       const directionName = [text(item.direction_code), text(item.direction)].filter(Boolean).join(" · ");
-      const departmentName = [text(item.department_code), text(item.department)].filter(Boolean).join(" · ");
+      const departmentName = [text(item.department_code), text(item.department)].filter(Boolean).join(" · ")
+        || (item.department_status === "unresolved" ? "Связь не подтверждена" : "");
       for (const [label, value] of [["Направление", directionName], ["Кафедра", departmentName]]) {
         if (!value) continue;
         const row = document.createElement("span"); row.className = "program-fact";

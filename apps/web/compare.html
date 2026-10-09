@@ -293,6 +293,21 @@
       return { value, count };
     }
     const programKey = (program) => program.external_key || program.code;
+
+    function missingPlanMessage(plan, fallback) {
+      if (!plan) return "Нет данных о плане";
+      if (plan.status === "items-unavailable") return "Состав учебного плана не удалось загрузить";
+      if (plan.status === "version-ambiguous") return "Найдено несколько версий учебного плана; состав не сопоставлен";
+      if (plan.status === "current-needs-review") {
+        return plan.profileLinkStatus !== "verified"
+          ? "Актуальная версия учебного плана не подтверждена; состав не используется"
+          : "Состав учебного плана требует проверки";
+      }
+      if (plan.profileLinkStatus !== "verified") return "Связь плана не подтверждена";
+      if (plan.status === "unverified") return "Состав учебного плана требует проверки";
+      if (plan.status === "unavailable") return "План недоступен";
+      return fallback;
+    }
     const courseName = (item) => Andromeda.text(item.discipline) || Andromeda.text(item.course) || "Название не указано";
     const semesterKey = (item) => Andromeda.text(item.semester) || "unknown";
     function sortSemesters(values) {
@@ -404,6 +419,16 @@
       return labelParts.includes(departmentCode);
     }
 
+    function conflictingPlaceValues(poolRows) {
+      return poolRows.flatMap((pool) => {
+        if (numberOrNull(pool.places) !== null) return [];
+        const reported = [...new Set((pool.places_by_source_row || [])
+          .map((sourceRow) => numberOrNull(sourceRow?.places))
+          .filter((value) => value !== null))].sort((a, b) => a - b);
+        return reported.length > 1 ? [reported] : [];
+      });
+    }
+
     function getAdmissionPlaces(program, admission, fundingType) {
       const directionCode = Andromeda.text(program.direction_code);
       const departmentCode = Andromeda.text(program.department_code);
@@ -425,19 +450,42 @@
         : [];
       const pools = linkedPools.length ? linkedPools : departmentPools.length ? departmentPools : directionPools;
       const uniquePools = [...new Map(pools.map((pool, index) => [pool.external_key || `${fundingType}-${index}`, pool])).values()];
-      const places = uniquePools.reduce((sum, pool) => sum + (numberOrNull(pool.places) || 0), 0);
-      const hasPlaces = uniquePools.some((pool) => numberOrNull(pool.places) !== null);
+      const values = uniquePools.map((pool) => numberOrNull(pool.places));
+      const knownValues = values.filter((value) => value !== null);
+      const unknownCount = values.length - knownValues.length;
+      const conflicts = conflictingPlaceValues(uniquePools);
+      const places = knownValues.reduce((sum, value) => sum + value, 0);
+      const hasCompletePlaces = values.length > 0 && unknownCount === 0;
       const scope = linkedPools.length ? "предложение программы" : departmentPools.length ? "кафедра " + departmentCode : "направление " + directionCode;
-      if (!hasPlaces && unresolvedPools.length) {
+      if (!values.length && unresolvedPools.length) {
         return {
           value: "Уточняется",
           note: "Места есть в архиве, но связь предложения с этим профилем ещё проверяется.",
           sourceUrl: unresolvedPools.find((pool) => Andromeda.safeUrl(pool.source_url))?.source_url,
         };
       }
+      const value = hasCompletePlaces
+        ? Andromeda.formatNumber(places)
+        : conflicts.length && !knownValues.length
+          ? "Конфликт в источнике"
+          : knownValues.length
+          ? "Частичные данные"
+          : values.length
+            ? "Не указано"
+            : "Нет данных";
+      const conflictValues = [...new Set(conflicts.flat())].sort((a, b) => a - b);
+      const note = hasCompletePlaces
+        ? "мест · общий конкурс · " + scope + " · 2026"
+        : conflicts.length
+          ? `Исходные строки содержат разные значения: ${conflictValues.map((value) => Andromeda.formatNumber(value)).join(" и ")}. Полная сумма не подтверждена.`
+          : knownValues.length
+          ? `Опубликовано ${knownValues.length} из ${values.length} значений мест; полная сумма не подтверждена.`
+          : values.length
+            ? "Количество мест для выбранного уровня не указано в источнике."
+            : "Строка общего конкурса не опубликована для этого уровня.";
       return {
-        value: hasPlaces ? Andromeda.formatNumber(places) : "Нет данных",
-        note: hasPlaces ? "мест · общий конкурс · " + scope + " · 2026" : "Строка общего конкурса не опубликована для этого уровня.",
+        value,
+        note,
         sourceUrl: uniquePools.find((pool) => Andromeda.safeUrl(pool.source_url))?.source_url,
       };
     }
@@ -582,6 +630,43 @@
         note: durations.length ? "срок обучения · " + durations.join(", ") : "Срок обучения не указан.",
         sourceUrl: offers.find((offer) => Andromeda.safeUrl(offer.source_url))?.source_url,
       };
+    }
+
+    function renderAdmissionLoading() {
+      const section = document.createElement("section");
+      section.className = "compare-section admission-loading-note";
+      section.setAttribute("role", "status");
+      section.setAttribute("aria-busy", "true");
+      addText(section, "h2", "", "Места и проходные баллы");
+      addText(section, "p", "", "Загружаем данные приёма для выбранных направлений…");
+      return section;
+    }
+
+    function renderAdmissionError(programs, renderId) {
+      const section = document.createElement("section");
+      section.className = "compare-section admission-error-note";
+      section.setAttribute("role", "alert");
+      addText(section, "h2", "", "Данные поступления временно недоступны");
+      addText(section, "p", "", "Сравнение учебных планов остаётся доступным. Попробуйте загрузить данные поступления ещё раз.");
+      const retry = document.createElement("button");
+      retry.type = "button";
+      retry.className = "button button-secondary";
+      retry.textContent = "Повторить загрузку";
+      retry.addEventListener("click", async () => {
+        retry.disabled = true;
+        retry.textContent = "Загружаем…";
+        try {
+          const result = await Andromeda.loadAdmissionForPrograms(programs);
+          if (renderId === compareRenderId && section.isConnected) {
+            section.replaceWith(renderAdmissionOverviewTable(programs, result.data || {}));
+          }
+        } catch {
+          retry.disabled = false;
+          retry.textContent = "Повторить загрузку";
+        }
+      });
+      section.append(retry);
+      return section;
     }
 
     function renderAdmissionOverviewTable(programs, admission) {
@@ -792,7 +877,7 @@
           const hours = numberOrNull(item.hours);
           if (hours !== null) { group.hours += hours; group.hoursCount += 1; }
         }
-        return { program, rows, groups, hours: sumMetric(rows, "hours") };
+        return { program, rows, groups, hours: sumMetric(rows, "hours"), plan: plansByProgram.get(programKey(program)) };
       });
 
       const categoryMeta = new Map();
@@ -893,7 +978,8 @@
         const programCategoryCount = visibleCategories.filter((category) => category.key !== UNCLASSIFIED_CATEGORY_KEY && itemsFor(summary, category.key).length > 0).length;
         const totalNote = summary.rows.length
           ? programCategoryCount + "/" + taxonomyCategoryCount + " категорий в плане"
-          : plan?.status === "unavailable" ? "план пока недоступен" : "нет дисциплин в данных";
+          : plan?.status === "unverified" ? "связь плана не подтверждена"
+            : plan?.status === "unavailable" ? "план пока недоступен" : "нет дисциплин в данных";
         addText(totalBox, "span", "", totalNote);
         cardHead.append(totalBox);
         card.append(cardHead);
@@ -1079,7 +1165,8 @@
           const count = metricCount(summary, items);
           const total = totalFor(summary);
           if (!summary.rows.length) {
-            addText(cell, "span", "category-distribution-empty", plansByProgram.get(programKey(summary.program))?.status === "unavailable" ? "План недоступен" : "Нет данных о плане");
+            const plan = plansByProgram.get(programKey(summary.program));
+            addText(cell, "span", "category-distribution-empty", missingPlanMessage(plan, "Нет данных о плане"));
           } else if (!hasTotalFor(summary) || (group && !count)) {
             addText(cell, "span", "category-distribution-empty", "Нет данных о часах");
           } else {
@@ -1210,7 +1297,9 @@
           const value = category ? categoryValueFor(summary, key) : 0;
           const hasValue = category ? categoryHasMetric(summary, key) : false;
           view.centerValue.textContent = hasValue ? percent(value, totalFor(summary)) : "—";
-          view.centerLabel.textContent = !summary.rows.length ? "План недоступен" : category?.name || "Выберите категорию";
+          view.centerLabel.textContent = !summary.rows.length
+            ? missingPlanMessage(summary.plan, "Нет данных о плане")
+            : category?.name || "Выберите категорию";
         }
       }
       selectCategory(activeCategoryKey);
@@ -1259,7 +1348,7 @@
       return box;
     }
 
-    function renderCourseMatrix(programs, curriculumMap) {
+    function renderCourseMatrix(programs, curriculumMap, plansByProgram) {
       const section = document.createElement("section");
       section.className = "compare-section";
       const entries = collectCourseMatrix(programs, curriculumMap);
@@ -1350,7 +1439,7 @@
       table.append(body);
       wrap.append(table);
       details.append(wrap);
-      addText(details, "p", "matrix-footnote", "Совпадение определяется по полному названию предмета. «Не входит в план» означает, что такое название не найдено в данных выбранной программы.");
+      addText(details, "p", "matrix-footnote", "Совпадение определяется по полному названию предмета. «Не входит в план» показано только для программы с доступным подтверждённым учебным планом.");
       const help = document.createElement("span");
       help.id = "courseMatrixHelp";
       help.className = "sr-only";
@@ -1397,7 +1486,8 @@
               const missing = document.createElement("span");
               missing.className = "matrix-missing";
               addText(missing, "span", "matrix-missing-mark", "–");
-              addText(missing, "span", "", "Не входит в план");
+              const plan = plansByProgram.get(key);
+              addText(missing, "span", "", missingPlanMessage(plan, "Не входит в план"));
               td.append(missing);
             } else {
               for (const item of items) td.append(createMatrixEntry(item));
@@ -1459,12 +1549,7 @@
           renderEmpty("Сохранённые профили не найдены в текущем снимке базы. Вернись в каталог и выбери программы заново.");
           return;
         }
-        let admission = {};
-        try {
-          admission = (await Andromeda.loadAdmission()).data || {};
-        } catch {
-          admission = {};
-        }
+        const admissionLoading = renderAdmissionLoading();
         const curriculumLoading = document.createElement("section");
         curriculumLoading.className = "compare-section curriculum-loading-note";
         curriculumLoading.setAttribute("role", "status");
@@ -1472,10 +1557,21 @@
         addText(curriculumLoading, "p", "", "Загружаем планы, чтобы построить круговые диаграммы и сравнить часы по семестрам…");
         root.replaceChildren(
           renderSelectionPicker(programs),
-          renderAdmissionOverviewTable(programs, admission),
+          admissionLoading,
           curriculumLoading,
         );
         root.setAttribute("aria-busy", "false");
+
+        const admissionTask = Andromeda.loadAdmissionForPrograms(programs).then((result) => {
+          if (renderId === compareRenderId && admissionLoading.isConnected) {
+            admissionLoading.replaceWith(renderAdmissionOverviewTable(programs, result.data || {}));
+          }
+        }).catch((admissionError) => {
+          console.warn("Данные поступления для сравнения недоступны", admissionError);
+          if (renderId === compareRenderId && admissionLoading.isConnected) {
+            admissionLoading.replaceWith(renderAdmissionError(programs, renderId));
+          }
+        });
 
         let curriculumResult = { data: [], plans: [], source: "unavailable" };
         try {
@@ -1493,13 +1589,26 @@
         }
 
         const plansByProgram = new Map();
+        const selectedPlanKeys = new Set(curriculumResult.selectedPlanKeys || []);
+        const currentPlanKeys = new Set(curriculumResult.currentPlanKeys || []);
+        const ambiguousProgramKeys = new Set(curriculumResult.ambiguousProgramKeys || []);
+        const needsReviewProgramKeys = new Set(curriculumResult.needsReviewProgramKeys || []);
+        const failedPlanKeys = new Set(curriculumResult.failedPlanKeys || []);
         for (const program of programs) {
           const key = programKey(program);
           const programPlans = (curriculumResult.plans || []).filter((plan) => Andromeda.text(plan.program_key) === key);
+          const linkedPlan = programPlans.find((plan) => selectedPlanKeys.has(Andromeda.text(plan.external_key)))
+            || programPlans.find((plan) => currentPlanKeys.has(Andromeda.text(plan.external_key)))
+            || programPlans.find((plan) => plan.profile_link_status === "verified" && plan.status === "parsed")
+            || programPlans.find((plan) => plan.profile_link_status === "verified");
+          const planUnavailable = linkedPlan && failedPlanKeys.has(Andromeda.text(linkedPlan.external_key));
           plansByProgram.set(key, {
-            status: programPlans.some((plan) => plan.status === "parsed")
-              ? "parsed"
-            : programPlans[0]?.status || (["snapshot", "mixed", "unavailable"].includes(curriculumResult.source) && curriculumMap.get(key).length ? "parsed" : "unavailable"),
+            profileLinkStatus: ambiguousProgramKeys.has(key) ? "verified" : linkedPlan?.profile_link_status || (programPlans.length ? "unverified" : "unavailable"),
+            status: ambiguousProgramKeys.has(key) ? "version-ambiguous" : needsReviewProgramKeys.has(key) ? "current-needs-review" : planUnavailable ? "items-unavailable" : linkedPlan?.status || (programPlans.length
+              ? "unverified"
+              : ["snapshot", "mixed", "unavailable"].includes(curriculumResult.source) && curriculumMap.get(key).length
+                ? "parsed"
+                : "unavailable"),
           });
         }
         const taxonomy = await loadSubjectTaxonomy(curriculumResult.data || []);
@@ -1509,8 +1618,9 @@
         root.append(
           renderWorkloadChart(programs, stats),
           renderCategoryTable(programs, curriculumMap, plansByProgram, taxonomy),
-          renderCourseMatrix(programs, curriculumMap),
+          renderCourseMatrix(programs, curriculumMap, plansByProgram),
         );
+        await admissionTask;
       } catch (caughtError) {
         if (renderId !== compareRenderId) return;
         console.error("Не удалось построить сравнение программ", caughtError);

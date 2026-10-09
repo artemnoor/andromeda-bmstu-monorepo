@@ -7,6 +7,15 @@
     "dev": "node tools/server.mjs",
     "build": "node tools/build.mjs",
     "preview": "node tools/server.mjs --dist",
-    "test": "node --test tests/smoke.test.mjs"
+    "test": "node --test tests/*.test.mjs",
+    "test:e2e": "playwright test",
+    "test:e2e:headed": "playwright test --headed",
+    "test:e2e:debug": "playwright test --debug",
+    "test:e2e:live": "playwright test --grep @live",
+    "test:e2e:install": "playwright install chromium firefox webkit"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
+    "@playwright/test": "^1.64.0"
   }
 }

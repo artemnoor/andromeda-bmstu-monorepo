@@ -219,8 +219,14 @@ jobs:
         run: |
           python -m pip install uv==0.11.28
           uv sync --locked --all-packages --group dev --no-editable
-      - name: Run domain, API contract, and import boundary tests
-        run: uv run pytest -q tests/test_domain_semantics.py tests/test_import_boundaries.py services/api/tests/test_api_contracts.py
+      - name: Run domain, API contract, proposal, and import boundary tests
+        run: >-
+          uv run pytest -q
+          tests/test_domain_semantics.py
+          tests/test_import_boundaries.py
+          services/api/tests/test_api_contracts.py
+          services/api/tests/test_proposals.py
+          services/api/tests/test_proposal_publication_binding.py
 
   api-ingestion-check:
     if: needs.changes.result == 'success' && needs.changes.outputs.api_ingestion == 'true' && github.ref != 'refs/heads/main'
@@ -318,6 +324,105 @@ jobs:
           node-version: '22'
       - name: Run applicant web tests and production build
         run: make web-check
+
+  web-browser-check:
+    # Keep one browser/API integration status on every PR, independent of the
+    # selective backend jobs above. The database and credentials are disposable.
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: academic_data_test
+          POSTGRES_USER: andromeda_test
+          POSTGRES_PASSWORD: andromeda_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U andromeda_test -d academic_data_test"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 30
+    env:
+      ACADEMIC_DATA_ENV: test
+      ACADEMIC_DATA_DATABASE_URL: postgresql+psycopg://andromeda_test:andromeda_test@localhost:5432/academic_data_test
+      UV_NO_EDITABLE: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+      - name: Install locked web dependencies
+        run: npm ci --prefix apps/web
+      - name: Run web unit tests and production build
+        run: |
+          npm --prefix apps/web test
+          npm --prefix apps/web run build
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install locked workspace
+        run: |
+          python -m pip install uv==0.11.28
+          uv sync --locked --all-packages --group dev --no-editable
+      - name: Migrate and seed the isolated PostgreSQL database
+        run: |
+          uv run academic-data db upgrade
+          uv run academic-data bundle import --input data/bmstu-2026 --commit
+      - name: Install PostgreSQL client for runtime role setup
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes postgresql-client
+      - name: Provision the disposable read-only API login
+        run: |
+          PGPASSWORD=andromeda_test psql \
+            --host localhost \
+            --username andromeda_test \
+            --dbname academic_data_test \
+            --set ON_ERROR_STOP=1 \
+            --command "ALTER ROLE andromeda_api_runtime WITH LOGIN PASSWORD 'andromeda-ci-runtime';"
+      - name: Start FastAPI and wait for an active release
+        run: |
+          ACADEMIC_DATA_ENV=test \
+          ACADEMIC_DATA_DATABASE_URL='postgresql+psycopg://andromeda_api_runtime:andromeda-ci-runtime@localhost:5432/academic_data_test' \
+            uv run --package andromeda-api uvicorn andromeda_api.main:app \
+              --host 127.0.0.1 --port 8000 \
+              > "$RUNNER_TEMP/andromeda-api.log" 2>&1 &
+
+          for attempt in {1..45}; do
+            if curl --fail --silent http://127.0.0.1:8000/api/v1/health \
+              --output "$RUNNER_TEMP/andromeda-api-health.json"; then
+              cat "$RUNNER_TEMP/andromeda-api-health.json"
+              exit 0
+            fi
+            sleep 2
+          done
+
+          cat "$RUNNER_TEMP/andromeda-api.log"
+          exit 1
+      - name: Install Playwright browsers and system dependencies
+        working-directory: apps/web
+        run: npx playwright install --with-deps chromium firefox webkit
+      - name: Run browser tests against the live API
+        env:
+          API_ORIGIN: http://127.0.0.1:8000
+          CI: 'true'
+          PLAYWRIGHT_BROWSERS: chromium,firefox,webkit
+          PLAYWRIGHT_LIVE_API: '1'
+        run: npm --prefix apps/web run test:e2e
+      - name: Upload Playwright reports, screenshots, and traces on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-browser-failure
+          path: |
+            artifacts/qa-stabilization/playwright-report/
+            artifacts/qa-stabilization/playwright-results/
+          if-no-files-found: ignore
+          retention-days: 7
 
   full-check:
     if: >-

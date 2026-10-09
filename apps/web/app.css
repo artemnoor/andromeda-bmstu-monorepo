@@ -1,6 +1,6 @@
 :root {
   --ink: #111;
-  --muted: #70727a;
+  --muted: #6b6e75;
   --line: rgba(17, 17, 17, .18);
   --blue: #006cdc;
   --soft: #f4f7fb;
@@ -11,6 +11,7 @@
 }
 
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 html { min-width: 320px; background-color: var(--page-background); background-image: var(--paper-texture); background-repeat: repeat; background-size: 180px 180px; background-blend-mode: multiply; }
 body { margin: 0; color: var(--ink); background-color: var(--page-background); background-image: var(--paper-texture); background-repeat: repeat; background-size: 180px 180px; background-blend-mode: multiply; background-attachment: fixed; background-position: 0 0; animation: paper-grain 8s steps(10) infinite; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; -webkit-font-smoothing: antialiased; }
 @keyframes paper-grain {

@@ -66,6 +66,7 @@ verified.
 | API | [v1 contract](docs/api/API.md) · [Readiness and limits](docs/api/API_READINESS.md) |
 | Data model | [Curriculum identity](docs/data-model/CURRICULUM_IDENTITY.md) · [Subject classification](docs/data-model/SUBJECT_CLASSIFICATION.md) |
 | Ingestion | [Operator guide](docs/operations/INGESTION_OPERATIONS.md) · [Known issues](docs/operations/KNOWN_ISSUES.md) |
+| Testing and QA | [Comprehensive QA report](docs/testing/COMPREHENSIVE_QA_REPORT.md) |
 | Directus | [Viewer setup](docs/operations/directus/DIRECTUS.md) · [Metadata notes](docs/operations/directus/DIRECTUS_METADATA.md) |
 | Decisions | [ADR index](docs/README.md) |
 
@@ -94,6 +95,11 @@ make web-dev
 
 `make web-check` runs the frontend tests and production build together. Build
 output is generated under `apps/web/dist/` and is not committed.
+Install Playwright browsers with `npm run test:e2e:install` from `apps/web/`,
+then run `npm run test:e2e`. The standard run uses deterministic browser API
+fixtures; to exercise a local seeded PostgreSQL → FastAPI → Node stack, set
+`PLAYWRIGHT_LIVE_API=1` and `API_ORIGIN` to the local FastAPI origin. The live
+suite never targets production.
 
 ## Current implementation limits
 

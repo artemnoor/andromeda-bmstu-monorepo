@@ -7,7 +7,7 @@ from unittest.mock import Mock
 import pytest
 from andromeda_api.application.importer.errors import BundleImportError
 from andromeda_api.application.publication import PublicationApplicationService
-from andromeda_api.application.queries import ApiReadError
+from andromeda_api.application.queries import AcademicDataQueries, ApiReadError
 from andromeda_api.dependencies.queries import get_queries
 from andromeda_api.main import create_app
 from andromeda_contracts.api.v1.models import (
@@ -22,7 +22,7 @@ from andromeda_contracts.api.v1.models import (
     SubjectTaxonomyRecord,
 )
 from andromeda_db.repositories.release_publication import ReleasePublicationError
-from andromeda_ontology.ports import InvalidCursorError
+from andromeda_ontology.ports import InvalidCursorError, PageRows
 from fastapi.testclient import TestClient
 
 
@@ -129,8 +129,8 @@ def test_frontend_academic_read_routes_use_existing_typed_query_models() -> None
                 ),
             )
 
-        def competition_pools(self, limit, cursor, campaign_key=None):
-            self.calls.append(("competition_pools", limit, cursor, campaign_key))
+        def competition_pools(self, limit, cursor, campaign_key=None, direction_code=None):
+            self.calls.append(("competition_pools", limit, cursor, campaign_key, direction_code))
             return PageResponse[CompetitionPoolRecord](
                 items=[
                     CompetitionPoolRecord(
@@ -138,6 +138,12 @@ def test_frontend_academic_read_routes_use_existing_typed_query_models() -> None
                         campaign_key=campaign_key,
                         direction_code="09.03.01",
                         department_status="verified",
+                        target_organization="Тестовая организация",
+                        target_organization_inn="0123456789",
+                        target_organization_kpp="012345678",
+                        target_organization_ogrn="0123456789012",
+                        target_region="Калужская область",
+                        campus_label_in_document="Калужский филиал",
                         places=10,
                         ingested_at="2026-10-08T00:00:00Z",
                     )
@@ -170,7 +176,7 @@ def test_frontend_academic_read_routes_use_existing_typed_query_models() -> None
             "/api/v1/individual-achievements?campaign_key=campaign%3Abmstu%3A2026&limit=20"
         )
         pools = client.get(
-            "/api/v1/competition-pools?campaign_key=campaign%3Abmstu%3A2026&limit=30"
+            "/api/v1/competition-pools?campaign_key=campaign%3Abmstu%3A2026&direction_code=09.03.01&limit=30"
         )
         taxonomy = client.get(
             "/api/v1/subject-taxonomies/bmstu-subject-domain-16/v1"
@@ -183,14 +189,128 @@ def test_frontend_academic_read_routes_use_existing_typed_query_models() -> None
     assert pools.status_code == 200
     assert pools.json()["items"][0]["direction_code"] == "09.03.01"
     assert pools.json()["items"][0]["places"] == 10
+    pool = pools.json()["items"][0]
+    assert pool["target_organization"] == "Тестовая организация"
+    assert pool["target_organization_inn"] == "0123456789"
+    assert pool["target_organization_kpp"] == "012345678"
+    assert pool["target_organization_ogrn"] == "0123456789012"
+    assert pool["target_region"] == "Калужская область"
+    assert pool["campus_label_in_document"] == "Калужский филиал"
+    assert isinstance(pool["target_organization_inn"], str)
     assert taxonomy.status_code == 200
     assert taxonomy.json()["taxonomy_key"] == "bmstu-subject-domain-16"
     assert taxonomy.json()["categories"][0]["category_code"] == "01"
     assert queries.calls == [
         ("achievements", 20, None, "campaign:bmstu:2026"),
-        ("competition_pools", 30, None, "campaign:bmstu:2026"),
+        ("competition_pools", 30, None, "campaign:bmstu:2026", "09.03.01"),
         ("subject_taxonomy", "bmstu-subject-domain-16", "v1"),
     ]
+
+
+def test_competition_pool_direction_filter_is_applied_by_the_read_query() -> None:
+    repository = Mock()
+    repository.active_release_key = "fixture-release"
+    repository.page.return_value = PageRows(items=[], next_cursor=None, total_count=0)
+
+    result = AcademicDataQueries(repository).competition_pools(
+        30, None, direction_code="09.03.01"
+    )
+    assert result.items == []
+    repository.page.assert_called_once_with(
+        "competition_pools",
+        filters={"direction_code": "09.03.01"},
+        limit=30,
+        cursor=None,
+    )
+
+
+def test_competition_pool_projection_preserves_target_metadata_and_unresolved_department() -> None:
+    repository = Mock()
+    repository.get_by_id.side_effect = lambda table, record_id: (
+        {"external_key": "campaign:bmstu:2026"}
+        if table == "admission_campaigns"
+        else None
+    )
+    repository.related.return_value = []
+    repository.evidence_for.return_value = []
+    repository.manual_reviews_for.return_value = []
+    queries = AcademicDataQueries(repository)
+
+    result = queries._competition_pool(
+        {
+            "id": "pool-id",
+            "external_key": "competition_pool:fixture:targeted",
+            "campaign_id": "campaign-id",
+            "direction_id": None,
+            "department_id": None,
+            "direction_code": "09.03.01",
+            "department_code": "UNMAPPED-CHAIR",
+            "funding_type_id": None,
+            "quota_type_id": None,
+            "scope_level": "direction_and_target_organization",
+            "target_organization": "Тестовая организация",
+            "target_organization_inn": "0123456789",
+            "target_organization_kpp": "012345678",
+            "target_organization_ogrn": "0123456789012",
+            "target_region": "Калужская область",
+            "campus_label_in_document": "Калужский филиал",
+            "places": 1,
+            "places_by_source_row": None,
+            "valid_from": None,
+            "valid_to": None,
+            "observed_at": None,
+            "ingested_at": "2026-10-08T00:00:00Z",
+        }
+    )
+
+    assert result.department_status == "unresolved"
+    assert result.target_organization == "Тестовая организация"
+    assert result.target_organization_inn == "0123456789"
+    assert result.target_organization_kpp == "012345678"
+    assert result.target_organization_ogrn == "0123456789012"
+    assert result.target_region == "Калужская область"
+    assert result.campus_label_in_document == "Калужский филиал"
+
+
+def test_curriculum_query_preserves_explicit_zero_hours_and_falls_back_only_for_nulls() -> None:
+    repository = Mock()
+    repository.get_by_id.return_value = {"external_key": "study-plan:fixture"}
+    repository.evidence_for.return_value = []
+    repository.manual_reviews_for.return_value = []
+    queries = AcademicDataQueries(repository)
+
+    item = queries._curriculum_item(
+        {
+            "id": "curriculum-item-id",
+            "external_key": "curriculum-item:fixture",
+            "study_plan_id": "study-plan-id",
+            "ordinal": 1,
+            "discipline_name": "Fixture discipline",
+            "semester": 1,
+            "credits": None,
+            "total_hours": 0,
+            "hours": 72,
+            "total_lecture_hours": 0,
+            "lecture_hours": 18,
+            "total_practice_hours": None,
+            "practice_hours": 24,
+            "total_lab_hours": 0,
+            "lab_hours": 6,
+            "total_self_study_hours": None,
+            "self_study_hours": 24,
+            "assessment_type": None,
+            "department_name": None,
+            "faculty_name": None,
+            "chair_name": None,
+        }
+    )
+
+    assert item.hours == 0
+    assert item.total_hours == 0
+    assert item.lecture_hours == 0
+    assert item.practice_hours == 24
+    assert item.lab_hours == 0
+    assert item.self_study_hours == 24
 
 
 def test_publication_service_maps_database_failures_to_application_error(monkeypatch) -> None:

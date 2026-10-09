@@ -17,6 +17,11 @@
   const apiBase = (window.ACADEMIC_DATA_API_BASE || "/api/v1").replace(/\/$/, "");
   const requests = new Map();
   const snapshots = new Map();
+  let observedReleaseKey = null;
+  const configuredRequestTimeout = Number(window.ACADEMIC_DATA_REQUEST_TIMEOUT_MS);
+  const requestTimeoutMs = Number.isFinite(configuredRequestTimeout) && configuredRequestTimeout > 0
+    ? configuredRequestTimeout
+    : 15_000;
   let programDataSource = demoMode ? "demo" : "unknown";
 
   const browserStorageKeys = {
@@ -456,13 +461,23 @@
   }
 
   async function fetchJson(url) {
-    const response = await fetch(url, { headers: { Accept: "application/json" }, cache: "no-cache" });
-    const payload = await response.json().catch(() => null);
-    if (!response.ok) {
-      const message = payload?.error?.message || payload?.detail || `HTTP ${response.status}`;
-      throw new Error(`Academic data API: ${message}`);
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), requestTimeoutMs);
+    try {
+      const response = await fetch(url, {
+        headers: { Accept: "application/json" },
+        cache: "no-cache",
+        signal: controller.signal,
+      });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) {
+        const message = payload?.error?.message || payload?.detail || `HTTP ${response.status}`;
+        throw new Error(`Academic data API: ${message}`);
+      }
+      return payload;
+    } finally {
+      window.clearTimeout(timeout);
     }
-    return payload;
   }
 
   async function request(url) {
@@ -496,6 +511,12 @@
       if (!Array.isArray(payload?.items) || !payload.page) {
         throw new Error(`Unexpected /api/v1 response for ${path}`);
       }
+      const releaseKey = text(payload.page.release_key);
+      if (!releaseKey) throw new Error(`Missing academic release identity for ${path}`);
+      if (observedReleaseKey && releaseKey !== observedReleaseKey) {
+        throw new Error("The active academic release changed while loading data. Reload the page to use one consistent release.");
+      }
+      observedReleaseKey ||= releaseKey;
       rows.push(...payload.items);
       cursor = payload.page.next_cursor || "";
       if (!cursor) return canonicalPath(path).route === "/requirements" ? normalizeRequirementRows(rows) : rows;

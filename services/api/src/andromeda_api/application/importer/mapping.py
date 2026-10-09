@@ -21,7 +21,7 @@ from andromeda_release_bundles.bundle import (
     validate_bundle,
 )
 
-MAPPER_VERSION = "bmstu-2026-bundle-v4"
+MAPPER_VERSION = "bmstu-2026-bundle-v5"
 LEGACY_MAPPERS_WITHOUT_PARENT_CURRICULUM_EVIDENCE = frozenset({"bmstu-2026-bundle-v3"})
 
 # Every normalized dataset is either projected to typed rows or deliberately kept
@@ -852,6 +852,12 @@ class _Projection:
                     "funding_type_code": funding_code,
                     "quota_type_code": quota_code,
                     "scope_level": _as_text(record.get("scope_level")),
+                    "target_organization": _as_text(record.get("target_organization")),
+                    "target_organization_inn": _as_text(record.get("target_organization_inn")),
+                    "target_organization_kpp": _as_text(record.get("target_organization_kpp")),
+                    "target_organization_ogrn": _as_text(record.get("target_organization_ogrn")),
+                    "target_region": _as_text(record.get("target_region")),
+                    "campus_label_in_document": _as_text(record.get("campus_label_in_document")),
                     "places": _as_int(record.get("places"), "places"),
                     "places_by_source_row": _json_list(
                         record.get("places_by_source_row"), "places_by_source_row"

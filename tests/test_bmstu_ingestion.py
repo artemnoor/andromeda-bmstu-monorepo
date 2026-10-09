@@ -942,7 +942,7 @@ def test_candidate_bundle_requires_review_and_preserves_base_facts(tmp_path: Pat
     assert dry_run["database_connection_opened"] is False
     assert dry_run["network_requests"] == 0
     typed_counts = dry_run["mapping"]["typed_row_counts"]
-    assert dry_run["mapping"]["mapper_version"] == "bmstu-2026-bundle-v4"
+    assert dry_run["mapping"]["mapper_version"] == "bmstu-2026-bundle-v5"
     assert dry_run["mapping"]["curriculum_provenance_inheritance"] == {
         "inherited_exact_parent_pdf": 5_267,
     }

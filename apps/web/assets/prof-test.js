@@ -50,6 +50,7 @@
   let classifiedRows = 0;
   let admissionPromise = null;
   let admissionReady = false;
+  let admissionLoadFailed = false;
   let state = freshState();
 
   function freshState() {
@@ -659,6 +660,9 @@
     if (!admissionReady) {
       add(box, "strong", "", "Поступление · загружаем условия");
       add(box, "span", "", "Проверка баллов не влияет на подбор и не является прогнозом зачисления.");
+    } else if (admissionLoadFailed) {
+      add(box, "strong", "", "Поступление · условия не загружены");
+      add(box, "span", "", "Не удалось получить опубликованные условия. Подбор учебных направлений работает отдельно и не использует неподтверждённые баллы.");
     } else if (!requirements.length) {
       add(box, "strong", "", "Поступление · недостаточно данных");
       add(box, "span", "", "Для направления не нашлись опубликованные минимумы в подключённом архиве.");
@@ -757,8 +761,8 @@
       for (const row of rows) {
         const hours = number(row.hours);
         if (hours !== null && hours > 0) totalHours += hours;
-        const classification = row.subject_classification || row.subjectClassification;
-        const code = text(classification?.category_code);
+        const classification = Andromeda.getSubjectClassification(row);
+        const code = text(classification?.code);
         if (code && categories.some((category) => category.code === code) && hours !== null && hours > 0) {
           categoryHours.set(code, (categoryHours.get(code) || 0) + hours);
           classifiedHours += hours;
@@ -877,9 +881,9 @@
         const campaign = campaigns.find((item) => Number(item.year) === 2026 && item.campaign_kind === "admission") || campaigns[0];
         if (!campaign?.external_key) throw new Error("Admission campaign not found");
         const rows = await api.list("/v1/requirements", { campaign_key: campaign.external_key });
-        if (rows.length) return { requirements: rows.map((row) => ({ ...row, requirement_tree: row.root })) };
+        return { requirements: rows.map((row) => ({ ...row, requirement_tree: row.root })) };
       } catch {
-        // Fall through to the bundled archive if the requirements endpoint is unavailable.
+        return null;
       }
     }
     try { return (await Andromeda.loadAdmission()).data; }
@@ -919,10 +923,12 @@
       renderQuestion();
       admissionPromise = loadAdmissionRequirements().then((result) => {
         admission = result;
+        admissionLoadFailed = result === null;
         admissionReady = true;
         if (state.phase === "results") renderResults();
       }).catch(() => {
         admission = null;
+        admissionLoadFailed = true;
         admissionReady = true;
         if (state.phase === "results") renderResults();
       });

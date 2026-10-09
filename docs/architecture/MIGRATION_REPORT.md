@@ -12,11 +12,12 @@ The hardening work started from main `929eb3589031f36cc87df795aef4af09992f28a6`;
 - A PostgreSQL proposal lifecycle in additive Alembic revision `71d8c4a29f30`, linked immutable revisions/evidence/event history, explicit domain transitions, authorization checks, and version compare-and-swap.
 - One publication path: the API `PublicationApplicationService` delegates to the existing guarded `publish_projection` repository. Canonical rows/archive, proposal PUBLISHED events, active pointer, activation history, and import-batch idempotency record share one PostgreSQL transaction.
 - A whole-publication key/hash on `import_batches` and a stable event key/hash per proposal, with exact retry replay and changed-payload key conflicts.
+- A grant-only Alembic revision `7c2a16df09b4` gives the read-only API role SELECT access to `subject_taxonomies`, which the taxonomy endpoint reads.
 - Explicit mappings from reviewed dataset filenames to canonical release tables. Publication recomputes each review event ID, resolves accepted candidate references, and rejects a release when a non-null approved payload field is missing or stale in the materialized target or its mapped projection. RETIRE proposals require the target to be absent.
 - An AST boundary check for ordinary and literal lazy/runtime imports, and a parser subprocess check that blocks API, DB, FastAPI, and SQLAlchemy imports.
 - Locked Ruff `0.16.10`, an unconditional CI lint job, and repository-wide lint fixes without mass rule disables.
 
-The previous 11 Alembic revisions remain unchanged; `71d8c4a29f30` is the additive twelfth revision. Public `/api/v1` remains GET-only. No public admin endpoint was added. Directus remains without academic/proposal write privileges. The existing bundle `review_decisions.jsonl` remains the exact reviewed decision source, now linked to proposal audit events by content and event identity.
+The previous 11 Alembic revisions remain unchanged; `71d8c4a29f30` is the additive twelfth revision and `7c2a16df09b4` is the thirteenth, grant-only revision. Public `/api/v1` remains GET-only. No public admin endpoint was added. Directus remains without academic/proposal write privileges. The existing bundle `review_decisions.jsonl` remains the exact reviewed decision source, now linked to proposal audit events by content and event identity.
 
 ### Local verification checkpoint
 
@@ -33,7 +34,7 @@ The implementation guarantees and exact workflow are documented in [ARCHITECTURE
 ### Final hardening PR verification
 
 - PR [#6](https://github.com/artemnoor/andromeda-bmstu-monorepo/pull/6), final code head `20533d17a58273f164d5aa5582821596897440ca`, passed workflow run [`37768499131`](https://github.com/artemnoor/andromeda-bmstu-monorepo/actions/runs/37768499131): full suite **114 passed, 1 skipped, 1 existing Starlette/httpx warning**; PostgreSQL `db-check` **23 passed, 1 warning**; API/ingestion **77 passed, 1 warning**; Directus **7 passed, 1 skipped**; domain/contracts **21 passed, 1 warning**; and Ruff lint passed.
-- The PR database job used isolated PostgreSQL 16, applied additive revision `71d8c4a29f30`, passed proposal concurrency/publication and release lifecycle cases, then backed up and restored the database. Restore verification confirmed the latest Alembic revision, all three data schemas, and 57 Directus read-model tables.
+- The PR database job used isolated PostgreSQL 16, applied proposal revision `71d8c4a29f30`, passed proposal concurrency/publication and release lifecycle cases, then backed up and restored the database. Its historical run predates the taxonomy permission revision `7c2a16df09b4`.
 - Push workflow run [`37768493472`](https://github.com/artemnoor/andromeda-bmstu-monorepo/actions/runs/37768493472) also passed the PostgreSQL 16 lifecycle suite (**23 passed, 1 warning**) and backup/restore check on the same final code head.
 - GitHub `main` protection requires the `lint` status check and strict up-to-date branches. Production database parity, production backup/restore, and deployment readiness are not implied by these isolated CI checks.
 
@@ -120,3 +121,11 @@ The migration does not imply a verified production backup/restore, selected RPO/
 ## Final report update
 
 Task 8 is complete for the migration scope: PR #4 merged as `dda98f6ba33d06575005dc02e85c2e5d4f6dc246` with PR and main CI passing; follow-up PR #5 merged as `27ca67670e15ab7b62a5d41e769a900b17141ca3`, with PR run `37724845639` and main run `37726370927` passing. The available checks establish preservation of checked-in data, fixtures, schema history, API/CLI contracts, and PostgreSQL release behavior. They do not establish production data parity, production backup/restore, or deployment readiness.
+
+## Original frontend integration and QA follow-up (2026-10-09)
+
+The preceding frontend/migration readiness statements are historical checkpoints. The original nine-page vanilla frontend is now integrated under `apps/web/`, uses the same-origin Node proxy and read-only FastAPI `/api/v1`, keeps demo JSON behind explicit `?data=demo`, and keeps profile/favorites/comparison in browser storage. The full browser, data, security, accessibility and performance evidence is maintained in [the comprehensive QA report](../testing/COMPREHENSIVE_QA_REPORT.md).
+
+This follow-up adds Alembic revision `b62d4e91a8c3` as an additive child of `7c2a16df09b4`, bringing the history to fourteen revisions. It preserves nullable targeted-quota organization, tax identifier, region and campus fields from the checked-in source bundle through PostgreSQL export and typed API projection. Tax identifiers remain text. The prior thirteen revision files and existing immutable release rows remain unchanged. The new revision also updates the current migration-head expectation used by backup/restore checks.
+
+The QA branch adds the Playwright browser harness and live PostgreSQL 16-backed browser path, regression cases for release coherence and academic unknown-value semantics, and an unconditional browser integration job for pull requests. Repository-wide Ruff and frontend unit/build checks run in CI. Directus remains read-only on academic tables. Docker Compose validates, but Docker Desktop could not start locally, so a local Directus HTTP container smoke is not claimed. Local verification now reports 118 Python passed/1 skipped, 23 Node passed, a successful build and Ruff, and 229 full Playwright Chromium/Firefox/WebKit cases passed with 41 scoped skips. The focused 39-case requirement/chart run and workflow edge cases pass across all three engines. An earlier Firefox teardown error did not recur in the final combined browser run. Exact current test counts, CI run, PR and merge state are recorded in the [QA report](../testing/COMPREHENSIVE_QA_REPORT.md).

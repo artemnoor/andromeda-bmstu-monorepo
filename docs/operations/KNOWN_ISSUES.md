@@ -13,12 +13,49 @@
 - `/api/v1` remains GET-only. No authenticated administrative HTTP API exists;
   moderation is available only through the internal application use cases and
   trusted local CLI policy.
-- The new Alembic head is `71d8c4a29f30`, an additive child of
-  `f4b19a7c2d61`. The previous 11 revisions were not edited. Local PostgreSQL
-  16 was unavailable during this pass, so migration, role, and concurrency
-  integration evidence must come from the isolated PostgreSQL 16 CI service.
+- The proposal migration `71d8c4a29f30` remains unchanged; the current Alembic
+  head at the end of the 2026-10-08 hardening pass was `7c2a16df09b4`. The
+  PostgreSQL availability statement below describes only that pass.
 
 ---
+
+## Comprehensive QA update (2026-10-09)
+
+- The original nine-page frontend is integrated in `apps/web/` and consumes
+  the read-only `/api/v1` contracts through the Node same-origin proxy. The
+  earlier “before frontend integration” section below is a historical
+  snapshot and has been superseded.
+- The current additive Alembic head is `b62d4e91a8c3`. It preserves six
+  targeted-quota metadata fields from the checked-in source bundle through
+  PostgreSQL and the typed API. Tax identifiers remain strings. Existing
+  immutable release rows are not rewritten.
+- An isolated local PostgreSQL 16.15 database at loopback, seeded with bundle
+  digest `42616ee9348ee009fa1b297f7ef697862134835e562c7840f413643ce71d2130`,
+  was used for the API-backed browser suite. The source has 21,911 records and
+  the active test release uses mapper `bmstu-2026-bundle-v5`.
+- The final local Playwright run reports 229 passed, 0 failed, and 41 scoped
+  skips across Chromium, Firefox, and WebKit. The skipped cases are the
+  non-Chromium axe/screenshots and Windows symlink checks. A Firefox teardown
+  error occurred during an earlier run but did not recur in the final full
+  three-engine run. The nine-page axe scan runs in Chromium at desktop and
+  mobile sizes.
+- Six-viewport original/current screenshots cover all nine pages. The static
+  home and first-screen pages are pixel-aligned; dynamic-page pixel deltas are
+  not parity scores because the archived frontend API was stubbed while the
+  current frontend used explicit demo data. The migrated pages have no
+  horizontal overflow at the captured widths.
+- `/api/v1/place-quotas` is present and returns the correct release envelope,
+  but the current bundle has zero rows for that separate projection. The UI
+  displays sourced quota facts from `/api/v1/competition-pools`.
+- Docker Compose files validate, but Docker Desktop could not start the
+  daemon, so a containerized Directus HTTP smoke was unavailable locally.
+  PostgreSQL Directus permissions are exercised by isolated integration tests.
+- The full Python suite reports 118 passed and 1 skipped; Node reports 23
+  passed; repository Ruff and the production build pass. Exact suite details
+  and GitHub PR checks are recorded in the
+  [QA report](../testing/COMPREHENSIVE_QA_REPORT.md).
+
+# Historical status and known limitations (snapshot dated 2026-10-07)
 
 # Current status and known limitations
 
