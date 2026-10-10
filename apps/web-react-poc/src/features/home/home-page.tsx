@@ -109,13 +109,23 @@ function HeroVisual() {
       photoClip.setAttribute("d", pathData);
     };
 
-    const observer = new ResizeObserver(update);
+    let pendingFrame: number | null = null;
+    const scheduleUpdate = () => {
+      if (pendingFrame !== null) return;
+      pendingFrame = window.requestAnimationFrame(() => {
+        pendingFrame = null;
+        update();
+      });
+    };
+
+    const observer = new ResizeObserver(scheduleUpdate);
     observer.observe(wrap);
-    window.addEventListener("orientationchange", update);
+    window.addEventListener("orientationchange", scheduleUpdate);
     update();
     return () => {
       observer.disconnect();
-      window.removeEventListener("orientationchange", update);
+      window.removeEventListener("orientationchange", scheduleUpdate);
+      if (pendingFrame !== null) window.cancelAnimationFrame(pendingFrame);
     };
   }, []);
 

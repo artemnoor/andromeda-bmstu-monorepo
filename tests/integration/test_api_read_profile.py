@@ -30,7 +30,10 @@ PROFILED_TABLES = (
     "program_offerings",
     "directions",
     "departments",
+    "direction_departments",
     "program_evidence",
+    "direction_evidence",
+    "department_evidence",
     "program_department_evidence",
     "curriculum_items",
     "curriculum_evidence",
@@ -122,13 +125,13 @@ def _profile_get(
     }, statements
 
 
-def _explain_curriculum_queries(
-    engine: Engine, statements: list[tuple[str, Any]]
+def _explain_queries(
+    engine: Engine, statements: list[tuple[str, Any]], table_name: str
 ) -> list[dict[str, Any]]:
     candidates = {
         statement: parameters
         for statement, parameters in statements
-        if "curriculum_items" in statement.casefold()
+        if table_name in statement.casefold()
     }
     results = []
     for statement, parameters in candidates.items():
@@ -173,6 +176,8 @@ def test_profile_seeded_catalog_and_curriculum_reads(
 ) -> None:
     if not os.environ.get("ACADEMIC_DATA_DATABASE_URL"):
         pytest.skip("requires the isolated PostgreSQL 16 academic-data fixture")
+    if not os.environ.get("ANDROMEDA_PROFILE_OUTPUT"):
+        pytest.skip("runs only in the dedicated isolated PostgreSQL profile job")
 
     settings = load_settings()
     monkeypatch.setenv("ACADEMIC_DATA_PROFILE_REQUESTS", "1")
@@ -195,6 +200,18 @@ def test_profile_seeded_catalog_and_curriculum_reads(
             active_response = client.get("/api/v1/release")
             assert active_response.status_code == 200, active_response.text
             active_release = active_response.json()["release_key"]
+
+            direction_response, direction_profile, direction_statements = _profile_get(
+                client, engine, "/api/v1/directions?limit=100"
+            )
+            direction_body = direction_response.json()
+            assert direction_body["page"]["release_key"] == active_release
+
+            department_response, department_profile, department_statements = _profile_get(
+                client, engine, "/api/v1/departments?limit=100"
+            )
+            department_body = department_response.json()
+            assert department_body["page"]["release_key"] == active_release
 
             program_response, program_profile, _ = _profile_get(
                 client, engine, "/api/v1/programs?limit=100"
@@ -270,11 +287,87 @@ def test_profile_seeded_catalog_and_curriculum_reads(
             )
             assert len(items_body["items"]) == min(100, largest_plan["item_count"])
 
+            campaign_response, campaign_profile, _ = _profile_get(
+                client, engine, "/api/v1/campaigns?limit=100"
+            )
+            campaigns_body = campaign_response.json()
+            assert campaigns_body["page"]["release_key"] == active_release
+            assert campaigns_body["items"]
+            campaign_key = campaigns_body["items"][0]["external_key"]
+            escaped_campaign_key = quote(campaign_key, safe="")
+            admission_paths = {
+                "campaignOfferings": f"/api/v1/campaigns/{escaped_campaign_key}/offerings?limit=100",
+                "campaignCalendar": f"/api/v1/campaigns/{escaped_campaign_key}/calendar?limit=100",
+                "requirements": f"/api/v1/requirements?campaign_key={escaped_campaign_key}&limit=100",
+                "competitionPools": f"/api/v1/competition-pools?campaign_key={escaped_campaign_key}&limit=100",
+                "placeQuotas": f"/api/v1/place-quotas?campaign_key={escaped_campaign_key}&limit=100",
+            }
+            admission_profiles: dict[str, dict[str, Any]] = {}
+            admission_bodies: dict[str, dict[str, Any]] = {}
+            for name, path in admission_paths.items():
+                response, endpoint_profile, _ = _profile_get(client, engine, path)
+                body = response.json()
+                assert body["page"]["release_key"] == active_release
+                admission_profiles[name] = endpoint_profile
+                admission_bodies[name] = body
+
+            selected_program = next(
+                (
+                    program
+                    for program in program_body["items"]
+                    if program["external_key"] == selected_program_key
+                ),
+                None,
+            )
+            direction_key = selected_program.get("direction_key") if selected_program else None
+            direction = next(
+                (
+                    value
+                    for value in direction_body["items"]
+                    if value["external_key"] == direction_key
+                ),
+                None,
+            )
+            direction_code = direction.get("code") if direction else None
+            if direction_code:
+                escaped_direction_code = quote(direction_code, safe="")
+                for name, path in {
+                    "tuition": f"/api/v1/tuition?direction_code={escaped_direction_code}&limit=100",
+                    "historicalStatistics": f"/api/v1/statistics?kind=historical&direction_code={escaped_direction_code}&limit=100",
+                    "admissionStatistics": f"/api/v1/statistics?kind=admission&direction_code={escaped_direction_code}&limit=100",
+                }.items():
+                    response, endpoint_profile, _ = _profile_get(client, engine, path)
+                    body = response.json()
+                    assert body["page"]["release_key"] == active_release
+                    admission_profiles[name] = endpoint_profile
+                    admission_bodies[name] = body
+
         profile = {
             "databaseServerMajor": identity["server_major"],
             "databaseName": identity["database_name"],
             "databaseUser": database_user,
             "releaseKey": active_release,
+            "directionPage": {
+                **direction_profile,
+                "records": len(direction_body["items"]),
+                "totalRecords": direction_body["page"]["total_count"],
+                "directionAndDepartmentExplainAnalyze": {
+                    "directions": _explain_queries(
+                        engine, direction_statements, "directions"
+                    ),
+                    "direction_departments": _explain_queries(
+                        engine, direction_statements, "direction_departments"
+                    ),
+                },
+            },
+            "departmentPage": {
+                **department_profile,
+                "records": len(department_body["items"]),
+                "totalRecords": department_body["page"]["total_count"],
+                "departmentExplainAnalyze": _explain_queries(
+                    engine, department_statements, "departments"
+                ),
+            },
             "programPage": {
                 **program_profile,
                 "records": len(program_body["items"]),
@@ -297,16 +390,29 @@ def test_profile_seeded_catalog_and_curriculum_reads(
                 "programKey": selected_program_key,
                 "records": len(selected_plans_body["items"]),
                 "totalRecords": selected_plans_body["page"]["total_count"],
-                "curriculumItemCountExplainAnalyze": _explain_curriculum_queries(
-                    engine, selected_plan_statements
+                "curriculumItemCountExplainAnalyze": _explain_queries(
+                    engine, selected_plan_statements, "curriculum_items"
                 ),
             },
             "curriculumItemPage": {
                 **items_profile,
                 "records": len(items_body["items"]),
             },
-            "curriculumItemPageExplainAnalyze": _explain_curriculum_queries(
-                engine, item_statements
+            "campaignPage": {
+                **campaign_profile,
+                "records": len(campaigns_body["items"]),
+                "totalRecords": campaigns_body["page"]["total_count"],
+            },
+            "admissionReadPages": {
+                name: {
+                    **endpoint_profile,
+                    "records": len(admission_bodies[name]["items"]),
+                    "totalRecords": admission_bodies[name]["page"]["total_count"],
+                }
+                for name, endpoint_profile in admission_profiles.items()
+            },
+            "curriculumItemPageExplainAnalyze": _explain_queries(
+                engine, item_statements, "curriculum_items"
             ),
         }
         with engine.connect().execution_options(
@@ -319,6 +425,8 @@ def test_profile_seeded_catalog_and_curriculum_reads(
                 unbatched = AcademicDataQueries(
                     _WithoutBatchReads(SQLAlchemyAcademicDataReadRepository(connection))
                 )
+                unbatched_directions = unbatched.directions(100, None).model_dump(mode="json")
+                unbatched_departments = unbatched.departments(100, None).model_dump(mode="json")
                 unbatched_programs = unbatched.programs(100, None).model_dump(mode="json")
                 unbatched_plans = unbatched.study_plans(
                     100, None, selected_program_key
@@ -326,23 +434,65 @@ def test_profile_seeded_catalog_and_curriculum_reads(
                 unbatched_items = unbatched.curriculum_items(
                     largest_plan["external_key"], 100, None
                 ).model_dump(mode="json")
+                unbatched_admission_bodies = {
+                    "campaignOfferings": unbatched.campaign_offerings(
+                        campaign_key, 100, None
+                    ).model_dump(mode="json"),
+                    "campaignCalendar": unbatched.campaign_calendar(
+                        campaign_key, 100, None
+                    ).model_dump(mode="json"),
+                    "requirements": unbatched.requirements(
+                        100, None, campaign_key=campaign_key
+                    ).model_dump(mode="json"),
+                    "competitionPools": unbatched.competition_pools(
+                        100, None, campaign_key=campaign_key
+                    ).model_dump(mode="json"),
+                    "placeQuotas": unbatched.place_quotas(
+                        100, None, campaign_key=campaign_key
+                    ).model_dump(mode="json"),
+                }
+                if direction_code:
+                    unbatched_admission_bodies.update(
+                        {
+                            "tuition": unbatched.tuition(
+                                100, None, direction_code=direction_code
+                            ).model_dump(mode="json"),
+                            "historicalStatistics": unbatched.statistics(
+                                "historical", 100, None, direction_code=direction_code
+                            ).model_dump(mode="json"),
+                            "admissionStatistics": unbatched.statistics(
+                                "admission", 100, None, direction_code=direction_code
+                            ).model_dump(mode="json"),
+                        }
+                    )
             finally:
                 if transaction.is_active:
                     transaction.rollback()
+        assert unbatched_directions == direction_body
+        assert unbatched_departments == department_body
         assert unbatched_programs == program_body
         assert unbatched_plans == selected_plans_body
         assert unbatched_items == items_body
+        assert unbatched_admission_bodies == admission_bodies
         profile["parity"] = {
+            "unbatchedReadModelMatchesDirectionPage": True,
+            "unbatchedReadModelMatchesDepartmentPage": True,
             "unbatchedReadModelMatchesProgramPage": True,
             "unbatchedReadModelMatchesSelectedProgramStudyPlans": True,
             "unbatchedReadModelMatchesCurriculumPage": True,
+            "unbatchedReadModelMatchesAdmissionPages": True,
             "releaseKey": active_release,
         }
         if os.environ.get("ANDROMEDA_PROFILE_EXPECT_BATCHED") == "1":
+            assert direction_profile["sql_query_count"] <= 20
+            assert department_profile["sql_query_count"] <= 20
             assert program_profile["sql_query_count"] <= 20
             assert selected_plans_profile["sql_query_count"] <= 20
             assert all(page["sql_query_count"] <= 20 for page in study_plan_page_profiles)
             assert items_profile["sql_query_count"] <= 20
+            assert all(
+                page["sql_query_count"] <= 20 for page in admission_profiles.values()
+            )
 
         output_path = os.environ.get("ANDROMEDA_PROFILE_OUTPUT")
         serialized = json.dumps(profile, ensure_ascii=False, indent=2)

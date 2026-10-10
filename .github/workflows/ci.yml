@@ -418,6 +418,7 @@ jobs:
       - name: Capture seeded PostgreSQL read profile
         env:
           ANDROMEDA_PROFILE_OUTPUT: ${{ runner.temp }}/andromeda-backend-read-profile.json
+          ANDROMEDA_PROFILE_EXPECT_BATCHED: '1'
         run: uv run pytest -q tests/integration/test_api_read_profile.py
       - name: Install PostgreSQL client for runtime role setup
         run: |
