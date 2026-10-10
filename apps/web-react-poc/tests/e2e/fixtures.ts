@@ -110,6 +110,7 @@ export interface LiveProgram {
 export interface LiveCurriculumProgram extends LiveProgram {
   readonly releaseKey: string;
   readonly planKey: string;
+  readonly expectedItemCount: number;
   readonly academicYear: string;
   readonly courseName: string;
   readonly expectedHours: number | null;
@@ -337,6 +338,7 @@ export async function discoverLiveCurriculumPrograms(
       directionCode: typeof program.direction_code === "string" ? program.direction_code : null,
       releaseKey: programSnapshot.releaseKey,
       planKey: plan.external_key as string,
+      expectedItemCount: items.length,
       academicYear: typeof plan.academic_year === "string" ? plan.academic_year : "Год не указан",
       courseName,
       expectedHours: hours.length ? hours.reduce((sum, value) => sum + value, 0) : null,

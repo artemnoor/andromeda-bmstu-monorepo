@@ -54,6 +54,12 @@ interface PageMetrics {
     readonly programKeys: readonly string[];
     readonly expectedPlanKeys: readonly string[];
     readonly actualPlanKeys: readonly string[];
+    readonly expectedItemCounts: readonly number[];
+    readonly actualItemCounts: readonly number[];
+    readonly expectedHours: readonly (number | null)[];
+    readonly actualHours: readonly (number | null)[];
+    readonly expectedCredits: readonly (number | null)[];
+    readonly actualCredits: readonly (number | null)[];
   } | null;
   readonly actionMs: number | null;
   readonly apiRequests: number;
@@ -204,7 +210,12 @@ async function assertComparisonPlanSelection(
   app: AppName,
   programs: readonly LiveCurriculumProgram[],
   diagnostics: ReturnType<typeof attachDiagnostics>,
-): Promise<readonly string[]> {
+): Promise<{
+  readonly actualPlanKeys: readonly string[];
+  readonly actualItemCounts: readonly number[];
+  readonly actualHours: readonly (number | null)[];
+  readonly actualCredits: readonly (number | null)[];
+}> {
   const expectedReleaseKey = programs[0]?.releaseKey;
   expect(expectedReleaseKey, "the comparison fixture has a verified release identity").toBeTruthy();
   if (!expectedReleaseKey) throw new Error("The comparison fixture has no release identity.");
@@ -226,36 +237,107 @@ async function assertComparisonPlanSelection(
   }
 
   let actualPlanKeys: readonly string[];
+  let actualItemCounts: readonly number[];
+  let actualHours: readonly (number | null)[];
+  let actualCredits: readonly (number | null)[];
   if (app === "react") {
-    const cards = await page.locator("article[data-program-key]").evaluateAll((elements) => elements.map((element) => ({
+    const cards = await page.locator('article[data-qa="category-chart-card"][data-program-key]').evaluateAll((elements) => elements.map((element) => ({
       programKey: element.getAttribute("data-program-key"),
       planKey: element.getAttribute("data-plan-key"),
+      itemCount: Number(element.getAttribute("data-item-count")),
+      hours: element.getAttribute("data-total-hours"),
+      credits: element.getAttribute("data-total-credits"),
     })));
-    actualPlanKeys = programs.map((program) => {
+    const evidence = programs.map((program) => {
       const card = cards.find((entry) => entry.programKey === program.externalKey);
       expect(card?.planKey, `React selected the verified plan for ${program.externalKey}`).toBe(program.planKey);
-      return card?.planKey ?? "";
+      expect(card?.itemCount, `React loaded every item in verified plan ${program.planKey}`).toBe(program.expectedItemCount);
+      const assertTotal = (raw: string | null | undefined, expected: number | null, label: string): number | null => {
+        const actual = raw === "" || raw === null || raw === undefined ? null : Number(raw);
+        if (expected === null) expect(actual, `${label} remains unknown when the source has no numeric values`).toBeNull();
+        else {
+          expect(actual, `${label} is available from loaded curriculum data`).not.toBeNull();
+          expect(actual as number, `${label} matches an independent sum of API rows`).toBeCloseTo(expected, 6);
+        }
+        return actual;
+      };
+      return {
+        planKey: card?.planKey ?? "",
+        itemCount: card?.itemCount ?? 0,
+        hours: assertTotal(card?.hours, program.expectedHours, `${program.code} hours`),
+        credits: assertTotal(card?.credits, program.expectedCredits, `${program.code} credits`),
+      };
     });
+    actualPlanKeys = evidence.map((entry) => entry.planKey);
+    actualItemCounts = evidence.map((entry) => entry.itemCount);
+    actualHours = evidence.map((entry) => entry.hours);
+    actualCredits = evidence.map((entry) => entry.credits);
   } else {
-    actualPlanKeys = await page.evaluate(async (programKeys: readonly string[]) => {
-      type CurriculumLoad = { readonly selectedPlanKeys?: unknown };
+    const evidence = await page.evaluate(async (programsToCheck: readonly LiveCurriculumProgram[]) => {
+      type CurriculumLoad = {
+        readonly selectedPlanKeys?: unknown;
+        readonly data?: readonly Record<string, unknown>[];
+      };
       type AndromedaWindow = Window & {
         Andromeda?: { loadCurriculumForPrograms?: (keys: readonly string[]) => Promise<CurriculumLoad> };
       };
       const load = (window as AndromedaWindow).Andromeda?.loadCurriculumForPrograms;
       if (!load) throw new Error("Vanilla curriculum selector is unavailable.");
-      const result = await load(programKeys);
+      const result = await load(programsToCheck.map((program) => program.externalKey));
       if (!Array.isArray(result.selectedPlanKeys) || !result.selectedPlanKeys.every((key) => typeof key === "string")) {
         throw new Error("Vanilla did not expose its selected verified study-plan keys.");
       }
-      return result.selectedPlanKeys;
-    }, programs.map((program) => program.externalKey));
+      if (!Array.isArray(result.data)) throw new Error("Vanilla did not expose loaded curriculum rows.");
+      const numberOrNull = (value: unknown): number | null => {
+        if (typeof value !== "number" && typeof value !== "string") return null;
+        if (typeof value === "string" && value.trim() === "") return null;
+        const parsed = Number(value);
+        return Number.isFinite(parsed) ? parsed : null;
+      };
+      return {
+        planKeys: result.selectedPlanKeys,
+        programs: programsToCheck.map((program) => {
+          const items = result.data?.filter((item) => item.curriculum_key === program.planKey) ?? [];
+          const hours = items.flatMap((item) => {
+            const value = numberOrNull(item.hours);
+            return value === null ? [] : [value];
+          });
+          const credits = items.flatMap((item) => {
+            const value = numberOrNull(item.credits);
+            return value === null ? [] : [value];
+          });
+          return {
+            itemCount: items.length,
+            hours: hours.length ? hours.reduce((sum, value) => sum + value, 0) : null,
+            credits: credits.length ? credits.reduce((sum, value) => sum + value, 0) : null,
+          };
+        }),
+      };
+    }, programs);
     expect(
-      [...actualPlanKeys].sort(),
+      [...evidence.planKeys].sort(),
       "Vanilla selected the same verified study plans as the comparison fixture",
     ).toEqual(programs.map((program) => program.planKey).sort());
+    evidence.programs.forEach((actual, index) => {
+      const program = programs[index];
+      if (!program) throw new Error("Missing verified comparison fixture.");
+      expect(actual.itemCount, `Vanilla loaded every item in verified plan ${program.planKey}`).toBe(program.expectedItemCount);
+      const assertTotal = (value: number | null, expected: number | null, label: string) => {
+        if (expected === null) expect(value, `${label} remains unknown when the source has no numeric values`).toBeNull();
+        else {
+          expect(value, `${label} is available from loaded curriculum data`).not.toBeNull();
+          expect(value as number, `${label} matches an independent sum of API rows`).toBeCloseTo(expected, 6);
+        }
+      };
+      assertTotal(actual.hours, program.expectedHours, `${program.code} hours`);
+      assertTotal(actual.credits, program.expectedCredits, `${program.code} credits`);
+    });
+    actualPlanKeys = evidence.planKeys;
+    actualItemCounts = evidence.programs.map((program) => program.itemCount);
+    actualHours = evidence.programs.map((program) => program.hours);
+    actualCredits = evidence.programs.map((program) => program.credits);
   }
-  return actualPlanKeys;
+  return { actualPlanKeys, actualItemCounts, actualHours, actualCredits };
 }
 
 function assertHealthy(diagnostics: ReturnType<typeof attachDiagnostics>): void {
@@ -978,7 +1060,7 @@ async function capturePair(
     const vanillaCapture = await navigateAndWait(page, "vanilla", screen, viewport, undefined, comparisonCount);
     let vanillaPlanKeys: readonly string[] = [];
     if (screen === "populated-comparison" && programs.length) {
-      vanillaPlanKeys = await assertComparisonPlanSelection(page, "vanilla", programs, diagnostics);
+      vanillaPlanKeys = (await assertComparisonPlanSelection(page, "vanilla", programs, diagnostics)).actualPlanKeys;
     }
     assertHealthy(diagnostics);
     resetDiagnostics(diagnostics);
@@ -989,7 +1071,7 @@ async function capturePair(
     const reactCapture = await navigateAndWait(page, "react", screen, viewport, catalogAnchors, comparisonCount);
     let reactPlanKeys: readonly string[] = [];
     if (screen === "populated-comparison" && programs.length) {
-      reactPlanKeys = await assertComparisonPlanSelection(page, "react", programs, diagnostics);
+      reactPlanKeys = (await assertComparisonPlanSelection(page, "react", programs, diagnostics)).actualPlanKeys;
     }
     assertHealthy(diagnostics);
     if (screen === "catalog") {
@@ -1257,7 +1339,7 @@ async function capturePair(
       visualTolerancePercent: visualTolerancePercentFor(screen),
       visualAssertionMode: strictVisual
         ? "strict Vanilla-to-React visual tolerance"
-        : "paired screenshots and raw pixel metrics; compare React against the pre-optimization React baseline",
+        : "non-gating paired Vanilla/React screenshots and raw pixel metrics; React baseline-to-final pixels are compared from CI artifacts",
       note: "Paired Chromium pixel delta with reduced motion and identical viewport. Raw and semantic-masked deltas are measured over the shared screenshot area; full page height is checked independently with a strict 3.5% limit. Masks cover only text-value rectangles for paired category legend, table, or donut facts where captured source text proves that the original shows numeric zero and React correctly preserves the value as unknown; unrelated cells, bars, and geometry remain in the pixel comparison. The React-only active-release note follows the shared pixel area, so dedicated E2E assertions check its exact verified release key, text, last-section placement, and inclusion in the full-page height.",
     };
     const visualTolerancePercent = visualTolerancePercentFor(screen);
@@ -1359,7 +1441,8 @@ async function waitForFullComparisonData(
   app: AppName,
   scenario: BenchmarkName,
   comparisonPrograms: readonly LiveCurriculumProgram[],
-): Promise<number | null> {
+  diagnostics: ReturnType<typeof attachDiagnostics>,
+): Promise<{ readonly elapsedMs: number; readonly identity: PageMetrics["comparisonIdentity"] } | null> {
   if (scenario !== "compare-load") return null;
 
   if (app === "react") {
@@ -1374,10 +1457,29 @@ async function waitForFullComparisonData(
     await expect(content.locator("table.comparison-table")).toBeVisible();
   }
 
-  return page.evaluate(() => {
+  const elapsedMs = await page.evaluate(() => {
     const navigation = performance.getEntriesByType("navigation")[0] as PerformanceNavigationTiming | undefined;
     return navigation ? performance.now() - navigation.startTime : Number.NaN;
   });
+  // Capture the UI-ready timestamp before the independent evidence checks. A
+  // sample is retained only if those checks pass, but their QA work is excluded
+  // from the application's readiness time.
+  const evidence = await assertComparisonPlanSelection(page, app, comparisonPrograms, diagnostics);
+  return {
+    elapsedMs,
+    identity: {
+      releaseKey: comparisonPrograms[0]?.releaseKey ?? "",
+      programKeys: comparisonPrograms.map((program) => program.externalKey),
+      expectedPlanKeys: comparisonPrograms.map((program) => program.planKey),
+      actualPlanKeys: evidence.actualPlanKeys,
+      expectedItemCounts: comparisonPrograms.map((program) => program.expectedItemCount),
+      actualItemCounts: evidence.actualItemCounts,
+      expectedHours: comparisonPrograms.map((program) => program.expectedHours),
+      actualHours: evidence.actualHours,
+      expectedCredits: comparisonPrograms.map((program) => program.expectedCredits),
+      actualCredits: evidence.actualCredits,
+    },
+  };
 }
 
 async function visitForBenchmark(
@@ -1405,15 +1507,14 @@ async function visitForBenchmark(
   await page.goto(new URL(path, baseURL).href, { waitUntil: "domcontentloaded" });
   const readyMs = await waitForBenchmarkScenario(page, app, scenario, comparisonPrograms);
   expect(Number.isFinite(readyMs), "Navigation Timing should expose the navigation start").toBe(true);
-  const fullDataReadyMs = await waitForFullComparisonData(page, app, scenario, comparisonPrograms);
+  const fullDataReadiness = await waitForFullComparisonData(page, app, scenario, comparisonPrograms, diagnostics);
+  const fullDataReadyMs = fullDataReadiness?.elapsedMs ?? null;
   if (fullDataReadyMs !== null) {
     expect(Number.isFinite(fullDataReadyMs), "full comparison readiness should expose the navigation start").toBe(true);
   }
   await page.waitForLoadState("networkidle");
   assertHealthy(diagnostics);
-  const actualPlanKeys = scenario === "compare-load"
-    ? await assertComparisonPlanSelection(page, app, comparisonPrograms, diagnostics)
-    : null;
+  const comparisonIdentity = fullDataReadiness?.identity ?? null;
   const actionMs = scaleCount === null ? null : await measureCatalogScaleFilter(page, app, scaleCount);
   if (actionMs !== null) {
     await page.waitForLoadState("networkidle");
@@ -1457,12 +1558,7 @@ async function visitForBenchmark(
     iteration,
     readyMs: Number(readyMs.toFixed(2)),
     fullDataReadyMs: fullDataReadyMs === null ? null : Number(fullDataReadyMs.toFixed(2)),
-    comparisonIdentity: actualPlanKeys === null ? null : {
-      releaseKey: comparisonPrograms[0]?.releaseKey ?? "",
-      programKeys: comparisonPrograms.map((program) => program.externalKey),
-      expectedPlanKeys: comparisonPrograms.map((program) => program.planKey),
-      actualPlanKeys,
-    },
+    comparisonIdentity,
     actionMs: actionMs === null ? null : Number(actionMs.toFixed(2)),
     apiRequests: diagnostics.apiRequests.length,
     apiResponses: [...diagnostics.apiRequests],
@@ -1654,8 +1750,8 @@ test("@paired @benchmark repeated vanilla-versus-React browser measurements", as
       samples: metrics,
       methodology: {
         readyMs: "PerformanceNavigationTiming.startTime to the first visible screen-specific comparison content; for Vanilla, admission may still be loading",
-        fullDataReadyMs: "For compare-load only: Vanilla waits for the admission loading and error states to be absent and its comparison table to be visible; React waits for the expected active-release key and an admission summary with zero unavailable selected programs. Before timing samples are retained, both apps must also prove that the actual selected plan keys are the two verified fixture keys and that every study-plan response has that same release key.",
-        comparisonIdentity: "Each measured sample records the same two external program keys, verified study-plan keys, active release key, and app-observed selected plan keys; samples fail if the actual plan selection or release differs.",
+        fullDataReadyMs: "For compare-load only: Vanilla waits for admission to settle successfully and its comparison table to be visible; React waits for the expected active-release key and an admission summary with zero unavailable selected programs. Before the timestamp is recorded, both apps must prove the same release, actual selected verified plan keys, exact curriculum item counts, and numeric hours/credits totals against independent PostgreSQL-backed API fixture sums. Each paginated collection must retain the same release identity.",
+        comparisonIdentity: "Each measured sample records the same two external program keys, verified study-plan keys, release key, exact expected/actual curriculum row counts, and expected/actual numeric hours and credits; any missing row, mismatched plan, release, or aggregate fails the sample.",
         actionMs: "catalog fill to the single matching QA code becoming visible; synthetic catalog sizes are 50, 100, and 500 rows",
         scriptBytes: "sum of ResourceTiming encodedBodySize (or transferSize fallback) for every loaded .js/.mjs resource; cache disabled for each measured navigation",
         transferredResourceBytes: "navigation transferSize plus encodedBodySize (or transferSize fallback) for all resource entries; cache disabled for each measured navigation and API response bodies are included",
