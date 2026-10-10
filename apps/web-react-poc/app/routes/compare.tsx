@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from "react";
+import { Profiler, useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type ProfilerOnRenderCallback, type ReactNode } from "react";
 import { Link } from "react-router";
 import { AndromedaHeader } from "@/widgets/andromeda-navigation/andromeda-header";
 import { useComparisonSelection } from "@/shared/browser-state/hooks";
@@ -24,6 +24,18 @@ const CATEGORY_COLORS = [
   "#006cdc", "#497b5f", "#b77b2f", "#8165a7", "#b75b64", "#3f8190", "#65738b", "#789546",
   "#bc6a37", "#4f68a6", "#a24f89", "#7a8b41", "#527b9f", "#b17d5c", "#77708f", "#467a70",
 ] as const;
+
+const recordComparisonProfile: ProfilerOnRenderCallback = (
+  id,
+  phase,
+  actualDuration,
+  baseDuration,
+  startTime,
+  commitTime,
+) => {
+  const samples = window.__andromedaReactProfileSamples ??= [];
+  samples.push({ id, phase, actualDuration, baseDuration, startTime, commitTime });
+};
 
 function colorFor(index: number): string {
   return CATEGORY_COLORS[index % CATEGORY_COLORS.length] ?? "#006cdc";
@@ -258,7 +270,12 @@ function AdmissionComparison({ data }: { data: LoadedProgramComparison }) {
   ];
 
   return (
-    <section className={styles.section} aria-labelledby="admission-title">
+    <section
+      className={styles.section}
+      aria-labelledby="admission-title"
+      data-qa="admission-summary"
+      data-unavailable-count={data.admissionUnavailable.size}
+    >
       <div className={styles.sectionHeading}>
         <div><p className={styles.kicker}>ПРИЁМ {yearLabel} · СПИСКИ ЗАЧИСЛЕННЫХ И АРХИВ</p><h2 id="admission-title">Места и проходные баллы</h2><p>Места и результаты взяты из архива. Проходной балл — минимум в опубликованном списке зачисленных; год и конкурсный уровень указаны под значением.</p></div>
       </div>
@@ -778,7 +795,7 @@ export default function CompareRoute() {
   const recovery = matchingState?.kind === "error" ? matchingState.recovery : "retry";
   const isLoading = Boolean(signature && !matchingState);
 
-  return (
+  const comparison = (
     <div className={styles.page}>
       <AndromedaHeader />
       <main className={styles.main}>
@@ -815,4 +832,8 @@ export default function CompareRoute() {
       </main>
     </div>
   );
+
+  return __ANDROMEDA_REACT_PROFILE__
+    ? <Profiler id="comparison" onRender={recordComparisonProfile}>{comparison}</Profiler>
+    : comparison;
 }

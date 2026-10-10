@@ -18,6 +18,7 @@
     "test:watch": "vitest --config vitest.config.ts",
     "test:e2e": "playwright test",
     "test:e2e:headed": "playwright test --headed",
+    "test:profile": "node scripts/run-profile.mjs",
     "test:visual": "node scripts/run-paired-qa.mjs visual",
     "test:paired": "node scripts/run-paired-qa.mjs all",
     "api:generate": "uv run --package andromeda-api python scripts/export_openapi.py && openapi-typescript openapi.json --output src/shared/api/schema.d.ts",

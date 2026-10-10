@@ -37,12 +37,24 @@ interface ApiResourceMetric {
   readonly decodedBodyBytes: number;
 }
 
+interface StudyPlanPageEvidence {
+  readonly programKey: string;
+  readonly releaseKey: string;
+  readonly planKeys: readonly string[];
+}
+
 interface PageMetrics {
   readonly app: AppName;
   readonly scenario: BenchmarkName;
   readonly iteration: number;
   readonly readyMs: number;
   readonly fullDataReadyMs: number | null;
+  readonly comparisonIdentity: {
+    readonly releaseKey: string;
+    readonly programKeys: readonly string[];
+    readonly expectedPlanKeys: readonly string[];
+    readonly actualPlanKeys: readonly string[];
+  } | null;
   readonly actionMs: number | null;
   readonly apiRequests: number;
   readonly apiResponses: readonly ApiResponseMetric[];
@@ -133,11 +145,15 @@ function attachDiagnostics(page: Page): {
   readonly pageErrors: string[];
   readonly requestFailures: string[];
   readonly apiRequests: { path: string; status: number | null }[];
+  readonly studyPlanResponses: Promise<StudyPlanPageEvidence>[];
+  readonly studyPlanResponseErrors: string[];
 } {
   const diagnostics = {
     pageErrors: [] as string[],
     requestFailures: [] as string[],
     apiRequests: [] as { path: string; status: number | null }[],
+    studyPlanResponses: [] as Promise<StudyPlanPageEvidence>[],
+    studyPlanResponseErrors: [] as string[],
   };
   page.on("pageerror", (error) => diagnostics.pageErrors.push(error.message));
   page.on("requestfailed", (request) => {
@@ -152,6 +168,25 @@ function attachDiagnostics(page: Page): {
     if (url.pathname.startsWith("/api/v1/")) {
       diagnostics.apiRequests.push({ path: url.pathname, status: response.status() });
     }
+    const programKey = url.pathname === "/api/v1/study-plans" ? url.searchParams.get("program_key") : null;
+    if (programKey && response.status() === 200) {
+      diagnostics.studyPlanResponses.push(response.json().then((body: unknown) => {
+        if (!isRecord(body) || !Array.isArray(body.items) || !isRecord(body.page)) {
+          throw new Error("Study-plan response has an invalid page envelope.");
+        }
+        const releaseKey = body.page.release_key;
+        if (typeof releaseKey !== "string" || !releaseKey) {
+          throw new Error("Study-plan response has no release identity.");
+        }
+        const planKeys = body.items.flatMap((item) => (
+          isRecord(item) && typeof item.external_key === "string" ? [item.external_key] : []
+        ));
+        return { programKey, releaseKey, planKeys };
+      }).catch((error: unknown) => {
+        diagnostics.studyPlanResponseErrors.push(error instanceof Error ? error.message : String(error));
+        return { programKey, releaseKey: "", planKeys: [] };
+      }));
+    }
   });
   return diagnostics;
 }
@@ -160,6 +195,67 @@ function resetDiagnostics(diagnostics: ReturnType<typeof attachDiagnostics>): vo
   diagnostics.pageErrors.length = 0;
   diagnostics.requestFailures.length = 0;
   diagnostics.apiRequests.length = 0;
+  diagnostics.studyPlanResponses.length = 0;
+  diagnostics.studyPlanResponseErrors.length = 0;
+}
+
+async function assertComparisonPlanSelection(
+  page: Page,
+  app: AppName,
+  programs: readonly LiveCurriculumProgram[],
+  diagnostics: ReturnType<typeof attachDiagnostics>,
+): Promise<readonly string[]> {
+  const expectedReleaseKey = programs[0]?.releaseKey;
+  expect(expectedReleaseKey, "the comparison fixture has a verified release identity").toBeTruthy();
+  if (!expectedReleaseKey) throw new Error("The comparison fixture has no release identity.");
+  expect(new Set(programs.map((program) => program.releaseKey)).size, "selected programs share one release").toBe(1);
+
+  const pages = await Promise.all(diagnostics.studyPlanResponses);
+  expect(diagnostics.studyPlanResponseErrors, "study-plan API responses have valid release-bound envelopes").toEqual([]);
+  for (const program of programs) {
+    const programPages = pages.filter((pageEvidence) => pageEvidence.programKey === program.externalKey);
+    expect(programPages.length, `${app} requested study plans for ${program.externalKey}`).toBeGreaterThan(0);
+    expect(
+      [...new Set(programPages.map((pageEvidence) => pageEvidence.releaseKey))],
+      `${app} study plans for ${program.externalKey} use the selected release`,
+    ).toEqual([expectedReleaseKey]);
+    expect(
+      programPages.flatMap((pageEvidence) => pageEvidence.planKeys),
+      `${app} API response includes the verified plan for ${program.externalKey}`,
+    ).toContain(program.planKey);
+  }
+
+  let actualPlanKeys: readonly string[];
+  if (app === "react") {
+    const cards = await page.locator("article[data-program-key]").evaluateAll((elements) => elements.map((element) => ({
+      programKey: element.getAttribute("data-program-key"),
+      planKey: element.getAttribute("data-plan-key"),
+    })));
+    actualPlanKeys = programs.map((program) => {
+      const card = cards.find((entry) => entry.programKey === program.externalKey);
+      expect(card?.planKey, `React selected the verified plan for ${program.externalKey}`).toBe(program.planKey);
+      return card?.planKey ?? "";
+    });
+  } else {
+    actualPlanKeys = await page.evaluate(async (programKeys: readonly string[]) => {
+      type CurriculumLoad = { readonly selectedPlanKeys?: unknown };
+      type AndromedaWindow = Window & {
+        Andromeda?: { loadCurriculumForPrograms?: (keys: readonly string[]) => Promise<CurriculumLoad> };
+      };
+      const load = (window as AndromedaWindow).Andromeda?.loadCurriculumForPrograms;
+      if (!load) throw new Error("Vanilla curriculum selector is unavailable.");
+      const result = await load(programKeys);
+      if (!Array.isArray(result.selectedPlanKeys) || !result.selectedPlanKeys.every((key) => typeof key === "string")) {
+        throw new Error("Vanilla did not expose its selected verified study-plan keys.");
+      }
+      return result.selectedPlanKeys;
+    }, programs.map((program) => program.externalKey));
+    expect(
+      [...actualPlanKeys].sort(),
+      "Vanilla selected the same verified study plans as the comparison fixture",
+    ).toEqual(programs.map((program) => program.planKey).sort());
+  }
+  return actualPlanKeys;
 }
 
 function assertHealthy(diagnostics: ReturnType<typeof attachDiagnostics>): void {
@@ -203,7 +299,12 @@ function assertEquivalentRect(label: string, vanilla: unknown, react: unknown, t
   }
 }
 
-async function waitForScreen(page: Page, app: AppName, screen: ScreenName): Promise<void> {
+async function waitForScreen(
+  page: Page,
+  app: AppName,
+  screen: ScreenName,
+  selectedProgramCount = 1,
+): Promise<void> {
   if (screen === "home") {
     await expect(page.getByText("МГТУ имени Баумана × Андромеда", { exact: true })).toBeVisible();
     return;
@@ -236,10 +337,10 @@ async function waitForScreen(page: Page, app: AppName, screen: ScreenName): Prom
   }
 
   if (app === "vanilla") {
-    await expect(page.locator("#selectedCount")).toHaveText("1 / 3");
+    await expect(page.locator("#selectedCount")).toHaveText(`${selectedProgramCount} / 3`);
   } else {
     await expect(page.getByRole("heading", { name: "Сравни программы" })).toBeVisible();
-    await expect(page.getByText("1 / 3")).toBeVisible();
+    await expect(page.getByText(`${selectedProgramCount} / 3`)).toBeVisible();
   }
   await expect(page.getByRole("heading", { name: "Матрица предметов" })).toBeVisible();
 }
@@ -250,6 +351,7 @@ async function navigateAndWait(
   screen: ScreenName,
   viewport: { width: number; height: number },
   catalogAnchors?: readonly number[],
+  selectedProgramCount = 1,
 ): Promise<{
   frames: ScreenshotFrame[];
   catalogCodes: string[];
@@ -269,7 +371,7 @@ async function navigateAndWait(
   const path = app === "vanilla" ? routes[screen].vanillaPath : routes[screen].reactPath;
   const response = await page.goto(new URL(path, baseURL).href, { waitUntil: "domcontentloaded" });
   expect(response?.status(), `${app} ${screen} HTTP status`).toBe(200);
-  await waitForScreen(page, app, screen);
+  await waitForScreen(page, app, screen, selectedProgramCount);
   await page.waitForLoadState("networkidle");
   await page.evaluate(async () => {
     await document.fonts.ready;
@@ -848,8 +950,10 @@ async function capturePair(
   screen: ScreenName,
   viewport: typeof viewportCases[number],
   testInfo: TestInfo,
-  program: LiveCurriculumProgram | null = null,
+  programs: readonly LiveCurriculumProgram[] = [],
+  options: { readonly strictVisual?: boolean } = {},
 ): Promise<void> {
+  const strictVisual = options.strictVisual ?? true;
   const context = await browser.newContext({
     viewport: { width: viewport.width, height: viewport.height },
     deviceScaleFactor: 1,
@@ -858,26 +962,35 @@ async function capturePair(
     locale: "ru-RU",
     timezoneId: "Europe/Moscow",
   });
-  if (screen === "populated-comparison" && program) {
-    await context.addInitScript((programKey: string) => {
+  if (screen === "populated-comparison" && programs.length) {
+    await context.addInitScript((programKeys: readonly string[]) => {
       if (["/compare.html", "/compare"].includes(window.location.pathname)) {
         localStorage.clear();
-        localStorage.setItem("andromeda.compare.v1", JSON.stringify([programKey]));
+        localStorage.setItem("andromeda.compare.v1", JSON.stringify(programKeys));
       }
-    }, program.externalKey);
+    }, programs.map((program) => program.externalKey));
   }
   const page = await context.newPage();
   const diagnostics = attachDiagnostics(page);
 
   try {
-    const vanillaCapture = await navigateAndWait(page, "vanilla", screen, viewport);
+    const comparisonCount = programs.length || 1;
+    const vanillaCapture = await navigateAndWait(page, "vanilla", screen, viewport, undefined, comparisonCount);
+    let vanillaPlanKeys: readonly string[] = [];
+    if (screen === "populated-comparison" && programs.length) {
+      vanillaPlanKeys = await assertComparisonPlanSelection(page, "vanilla", programs, diagnostics);
+    }
     assertHealthy(diagnostics);
     resetDiagnostics(diagnostics);
     const catalogAnchors = screen === "catalog"
       ? [Math.floor(vanillaCapture.catalogCodes.length / 2), vanillaCapture.catalogCodes.length - 1]
         .filter((cardIndex) => cardIndex >= 0)
       : undefined;
-    const reactCapture = await navigateAndWait(page, "react", screen, viewport, catalogAnchors);
+    const reactCapture = await navigateAndWait(page, "react", screen, viewport, catalogAnchors, comparisonCount);
+    let reactPlanKeys: readonly string[] = [];
+    if (screen === "populated-comparison" && programs.length) {
+      reactPlanKeys = await assertComparisonPlanSelection(page, "react", programs, diagnostics);
+    }
     assertHealthy(diagnostics);
     if (screen === "catalog") {
       expect(reactCapture.catalogEntries, "React catalog must preserve each original external key, code, and name in order")
@@ -889,9 +1002,10 @@ async function capturePair(
       await expect(releaseNote).toContainText("Активный академический выпуск:");
       await expect(releaseNote).toContainText("Все таблицы и планы сверены с этим ключом.");
       const releaseCode = releaseNote.locator('[data-qa="active-release-key"]');
-      expect(program?.releaseKey, "the paired fixture was discovered from a verified active release").toBeTruthy();
-      if (!program?.releaseKey) throw new Error("The populated comparison has no verified release identity.");
-      await expect(releaseCode, "the displayed release identity matches the verified test release").toHaveText(program.releaseKey);
+      const expectedReleaseKey = programs[0]?.releaseKey;
+      expect(expectedReleaseKey, "the paired fixture was discovered from a verified active release").toBeTruthy();
+      if (!expectedReleaseKey) throw new Error("The populated comparison has no verified release identity.");
+      await expect(releaseCode, "the displayed release identity matches the verified test release").toHaveText(expectedReleaseKey);
       const releaseNoteInDocument = await releaseNote.evaluate((element) => ({
         isLastMainChild: element.parentElement?.lastElementChild === element,
         bottom: element.getBoundingClientRect().bottom + window.scrollY,
@@ -911,11 +1025,13 @@ async function capturePair(
         expect(isMeasuredRect(original), `original ${name} section has a measurable frame`).toBe(true);
         expect(isMeasuredRect(react), `React ${name} section has a measurable frame`).toBe(true);
         if (!isMeasuredRect(original) || !isMeasuredRect(react)) continue;
-        expect.soft(Math.abs(original.x - react.x), `${name} section horizontal offset`).toBeLessThanOrEqual(2);
-        expect.soft(Math.abs(original.width - react.width), `${name} section width`).toBeLessThanOrEqual(2);
-        expect.soft(Math.abs(original.y - react.y), `${name} section vertical offset`).toBeLessThanOrEqual(12);
-        const heightDelta = Math.abs(original.height - react.height) / Math.max(original.height, 1) * 100;
-        expect.soft(heightDelta, `${name} section height delta`).toBeLessThanOrEqual(5);
+        if (strictVisual) {
+          expect.soft(Math.abs(original.x - react.x), `${name} section horizontal offset`).toBeLessThanOrEqual(2);
+          expect.soft(Math.abs(original.width - react.width), `${name} section width`).toBeLessThanOrEqual(2);
+          expect.soft(Math.abs(original.y - react.y), `${name} section vertical offset`).toBeLessThanOrEqual(12);
+          const heightDelta = Math.abs(original.height - react.height) / Math.max(original.height, 1) * 100;
+          expect.soft(heightDelta, `${name} section height delta`).toBeLessThanOrEqual(5);
+        }
       }
       const originalRows = vanillaCapture.routeLayout?.categoryDistributionRows;
       const reactRows = reactCapture.routeLayout?.categoryDistributionRows;
@@ -929,7 +1045,7 @@ async function capturePair(
           .toBe(expectedFirstColumnWidth);
         expect(reactRows[0]?.headingWidth, "React category table keeps the original responsive sticky-column width")
           .toBe(expectedFirstColumnWidth);
-        for (let index = 0; index < originalRows.length; index += 1) {
+        for (let index = 0; strictVisual && index < originalRows.length; index += 1) {
           const originalRow = originalRows[index];
           const reactRow = reactRows[index];
           if (!originalRow || !reactRow) continue;
@@ -1126,16 +1242,22 @@ async function capturePair(
         ? [...new Set([...maskableUnknownFactKeys, ...maskableUnknownDonutFactKeys])].length
         : 0,
       frames: frameReports,
-      program: program ? {
+      programs: programs.map((program) => ({
+        externalKey: program.externalKey,
         code: program.code,
         name: program.name,
         planKey: program.planKey,
+        releaseKey: program.releaseKey,
         academicYear: program.academicYear,
         courseName: program.courseName,
         expectedHours: program.expectedHours,
         expectedCredits: program.expectedCredits,
-      } : null,
+      })),
+      actualPlanKeys: { vanilla: vanillaPlanKeys, react: reactPlanKeys },
       visualTolerancePercent: visualTolerancePercentFor(screen),
+      visualAssertionMode: strictVisual
+        ? "strict Vanilla-to-React visual tolerance"
+        : "paired screenshots and raw pixel metrics; compare React against the pre-optimization React baseline",
       note: "Paired Chromium pixel delta with reduced motion and identical viewport. Raw and semantic-masked deltas are measured over the shared screenshot area; full page height is checked independently with a strict 3.5% limit. Masks cover only text-value rectangles for paired category legend, table, or donut facts where captured source text proves that the original shows numeric zero and React correctly preserves the value as unknown; unrelated cells, bars, and geometry remain in the pixel comparison. The React-only active-release note follows the shared pixel area, so dedicated E2E assertions check its exact verified release key, text, last-section placement, and inclusion in the full-page height.",
     };
     const visualTolerancePercent = visualTolerancePercentFor(screen);
@@ -1148,11 +1270,13 @@ async function capturePair(
     await mkdir(dirname(metricsPath), { recursive: true });
     await writeFile(metricsPath, JSON.stringify(report, null, 2));
     process.stdout.write(`VISUAL_DELTA ${JSON.stringify(report)}\n`);
-    expect(visualDiffPercent, `${screen} ${viewport.name} overall visual delta${screen === "populated-comparison" ? " after exact unknown-value masks" : ""}`).toBeLessThanOrEqual(visualTolerancePercent);
-    for (const frame of frameReports) {
-      const frameVisualDiffPercent = screen === "populated-comparison" ? frame.semanticMaskedDiffPercent : frame.diffPercent;
-      expect(frameVisualDiffPercent, `${screen} ${viewport.name} ${frame.section} visual delta${screen === "populated-comparison" ? " after exact unknown-value masks" : ""}`)
-        .toBeLessThanOrEqual(visualTolerancePercent);
+    if (strictVisual) {
+      expect(visualDiffPercent, `${screen} ${viewport.name} overall visual delta${screen === "populated-comparison" ? " after exact unknown-value masks" : ""}`).toBeLessThanOrEqual(visualTolerancePercent);
+      for (const frame of frameReports) {
+        const frameVisualDiffPercent = screen === "populated-comparison" ? frame.semanticMaskedDiffPercent : frame.diffPercent;
+        expect(frameVisualDiffPercent, `${screen} ${viewport.name} ${frame.section} visual delta${screen === "populated-comparison" ? " after exact unknown-value masks" : ""}`)
+          .toBeLessThanOrEqual(visualTolerancePercent);
+      }
     }
   } finally {
     await context.close();
@@ -1169,13 +1293,32 @@ for (const viewport of viewportCases) {
           test.skip(true, verifiedProgramSkipReason);
           return;
         }
-        await capturePair(browser, screen, viewport, testInfo, program);
+        await capturePair(browser, screen, viewport, testInfo, [program]);
       } else {
         await capturePair(browser, screen, viewport, testInfo);
       }
     });
   }
 }
+
+test("@paired @visual populated comparison with two programs uses the same verified release and plans", async ({ browser }, testInfo) => {
+  requirePairedRun();
+  const programs = await getVerifiedComparisonPrograms(browser);
+  if (!programs) {
+    test.skip(true, verifiedComparisonSkipReason);
+    return;
+  }
+  expect(programs).toHaveLength(2);
+  expect(new Set(programs.map((program) => program.releaseKey)).size).toBe(1);
+  await capturePair(
+    browser,
+    "populated-comparison",
+    { name: "desktop-1440x900", width: 1440, height: 900 },
+    testInfo,
+    programs,
+    { strictVisual: false },
+  );
+});
 
 async function waitForBenchmarkScenario(
   page: Page,
@@ -1223,6 +1366,8 @@ async function waitForFullComparisonData(
     const releaseKey = comparisonPrograms[0]?.releaseKey;
     if (!releaseKey) throw new Error("The comparison benchmark requires a verified release key.");
     await expect(page.locator('[data-qa="active-release-key"]')).toHaveText(releaseKey);
+    await expect(page.locator('[data-qa="admission-summary"]'))
+      .toHaveAttribute("data-unavailable-count", "0");
   } else {
     const content = page.locator("#compareContent");
     await expect(content.locator(".admission-loading-note, .admission-error-note")).toHaveCount(0);
@@ -1266,6 +1411,9 @@ async function visitForBenchmark(
   }
   await page.waitForLoadState("networkidle");
   assertHealthy(diagnostics);
+  const actualPlanKeys = scenario === "compare-load"
+    ? await assertComparisonPlanSelection(page, app, comparisonPrograms, diagnostics)
+    : null;
   const actionMs = scaleCount === null ? null : await measureCatalogScaleFilter(page, app, scaleCount);
   if (actionMs !== null) {
     await page.waitForLoadState("networkidle");
@@ -1309,6 +1457,12 @@ async function visitForBenchmark(
     iteration,
     readyMs: Number(readyMs.toFixed(2)),
     fullDataReadyMs: fullDataReadyMs === null ? null : Number(fullDataReadyMs.toFixed(2)),
+    comparisonIdentity: actualPlanKeys === null ? null : {
+      releaseKey: comparisonPrograms[0]?.releaseKey ?? "",
+      programKeys: comparisonPrograms.map((program) => program.externalKey),
+      expectedPlanKeys: comparisonPrograms.map((program) => program.planKey),
+      actualPlanKeys,
+    },
     actionMs: actionMs === null ? null : Number(actionMs.toFixed(2)),
     apiRequests: diagnostics.apiRequests.length,
     apiResponses: [...diagnostics.apiRequests],
@@ -1500,7 +1654,8 @@ test("@paired @benchmark repeated vanilla-versus-React browser measurements", as
       samples: metrics,
       methodology: {
         readyMs: "PerformanceNavigationTiming.startTime to the first visible screen-specific comparison content; for Vanilla, admission may still be loading",
-        fullDataReadyMs: "For compare-load only: Vanilla waits for the admission loading panel to be replaced by the comparison table; React waits for its active-release key, which appears only after the loader has resolved. This is the primary full-data comparison-readiness metric.",
+        fullDataReadyMs: "For compare-load only: Vanilla waits for the admission loading and error states to be absent and its comparison table to be visible; React waits for the expected active-release key and an admission summary with zero unavailable selected programs. Before timing samples are retained, both apps must also prove that the actual selected plan keys are the two verified fixture keys and that every study-plan response has that same release key.",
+        comparisonIdentity: "Each measured sample records the same two external program keys, verified study-plan keys, active release key, and app-observed selected plan keys; samples fail if the actual plan selection or release differs.",
         actionMs: "catalog fill to the single matching QA code becoming visible; synthetic catalog sizes are 50, 100, and 500 rows",
         scriptBytes: "sum of ResourceTiming encodedBodySize (or transferSize fallback) for every loaded .js/.mjs resource; cache disabled for each measured navigation",
         transferredResourceBytes: "navigation transferSize plus encodedBodySize (or transferSize fallback) for all resource entries; cache disabled for each measured navigation and API response bodies are included",

@@ -8,6 +8,7 @@ export default tseslint.config(
     ignores: [
       ".react-router/**",
       "build/**",
+      "build-profile/**",
       "coverage/**",
       "dist/**",
       "node_modules/**",
