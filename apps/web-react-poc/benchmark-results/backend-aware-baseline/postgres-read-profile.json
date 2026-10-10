@@ -1,0 +1,236 @@
+{
+  "databaseServerMajor": 16,
+  "databaseName": "academic_data_test",
+  "databaseUser": "andromeda_test",
+  "releaseKey": "bmstu-2026:72af1a16109bbcb8adf3060249636c49ed69cd2d635aac9bd762e12e7b213fbe:bmstu-2026-bundle-v5",
+  "programPage": {
+    "http_client_duration_ms": 293.93,
+    "app_duration_ms": 292.78,
+    "sql_duration_ms": 138.83,
+    "sql_query_count": 906,
+    "sql_duration_event_ms": 138.84,
+    "response_bytes": 454521,
+    "table_statement_counts": {
+      "educational_programs": 2,
+      "educational_program_departments": 100,
+      "study_plans": 100,
+      "catalog_courses": 100,
+      "program_offerings": 100,
+      "directions": 100,
+      "departments": 200,
+      "program_evidence": 100,
+      "program_department_evidence": 100,
+      "source_evidence": 200,
+      "source_artifacts": 200,
+      "manual_review_items": 100
+    },
+    "records": 100,
+    "totalRecords": 152
+  },
+  "largestVerifiedPlan": {
+    "planKey": "study_plan:program:bmstu:13.03.02:СМ10:13.03.02-02:source:1-1",
+    "programKey": "program:bmstu:13.03.02:СМ10:13.03.02-02:source:1-1",
+    "expectedItemCount": 131,
+    "returnedItemCount": 100
+  },
+  "studyPlanCatalog": {
+    "pages": 2,
+    "records": 152,
+    "totalRecords": 152,
+    "pageProfiles": [
+      {
+        "http_client_duration_ms": 180.91,
+        "app_duration_ms": 179.61,
+        "sql_duration_ms": 88.93,
+        "sql_query_count": 506,
+        "sql_duration_event_ms": 88.94,
+        "response_bytes": 518397,
+        "table_statement_counts": {
+          "educational_programs": 100,
+          "study_plans": 2,
+          "curriculum_items": 200,
+          "source_evidence": 100,
+          "source_artifacts": 100,
+          "manual_review_items": 100
+        }
+      },
+      {
+        "http_client_duration_ms": 91.0,
+        "app_duration_ms": 89.68,
+        "sql_duration_ms": 46.24,
+        "sql_query_count": 266,
+        "sql_duration_event_ms": 46.23,
+        "response_bytes": 261515,
+        "table_statement_counts": {
+          "educational_programs": 52,
+          "study_plans": 2,
+          "curriculum_items": 104,
+          "source_evidence": 52,
+          "source_artifacts": 52,
+          "manual_review_items": 52
+        }
+      }
+    ]
+  },
+  "selectedProgramStudyPlanPage": {
+    "http_client_duration_ms": 67.75,
+    "app_duration_ms": 66.69,
+    "sql_duration_ms": 4.03,
+    "sql_query_count": 12,
+    "sql_duration_event_ms": 4.03,
+    "response_bytes": 6057,
+    "table_statement_counts": {
+      "educational_programs": 2,
+      "study_plans": 2,
+      "curriculum_items": 2,
+      "source_evidence": 1,
+      "source_artifacts": 1,
+      "manual_review_items": 1
+    },
+    "programKey": "program:bmstu:13.03.02:СМ10:13.03.02-02:source:1-1",
+    "records": 1,
+    "totalRecords": 1,
+    "curriculumItemCountExplainAnalyze": [
+      {
+        "planningTimeMs": 0.08,
+        "executionTimeMs": 0.053,
+        "plan": [
+          {
+            "Node Type": "Aggregate",
+            "Plan Rows": 1,
+            "Actual Rows": 1,
+            "Actual Total Time": 0.043,
+            "Shared Hit Blocks": 15,
+            "Shared Read Blocks": 0
+          },
+          {
+            "Node Type": "Index Only Scan",
+            "Relation Name": "curriculum_items",
+            "Index Name": "ix_curriculum_items_release_plan_ordinal",
+            "Plan Rows": 1,
+            "Actual Rows": 131,
+            "Actual Total Time": 0.035,
+            "Shared Hit Blocks": 15,
+            "Shared Read Blocks": 0
+          }
+        ]
+      },
+      {
+        "planningTimeMs": 0.049,
+        "executionTimeMs": 0.129,
+        "plan": [
+          {
+            "Node Type": "Limit",
+            "Plan Rows": 1,
+            "Actual Rows": 2,
+            "Actual Total Time": 0.121,
+            "Shared Hit Blocks": 15,
+            "Shared Read Blocks": 0
+          },
+          {
+            "Node Type": "Sort",
+            "Plan Rows": 1,
+            "Actual Rows": 2,
+            "Actual Total Time": 0.12,
+            "Shared Hit Blocks": 15,
+            "Shared Read Blocks": 0
+          },
+          {
+            "Node Type": "Index Scan",
+            "Relation Name": "curriculum_items",
+            "Index Name": "ix_curriculum_items_release_plan_ordinal",
+            "Plan Rows": 1,
+            "Actual Rows": 131,
+            "Actual Total Time": 0.014,
+            "Shared Hit Blocks": 15,
+            "Shared Read Blocks": 0
+          }
+        ]
+      }
+    ]
+  },
+  "curriculumItemPage": {
+    "http_client_duration_ms": 117.72,
+    "app_duration_ms": 116.55,
+    "sql_duration_ms": 53.94,
+    "sql_query_count": 308,
+    "sql_duration_event_ms": 53.95,
+    "response_bytes": 197407,
+    "table_statement_counts": {
+      "study_plans": 101,
+      "curriculum_items": 2,
+      "curriculum_evidence": 100,
+      "source_evidence": 100,
+      "source_artifacts": 100,
+      "manual_review_items": 100,
+      "subject_classifications": 1,
+      "subject_classification_runs": 1,
+      "subject_taxonomy_categories": 1
+    },
+    "records": 100
+  },
+  "curriculumItemPageExplainAnalyze": [
+    {
+      "planningTimeMs": 0.024,
+      "executionTimeMs": 0.027,
+      "plan": [
+        {
+          "Node Type": "Aggregate",
+          "Plan Rows": 1,
+          "Actual Rows": 1,
+          "Actual Total Time": 0.021,
+          "Shared Hit Blocks": 15,
+          "Shared Read Blocks": 0
+        },
+        {
+          "Node Type": "Index Only Scan",
+          "Relation Name": "curriculum_items",
+          "Index Name": "ix_curriculum_items_release_plan_ordinal",
+          "Plan Rows": 1,
+          "Actual Rows": 131,
+          "Actual Total Time": 0.016,
+          "Shared Hit Blocks": 15,
+          "Shared Read Blocks": 0
+        }
+      ]
+    },
+    {
+      "planningTimeMs": 0.034,
+      "executionTimeMs": 0.627,
+      "plan": [
+        {
+          "Node Type": "Limit",
+          "Plan Rows": 1,
+          "Actual Rows": 101,
+          "Actual Total Time": 0.619,
+          "Shared Hit Blocks": 15,
+          "Shared Read Blocks": 0
+        },
+        {
+          "Node Type": "Sort",
+          "Plan Rows": 1,
+          "Actual Rows": 101,
+          "Actual Total Time": 0.614,
+          "Shared Hit Blocks": 15,
+          "Shared Read Blocks": 0
+        },
+        {
+          "Node Type": "Index Scan",
+          "Relation Name": "curriculum_items",
+          "Index Name": "ix_curriculum_items_release_plan_ordinal",
+          "Plan Rows": 1,
+          "Actual Rows": 131,
+          "Actual Total Time": 0.013,
+          "Shared Hit Blocks": 15,
+          "Shared Read Blocks": 0
+        }
+      ]
+    }
+  ],
+  "parity": {
+    "unbatchedReadModelMatchesProgramPage": true,
+    "unbatchedReadModelMatchesSelectedProgramStudyPlans": true,
+    "unbatchedReadModelMatchesCurriculumPage": true,
+    "releaseKey": "bmstu-2026:72af1a16109bbcb8adf3060249636c49ed69cd2d635aac9bd762e12e7b213fbe:bmstu-2026-bundle-v5"
+  }
+}

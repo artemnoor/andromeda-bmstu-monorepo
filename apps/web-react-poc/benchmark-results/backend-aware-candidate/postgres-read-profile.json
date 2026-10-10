@@ -1,0 +1,529 @@
+{
+  "databaseServerMajor": 16,
+  "databaseName": "academic_data_test",
+  "databaseUser": "andromeda_test",
+  "releaseKey": "bmstu-2026:72af1a16109bbcb8adf3060249636c49ed69cd2d635aac9bd762e12e7b213fbe:bmstu-2026-bundle-v5",
+  "directionPage": {
+    "http_client_duration_ms": 34.99,
+    "app_duration_ms": 33.14,
+    "sql_duration_ms": 12.3,
+    "sql_query_count": 11,
+    "sql_duration_event_ms": 12.3,
+    "response_bytes": 130820,
+    "table_statement_counts": {
+      "educational_programs": 1,
+      "directions": 2,
+      "departments": 2,
+      "direction_departments": 1,
+      "direction_evidence": 1,
+      "source_evidence": 1,
+      "source_artifacts": 1,
+      "manual_review_items": 1
+    },
+    "records": 53,
+    "totalRecords": 53,
+    "directionAndDepartmentExplainAnalyze": {
+      "directions": [
+        {
+          "planningTimeMs": 0.038,
+          "executionTimeMs": 0.057,
+          "plan": [
+            {
+              "Node Type": "Aggregate",
+              "Plan Rows": 1,
+              "Actual Rows": 1,
+              "Actual Total Time": 0.031,
+              "Shared Hit Blocks": 13,
+              "Shared Read Blocks": 0
+            },
+            {
+              "Node Type": "Index Only Scan",
+              "Relation Name": "directions",
+              "Index Name": "ix_directions_release_code",
+              "Plan Rows": 1,
+              "Actual Rows": 53,
+              "Actual Total Time": 0.026,
+              "Shared Hit Blocks": 13,
+              "Shared Read Blocks": 0
+            }
+          ]
+        },
+        {
+          "planningTimeMs": 0.043,
+          "executionTimeMs": 0.028,
+          "plan": [
+            {
+              "Node Type": "Limit",
+              "Plan Rows": 1,
+              "Actual Rows": 53,
+              "Actual Total Time": 0.021,
+              "Shared Hit Blocks": 13,
+              "Shared Read Blocks": 0
+            },
+            {
+              "Node Type": "Index Scan",
+              "Relation Name": "directions",
+              "Index Name": "uq_directions_release_external_key",
+              "Plan Rows": 1,
+              "Actual Rows": 53,
+              "Actual Total Time": 0.017,
+              "Shared Hit Blocks": 13,
+              "Shared Read Blocks": 0
+            }
+          ]
+        }
+      ],
+      "direction_departments": [
+        {
+          "planningTimeMs": 0.065,
+          "executionTimeMs": 0.174,
+          "plan": [
+            {
+              "Node Type": "Incremental Sort",
+              "Plan Rows": 2,
+              "Actual Rows": 110,
+              "Actual Total Time": 0.164,
+              "Shared Hit Blocks": 32,
+              "Shared Read Blocks": 0
+            },
+            {
+              "Node Type": "Index Scan",
+              "Relation Name": "direction_departments",
+              "Index Name": "uq_direction_departments_pair",
+              "Plan Rows": 1,
+              "Actual Rows": 110,
+              "Actual Total Time": 0.035,
+              "Shared Hit Blocks": 32,
+              "Shared Read Blocks": 0
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "departmentPage": {
+    "http_client_duration_ms": 16.45,
+    "app_duration_ms": 14.91,
+    "sql_duration_ms": 5.79,
+    "sql_query_count": 8,
+    "sql_duration_event_ms": 5.79,
+    "response_bytes": 113294,
+    "table_statement_counts": {
+      "departments": 2,
+      "department_evidence": 1,
+      "source_evidence": 1,
+      "source_artifacts": 1,
+      "manual_review_items": 1
+    },
+    "records": 77,
+    "totalRecords": 77,
+    "departmentExplainAnalyze": [
+      {
+        "planningTimeMs": 0.037,
+        "executionTimeMs": 0.042,
+        "plan": [
+          {
+            "Node Type": "Aggregate",
+            "Plan Rows": 1,
+            "Actual Rows": 1,
+            "Actual Total Time": 0.034,
+            "Shared Hit Blocks": 49,
+            "Shared Read Blocks": 0
+          },
+          {
+            "Node Type": "Index Only Scan",
+            "Relation Name": "departments",
+            "Index Name": "ix_departments_release_code",
+            "Plan Rows": 1,
+            "Actual Rows": 77,
+            "Actual Total Time": 0.029,
+            "Shared Hit Blocks": 49,
+            "Shared Read Blocks": 0
+          }
+        ]
+      },
+      {
+        "planningTimeMs": 0.039,
+        "executionTimeMs": 0.035,
+        "plan": [
+          {
+            "Node Type": "Limit",
+            "Plan Rows": 1,
+            "Actual Rows": 77,
+            "Actual Total Time": 0.027,
+            "Shared Hit Blocks": 49,
+            "Shared Read Blocks": 0
+          },
+          {
+            "Node Type": "Index Scan",
+            "Relation Name": "departments",
+            "Index Name": "uq_departments_release_external_key",
+            "Plan Rows": 1,
+            "Actual Rows": 77,
+            "Actual Total Time": 0.023,
+            "Shared Hit Blocks": 49,
+            "Shared Read Blocks": 0
+          }
+        ]
+      }
+    ]
+  },
+  "programPage": {
+    "http_client_duration_ms": 111.69,
+    "app_duration_ms": 109.03,
+    "sql_duration_ms": 72.77,
+    "sql_query_count": 15,
+    "sql_duration_event_ms": 72.76,
+    "response_bytes": 454521,
+    "table_statement_counts": {
+      "educational_programs": 2,
+      "educational_program_departments": 1,
+      "study_plans": 1,
+      "catalog_courses": 1,
+      "program_offerings": 1,
+      "directions": 1,
+      "departments": 2,
+      "program_evidence": 1,
+      "department_evidence": 1,
+      "program_department_evidence": 1,
+      "source_evidence": 2,
+      "source_artifacts": 2,
+      "manual_review_items": 1
+    },
+    "records": 100,
+    "totalRecords": 152
+  },
+  "largestVerifiedPlan": {
+    "planKey": "study_plan:program:bmstu:13.03.02:СМ10:13.03.02-02:source:1-1",
+    "programKey": "program:bmstu:13.03.02:СМ10:13.03.02-02:source:1-1",
+    "expectedItemCount": 131,
+    "returnedItemCount": 100
+  },
+  "studyPlanCatalog": {
+    "pages": 2,
+    "records": 152,
+    "totalRecords": 152,
+    "pageProfiles": [
+      {
+        "http_client_duration_ms": 46.7,
+        "app_duration_ms": 44.65,
+        "sql_duration_ms": 19.63,
+        "sql_query_count": 10,
+        "sql_duration_event_ms": 19.63,
+        "response_bytes": 518397,
+        "table_statement_counts": {
+          "educational_programs": 1,
+          "study_plans": 2,
+          "curriculum_items": 1,
+          "source_evidence": 1,
+          "source_artifacts": 1,
+          "manual_review_items": 1
+        }
+      },
+      {
+        "http_client_duration_ms": 29.04,
+        "app_duration_ms": 26.87,
+        "sql_duration_ms": 12.37,
+        "sql_query_count": 10,
+        "sql_duration_event_ms": 12.37,
+        "response_bytes": 261515,
+        "table_statement_counts": {
+          "educational_programs": 1,
+          "study_plans": 2,
+          "curriculum_items": 1,
+          "source_evidence": 1,
+          "source_artifacts": 1,
+          "manual_review_items": 1
+        }
+      }
+    ]
+  },
+  "selectedProgramStudyPlanPage": {
+    "http_client_duration_ms": 12.72,
+    "app_duration_ms": 11.27,
+    "sql_duration_ms": 4.77,
+    "sql_query_count": 11,
+    "sql_duration_event_ms": 4.78,
+    "response_bytes": 6057,
+    "table_statement_counts": {
+      "educational_programs": 2,
+      "study_plans": 2,
+      "curriculum_items": 1,
+      "source_evidence": 1,
+      "source_artifacts": 1,
+      "manual_review_items": 1
+    },
+    "programKey": "program:bmstu:13.03.02:СМ10:13.03.02-02:source:1-1",
+    "records": 1,
+    "totalRecords": 1,
+    "curriculumItemCountExplainAnalyze": [
+      {
+        "planningTimeMs": 0.053,
+        "executionTimeMs": 0.058,
+        "plan": [
+          {
+            "Node Type": "Aggregate",
+            "Plan Rows": 1,
+            "Actual Rows": 1,
+            "Actual Total Time": 0.05,
+            "Shared Hit Blocks": 15,
+            "Shared Read Blocks": 0
+          },
+          {
+            "Node Type": "Index Only Scan",
+            "Relation Name": "curriculum_items",
+            "Index Name": "ix_curriculum_items_release_plan_ordinal",
+            "Plan Rows": 1,
+            "Actual Rows": 131,
+            "Actual Total Time": 0.043,
+            "Shared Hit Blocks": 15,
+            "Shared Read Blocks": 0
+          }
+        ]
+      }
+    ]
+  },
+  "curriculumItemPage": {
+    "http_client_duration_ms": 58.46,
+    "app_duration_ms": 56.8,
+    "sql_duration_ms": 36.38,
+    "sql_query_count": 11,
+    "sql_duration_event_ms": 36.38,
+    "response_bytes": 197407,
+    "table_statement_counts": {
+      "study_plans": 2,
+      "curriculum_items": 2,
+      "curriculum_evidence": 1,
+      "source_evidence": 1,
+      "source_artifacts": 1,
+      "manual_review_items": 1,
+      "subject_classifications": 1,
+      "subject_classification_runs": 1,
+      "subject_taxonomy_categories": 1
+    },
+    "records": 100
+  },
+  "campaignPage": {
+    "http_client_duration_ms": 12.94,
+    "app_duration_ms": 10.97,
+    "sql_duration_ms": 4.27,
+    "sql_query_count": 9,
+    "sql_duration_event_ms": 4.27,
+    "response_bytes": 1462,
+    "table_statement_counts": {
+      "source_evidence": 1,
+      "source_artifacts": 1,
+      "manual_review_items": 1
+    },
+    "records": 1,
+    "totalRecords": 1
+  },
+  "admissionReadPages": {
+    "campaignOfferings": {
+      "http_client_duration_ms": 30.75,
+      "app_duration_ms": 29.21,
+      "sql_duration_ms": 10.77,
+      "sql_query_count": 13,
+      "sql_duration_event_ms": 10.77,
+      "response_bytes": 159862,
+      "table_statement_counts": {
+        "educational_programs": 1,
+        "program_offerings": 2,
+        "directions": 1,
+        "departments": 1,
+        "source_evidence": 1,
+        "source_artifacts": 1,
+        "manual_review_items": 1
+      },
+      "records": 100,
+      "totalRecords": 127
+    },
+    "campaignCalendar": {
+      "http_client_duration_ms": 15.76,
+      "app_duration_ms": 14.36,
+      "sql_duration_ms": 5.86,
+      "sql_query_count": 10,
+      "sql_duration_event_ms": 5.86,
+      "response_bytes": 72875,
+      "table_statement_counts": {
+        "source_evidence": 1,
+        "source_artifacts": 1,
+        "manual_review_items": 1
+      },
+      "records": 37,
+      "totalRecords": 37
+    },
+    "requirements": {
+      "http_client_duration_ms": 64.31,
+      "app_duration_ms": 62.52,
+      "sql_duration_ms": 21.43,
+      "sql_query_count": 14,
+      "sql_duration_event_ms": 21.43,
+      "response_bytes": 437668,
+      "table_statement_counts": {
+        "directions": 1,
+        "source_evidence": 2,
+        "source_artifacts": 2,
+        "manual_review_items": 1
+      },
+      "records": 81,
+      "totalRecords": 81
+    },
+    "competitionPools": {
+      "http_client_duration_ms": 41.46,
+      "app_duration_ms": 39.57,
+      "sql_duration_ms": 17.17,
+      "sql_query_count": 15,
+      "sql_duration_event_ms": 17.18,
+      "response_bytes": 114557,
+      "table_statement_counts": {
+        "program_offerings": 1,
+        "directions": 1,
+        "source_evidence": 1,
+        "source_artifacts": 1,
+        "manual_review_items": 1
+      },
+      "records": 100,
+      "totalRecords": 940
+    },
+    "placeQuotas": {
+      "http_client_duration_ms": 8.36,
+      "app_duration_ms": 6.82,
+      "sql_duration_ms": 2.56,
+      "sql_query_count": 7,
+      "sql_duration_event_ms": 2.55,
+      "response_bytes": 181,
+      "table_statement_counts": {},
+      "records": 0,
+      "totalRecords": 0
+    },
+    "tuition": {
+      "http_client_duration_ms": 11.89,
+      "app_duration_ms": 10.61,
+      "sql_duration_ms": 4.57,
+      "sql_query_count": 9,
+      "sql_duration_event_ms": 4.57,
+      "response_bytes": 6129,
+      "table_statement_counts": {
+        "directions": 1,
+        "source_evidence": 1,
+        "source_artifacts": 1,
+        "manual_review_items": 1
+      },
+      "records": 4,
+      "totalRecords": 4
+    },
+    "historicalStatistics": {
+      "http_client_duration_ms": 14.25,
+      "app_duration_ms": 12.92,
+      "sql_duration_ms": 5.25,
+      "sql_query_count": 9,
+      "sql_duration_event_ms": 5.25,
+      "response_bytes": 24188,
+      "table_statement_counts": {
+        "directions": 1,
+        "source_evidence": 1,
+        "source_artifacts": 1,
+        "manual_review_items": 1
+      },
+      "records": 14,
+      "totalRecords": 14
+    },
+    "admissionStatistics": {
+      "http_client_duration_ms": 11.65,
+      "app_duration_ms": 10.39,
+      "sql_duration_ms": 4.38,
+      "sql_query_count": 9,
+      "sql_duration_event_ms": 4.38,
+      "response_bytes": 11463,
+      "table_statement_counts": {
+        "directions": 1,
+        "source_evidence": 1,
+        "source_artifacts": 1,
+        "manual_review_items": 1
+      },
+      "records": 7,
+      "totalRecords": 7
+    }
+  },
+  "nonEmptyPlaceQuota": {
+    "records": 2,
+    "places": [
+      0,
+      2
+    ],
+    "batchedDtoMappingSqlQueries": 7,
+    "unbatchedDtoMappingSqlQueries": 11,
+    "dtoMatchesUnbatched": true,
+    "releaseKey": "bmstu-2026:72af1a16109bbcb8adf3060249636c49ed69cd2d635aac9bd762e12e7b213fbe:bmstu-2026-bundle-v5"
+  },
+  "curriculumItemPageExplainAnalyze": [
+    {
+      "planningTimeMs": 0.054,
+      "executionTimeMs": 0.056,
+      "plan": [
+        {
+          "Node Type": "Aggregate",
+          "Plan Rows": 1,
+          "Actual Rows": 1,
+          "Actual Total Time": 0.044,
+          "Shared Hit Blocks": 15,
+          "Shared Read Blocks": 0
+        },
+        {
+          "Node Type": "Index Only Scan",
+          "Relation Name": "curriculum_items",
+          "Index Name": "ix_curriculum_items_release_plan_ordinal",
+          "Plan Rows": 1,
+          "Actual Rows": 131,
+          "Actual Total Time": 0.037,
+          "Shared Hit Blocks": 15,
+          "Shared Read Blocks": 0
+        }
+      ]
+    },
+    {
+      "planningTimeMs": 0.057,
+      "executionTimeMs": 1.185,
+      "plan": [
+        {
+          "Node Type": "Limit",
+          "Plan Rows": 1,
+          "Actual Rows": 101,
+          "Actual Total Time": 1.171,
+          "Shared Hit Blocks": 15,
+          "Shared Read Blocks": 0
+        },
+        {
+          "Node Type": "Sort",
+          "Plan Rows": 1,
+          "Actual Rows": 101,
+          "Actual Total Time": 1.166,
+          "Shared Hit Blocks": 15,
+          "Shared Read Blocks": 0
+        },
+        {
+          "Node Type": "Index Scan",
+          "Relation Name": "curriculum_items",
+          "Index Name": "ix_curriculum_items_release_plan_ordinal",
+          "Plan Rows": 1,
+          "Actual Rows": 131,
+          "Actual Total Time": 0.024,
+          "Shared Hit Blocks": 15,
+          "Shared Read Blocks": 0
+        }
+      ]
+    }
+  ],
+  "parity": {
+    "unbatchedReadModelMatchesDirectionPage": true,
+    "unbatchedReadModelMatchesDepartmentPage": true,
+    "unbatchedReadModelMatchesProgramPage": true,
+    "unbatchedReadModelMatchesCampaignPage": true,
+    "unbatchedReadModelMatchesSelectedProgramStudyPlans": true,
+    "unbatchedReadModelMatchesCurriculumPage": true,
+    "unbatchedReadModelMatchesAdmissionPages": true,
+    "unbatchedReadModelMatchesNonEmptyPlaceQuota": true,
+    "releaseKey": "bmstu-2026:72af1a16109bbcb8adf3060249636c49ed69cd2d635aac9bd762e12e7b213fbe:bmstu-2026-bundle-v5"
+  }
+}

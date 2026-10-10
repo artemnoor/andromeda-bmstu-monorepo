@@ -79,6 +79,11 @@ class SQLAlchemyAcademicDataReadRepository:
         self._release_key: str | None = None
         self._release: dict[str, Any] | None = None
         self._last_row_count: int | None = None
+        self._by_id_cache: dict[tuple[str, UUID], dict[str, Any] | None] = {}
+        self._related_cache: dict[tuple[str, str, UUID, tuple[tuple[str, Any], ...]], list[dict[str, Any]]] = {}
+        self._related_count_cache: dict[tuple[str, str, UUID], int] = {}
+        self._evidence_cache: dict[tuple[str, UUID], list[dict[str, Any]]] = {}
+        self._manual_review_cache: dict[str, list[dict[str, Any]]] = {}
 
     @property
     def active_release_key(self) -> str:
@@ -116,6 +121,11 @@ class SQLAlchemyAcademicDataReadRepository:
         return dict(row) if row is not None else None
 
     def get_by_id(self, table_name: str, record_id: UUID) -> dict[str, Any] | None:
+        cache_key = (table_name, record_id)
+        if cache_key in self._by_id_cache:
+            row = self._by_id_cache[cache_key]
+            self._last_row_count = 1 if row is not None else 0
+            return dict(row) if row is not None else None
         table = self._table(table_name)
         row = (
             self._connection.execute(
@@ -128,7 +138,35 @@ class SQLAlchemyAcademicDataReadRepository:
             .first()
         )
         self._last_row_count = 1 if row is not None else 0
-        return dict(row) if row is not None else None
+        value = dict(row) if row is not None else None
+        self._by_id_cache[cache_key] = value
+        return dict(value) if value is not None else None
+
+    def get_by_ids(self, table_name: str, record_ids: list[UUID]) -> dict[UUID, dict[str, Any]]:
+        """Read and cache a set of rows by internal ID in one release-scoped query."""
+        ids = list(dict.fromkeys(record_ids))
+        missing = [record_id for record_id in ids if (table_name, record_id) not in self._by_id_cache]
+        if missing:
+            table = self._table(table_name)
+            rows = (
+                self._connection.execute(
+                    select(table).where(
+                        table.c.release_id == self.active_release_id,
+                        table.c.id.in_(missing),
+                    )
+                )
+                .mappings()
+                .all()
+            )
+            found = {row["id"]: dict(row) for row in rows}
+            for record_id in missing:
+                self._by_id_cache[(table_name, record_id)] = found.get(record_id)
+            self._last_row_count = len(rows)
+        return {
+            record_id: dict(self._by_id_cache[(table_name, record_id)])
+            for record_id in ids
+            if self._by_id_cache[(table_name, record_id)] is not None
+        }
 
     def active_release(self) -> dict[str, Any]:
         self._ensure_active_release()
@@ -174,6 +212,11 @@ class SQLAlchemyAcademicDataReadRepository:
         *,
         filters: dict[str, Any] | None = None,
     ) -> list[dict[str, Any]]:
+        cache_key = (table_name, foreign_key, parent_id, tuple(sorted((filters or {}).items())))
+        if cache_key in self._related_cache:
+            rows = self._related_cache[cache_key]
+            self._last_row_count = len(rows)
+            return [dict(row) for row in rows]
         table = self._table(table_name)
         if foreign_key not in table.c:
             raise ValueError(f"unknown relation column {foreign_key}")
@@ -190,12 +233,116 @@ class SQLAlchemyAcademicDataReadRepository:
             .all()
         )
         self._last_row_count = len(rows)
-        return [dict(row) for row in rows]
+        result = [dict(row) for row in rows]
+        self._related_cache[cache_key] = result
+        return [dict(row) for row in result]
+
+    def related_many(
+        self,
+        table_name: str,
+        foreign_key: str,
+        parent_ids: list[UUID],
+        *,
+        filters: dict[str, Any] | None = None,
+    ) -> dict[UUID, list[dict[str, Any]]]:
+        """Load related rows for many parents with one release-scoped query."""
+        ids = list(dict.fromkeys(parent_ids))
+        filter_key = tuple(sorted((filters or {}).items()))
+        missing = [
+            parent_id for parent_id in ids
+            if (table_name, foreign_key, parent_id, filter_key) not in self._related_cache
+        ]
+        if missing:
+            table = self._table(table_name)
+            if foreign_key not in table.c:
+                raise ValueError(f"unknown relation column {foreign_key}")
+            rows = (
+                self._connection.execute(
+                    select(table).where(
+                        table.c.release_id == self.active_release_id,
+                        table.c[foreign_key].in_(missing),
+                        *self._conditions(table, filters)[1:],
+                    ).order_by(table.c[foreign_key], table.c.external_key)
+                )
+                .mappings()
+                .all()
+            )
+            grouped = {parent_id: [] for parent_id in missing}
+            for row in rows:
+                grouped[row[foreign_key]].append(dict(row))
+            for parent_id, result in grouped.items():
+                self._related_cache[(table_name, foreign_key, parent_id, filter_key)] = result
+            self._last_row_count = len(rows)
+        return {
+            parent_id: [
+                dict(row)
+                for row in self._related_cache[(table_name, foreign_key, parent_id, filter_key)]
+            ]
+            for parent_id in ids
+        }
+
+    def related_count(self, table_name: str, foreign_key: str, parent_id: UUID) -> int:
+        cache_key = (table_name, foreign_key, parent_id)
+        if cache_key in self._related_count_cache:
+            self._last_row_count = 0
+            return self._related_count_cache[cache_key]
+        return self.related_counts(table_name, foreign_key, [parent_id])[parent_id]
+
+    def related_counts(
+        self, table_name: str, foreign_key: str, parent_ids: list[UUID]
+    ) -> dict[UUID, int]:
+        """Count release-scoped related rows for many parents with one grouped query."""
+        ids = list(dict.fromkeys(parent_ids))
+        missing = [
+            parent_id
+            for parent_id in ids
+            if (table_name, foreign_key, parent_id) not in self._related_count_cache
+        ]
+        if missing:
+            table = self._table(table_name)
+            if foreign_key not in table.c:
+                raise ValueError(f"unknown relation column {foreign_key}")
+            rows = self._connection.execute(
+                select(table.c[foreign_key], func.count().label("related_count"))
+                .where(
+                    table.c.release_id == self.active_release_id,
+                    table.c[foreign_key].in_(missing),
+                )
+                .group_by(table.c[foreign_key])
+            ).all()
+            counts = {row[0]: int(row[1]) for row in rows}
+            for parent_id in missing:
+                self._related_count_cache[(table_name, foreign_key, parent_id)] = counts.get(
+                    parent_id, 0
+                )
+            self._last_row_count = len(rows)
+        return {
+            parent_id: self._related_count_cache[(table_name, foreign_key, parent_id)]
+            for parent_id in ids
+        }
 
     def evidence_for(self, entity_table: str, entity_id: UUID) -> list[dict[str, Any]]:
+        cache_key = (entity_table, entity_id)
+        if cache_key in self._evidence_cache:
+            rows = self._evidence_cache[cache_key]
+            self._last_row_count = len(rows)
+            return [dict(row) for row in rows]
+        return self.evidence_for_many(entity_table, [entity_id]).get(entity_id, [])
+
+    def evidence_for_many(
+        self, entity_table: str, entity_ids: list[UUID]
+    ) -> dict[UUID, list[dict[str, Any]]]:
+        """Read provenance bridges for many rows without one query per record."""
+        ids = list(dict.fromkeys(entity_ids))
         bridge_spec = EVIDENCE_BRIDGES.get(entity_table)
         if bridge_spec is None:
-            return []
+            return {entity_id: [] for entity_id in ids}
+        missing = [entity_id for entity_id in ids if (entity_table, entity_id) not in self._evidence_cache]
+        if not missing:
+            return {
+                entity_id: [dict(row) for row in self._evidence_cache[(entity_table, entity_id)]]
+                for entity_id in ids
+            }
         bridge_name, target_field = bridge_spec
         bridge = self._table(bridge_name)
         evidence = self._table("source_evidence")
@@ -215,6 +362,7 @@ class SQLAlchemyAcademicDataReadRepository:
         rows = (
             self._connection.execute(
                 select(
+                    bridge.c[target_field].label("__entity_id"),
                     evidence.c.external_key.label("evidence_key"),
                     evidence.c.field_path,
                     evidence.c.locator,
@@ -231,16 +379,39 @@ class SQLAlchemyAcademicDataReadRepository:
                 .select_from(joined)
                 .where(
                     bridge.c.release_id == self.active_release_id,
-                    bridge.c[target_field] == entity_id,
+                    bridge.c[target_field].in_(missing),
                 )
-                .order_by(evidence.c.external_key)
+                .order_by(bridge.c[target_field], evidence.c.external_key)
             )
             .mappings()
             .all()
         )
-        return [dict(row) for row in rows]
+        grouped = {entity_id: [] for entity_id in missing}
+        for row in rows:
+            grouped[row["__entity_id"]].append(
+                {key: value for key, value in dict(row).items() if key != "__entity_id"}
+            )
+        for entity_id, result in grouped.items():
+            self._evidence_cache[(entity_table, entity_id)] = result
+        self._last_row_count = len(rows)
+        return {
+            entity_id: [dict(row) for row in self._evidence_cache[(entity_table, entity_id)]]
+            for entity_id in ids
+        }
 
     def manual_reviews_for(self, external_key: str) -> list[dict[str, Any]]:
+        if external_key in self._manual_review_cache:
+            rows = self._manual_review_cache[external_key]
+            self._last_row_count = len(rows)
+            return [dict(row) for row in rows]
+        return self.manual_reviews_for_many([external_key]).get(external_key, [])
+
+    def manual_reviews_for_many(self, external_keys: list[str]) -> dict[str, list[dict[str, Any]]]:
+        """Load review rows for a group of keys while preserving per-key deduplication."""
+        keys = list(dict.fromkeys(external_keys))
+        missing = [key for key in keys if key not in self._manual_review_cache]
+        if not missing:
+            return {key: [dict(row) for row in self._manual_review_cache[key]] for key in keys}
         table = self._table("manual_review_items")
         rows = (
             self._connection.execute(
@@ -248,9 +419,9 @@ class SQLAlchemyAcademicDataReadRepository:
                 .where(
                     table.c.release_id == self.active_release_id,
                     or_(
-                        table.c.subject_key == external_key,
-                        table.c.source_key == external_key,
-                        table.c.target_key == external_key,
+                        table.c.subject_key.in_(missing),
+                        table.c.source_key.in_(missing),
+                        table.c.target_key.in_(missing),
                     ),
                 )
                 .order_by(table.c.external_key)
@@ -258,7 +429,19 @@ class SQLAlchemyAcademicDataReadRepository:
             .mappings()
             .all()
         )
-        return [dict(row) for row in rows]
+        grouped = {key: [] for key in missing}
+        for row in rows:
+            value = dict(row)
+            matching_keys = {
+                key for key in (row["subject_key"], row["source_key"], row["target_key"])
+                if key in grouped
+            }
+            for key in matching_keys:
+                grouped[key].append(value)
+        for key, result in grouped.items():
+            self._manual_review_cache[key] = result
+        self._last_row_count = len(rows)
+        return {key: [dict(row) for row in self._manual_review_cache[key]] for key in keys}
 
     def subject_classifications_for(
         self,

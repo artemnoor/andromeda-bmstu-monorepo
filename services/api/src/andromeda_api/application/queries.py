@@ -387,6 +387,7 @@ class AcademicDataQueries:
         filters: dict[str, Any] | None = None,
     ) -> PageResponse[T]:
         page_rows = self.repository.page(table, filters=filters, limit=limit, cursor=cursor)
+        self._prefetch_page_records(table, page_rows.items)
         subject_type = {
             "catalog_courses": "catalog_course",
             "curriculum_items": "curriculum_item",
@@ -418,6 +419,247 @@ class AcademicDataQueries:
                 ),
             ),
         )
+
+    def _prefetch_page_records(self, table: str, rows: list[dict[str, Any]]) -> None:
+        """Warm repository read caches for fields mapped from a collection page."""
+        if not rows:
+            return
+        get_by_ids = getattr(self.repository, "get_by_ids", None)
+        related_many = getattr(self.repository, "related_many", None)
+        evidence_for_many = getattr(self.repository, "evidence_for_many", None)
+        manual_reviews_for_many = getattr(self.repository, "manual_reviews_for_many", None)
+
+        if table == "directions":
+            direction_ids = [row["id"] for row in rows]
+            department_relations = (
+                related_many("direction_departments", "direction_id", direction_ids)
+                if related_many is not None
+                else {}
+            )
+            if related_many is not None:
+                related_many("educational_programs", "direction_id", direction_ids)
+            if get_by_ids is not None:
+                relation_rows = [
+                    relation
+                    for relations in department_relations.values()
+                    for relation in relations
+                ]
+                get_by_ids(
+                    "departments",
+                    list(
+                        dict.fromkeys(
+                            relation["department_id"]
+                            for relation in relation_rows
+                            if relation["department_id"]
+                        )
+                    ),
+                )
+            if evidence_for_many is not None:
+                evidence_for_many("directions", direction_ids)
+            if manual_reviews_for_many is not None:
+                manual_reviews_for_many([row["external_key"] for row in rows])
+        elif table == "departments":
+            department_ids = [row["id"] for row in rows]
+            if evidence_for_many is not None:
+                evidence_for_many("departments", department_ids)
+            if manual_reviews_for_many is not None:
+                manual_reviews_for_many([row["external_key"] for row in rows])
+        elif table == "educational_programs":
+            program_ids = [row["id"] for row in rows]
+            department_relations = (
+                related_many("educational_program_departments", "program_id", program_ids)
+                if related_many is not None
+                else {}
+            )
+            if related_many is not None:
+                related_many("study_plans", "program_id", program_ids)
+                related_many("catalog_courses", "program_id", program_ids)
+                related_many("program_offerings", "program_id", program_ids)
+            if get_by_ids is not None:
+                get_by_ids(
+                    "directions",
+                    list(dict.fromkeys(row["direction_id"] for row in rows if row["direction_id"])),
+                )
+                relation_rows = [
+                    relation
+                    for relations in department_relations.values()
+                    for relation in relations
+                ]
+                get_by_ids(
+                    "departments",
+                    list(
+                        dict.fromkeys(
+                            relation["department_id"]
+                            for relation in relation_rows
+                            if relation["department_id"]
+                        )
+                    ),
+                )
+            if evidence_for_many is not None:
+                evidence_for_many("educational_programs", program_ids)
+                evidence_for_many(
+                    "educational_program_departments",
+                    list(
+                        dict.fromkeys(
+                            relation["id"]
+                            for relations in department_relations.values()
+                            for relation in relations
+                        )
+                    ),
+                )
+            if manual_reviews_for_many is not None:
+                manual_reviews_for_many([row["external_key"] for row in rows])
+        elif table == "study_plans":
+            plan_ids = [row["id"] for row in rows]
+            related_counts = getattr(self.repository, "related_counts", None)
+            if related_counts is not None:
+                related_counts("curriculum_items", "study_plan_id", plan_ids)
+            if get_by_ids is not None:
+                get_by_ids(
+                    "educational_programs",
+                    list(dict.fromkeys(row["program_id"] for row in rows if row["program_id"])),
+                )
+            if evidence_for_many is not None:
+                evidence_for_many("study_plans", plan_ids)
+            if manual_reviews_for_many is not None:
+                manual_reviews_for_many([row["external_key"] for row in rows])
+        elif table == "curriculum_items":
+            if get_by_ids is not None:
+                get_by_ids(
+                    "study_plans",
+                    list(dict.fromkeys(row["study_plan_id"] for row in rows if row["study_plan_id"])),
+                )
+            if evidence_for_many is not None:
+                evidence_for_many("curriculum_items", [row["id"] for row in rows])
+            if manual_reviews_for_many is not None:
+                manual_reviews_for_many([row["external_key"] for row in rows])
+        elif table == "admission_campaigns":
+            if get_by_ids is not None:
+                get_by_ids(
+                    "universities",
+                    list(dict.fromkeys(row["university_id"] for row in rows if row["university_id"])),
+                )
+            if evidence_for_many is not None:
+                evidence_for_many(table, [row["id"] for row in rows])
+            if manual_reviews_for_many is not None:
+                manual_reviews_for_many([row["external_key"] for row in rows])
+        elif table == "campaign_calendar_events":
+            if get_by_ids is not None:
+                get_by_ids(
+                    "admission_campaigns",
+                    list(dict.fromkeys(row["campaign_id"] for row in rows if row["campaign_id"])),
+                )
+            if evidence_for_many is not None:
+                evidence_for_many(table, [row["id"] for row in rows])
+            if manual_reviews_for_many is not None:
+                manual_reviews_for_many([row["external_key"] for row in rows])
+        elif table == "program_offerings":
+            for linked_table, field in (
+                ("admission_campaigns", "campaign_id"),
+                ("educational_programs", "program_id"),
+                ("directions", "direction_id"),
+                ("departments", "department_id"),
+            ):
+                if get_by_ids is not None:
+                    get_by_ids(
+                        linked_table,
+                        list(dict.fromkeys(row[field] for row in rows if row[field] is not None)),
+                    )
+            if evidence_for_many is not None:
+                evidence_for_many(table, [row["id"] for row in rows])
+            if manual_reviews_for_many is not None:
+                manual_reviews_for_many([row["external_key"] for row in rows])
+        elif table == "competition_pools":
+            for linked_table, field in (
+                ("admission_campaigns", "campaign_id"),
+                ("directions", "direction_id"),
+                ("departments", "department_id"),
+                ("funding_types", "funding_type_id"),
+                ("quota_types", "quota_type_id"),
+            ):
+                if get_by_ids is not None:
+                    get_by_ids(
+                        linked_table,
+                        list(dict.fromkeys(row[field] for row in rows if row[field] is not None)),
+                    )
+            pool_ids = [row["id"] for row in rows]
+            pool_links = (
+                related_many("competition_pool_offerings", "pool_id", pool_ids)
+                if related_many is not None
+                else {}
+            )
+            if get_by_ids is not None:
+                offering_ids = [
+                    link["offering_id"]
+                    for links in pool_links.values()
+                    for link in links
+                    if link["offering_id"] is not None
+                ]
+                get_by_ids("program_offerings", list(dict.fromkeys(offering_ids)))
+            if evidence_for_many is not None:
+                evidence_for_many(table, pool_ids)
+            if manual_reviews_for_many is not None:
+                manual_reviews_for_many([row["external_key"] for row in rows])
+        elif table == "place_quota_assertions":
+            for linked_table, field in (
+                ("admission_campaigns", "campaign_id"),
+                ("competition_pools", "pool_id"),
+                ("funding_types", "funding_type_id"),
+                ("quota_types", "quota_type_id"),
+            ):
+                if get_by_ids is not None:
+                    get_by_ids(
+                        linked_table,
+                        list(dict.fromkeys(row[field] for row in rows if row[field] is not None)),
+                    )
+            if evidence_for_many is not None:
+                evidence_for_many(table, [row["id"] for row in rows])
+            if manual_reviews_for_many is not None:
+                manual_reviews_for_many([row["external_key"] for row in rows])
+        elif table == "admission_requirement_sets":
+            set_ids = [row["id"] for row in rows]
+            if get_by_ids is not None:
+                get_by_ids(
+                    "admission_campaigns",
+                    list(dict.fromkeys(row["campaign_id"] for row in rows if row["campaign_id"])),
+                )
+            nodes_by_set = (
+                related_many("admission_requirement_nodes", "requirement_set_id", set_ids)
+                if related_many is not None
+                else {}
+            )
+            nodes = [node for grouped in nodes_by_set.values() for node in grouped]
+            if get_by_ids is not None:
+                get_by_ids(
+                    "directions",
+                    list(dict.fromkeys(row["direction_id"] for row in rows if row["direction_id"])),
+                )
+                get_by_ids(
+                    "admission_exams",
+                    list(dict.fromkeys(node["exam_id"] for node in nodes if node["exam_id"])),
+                )
+            if evidence_for_many is not None:
+                evidence_for_many(table, set_ids)
+                evidence_for_many("admission_requirement_nodes", [node["id"] for node in nodes])
+            if manual_reviews_for_many is not None:
+                manual_reviews_for_many(
+                    [row["external_key"] for row in rows]
+                    + [node["external_key"] for node in nodes]
+                )
+        elif table in {
+            "tuition_assertions",
+            "historical_admission_statistics",
+            "admission_statistics",
+        }:
+            if get_by_ids is not None:
+                get_by_ids(
+                    "directions",
+                    list(dict.fromkeys(row["direction_id"] for row in rows if row["direction_id"])),
+                )
+            if evidence_for_many is not None:
+                evidence_for_many(table, [row["id"] for row in rows])
+            if manual_reviews_for_many is not None:
+                manual_reviews_for_many([row["external_key"] for row in rows])
 
     def _required(self, table: str, key: str) -> dict[str, Any]:
         row = self.repository.get(table, key)
@@ -585,9 +827,14 @@ class AcademicDataQueries:
             if row["program_id"] is not None
             else None
         )
-        item_count = self.repository.page(
-            "curriculum_items", filters={"study_plan_id": row["id"]}, limit=1
-        ).total_count
+        related_count = getattr(self.repository, "related_count", None)
+        item_count = (
+            related_count("curriculum_items", "study_plan_id", row["id"])
+            if related_count is not None
+            else self.repository.page(
+                "curriculum_items", filters={"study_plan_id": row["id"]}, limit=1
+            ).total_count
+        )
         return StudyPlanRecord(
             external_key=row["external_key"],
             program_key=program["external_key"] if program else None,

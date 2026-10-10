@@ -44,6 +44,8 @@ class AcademicDataReadRepository(Protocol):
 
     def get_by_id(self, table_name: str, record_id: UUID) -> dict[str, Any] | None: ...
 
+    def get_by_ids(self, table_name: str, record_ids: list[UUID]) -> dict[UUID, dict[str, Any]]: ...
+
     def page(
         self,
         table_name: str,
@@ -62,9 +64,30 @@ class AcademicDataReadRepository(Protocol):
         filters: dict[str, Any] | None = None,
     ) -> list[dict[str, Any]]: ...
 
+    def related_many(
+        self,
+        table_name: str,
+        foreign_key: str,
+        parent_ids: list[UUID],
+        *,
+        filters: dict[str, Any] | None = None,
+    ) -> dict[UUID, list[dict[str, Any]]]: ...
+
+    def related_count(self, table_name: str, foreign_key: str, parent_id: UUID) -> int: ...
+
+    def related_counts(
+        self, table_name: str, foreign_key: str, parent_ids: list[UUID]
+    ) -> dict[UUID, int]: ...
+
     def evidence_for(self, entity_table: str, entity_id: UUID) -> list[dict[str, Any]]: ...
 
+    def evidence_for_many(
+        self, entity_table: str, entity_ids: list[UUID]
+    ) -> dict[UUID, list[dict[str, Any]]]: ...
+
     def manual_reviews_for(self, external_key: str) -> list[dict[str, Any]]: ...
+
+    def manual_reviews_for_many(self, external_keys: list[str]) -> dict[str, list[dict[str, Any]]]: ...
 
     def subject_classifications_for(
         self,
