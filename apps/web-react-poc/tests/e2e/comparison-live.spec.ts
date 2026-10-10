@@ -329,6 +329,10 @@ test("favorite selection stays synchronized in browser storage after a refresh",
 });
 
 test("two live programs keep their own plans, chart totals, matrix columns, and selection after reload", async ({ page, diagnostics }) => {
+  // This real-data scenario verifies several cursor-paginated endpoints and a
+  // populated curriculum matrix in all three browsers against one PostgreSQL
+  // service. Keep a finite but realistic budget for the slower WebKit worker.
+  test.setTimeout(60_000);
   await page.goto("/programs");
   await expect(page.getByRole("heading", { level: 1, name: "Каталог программ" })).toBeVisible();
   const [first, second] = await discoverLiveCurriculumPrograms(page, 2);
