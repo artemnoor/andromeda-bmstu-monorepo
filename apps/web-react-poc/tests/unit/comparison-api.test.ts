@@ -228,8 +228,10 @@ describe("loadProgramComparison orchestration", () => {
     expect(api.getActiveRelease).toHaveBeenCalledTimes(1);
   });
 
-  it("keeps successfully loaded curriculum when admission reads fail", async () => {
-    api.getProgramAdmission.mockImplementation(() => Promise.reject(new Error("admission service unavailable")));
+  it("keeps successfully loaded curriculum and marks admission unavailable after a request timeout", async () => {
+    api.getProgramAdmission.mockImplementation(() => Promise.reject(
+      new DOMException("The admission request timed out.", "TimeoutError"),
+    ));
 
     const result = await loadProgramComparison([PROGRAM_KEY]);
 
