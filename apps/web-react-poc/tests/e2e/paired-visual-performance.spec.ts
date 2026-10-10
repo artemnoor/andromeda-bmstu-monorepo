@@ -1339,7 +1339,7 @@ async function capturePair(
       visualTolerancePercent: visualTolerancePercentFor(screen),
       visualAssertionMode: strictVisual
         ? "strict Vanilla-to-React visual tolerance"
-        : "non-gating paired Vanilla/React screenshots and raw pixel metrics; React baseline-to-final pixels are compared from CI artifacts",
+        : "non-gating paired Vanilla/React screenshots and raw pixel metrics; CI retains React baseline/final screenshots for manual comparison",
       note: "Paired Chromium pixel delta with reduced motion and identical viewport. Raw and semantic-masked deltas are measured over the shared screenshot area; full page height is checked independently with a strict 3.5% limit. Masks cover only text-value rectangles for paired category legend, table, or donut facts where captured source text proves that the original shows numeric zero and React correctly preserves the value as unknown; unrelated cells, bars, and geometry remain in the pixel comparison. The React-only active-release note follows the shared pixel area, so dedicated E2E assertions check its exact verified release key, text, last-section placement, and inclusion in the full-page height.",
     };
     const visualTolerancePercent = visualTolerancePercentFor(screen);
@@ -1750,7 +1750,7 @@ test("@paired @benchmark repeated vanilla-versus-React browser measurements", as
       samples: metrics,
       methodology: {
         readyMs: "PerformanceNavigationTiming.startTime to the first visible screen-specific comparison content; for Vanilla, admission may still be loading",
-        fullDataReadyMs: "For compare-load only: Vanilla waits for admission to settle successfully and its comparison table to be visible; React waits for the expected active-release key and an admission summary with zero unavailable selected programs. Before the timestamp is recorded, both apps must prove the same release, actual selected verified plan keys, exact curriculum item counts, and numeric hours/credits totals against independent PostgreSQL-backed API fixture sums. Each paginated collection must retain the same release identity.",
+        fullDataReadyMs: "For compare-load only: Vanilla waits for admission to settle successfully and its comparison table to be visible; React waits for the expected active-release key and an admission summary with zero unavailable selected programs. A sample is retained only if both apps also prove the same release, actual selected verified plan keys, exact curriculum item counts, and numeric hours/credits totals against independent PostgreSQL-backed API fixture sums. Each paginated collection must retain the same release identity.",
         comparisonIdentity: "Each measured sample records the same two external program keys, verified study-plan keys, release key, exact expected/actual curriculum row counts, and expected/actual numeric hours and credits; any missing row, mismatched plan, release, or aggregate fails the sample.",
         actionMs: "catalog fill to the single matching QA code becoming visible; synthetic catalog sizes are 50, 100, and 500 rows",
         scriptBytes: "sum of ResourceTiming encodedBodySize (or transferSize fallback) for every loaded .js/.mjs resource; cache disabled for each measured navigation",
