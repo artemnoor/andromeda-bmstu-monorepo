@@ -55,15 +55,15 @@ Authority: the user's performance-optimization request defines scope; existing c
 ## Tasks
 
 ### Phase 1: Baseline and attribution
-- [ ] Task 1: Reproduce paired production baseline against one isolated seeded release ([details](phase-01-baseline.md#task-1-reproduce-the-baseline))
-- [ ] Task 2: Attribute comparison network and CPU/render stages without product-default overhead ([details](phase-01-baseline.md#task-2-add-opt-in-performance-attribution))
+- [x] Task 1: Reproduce paired production baseline against one isolated seeded release ([details](phase-01-baseline.md#task-1-reproduce-the-baseline))
+- [x] Task 2: Attribute comparison network and CPU/render stages without product-default overhead ([details](phase-01-baseline.md#task-2-add-opt-in-performance-attribution))
 
 ### Phase 2: Evidence-based optimization
-- [ ] Task 3: Reduce comparison critical-path latency while preserving every release guard ([details](phase-02-optimization.md#task-3-overlap-independent-comparison-reads))
-- [ ] Task 4: Optimize only model/render/catalog hot paths confirmed by profiling ([details](phase-02-optimization.md#task-4-optimize-confirmed-rendering-or-search-hot-paths))
+- [x] Task 3: Reduce comparison critical-path latency while preserving every release guard ([details](phase-02-optimization.md#task-3-overlap-independent-comparison-reads))
+- [x] Task 4: Optimize only model/render/catalog hot paths confirmed by profiling ([details](phase-02-optimization.md#task-4-optimize-confirmed-rendering-or-search-hot-paths))
 
 ### Phase 3: Regression, report, and delivery
-- [ ] Task 5: Repeat paired benchmarks and run complete React, browser, and backend regressions ([details](phase-03-verification-delivery.md#task-5-prove-performance-and-regression-results))
+- [x] Task 5: Repeat paired benchmarks and run complete React, browser, and backend regressions ([details](phase-03-verification-delivery.md#task-5-prove-performance-and-regression-results))
 - [ ] Task 6: Complete independent review, publish PR, and merge after required CI succeeds ([details](phase-03-verification-delivery.md#task-6-review-and-deliver))
 
 ## Commit Plan

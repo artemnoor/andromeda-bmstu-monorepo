@@ -142,21 +142,24 @@ describe("catalog model", () => {
     const programs = [first, second];
     const index = buildCatalogSearchIndex(programs);
 
-    for (const query of [
-      "КИБЕР",
-      "24.05",
-      "ракетные",
-      "двигателей",
-      "технологических процессов",
-      "15.03.04",
-      "информатика",
-      "ИУ10",
-      "безопасности",
-      "1инф",
-      "не существует",
-      "   ",
-    ]) {
-      expect(filterPrograms(programs, { query }, index)).toEqual(filterPrograms(programs, { query }));
+    const cases: Array<{ query: string; expected: CatalogProgram[] }> = [
+      { query: "КИБЕР", expected: [first] },
+      { query: "24.05", expected: [second] },
+      { query: "ракетные", expected: [second] },
+      { query: "двигателей", expected: [second] },
+      { query: "технологических процессов", expected: [second] },
+      { query: "15.03.04", expected: [second] },
+      { query: "информатика", expected: [first] },
+      { query: "ИУ10", expected: [first] },
+      { query: "безопас", expected: [first] },
+      { query: "1инф", expected: [] },
+      { query: "не существует", expected: [] },
+      { query: "   ", expected: programs },
+    ];
+
+    for (const { query, expected } of cases) {
+      expect(filterPrograms(programs, { query }, index), `indexed query: ${query}`).toEqual(expected);
+      expect(filterPrograms(programs, { query }), `unindexed query: ${query}`).toEqual(expected);
     }
   });
 
