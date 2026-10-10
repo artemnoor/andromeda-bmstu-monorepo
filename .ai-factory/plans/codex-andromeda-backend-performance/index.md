@@ -62,19 +62,19 @@ Authority: the user's task defines scope and acceptance; existing API contracts,
 ## Tasks
 
 ### Phase 1: Baseline and attribution
-- [ ] Task 1: Reproduce catalog variance and capture the controlled pre-change baseline ([details](phase-01-baseline-attribution.md#task-1-reproduce-catalog-variance-and-baseline))
-- [ ] Task 2: Attribute the comparison dependency graph to HTTP, FastAPI, PostgreSQL, serialization, and browser stages ([details](phase-01-baseline-attribution.md#task-2-attribute-the-comparison-critical-path))
+- [x] Task 1: Reproduce catalog variance and capture the controlled pre-change baseline ([details](phase-01-baseline-attribution.md#task-1-reproduce-catalog-variance-and-baseline))
+- [x] Task 2: Attribute the comparison dependency graph to HTTP, FastAPI, PostgreSQL, serialization, and browser stages ([details](phase-01-baseline-attribution.md#task-2-attribute-the-comparison-critical-path))
 
 ### Phase 2: Architecture decision and implementation
-- [ ] Task 3: Compare A/B/C against measured evidence and select the least complex safe option ([details](phase-02-decision-implementation.md#task-3-select-a-safe-read-architecture))
-- [ ] Task 4: Implement only the selected optimization and add contract/query regression coverage ([details](phase-02-decision-implementation.md#task-4-implement-the-selected-optimization)) (depends on 1, 2, 3)
+- [x] Task 3: Compare A/B/C against measured evidence and select the least complex safe option ([details](phase-02-decision-implementation.md#task-3-select-a-safe-read-architecture))
+- [x] Task 4: Implement only the selected optimization and add contract/query regression coverage ([details](phase-02-decision-implementation.md#task-4-implement-the-selected-optimization)) (depends on 1, 2, 3)
 
 ### Phase 3: Correctness and performance verification
-- [ ] Task 5: Verify academic invariants, release switching, edge behavior, and parity with the existing API ([details](phase-03-verification.md#task-5-verify-academic-correctness-and-parity)) (depends on 4)
-- [ ] Task 6: Run ten-sample same-environment before/after/Vanilla browser benchmarks and full tests ([details](phase-03-verification.md#task-6-run-controlled-benchmarks-and-regressions)) (depends on 4, 5)
+- [x] Task 5: Verify academic invariants, release switching, edge behavior, and parity with the existing API ([details](phase-03-verification.md#task-5-verify-academic-correctness-and-parity)) (depends on 4)
+- [x] Task 6: Run ten-sample same-environment before/after/Vanilla browser benchmarks and full tests ([details](phase-03-verification.md#task-6-run-controlled-benchmarks-and-regressions)) (depends on 4, 5)
 
 ### Phase 4: Independent audit and delivery
-- [ ] Task 7: Obtain independent architecture/performance review and resolve P0/P1 findings ([details](phase-04-audit-delivery.md#task-7-independent-review-and-recheck)) (depends on 4, 5, 6)
+- [x] Task 7: Obtain independent architecture/performance review and resolve P0/P1 findings ([details](phase-04-audit-delivery.md#task-7-independent-review-and-recheck)) (depends on 4, 5, 6)
 - [ ] Task 8: Publish the research report, create PR, wait for CI, fix failures, and merge when eligible ([details](phase-04-audit-delivery.md#task-8-publish-pr-and-deliver)) (depends on 7)
 
 ## Commit Plan

@@ -4,11 +4,11 @@
   "databaseUser": "andromeda_test",
   "releaseKey": "bmstu-2026:72af1a16109bbcb8adf3060249636c49ed69cd2d635aac9bd762e12e7b213fbe:bmstu-2026-bundle-v5",
   "directionPage": {
-    "http_client_duration_ms": 31.43,
-    "app_duration_ms": 29.85,
-    "sql_duration_ms": 12.05,
+    "http_client_duration_ms": 34.99,
+    "app_duration_ms": 33.14,
+    "sql_duration_ms": 12.3,
     "sql_query_count": 11,
-    "sql_duration_event_ms": 12.05,
+    "sql_duration_event_ms": 12.3,
     "response_bytes": 130820,
     "table_statement_counts": {
       "educational_programs": 1,
@@ -25,14 +25,14 @@
     "directionAndDepartmentExplainAnalyze": {
       "directions": [
         {
-          "planningTimeMs": 0.044,
-          "executionTimeMs": 0.038,
+          "planningTimeMs": 0.038,
+          "executionTimeMs": 0.057,
           "plan": [
             {
               "Node Type": "Aggregate",
               "Plan Rows": 1,
               "Actual Rows": 1,
-              "Actual Total Time": 0.028,
+              "Actual Total Time": 0.031,
               "Shared Hit Blocks": 13,
               "Shared Read Blocks": 0
             },
@@ -42,21 +42,21 @@
               "Index Name": "ix_directions_release_code",
               "Plan Rows": 1,
               "Actual Rows": 53,
-              "Actual Total Time": 0.023,
+              "Actual Total Time": 0.026,
               "Shared Hit Blocks": 13,
               "Shared Read Blocks": 0
             }
           ]
         },
         {
-          "planningTimeMs": 0.044,
-          "executionTimeMs": 0.023,
+          "planningTimeMs": 0.043,
+          "executionTimeMs": 0.028,
           "plan": [
             {
               "Node Type": "Limit",
               "Plan Rows": 1,
               "Actual Rows": 53,
-              "Actual Total Time": 0.016,
+              "Actual Total Time": 0.021,
               "Shared Hit Blocks": 13,
               "Shared Read Blocks": 0
             },
@@ -66,7 +66,7 @@
               "Index Name": "uq_directions_release_external_key",
               "Plan Rows": 1,
               "Actual Rows": 53,
-              "Actual Total Time": 0.012,
+              "Actual Total Time": 0.017,
               "Shared Hit Blocks": 13,
               "Shared Read Blocks": 0
             }
@@ -75,14 +75,14 @@
       ],
       "direction_departments": [
         {
-          "planningTimeMs": 0.063,
-          "executionTimeMs": 0.148,
+          "planningTimeMs": 0.065,
+          "executionTimeMs": 0.174,
           "plan": [
             {
               "Node Type": "Incremental Sort",
               "Plan Rows": 2,
               "Actual Rows": 110,
-              "Actual Total Time": 0.139,
+              "Actual Total Time": 0.164,
               "Shared Hit Blocks": 32,
               "Shared Read Blocks": 0
             },
@@ -92,7 +92,7 @@
               "Index Name": "uq_direction_departments_pair",
               "Plan Rows": 1,
               "Actual Rows": 110,
-              "Actual Total Time": 0.033,
+              "Actual Total Time": 0.035,
               "Shared Hit Blocks": 32,
               "Shared Read Blocks": 0
             }
@@ -102,11 +102,11 @@
     }
   },
   "departmentPage": {
-    "http_client_duration_ms": 14.08,
-    "app_duration_ms": 12.71,
-    "sql_duration_ms": 4.84,
+    "http_client_duration_ms": 16.45,
+    "app_duration_ms": 14.91,
+    "sql_duration_ms": 5.79,
     "sql_query_count": 8,
-    "sql_duration_event_ms": 4.84,
+    "sql_duration_event_ms": 5.79,
     "response_bytes": 113294,
     "table_statement_counts": {
       "departments": 2,
@@ -119,14 +119,14 @@
     "totalRecords": 77,
     "departmentExplainAnalyze": [
       {
-        "planningTimeMs": 0.044,
-        "executionTimeMs": 0.044,
+        "planningTimeMs": 0.037,
+        "executionTimeMs": 0.042,
         "plan": [
           {
             "Node Type": "Aggregate",
             "Plan Rows": 1,
             "Actual Rows": 1,
-            "Actual Total Time": 0.035,
+            "Actual Total Time": 0.034,
             "Shared Hit Blocks": 49,
             "Shared Read Blocks": 0
           },
@@ -136,21 +136,21 @@
             "Index Name": "ix_departments_release_code",
             "Plan Rows": 1,
             "Actual Rows": 77,
-            "Actual Total Time": 0.03,
+            "Actual Total Time": 0.029,
             "Shared Hit Blocks": 49,
             "Shared Read Blocks": 0
           }
         ]
       },
       {
-        "planningTimeMs": 0.043,
-        "executionTimeMs": 0.029,
+        "planningTimeMs": 0.039,
+        "executionTimeMs": 0.035,
         "plan": [
           {
             "Node Type": "Limit",
             "Plan Rows": 1,
             "Actual Rows": 77,
-            "Actual Total Time": 0.021,
+            "Actual Total Time": 0.027,
             "Shared Hit Blocks": 49,
             "Shared Read Blocks": 0
           },
@@ -160,7 +160,7 @@
             "Index Name": "uq_departments_release_external_key",
             "Plan Rows": 1,
             "Actual Rows": 77,
-            "Actual Total Time": 0.016,
+            "Actual Total Time": 0.023,
             "Shared Hit Blocks": 49,
             "Shared Read Blocks": 0
           }
@@ -169,11 +169,11 @@
     ]
   },
   "programPage": {
-    "http_client_duration_ms": 125.52,
-    "app_duration_ms": 122.54,
-    "sql_duration_ms": 16.69,
+    "http_client_duration_ms": 111.69,
+    "app_duration_ms": 109.03,
+    "sql_duration_ms": 72.77,
     "sql_query_count": 15,
-    "sql_duration_event_ms": 16.69,
+    "sql_duration_event_ms": 72.76,
     "response_bytes": 454521,
     "table_statement_counts": {
       "educational_programs": 2,
@@ -205,11 +205,11 @@
     "totalRecords": 152,
     "pageProfiles": [
       {
-        "http_client_duration_ms": 45.47,
-        "app_duration_ms": 43.26,
-        "sql_duration_ms": 21.04,
+        "http_client_duration_ms": 46.7,
+        "app_duration_ms": 44.65,
+        "sql_duration_ms": 19.63,
         "sql_query_count": 10,
-        "sql_duration_event_ms": 21.04,
+        "sql_duration_event_ms": 19.63,
         "response_bytes": 518397,
         "table_statement_counts": {
           "educational_programs": 1,
@@ -221,11 +221,11 @@
         }
       },
       {
-        "http_client_duration_ms": 24.41,
-        "app_duration_ms": 22.79,
-        "sql_duration_ms": 11.35,
+        "http_client_duration_ms": 29.04,
+        "app_duration_ms": 26.87,
+        "sql_duration_ms": 12.37,
         "sql_query_count": 10,
-        "sql_duration_event_ms": 11.35,
+        "sql_duration_event_ms": 12.37,
         "response_bytes": 261515,
         "table_statement_counts": {
           "educational_programs": 1,
@@ -239,11 +239,11 @@
     ]
   },
   "selectedProgramStudyPlanPage": {
-    "http_client_duration_ms": 10.75,
-    "app_duration_ms": 9.32,
-    "sql_duration_ms": 3.97,
+    "http_client_duration_ms": 12.72,
+    "app_duration_ms": 11.27,
+    "sql_duration_ms": 4.77,
     "sql_query_count": 11,
-    "sql_duration_event_ms": 3.97,
+    "sql_duration_event_ms": 4.78,
     "response_bytes": 6057,
     "table_statement_counts": {
       "educational_programs": 2,
@@ -258,14 +258,14 @@
     "totalRecords": 1,
     "curriculumItemCountExplainAnalyze": [
       {
-        "planningTimeMs": 0.061,
-        "executionTimeMs": 0.062,
+        "planningTimeMs": 0.053,
+        "executionTimeMs": 0.058,
         "plan": [
           {
             "Node Type": "Aggregate",
             "Plan Rows": 1,
             "Actual Rows": 1,
-            "Actual Total Time": 0.055,
+            "Actual Total Time": 0.05,
             "Shared Hit Blocks": 15,
             "Shared Read Blocks": 0
           },
@@ -275,7 +275,7 @@
             "Index Name": "ix_curriculum_items_release_plan_ordinal",
             "Plan Rows": 1,
             "Actual Rows": 131,
-            "Actual Total Time": 0.048,
+            "Actual Total Time": 0.043,
             "Shared Hit Blocks": 15,
             "Shared Read Blocks": 0
           }
@@ -284,11 +284,11 @@
     ]
   },
   "curriculumItemPage": {
-    "http_client_duration_ms": 57.03,
-    "app_duration_ms": 55.51,
-    "sql_duration_ms": 38.14,
+    "http_client_duration_ms": 58.46,
+    "app_duration_ms": 56.8,
+    "sql_duration_ms": 36.38,
     "sql_query_count": 11,
-    "sql_duration_event_ms": 38.14,
+    "sql_duration_event_ms": 36.38,
     "response_bytes": 197407,
     "table_statement_counts": {
       "study_plans": 2,
@@ -304,11 +304,11 @@
     "records": 100
   },
   "campaignPage": {
-    "http_client_duration_ms": 9.93,
-    "app_duration_ms": 8.7,
-    "sql_duration_ms": 3.53,
+    "http_client_duration_ms": 12.94,
+    "app_duration_ms": 10.97,
+    "sql_duration_ms": 4.27,
     "sql_query_count": 9,
-    "sql_duration_event_ms": 3.53,
+    "sql_duration_event_ms": 4.27,
     "response_bytes": 1462,
     "table_statement_counts": {
       "source_evidence": 1,
@@ -320,11 +320,11 @@
   },
   "admissionReadPages": {
     "campaignOfferings": {
-      "http_client_duration_ms": 25.85,
-      "app_duration_ms": 24.42,
-      "sql_duration_ms": 8.83,
+      "http_client_duration_ms": 30.75,
+      "app_duration_ms": 29.21,
+      "sql_duration_ms": 10.77,
       "sql_query_count": 13,
-      "sql_duration_event_ms": 8.83,
+      "sql_duration_event_ms": 10.77,
       "response_bytes": 159862,
       "table_statement_counts": {
         "educational_programs": 1,
@@ -339,11 +339,11 @@
       "totalRecords": 127
     },
     "campaignCalendar": {
-      "http_client_duration_ms": 12.36,
-      "app_duration_ms": 11.09,
-      "sql_duration_ms": 4.41,
+      "http_client_duration_ms": 15.76,
+      "app_duration_ms": 14.36,
+      "sql_duration_ms": 5.86,
       "sql_query_count": 10,
-      "sql_duration_event_ms": 4.41,
+      "sql_duration_event_ms": 5.86,
       "response_bytes": 72875,
       "table_statement_counts": {
         "source_evidence": 1,
@@ -354,11 +354,11 @@
       "totalRecords": 37
     },
     "requirements": {
-      "http_client_duration_ms": 52.61,
-      "app_duration_ms": 50.95,
-      "sql_duration_ms": 17.41,
+      "http_client_duration_ms": 64.31,
+      "app_duration_ms": 62.52,
+      "sql_duration_ms": 21.43,
       "sql_query_count": 14,
-      "sql_duration_event_ms": 17.42,
+      "sql_duration_event_ms": 21.43,
       "response_bytes": 437668,
       "table_statement_counts": {
         "directions": 1,
@@ -370,11 +370,11 @@
       "totalRecords": 81
     },
     "competitionPools": {
-      "http_client_duration_ms": 33.9,
-      "app_duration_ms": 32.29,
-      "sql_duration_ms": 13.61,
+      "http_client_duration_ms": 41.46,
+      "app_duration_ms": 39.57,
+      "sql_duration_ms": 17.17,
       "sql_query_count": 15,
-      "sql_duration_event_ms": 13.61,
+      "sql_duration_event_ms": 17.18,
       "response_bytes": 114557,
       "table_statement_counts": {
         "program_offerings": 1,
@@ -387,22 +387,22 @@
       "totalRecords": 940
     },
     "placeQuotas": {
-      "http_client_duration_ms": 6.76,
-      "app_duration_ms": 5.61,
-      "sql_duration_ms": 2.15,
+      "http_client_duration_ms": 8.36,
+      "app_duration_ms": 6.82,
+      "sql_duration_ms": 2.56,
       "sql_query_count": 7,
-      "sql_duration_event_ms": 2.15,
+      "sql_duration_event_ms": 2.55,
       "response_bytes": 181,
       "table_statement_counts": {},
       "records": 0,
       "totalRecords": 0
     },
     "tuition": {
-      "http_client_duration_ms": 9.63,
-      "app_duration_ms": 8.53,
-      "sql_duration_ms": 3.68,
+      "http_client_duration_ms": 11.89,
+      "app_duration_ms": 10.61,
+      "sql_duration_ms": 4.57,
       "sql_query_count": 9,
-      "sql_duration_event_ms": 3.68,
+      "sql_duration_event_ms": 4.57,
       "response_bytes": 6129,
       "table_statement_counts": {
         "directions": 1,
@@ -414,11 +414,11 @@
       "totalRecords": 4
     },
     "historicalStatistics": {
-      "http_client_duration_ms": 11.37,
-      "app_duration_ms": 10.21,
-      "sql_duration_ms": 4.36,
+      "http_client_duration_ms": 14.25,
+      "app_duration_ms": 12.92,
+      "sql_duration_ms": 5.25,
       "sql_query_count": 9,
-      "sql_duration_event_ms": 4.36,
+      "sql_duration_event_ms": 5.25,
       "response_bytes": 24188,
       "table_statement_counts": {
         "directions": 1,
@@ -430,11 +430,11 @@
       "totalRecords": 14
     },
     "admissionStatistics": {
-      "http_client_duration_ms": 9.69,
-      "app_duration_ms": 8.52,
-      "sql_duration_ms": 3.74,
+      "http_client_duration_ms": 11.65,
+      "app_duration_ms": 10.39,
+      "sql_duration_ms": 4.38,
       "sql_query_count": 9,
-      "sql_duration_event_ms": 3.74,
+      "sql_duration_event_ms": 4.38,
       "response_bytes": 11463,
       "table_statement_counts": {
         "directions": 1,
@@ -446,16 +446,27 @@
       "totalRecords": 7
     }
   },
+  "nonEmptyPlaceQuota": {
+    "records": 2,
+    "places": [
+      0,
+      2
+    ],
+    "batchedDtoMappingSqlQueries": 7,
+    "unbatchedDtoMappingSqlQueries": 11,
+    "dtoMatchesUnbatched": true,
+    "releaseKey": "bmstu-2026:72af1a16109bbcb8adf3060249636c49ed69cd2d635aac9bd762e12e7b213fbe:bmstu-2026-bundle-v5"
+  },
   "curriculumItemPageExplainAnalyze": [
     {
-      "planningTimeMs": 0.039,
-      "executionTimeMs": 0.039,
+      "planningTimeMs": 0.054,
+      "executionTimeMs": 0.056,
       "plan": [
         {
           "Node Type": "Aggregate",
           "Plan Rows": 1,
           "Actual Rows": 1,
-          "Actual Total Time": 0.029,
+          "Actual Total Time": 0.044,
           "Shared Hit Blocks": 15,
           "Shared Read Blocks": 0
         },
@@ -465,21 +476,21 @@
           "Index Name": "ix_curriculum_items_release_plan_ordinal",
           "Plan Rows": 1,
           "Actual Rows": 131,
-          "Actual Total Time": 0.023,
+          "Actual Total Time": 0.037,
           "Shared Hit Blocks": 15,
           "Shared Read Blocks": 0
         }
       ]
     },
     {
-      "planningTimeMs": 0.052,
-      "executionTimeMs": 0.935,
+      "planningTimeMs": 0.057,
+      "executionTimeMs": 1.185,
       "plan": [
         {
           "Node Type": "Limit",
           "Plan Rows": 1,
           "Actual Rows": 101,
-          "Actual Total Time": 0.922,
+          "Actual Total Time": 1.171,
           "Shared Hit Blocks": 15,
           "Shared Read Blocks": 0
         },
@@ -487,7 +498,7 @@
           "Node Type": "Sort",
           "Plan Rows": 1,
           "Actual Rows": 101,
-          "Actual Total Time": 0.916,
+          "Actual Total Time": 1.166,
           "Shared Hit Blocks": 15,
           "Shared Read Blocks": 0
         },
@@ -497,7 +508,7 @@
           "Index Name": "ix_curriculum_items_release_plan_ordinal",
           "Plan Rows": 1,
           "Actual Rows": 131,
-          "Actual Total Time": 0.018,
+          "Actual Total Time": 0.024,
           "Shared Hit Blocks": 15,
           "Shared Read Blocks": 0
         }
@@ -512,6 +523,7 @@
     "unbatchedReadModelMatchesSelectedProgramStudyPlans": true,
     "unbatchedReadModelMatchesCurriculumPage": true,
     "unbatchedReadModelMatchesAdmissionPages": true,
+    "unbatchedReadModelMatchesNonEmptyPlaceQuota": true,
     "releaseKey": "bmstu-2026:72af1a16109bbcb8adf3060249636c49ed69cd2d635aac9bd762e12e7b213fbe:bmstu-2026-bundle-v5"
   }
 }
