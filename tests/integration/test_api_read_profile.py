@@ -428,6 +428,7 @@ def test_profile_seeded_catalog_and_curriculum_reads(
                 unbatched_directions = unbatched.directions(100, None).model_dump(mode="json")
                 unbatched_departments = unbatched.departments(100, None).model_dump(mode="json")
                 unbatched_programs = unbatched.programs(100, None).model_dump(mode="json")
+                unbatched_campaigns = unbatched.campaigns(100, None).model_dump(mode="json")
                 unbatched_plans = unbatched.study_plans(
                     100, None, selected_program_key
                 ).model_dump(mode="json")
@@ -471,6 +472,7 @@ def test_profile_seeded_catalog_and_curriculum_reads(
         assert unbatched_directions == direction_body
         assert unbatched_departments == department_body
         assert unbatched_programs == program_body
+        assert unbatched_campaigns == campaigns_body
         assert unbatched_plans == selected_plans_body
         assert unbatched_items == items_body
         assert unbatched_admission_bodies == admission_bodies
@@ -478,6 +480,7 @@ def test_profile_seeded_catalog_and_curriculum_reads(
             "unbatchedReadModelMatchesDirectionPage": True,
             "unbatchedReadModelMatchesDepartmentPage": True,
             "unbatchedReadModelMatchesProgramPage": True,
+            "unbatchedReadModelMatchesCampaignPage": True,
             "unbatchedReadModelMatchesSelectedProgramStudyPlans": True,
             "unbatchedReadModelMatchesCurriculumPage": True,
             "unbatchedReadModelMatchesAdmissionPages": True,
