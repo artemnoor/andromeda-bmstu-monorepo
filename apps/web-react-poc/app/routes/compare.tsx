@@ -398,12 +398,13 @@ function CategoryChart({
   return (
     <article
       className={styles.categoryCard}
+      data-qa="category-chart-card"
       data-program-key={program.programKey}
       data-plan-key={program.planSelection.currentPlan?.external_key ?? ""}
     >
       <header className={styles.categoryProgramHead} style={{ "--program-color": SERIES_COLORS[programIndex % SERIES_COLORS.length] } as CSSProperties}>
         <div className={styles.categoryProgramCopy}>
-          <span className={styles.categoryProgramCode}>{programCode || "Код не указан"}</span>
+          <span className={styles.categoryProgramCode} data-qa="category-program-code">{programCode || "Код не указан"}</span>
           <h3 className={styles.categoryProgramName}>{programName}</h3>
         </div>
         <div className={styles.categoryProgramTotal}>
@@ -435,8 +436,8 @@ function CategoryChart({
             ))}
           </svg>
           <div className={styles.donutCenter} aria-live="polite">
-            <strong>{percentage(activeValue, total.value, hasActiveValue && total.count > 0)}</strong>
-            <span>{activeCategory?.name ?? (total.count ? "Выберите категорию" : "Нет числовых данных")}</span>
+            <strong data-qa="category-chart-center-value">{percentage(activeValue, total.value, hasActiveValue && total.count > 0)}</strong>
+            <span data-qa="category-chart-center-label">{activeCategory?.name ?? (total.count ? "Выберите категорию" : "Нет числовых данных")}</span>
           </div>
         </div>
       </div>
@@ -808,7 +809,7 @@ export default function CompareRoute() {
             <WorkloadChart data={data} />
             <CategoryComparison data={data} />
             <CurriculumMatrix data={data} />
-            <p className={styles.releaseNote}>Активный академический выпуск: <code>{data.releaseKey}</code>. Все таблицы и планы сверены с этим ключом.</p>
+            <p className={styles.releaseNote} data-qa="active-release-note">Активный академический выпуск: <code data-qa="active-release-key">{data.releaseKey}</code>. Все таблицы и планы сверены с этим ключом.</p>
           </>
         ) : null}
       </main>

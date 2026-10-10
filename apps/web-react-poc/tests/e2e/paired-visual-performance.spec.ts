@@ -62,6 +62,20 @@ interface CategoryDistributionRowMetric {
 interface SemanticComparisonMetrics {
   readonly factRects: Readonly<Record<string, MeasuredRect>>;
   readonly unknownFactKeys: readonly string[];
+  readonly unknownDonutFactKeys: readonly string[];
+  readonly factTexts: Readonly<Record<string, string>>;
+}
+
+function isVerifiedZeroToUnknown(factKey: string, originalText: string | undefined, reactText: string | undefined): boolean {
+  if (!originalText || !reactText) return false;
+  const [kind] = JSON.parse(factKey) as [string, string, string];
+  if (kind === "legend") {
+    return /^·\s*0\s*ч\.\s*·\s*0%$/.test(originalText) && /^·\s*—\s*·\s*—$/.test(reactText);
+  }
+  if (kind === "distribution") {
+    return originalText === "0 ч.|0%" && reactText === "—|—";
+  }
+  return kind === "donut" && originalText === "0%" && reactText === "—";
 }
 
 const reactBaseURL = process.env.REACT_WEB_BASE_URL
@@ -310,6 +324,8 @@ async function navigateAndWait(
     ? await page.evaluate((appName): SemanticComparisonMetrics => {
       const factRects: Record<string, MeasuredRect> = {};
       const unknownFactKeys: string[] = [];
+      const unknownDonutFactKeys: string[] = [];
+      const factTexts: Record<string, string> = {};
       const rect = (element: Element | null): MeasuredRect | null => {
         if (!element) return null;
         const bounds = element.getBoundingClientRect();
@@ -321,6 +337,29 @@ async function navigateAndWait(
         };
       };
       const key = (kind: string, category: string, code: string) => JSON.stringify([kind, category, code]);
+      const normalizedText = (value: string | null | undefined) => (value ?? "").replace(/\s+/g, " ").trim();
+      const directTextContent = (element: Element) => [...element.childNodes]
+        .filter((node) => node.nodeType === Node.TEXT_NODE)
+        .map((node) => node.textContent ?? "")
+        .join("");
+      const directTextRect = (element: Element): MeasuredRect | null => {
+        const ranges = [...element.childNodes]
+          .filter((node) => node.nodeType === Node.TEXT_NODE && node.textContent?.trim())
+          .map((node) => {
+            const range = document.createRange();
+            range.selectNode(node);
+            return range.getBoundingClientRect();
+          });
+        if (!ranges.length) return null;
+        const left = Math.min(...ranges.map((bounds) => bounds.left));
+        const top = Math.min(...ranges.map((bounds) => bounds.top));
+        const right = Math.max(...ranges.map((bounds) => bounds.right));
+        const bottom = Math.max(...ranges.map((bounds) => bounds.bottom));
+        return { x: left, y: top + window.scrollY, width: right - left, height: bottom - top };
+      };
+      const valueParts = (element: Element) => [...element.children]
+        .map((child) => normalizedText(child.textContent))
+        .join("|");
 
       if (appName === "react") {
         for (const item of document.querySelectorAll<HTMLElement>('[data-qa="category-legend-item"]')) {
@@ -328,8 +367,9 @@ async function navigateAndWait(
           for (const value of item.querySelectorAll<HTMLElement>('[data-qa="category-legend-values"] [data-program-code]')) {
             const programCode = value.dataset.programCode ?? "";
             const factKey = key("legend", category, programCode);
-            const bounds = rect(value);
+            const bounds = directTextRect(value);
             if (bounds) factRects[factKey] = bounds;
+            factTexts[factKey] = normalizedText(directTextContent(value));
             if (value.dataset.semanticState === "unknown") unknownFactKeys.push(factKey);
           }
         }
@@ -340,18 +380,32 @@ async function navigateAndWait(
             if (!unknown) continue;
             const programCode = cell.dataset.programCode ?? "";
             const factKey = key("distribution", category, programCode);
-            const bounds = rect(unknown);
+            const valueContainer = unknown.parentElement;
+            const bounds = rect(valueContainer);
             if (bounds) factRects[factKey] = bounds;
+            factTexts[factKey] = valueContainer ? valueParts(valueContainer) : normalizedText(unknown.textContent);
             unknownFactKeys.push(factKey);
           }
+        }
+        for (const card of document.querySelectorAll<HTMLElement>("[data-qa='category-chart-card']")) {
+          const programCode = card.querySelector<HTMLElement>("[data-qa='category-program-code']")?.textContent?.trim() ?? "";
+          const category = card.querySelector<HTMLElement>("[data-qa='category-chart-center-label']")?.textContent?.trim() ?? "";
+          const value = card.querySelector<HTMLElement>("[data-qa='category-chart-center-value']");
+          if (!programCode || !category || !value) continue;
+          const factKey = key("donut", category, programCode);
+            const bounds = directTextRect(value);
+            if (bounds) factRects[factKey] = bounds;
+            factTexts[factKey] = normalizedText(directTextContent(value));
+          if (factTexts[factKey] === "—") unknownDonutFactKeys.push(factKey);
         }
       } else {
         for (const item of document.querySelectorAll<HTMLElement>(".category-shared-item")) {
           const category = item.querySelector<HTMLElement>(".category-shared-name")?.textContent?.trim() ?? "";
           for (const value of item.querySelectorAll<HTMLElement>(".category-shared-values > span")) {
             const programCode = value.querySelector("strong")?.textContent?.trim() ?? "";
-            const bounds = rect(value);
+            const bounds = directTextRect(value);
             if (bounds) factRects[key("legend", category, programCode)] = bounds;
+            factTexts[key("legend", category, programCode)] = normalizedText(directTextContent(value));
           }
         }
         const table = document.querySelector<HTMLTableElement>(".category-distribution-table");
@@ -362,16 +416,28 @@ async function navigateAndWait(
           const category = row.querySelector<HTMLElement>(".category-row-name")?.textContent?.trim() ?? "";
           const cells = [...row.querySelectorAll<HTMLTableCellElement>("td")];
           for (const [index, cell] of cells.entries()) {
-            const value = cell.querySelector<HTMLElement>(".category-distribution-cell");
+            const value = cell.querySelector<HTMLElement>(".category-distribution-values");
             if (!value) continue;
             const bounds = rect(value);
-            if (bounds) factRects[key("distribution", category, programCodes[index] ?? "")] = bounds;
+            const factKey = key("distribution", category, programCodes[index] ?? "");
+            if (bounds) factRects[factKey] = bounds;
+            factTexts[factKey] = valueParts(value);
           }
         }
+        for (const card of document.querySelectorAll<HTMLElement>(".category-program-card")) {
+          const programCode = card.querySelector<HTMLElement>(".category-program-code")?.textContent?.trim() ?? "";
+          const category = card.querySelector<HTMLElement>(".category-donut-center span")?.textContent?.trim() ?? "";
+          const value = card.querySelector<HTMLElement>(".category-donut-center strong");
+          if (!programCode || !category || !value) continue;
+          const factKey = key("donut", category, programCode);
+          const bounds = rect(value);
+          if (bounds) factRects[factKey] = bounds;
+          factTexts[factKey] = normalizedText(value.textContent);
+        }
       }
-      return { factRects, unknownFactKeys };
+      return { factRects, unknownFactKeys, unknownDonutFactKeys, factTexts };
     }, app)
-    : { factRects: {}, unknownFactKeys: [] };
+    : { factRects: {}, unknownFactKeys: [], unknownDonutFactKeys: [], factTexts: {} };
   const chrome = await page.evaluate(() => {
     const inspect = (element: HTMLElement | null) => {
       if (!element) return null;
@@ -552,20 +618,19 @@ async function attachPng(testInfo: TestInfo, name: string, data: Buffer): Promis
   await testInfo.attach(name, { body: data, contentType: "image/png" });
 }
 
-function padToHeight(source: PNG, height: number): PNG {
-  const padded = new PNG({ width: source.width, height });
-  padded.data.fill(0);
+function clipToHeight(source: PNG, height: number): PNG {
+  const clipped = new PNG({ width: source.width, height });
   const rowBytes = source.width * 4;
   for (let row = 0; row < Math.min(source.height, height); row += 1) {
     const sourceRow = row;
     source.data.copy(
-      padded.data,
+      clipped.data,
       row * rowBytes,
       sourceRow * rowBytes,
       (sourceRow + 1) * rowBytes,
     );
   }
-  return padded;
+  return clipped;
 }
 
 function maskRect(image: PNG, rect: MeasuredRect): void {
@@ -785,6 +850,22 @@ async function capturePair(
         .toEqual(vanillaCapture.catalogEntries);
     }
     if (screen === "populated-comparison") {
+      const releaseNote = page.locator('[data-qa="active-release-note"]');
+      await expect(releaseNote, "React comparison identifies the single active academic release").toBeVisible();
+      await expect(releaseNote).toContainText("Активный академический выпуск:");
+      await expect(releaseNote).toContainText("Все таблицы и планы сверены с этим ключом.");
+      const releaseCode = releaseNote.locator('[data-qa="active-release-key"]');
+      expect(program?.releaseKey, "the paired fixture was discovered from a verified active release").toBeTruthy();
+      if (!program?.releaseKey) throw new Error("The populated comparison has no verified release identity.");
+      await expect(releaseCode, "the displayed release identity matches the verified test release").toHaveText(program.releaseKey);
+      const releaseNoteInDocument = await releaseNote.evaluate((element) => ({
+        isLastMainChild: element.parentElement?.lastElementChild === element,
+        bottom: element.getBoundingClientRect().bottom + window.scrollY,
+        documentHeight: document.documentElement.scrollHeight,
+      }));
+      expect(releaseNoteInDocument.isLastMainChild, "the release note remains the final comparison section").toBe(true);
+      expect(releaseNoteInDocument.bottom, "the full-page screenshot includes the release note").toBeLessThanOrEqual(releaseNoteInDocument.documentHeight);
+
       const sectionNames = ["selection", "admission", "workload", "curriculum", "matrix"] as const;
       const originalSections = vanillaCapture.routeLayout?.comparisonSections;
       const reactSections = reactCapture.routeLayout?.comparisonSections;
@@ -832,6 +913,33 @@ async function capturePair(
         const reactRect = reactCapture.semanticComparison.factRects[factKey];
         expect(vanillaRect, `original comparison contains the corresponding source value for ${factKey}`).toBeDefined();
         expect(reactRect, `React comparison contains the explicit unknown value for ${factKey}`).toBeDefined();
+        expect(vanillaCapture.semanticComparison.factTexts[factKey], `original source text is captured for ${factKey}`).toBeTruthy();
+        expect(reactCapture.semanticComparison.factTexts[factKey], `React unknown text is captured for ${factKey}`).toBeTruthy();
+      }
+      const maskableUnknownFactKeys = unknownFactKeys.filter((factKey) => isVerifiedZeroToUnknown(
+        factKey,
+        vanillaCapture.semanticComparison.factTexts[factKey],
+        reactCapture.semanticComparison.factTexts[factKey],
+      ));
+      for (const factKey of maskableUnknownFactKeys) {
+        const [kind] = JSON.parse(factKey) as [string, string, string];
+        const originalText = vanillaCapture.semanticComparison.factTexts[factKey];
+        const reactText = reactCapture.semanticComparison.factTexts[factKey];
+        if (kind === "legend") {
+          expect(originalText, `only confirmed original zero hours and share are masked for ${factKey}`).toMatch(/^·\s*0\s*ч\.\s*·\s*0%$/);
+          expect(reactText, `React preserves both legend metrics as unknown for ${factKey}`).toMatch(/^·\s*—\s*·\s*—$/);
+        } else {
+          expect(originalText, `only confirmed original zero workload is masked for ${factKey}`).toBe("0 ч.|0%");
+          expect(reactText, `React preserves workload and share as unknown for ${factKey}`).toBe("—|—");
+        }
+      }
+      for (const factKey of reactCapture.semanticComparison.unknownDonutFactKeys) {
+        const vanillaRect = vanillaCapture.semanticComparison.factRects[factKey];
+        const reactRect = reactCapture.semanticComparison.factRects[factKey];
+        expect(vanillaRect, `original comparison contains the corresponding donut value for ${factKey}`).toBeDefined();
+        expect(reactRect, `React comparison contains the explicit unknown donut value for ${factKey}`).toBeDefined();
+        expect(vanillaCapture.semanticComparison.factTexts[factKey], `original zero is explicitly identified for ${factKey}`).toBe("0%");
+        expect(reactCapture.semanticComparison.factTexts[factKey], `React preserves unknown as unknown for ${factKey}`).toBe("—");
       }
     }
     expect(reactCapture.headings, `${screen} React page must preserve original section headings in order`).toEqual(vanillaCapture.headings);
@@ -853,6 +961,20 @@ async function capturePair(
     }
 
     expect(reactCapture.frames.map((frame) => frame.label)).toEqual(vanillaCapture.frames.map((frame) => frame.label));
+    const maskableUnknownFactKeys = screen === "populated-comparison"
+      ? [...new Set(reactCapture.semanticComparison.unknownFactKeys)].filter((factKey) => isVerifiedZeroToUnknown(
+        factKey,
+        vanillaCapture.semanticComparison.factTexts[factKey],
+        reactCapture.semanticComparison.factTexts[factKey],
+      ))
+      : [];
+    const maskableUnknownDonutFactKeys = screen === "populated-comparison"
+      ? [...new Set(reactCapture.semanticComparison.unknownDonutFactKeys)].filter((factKey) => isVerifiedZeroToUnknown(
+        factKey,
+        vanillaCapture.semanticComparison.factTexts[factKey],
+        reactCapture.semanticComparison.factTexts[factKey],
+      ))
+      : [];
     let diffPixelCount = 0;
     let semanticMaskedDiffPixelCount = 0;
     let totalPixels = 0;
@@ -864,24 +986,34 @@ async function capturePair(
       const vanilla = PNG.sync.read(vanillaFrame.buffer);
       const react = PNG.sync.read(reactFrame.buffer);
       expect(react.width, `${vanillaFrame.label} paired viewport width`).toBe(vanilla.width);
-      const height = Math.max(vanilla.height, react.height);
-      const vanillaPadded = padToHeight(vanilla, height);
-      const reactPadded = padToHeight(react, height);
-      const vanillaMasked = padToHeight(vanilla, height);
-      const reactMasked = padToHeight(react, height);
+      // Compare pixels only where both pages render content. Full-page height is
+      // checked separately, so padding the shorter capture with transparent
+      // pixels would count the same geometry difference twice.
+      const height = Math.min(vanilla.height, react.height);
+      const vanillaComparable = clipToHeight(vanilla, height);
+      const reactComparable = clipToHeight(react, height);
+      const vanillaSemanticComparable = clipToHeight(vanilla, height);
+      const reactSemanticComparable = clipToHeight(react, height);
       if (screen === "populated-comparison") {
-        for (const factKey of [...new Set(reactCapture.semanticComparison.unknownFactKeys)]) {
+        for (const factKey of maskableUnknownFactKeys) {
           const vanillaRect = vanillaCapture.semanticComparison.factRects[factKey];
           const reactRect = reactCapture.semanticComparison.factRects[factKey];
           if (!vanillaRect || !reactRect) throw new Error(`Cannot mask unmatched unknown academic fact ${factKey}.`);
-          maskRect(vanillaMasked, vanillaRect);
-          maskRect(reactMasked, reactRect);
+          maskRect(vanillaSemanticComparable, vanillaRect);
+          maskRect(reactSemanticComparable, reactRect);
+        }
+        for (const factKey of maskableUnknownDonutFactKeys) {
+          const vanillaRect = vanillaCapture.semanticComparison.factRects[factKey];
+          const reactRect = reactCapture.semanticComparison.factRects[factKey];
+          if (!vanillaRect || !reactRect) throw new Error(`Cannot mask unmatched unknown donut fact ${factKey}.`);
+          maskRect(vanillaSemanticComparable, vanillaRect);
+          maskRect(reactSemanticComparable, reactRect);
         }
       }
       const diff = new PNG({ width: vanilla.width, height });
       const changed = pixelmatch(
-        vanillaPadded.data,
-        reactPadded.data,
+        vanillaComparable.data,
+        reactComparable.data,
         diff.data,
         vanilla.width,
         height,
@@ -889,8 +1021,8 @@ async function capturePair(
       );
       const semanticMaskedDiff = new PNG({ width: vanilla.width, height });
       const semanticMaskedChanged = pixelmatch(
-        vanillaMasked.data,
-        reactMasked.data,
+        vanillaSemanticComparable.data,
+        reactSemanticComparable.data,
         semanticMaskedDiff.data,
         vanilla.width,
         height,
@@ -956,7 +1088,9 @@ async function capturePair(
       totalPixels,
       diffPercent: Number((diffPixelCount / totalPixels * 100).toFixed(2)),
       semanticMaskedDiffPercent: Number((semanticMaskedDiffPixelCount / totalPixels * 100).toFixed(2)),
-      semanticMaskCount: screen === "populated-comparison" ? [...new Set(reactCapture.semanticComparison.unknownFactKeys)].length : 0,
+      semanticMaskCount: screen === "populated-comparison"
+        ? [...new Set([...maskableUnknownFactKeys, ...maskableUnknownDonutFactKeys])].length
+        : 0,
       frames: frameReports,
       program: program ? {
         code: program.code,
@@ -968,7 +1102,7 @@ async function capturePair(
         expectedCredits: program.expectedCredits,
       } : null,
       visualTolerancePercent: visualTolerancePercentFor(screen),
-      note: "Paired Chromium pixel delta with reduced motion and identical viewport. Raw and semantic-masked deltas are both reported. The only masks cover the exact category legend and table value boxes where React explicitly renders unknown data while the original renders numeric zero; all page structure, row boundaries, chart geometry, labels, and page height remain in the comparison.",
+      note: "Paired Chromium pixel delta with reduced motion and identical viewport. Raw and semantic-masked deltas are measured over the shared screenshot area; full page height is checked independently with a strict 3.5% limit. Masks cover only text-value rectangles for paired category legend, table, or donut facts where captured source text proves that the original shows numeric zero and React correctly preserves the value as unknown; unrelated cells, bars, and geometry remain in the pixel comparison. The React-only active-release note follows the shared pixel area, so dedicated E2E assertions check its exact verified release key, text, last-section placement, and inclusion in the full-page height.",
     };
     const visualTolerancePercent = visualTolerancePercentFor(screen);
     const visualDiffPercent = screen === "populated-comparison" ? report.semanticMaskedDiffPercent : report.diffPercent;
