@@ -472,6 +472,12 @@ jobs:
           BENCHMARK_ITERATIONS: '5'
           CI: 'true'
         run: npm --prefix apps/web-react-poc run test:paired
+      - name: Capture opt-in React Profiler and Chromium comparison trace
+        env:
+          API_ORIGIN: http://127.0.0.1:8000
+          API_PROXY_TARGET: http://127.0.0.1:8000
+          CI: 'true'
+        run: npm --prefix apps/web-react-poc run test:profile
       - name: Upload Playwright reports, screenshots, and traces on failure
         if: failure()
         uses: actions/upload-artifact@v4
@@ -482,6 +488,8 @@ jobs:
             artifacts/qa-stabilization/playwright-results/
             apps/web-react-poc/playwright-report/
             apps/web-react-poc/test-results/e2e/
+            apps/web-react-poc/playwright-report/profile/
+            apps/web-react-poc/test-results/profile/
           if-no-files-found: ignore
           retention-days: 7
       - name: Upload React visual and performance report
@@ -492,6 +500,8 @@ jobs:
           path: |
             apps/web-react-poc/playwright-report/paired/
             apps/web-react-poc/test-results/paired-visual-performance/
+            apps/web-react-poc/playwright-report/profile/
+            apps/web-react-poc/test-results/profile/
           if-no-files-found: ignore
           retention-days: 7
 

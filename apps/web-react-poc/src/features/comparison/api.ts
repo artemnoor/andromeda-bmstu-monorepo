@@ -83,6 +83,23 @@ export async function loadProgramComparison(
   markComparisonStage("selection", "end");
   measureComparisonStage("selection");
 
+  markComparisonStage("admission", "start");
+  const admissionPromise = Promise.allSettled(selectedPrograms.map(async (program) => {
+    const data = await getProgramAdmission(program, {
+      expectedReleaseKey: catalog.release.release_key,
+      ...(signal ? { signal } : {}),
+    });
+    return {
+      programKey: program.external_key,
+      releaseKey: data.releaseKey,
+      summary: buildAdmissionSummary(program, data),
+    };
+  })).then((results) => {
+    markComparisonStage("admission", "end");
+    measureComparisonStage("admission");
+    return results;
+  });
+
   markComparisonStage("plans", "start");
   const planCollections = await Promise.all(selectedPrograms.map((program) => (
     getStudyPlans(program.external_key, signal)
@@ -167,20 +184,19 @@ export async function loadProgramComparison(
   markComparisonStage("curriculum-model", "end");
   measureComparisonStage("curriculum-model");
 
-  markComparisonStage("admission", "start");
-  const admissionSettled = await Promise.allSettled(selectedPrograms.map(async (program) => ({
-    programKey: program.external_key,
-    summary: buildAdmissionSummary(program, await getProgramAdmission(program)),
-  })));
-  markComparisonStage("admission", "end");
-  measureComparisonStage("admission");
+  const admissionSettled = await admissionPromise;
   const admission = new Map<string, AdmissionSummary>();
   const admissionUnavailable = new Set<string>();
   admissionSettled.forEach((result, index) => {
     const program = selectedPrograms[index];
     if (!program) return;
-    if (result.status === "fulfilled") admission.set(result.value.programKey, result.value.summary);
-    else if (result.reason instanceof AcademicReleaseMismatchError) throw result.reason;
+    if (result.status === "fulfilled") {
+      assertSingleRelease(catalog.release.release_key, {
+        releaseKey: result.value.releaseKey,
+        label: `admission data for ${result.value.programKey}`,
+      });
+      admission.set(result.value.programKey, result.value.summary);
+    } else if (result.reason instanceof AcademicReleaseMismatchError) throw result.reason;
     else admissionUnavailable.add(program.external_key);
   });
 

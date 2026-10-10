@@ -150,7 +150,12 @@ export default function ProgramsRoute({ loaderData }: Route.ComponentProps) {
                 <p>Измените поисковый запрос или сбросьте фильтры, чтобы увидеть другие программы.</p>
               </div>
             ) : filteredPrograms.map((program: CatalogProgram) => (
-              <ProgramCard key={program.external_key} program={program} onSelectionLimit={setFeedback} />
+              <ProgramCard
+                key={program.external_key}
+                program={program}
+                expectedReleaseKey={loaderData.release.release_key}
+                onSelectionLimit={setFeedback}
+              />
             ))}
           </div>
 

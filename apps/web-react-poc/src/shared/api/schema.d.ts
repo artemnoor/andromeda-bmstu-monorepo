@@ -2018,6 +2018,7 @@ export interface operations {
         parameters: {
             query?: {
                 campaign_key?: string | null;
+                direction_key?: string | null;
                 limit?: number;
                 cursor?: string | null;
             };

@@ -116,6 +116,7 @@ type ReleaseBound = {
 };
 
 let pinnedReleaseKey: string | null = null;
+let verifiedCatalogSnapshot: CatalogSnapshot | null = null;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -459,6 +460,7 @@ export async function getRequirements(
       params: {
         query: {
           ...(campaignKey ? { campaign_key: campaignKey } : {}),
+          ...(directionKey ? { direction_key: directionKey } : {}),
           limit: PAGE_SIZE,
           ...(cursor ? { cursor } : {}),
         },
@@ -592,6 +594,19 @@ export function assertSingleRelease(
 
 export async function loadCatalog(signal?: AbortSignal): Promise<CatalogSnapshot> {
   const release = await getActiveRelease(signal);
+  const cached = verifiedCatalogSnapshot;
+  if (cached?.release.release_key === release.release_key) {
+    assertSingleRelease(release.release_key, cached.programs, cached.directions, cached.departments);
+    // A cached snapshot is still bracketed by active-release reads. The source
+    // rows are immutable, but activation can change while this route loads.
+    const activeAfterRead = await getActiveRelease(signal);
+    assertSingleRelease(release.release_key, cached.programs, cached.directions, cached.departments, {
+      releaseKey: activeAfterRead.release_key,
+      label: "active release after cached catalog read",
+    });
+    return { ...cached, release };
+  }
+
   const [programs, directions, departments] = await Promise.all([
     listPrograms({ signal }),
     listDirections(signal),
@@ -607,5 +622,7 @@ export async function loadCatalog(signal?: AbortSignal): Promise<CatalogSnapshot
     label: "active release after catalog load",
   });
 
-  return { release, programs, directions, departments };
+  const snapshot = { release, programs, directions, departments };
+  verifiedCatalogSnapshot = snapshot;
+  return snapshot;
 }

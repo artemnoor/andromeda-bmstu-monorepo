@@ -16,10 +16,12 @@ function SourceLink({ href }: { href: string | null }) {
 
 function Details({
   program,
+  expectedReleaseKey,
   retryKey,
   onRetry,
 }: {
   program: CatalogProgram;
+  expectedReleaseKey: string;
   retryKey: number;
   onRetry: () => void;
 }) {
@@ -27,7 +29,7 @@ function Details({
 
   useEffect(() => {
     let current = true;
-    getProgramAdmission(program).then((data) => {
+    getProgramAdmission(program, { expectedReleaseKey }).then((data) => {
       if (current) setState({
         kind: "ready",
         summary: buildAdmissionSummary(program, data),
@@ -40,7 +42,7 @@ function Details({
       });
     });
     return () => { current = false; };
-  }, [program, retryKey]);
+  }, [program, expectedReleaseKey, retryKey]);
 
   if (state.kind === "loading") {
     return <p className={styles.admissionMuted} role="status">Загружаем места, условия и учебные сведения…</p>;
@@ -126,9 +128,15 @@ function Details({
   );
 }
 
-export function AdmissionDetails({ program }: { program: CatalogProgram }) {
+export function AdmissionDetails({ program, expectedReleaseKey }: { program: CatalogProgram; expectedReleaseKey: string }) {
   const [retryKey, setRetryKey] = useState(0);
   return (
-    <Details key={retryKey} program={program} retryKey={retryKey} onRetry={() => setRetryKey((value) => value + 1)} />
+    <Details
+      key={retryKey}
+      program={program}
+      expectedReleaseKey={expectedReleaseKey}
+      retryKey={retryKey}
+      onRetry={() => setRetryKey((value) => value + 1)}
+    />
   );
 }
