@@ -469,7 +469,7 @@ jobs:
         env:
           API_ORIGIN: http://127.0.0.1:8000
           API_PROXY_TARGET: http://127.0.0.1:8000
-          BENCHMARK_ITERATIONS: '3'
+          BENCHMARK_ITERATIONS: '5'
           CI: 'true'
         run: npm --prefix apps/web-react-poc run test:paired
       - name: Upload Playwright reports, screenshots, and traces on failure

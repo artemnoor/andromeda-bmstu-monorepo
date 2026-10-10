@@ -11,6 +11,7 @@ declare global {
 interface Window {
   __andromedaQaLongTaskDurations?: number[];
   __andromedaQaCumulativeLayoutShift?: number;
+  __andromedaQaComparisonProfiling?: boolean;
   }
 }
 
@@ -28,6 +29,14 @@ interface ApiResponseMetric {
   readonly status: number | null;
 }
 
+interface ApiResourceMetric {
+  readonly path: string;
+  readonly durationMs: number;
+  readonly transferBytes: number;
+  readonly encodedBodyBytes: number;
+  readonly decodedBodyBytes: number;
+}
+
 interface PageMetrics {
   readonly app: AppName;
   readonly scenario: BenchmarkName;
@@ -36,6 +45,9 @@ interface PageMetrics {
   readonly actionMs: number | null;
   readonly apiRequests: number;
   readonly apiResponses: readonly ApiResponseMetric[];
+  readonly apiResources: readonly ApiResourceMetric[];
+  readonly apiTransferBytes: number;
+  readonly comparisonStageMs: Readonly<Record<string, number>>;
   readonly scriptCount: number;
   readonly scriptBytes: number;
   readonly resourceCount: number;
@@ -1222,6 +1234,20 @@ async function visitForBenchmark(
       longTaskDurations: [...(window.__andromedaQaLongTaskDurations ?? [])],
       cumulativeLayoutShift: window.__andromedaQaCumulativeLayoutShift ?? 0,
       jsHeapUsedBytes: typeof heap.memory?.usedJSHeapSize === "number" ? heap.memory.usedJSHeapSize : null,
+      apiResources: resources.flatMap((entry) => {
+        const url = new URL(entry.name);
+        if (!url.pathname.startsWith("/api/v1/")) return [];
+        return [{
+          path: url.pathname + url.search,
+          durationMs: Number((entry.responseEnd - entry.startTime).toFixed(2)),
+          transferBytes: entry.transferSize || entry.encodedBodySize,
+          encodedBodyBytes: entry.encodedBodySize,
+          decodedBodyBytes: entry.decodedBodySize,
+        }];
+      }),
+      comparisonStageMs: Object.fromEntries(performance.getEntriesByType("measure")
+        .filter((entry) => entry.name.startsWith("andromeda:comparison:stage:"))
+        .map((entry) => [entry.name.slice("andromeda:comparison:stage:".length), Number(entry.duration.toFixed(2))])),
     };
   });
 
@@ -1233,6 +1259,9 @@ async function visitForBenchmark(
     actionMs: actionMs === null ? null : Number(actionMs.toFixed(2)),
     apiRequests: diagnostics.apiRequests.length,
     apiResponses: [...diagnostics.apiRequests],
+    apiResources: scriptStats.apiResources,
+    apiTransferBytes: scriptStats.apiResources.reduce((total, entry) => total + entry.transferBytes, 0),
+    comparisonStageMs: scriptStats.comparisonStageMs,
     scriptCount: scriptStats.scriptCount,
     scriptBytes: scriptStats.scriptBytes,
     resourceCount: scriptStats.resourceCount,
@@ -1271,12 +1300,20 @@ function summarizeMetrics(metrics: readonly PageMetrics[]) {
     const apiCounts = samples.map((sample) => sample.apiRequests);
     const scriptBytes = samples.map((sample) => sample.scriptBytes);
     const heapBytes = samples.flatMap((sample) => sample.jsHeapUsedBytes === null ? [] : [sample.jsHeapUsedBytes]);
+    const stages = new Set(samples.flatMap((sample) => Object.keys(sample.comparisonStageMs)));
     return {
       appAndScenario: key,
       sampleCount: samples.length,
       readyMs: { median: median(readyTimes), p95: nearestRankPercentile(readyTimes, 95) },
       ...(actionTimes.length ? { actionMs: { median: median(actionTimes), p95: nearestRankPercentile(actionTimes, 95) } } : {}),
       apiRequestsMedian: median(apiCounts),
+      apiTransferBytesMedian: median(samples.map((sample) => sample.apiTransferBytes)),
+      comparisonStageMs: Object.fromEntries([...stages].map((stage) => {
+        const values = samples.flatMap((sample) => stage in sample.comparisonStageMs
+          ? [sample.comparisonStageMs[stage] ?? 0]
+          : []);
+        return [stage, { median: median(values), p95: nearestRankPercentile(values, 95) }];
+      })),
       transferredScriptBytesMedian: median(scriptBytes),
       scriptCountMedian: median(samples.map((sample) => sample.scriptCount)),
       resourceCountMedian: median(samples.map((sample) => sample.resourceCount)),
@@ -1312,6 +1349,7 @@ test("@paired @benchmark repeated vanilla-versus-React browser measurements", as
   await page.addInitScript((programKey: string) => {
     window.__andromedaQaLongTaskDurations = [];
     window.__andromedaQaCumulativeLayoutShift = 0;
+    window.__andromedaQaComparisonProfiling = window.location.pathname === "/compare";
     if (typeof PerformanceObserver !== "undefined") {
       if (PerformanceObserver.supportedEntryTypes.includes("longtask")) {
         new PerformanceObserver((list) => {
@@ -1391,6 +1429,8 @@ test("@paired @benchmark repeated vanilla-versus-React browser measurements", as
         actionMs: "catalog fill to the single matching QA code becoming visible; synthetic catalog sizes are 50, 100, and 500 rows",
         scriptBytes: "sum of ResourceTiming encodedBodySize (or transferSize fallback) for every loaded .js/.mjs resource; cache disabled for each measured navigation",
         transferredResourceBytes: "navigation transferSize plus encodedBodySize (or transferSize fallback) for all resource entries; cache disabled for each measured navigation and API response bodies are included",
+        apiResourceTimings: "Resource Timing duration, transferSize, encodedBodySize, and decodedBodySize for each /api/v1/ response; durations are browser-observed request/response spans",
+        comparisonStages: "opt-in performance.mark/measure around catalog, selection, plans, items, taxonomy, curriculum-model, admission, final release verification, and total loader time; enabled only in paired React comparison benchmark navigations",
         longTasks: "PerformanceObserver longtask count and total duration during the page visit; Chromium support only",
         cumulativeLayoutShift: "sum of layout-shift values without recent user input during the page visit",
         jsHeapUsedBytes: "Chromium performance.memory snapshot after screen readiness; non-standard and reported as null when unsupported",

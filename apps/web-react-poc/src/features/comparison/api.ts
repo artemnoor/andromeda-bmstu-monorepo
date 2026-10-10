@@ -13,6 +13,30 @@ import { normalizeCatalogProgram, type CatalogProgram } from "@/features/catalog
 import { getProgramAdmission } from "@/features/catalog/admission-api";
 import { buildAdmissionSummary, type AdmissionSummary } from "@/features/catalog/admission-model";
 
+declare global {
+  interface Window {
+    __andromedaQaComparisonProfiling?: boolean;
+  }
+}
+
+const comparisonProfilePrefix = "andromeda:comparison:stage";
+
+function markComparisonStage(stage: string, phase: "start" | "end"): void {
+  if (typeof window !== "undefined" && window.__andromedaQaComparisonProfiling) {
+    performance.mark(`${comparisonProfilePrefix}:${stage}:${phase}`);
+  }
+}
+
+function measureComparisonStage(stage: string): void {
+  if (typeof window !== "undefined" && window.__andromedaQaComparisonProfiling) {
+    performance.measure(
+      `${comparisonProfilePrefix}:${stage}`,
+      `${comparisonProfilePrefix}:${stage}:start`,
+      `${comparisonProfilePrefix}:${stage}:end`,
+    );
+  }
+}
+
 export interface LoadedProgramComparison {
   readonly releaseKey: string;
   readonly programs: readonly CatalogProgram[];
@@ -27,7 +51,12 @@ export async function loadProgramComparison(
   selectedKeys: readonly string[],
   signal?: AbortSignal,
 ): Promise<LoadedProgramComparison> {
+  markComparisonStage("total", "start");
+  markComparisonStage("catalog", "start");
   const catalog = await loadCatalog(signal);
+  markComparisonStage("catalog", "end");
+  measureComparisonStage("catalog");
+  markComparisonStage("selection", "start");
   const directions = new Map(catalog.directions.items.map((item) => [item.external_key, item]));
   const departments = new Map(catalog.departments.items.map((item) => [item.external_key, item]));
   const programs = catalog.programs.items.map((program) => normalizeCatalogProgram(program, directions, departments));
@@ -51,14 +80,20 @@ export async function loadProgramComparison(
     seenProgramKeys.add(program.external_key);
     selectedPrograms.push(program);
   }
+  markComparisonStage("selection", "end");
+  measureComparisonStage("selection");
 
+  markComparisonStage("plans", "start");
   const planCollections = await Promise.all(selectedPrograms.map((program) => (
     getStudyPlans(program.external_key, signal)
   )));
+  markComparisonStage("plans", "end");
+  measureComparisonStage("plans");
   assertSingleRelease(catalog.release.release_key, ...planCollections);
   const plans: StudyPlanDto[] = planCollections.flatMap((collection) => collection.items);
   const selections = selectLatestVerifiedPlans(selectedPrograms.map((program) => program.external_key), plans);
 
+  markComparisonStage("items", "start");
   const itemResults = await Promise.all(selections.flatMap((selection) => (
     selection.selectedPlan ? [selection.selectedPlan] : []
   )).map(async (plan) => {
@@ -87,7 +122,10 @@ export async function loadProgramComparison(
     itemCollections.push(result.collection);
     itemsByPlanKey.set(result.planKey, result.collection.items);
   }
+  markComparisonStage("items", "end");
+  measureComparisonStage("items");
 
+  markComparisonStage("taxonomy", "start");
   const taxonomyIdentities = new Map<string, { key: string; version: string }>();
   for (const item of [...itemsByPlanKey.values()].flat()) {
     const classification = item.subject_classification;
@@ -115,7 +153,10 @@ export async function loadProgramComparison(
     // curriculum rows and their numeric metrics, but mark them unclassified.
     taxonomyUnavailable = true;
   }
+  markComparisonStage("taxonomy", "end");
+  measureComparisonStage("taxonomy");
 
+  markComparisonStage("curriculum-model", "start");
   const curriculum = buildCurriculumComparison({
     programKeys: selectedPrograms.map((program) => program.external_key),
     plans,
@@ -123,11 +164,16 @@ export async function loadProgramComparison(
     taxonomy,
     unavailablePlanKeys,
   });
+  markComparisonStage("curriculum-model", "end");
+  measureComparisonStage("curriculum-model");
 
+  markComparisonStage("admission", "start");
   const admissionSettled = await Promise.allSettled(selectedPrograms.map(async (program) => ({
     programKey: program.external_key,
     summary: buildAdmissionSummary(program, await getProgramAdmission(program)),
   })));
+  markComparisonStage("admission", "end");
+  measureComparisonStage("admission");
   const admission = new Map<string, AdmissionSummary>();
   const admissionUnavailable = new Set<string>();
   admissionSettled.forEach((result, index) => {
@@ -138,12 +184,17 @@ export async function loadProgramComparison(
     else admissionUnavailable.add(program.external_key);
   });
 
+  markComparisonStage("final-release-check", "start");
   assertSingleRelease(catalog.release.release_key, ...planCollections, ...itemCollections);
   const activeAfterRead = await getActiveRelease(signal);
   assertSingleRelease(catalog.release.release_key, {
     releaseKey: activeAfterRead.release_key,
     label: "active release after comparison load",
   });
+  markComparisonStage("final-release-check", "end");
+  measureComparisonStage("final-release-check");
+  markComparisonStage("total", "end");
+  measureComparisonStage("total");
 
   return {
     releaseKey: catalog.release.release_key,
