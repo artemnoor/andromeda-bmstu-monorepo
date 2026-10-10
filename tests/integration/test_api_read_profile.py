@@ -125,13 +125,13 @@ def _profile_get(
 def _explain_curriculum_queries(
     engine: Engine, statements: list[tuple[str, Any]]
 ) -> list[dict[str, Any]]:
-    candidates = [
-        (statement, parameters)
+    candidates = {
+        statement: parameters
         for statement, parameters in statements
         if "curriculum_items" in statement.casefold()
-    ]
+    }
     results = []
-    for statement, parameters in candidates:
+    for statement, parameters in candidates.items():
         with engine.connect() as connection:
             raw_plan = connection.exec_driver_sql(
                 f"EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON) {statement}", parameters
@@ -243,7 +243,11 @@ def test_profile_seeded_catalog_and_curriculum_reads(
             largest_plan = max(verified_plans, key=lambda plan: plan["item_count"])
             selected_program_key = largest_plan["program_key"]
             assert selected_program_key is not None
-            selected_plans_response, selected_plans_profile, _ = _profile_get(
+            (
+                selected_plans_response,
+                selected_plans_profile,
+                selected_plan_statements,
+            ) = _profile_get(
                 client,
                 engine,
                 f"/api/v1/study-plans?limit=100&program_key={quote(selected_program_key, safe='')}",
@@ -293,6 +297,9 @@ def test_profile_seeded_catalog_and_curriculum_reads(
                 "programKey": selected_program_key,
                 "records": len(selected_plans_body["items"]),
                 "totalRecords": selected_plans_body["page"]["total_count"],
+                "curriculumItemCountExplainAnalyze": _explain_curriculum_queries(
+                    engine, selected_plan_statements
+                ),
             },
             "curriculumItemPage": {
                 **items_profile,
