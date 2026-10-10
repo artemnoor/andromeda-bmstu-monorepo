@@ -367,7 +367,7 @@ jobs:
   web-browser-check:
     # Keep one browser/API integration status on every PR, independent of the
     # selective backend jobs above. The database and credentials are disposable.
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     services:
       postgres:
