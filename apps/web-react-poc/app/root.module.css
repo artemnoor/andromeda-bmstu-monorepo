@@ -1,0 +1,62 @@
+:global(*),
+:global(*::before),
+:global(*::after) {
+  box-sizing: border-box;
+}
+
+:global(html) {
+  min-width: 320px;
+  min-height: 100%;
+  background: #fafafa;
+}
+
+:global(body) {
+  min-width: 320px;
+  min-height: 100vh;
+  margin: 0;
+  color: #111;
+  background: #fafafa;
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
+
+:global(button),
+:global(input),
+:global(select),
+:global(textarea) {
+  font: inherit;
+}
+
+:global(button:focus-visible),
+:global(a:focus-visible),
+:global(input:focus-visible),
+:global(select:focus-visible),
+:global(textarea:focus-visible) {
+  outline: 3px solid rgba(0, 108, 220, 0.7);
+  outline-offset: 3px;
+}
+
+:global(img),
+:global(svg) {
+  max-width: 100%;
+}
+
+:global(@media (prefers-reduced-motion: reduce)) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+.root {
+  min-height: 100vh;
+}
+
+.error {
+  width: min(100% - 2rem, 42rem);
+  margin: 10vh auto;
+  padding: 2rem;
+}
