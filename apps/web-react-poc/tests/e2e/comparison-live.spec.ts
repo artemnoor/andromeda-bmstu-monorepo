@@ -8,6 +8,7 @@ import {
   expectLiveApiCalls,
   test,
 } from "./fixtures";
+import type { LiveCurriculumProgram } from "./fixtures";
 
 const catalogEndpoints = [
   "/api/v1/release",
@@ -379,6 +380,59 @@ test("two live programs keep their own plans, chart totals, matrix columns, and 
   await expect(page.getByText("2 / 3")).toBeVisible();
   await expect(page.getByRole("button", { name: `Убрать программу ${first.code} из сравнения` })).toBeVisible();
   await expect(page.getByRole("button", { name: `Убрать программу ${second.code} из сравнения` })).toBeVisible();
+  expectSuccessfulAdmissionCalls(diagnostics.apiResponses);
+  expectLiveApiCalls(diagnostics, [...catalogEndpoints, "/api/v1/study-plans"]);
+  expectHealthyBrowser(diagnostics);
+});
+
+test("three live programs keep exact release, verified plans, and separate matrix columns", async ({ page, diagnostics }) => {
+  test.setTimeout(90_000);
+  await page.goto("/programs");
+  await expect(page.getByRole("heading", { level: 1, name: "Каталог программ" })).toBeVisible();
+
+  let programs: readonly LiveCurriculumProgram[];
+  try {
+    programs = await discoverLiveCurriculumPrograms(page, 3);
+  } catch (error) {
+    if (error instanceof Error && error.message.includes("needs 3 distinct programs")) {
+      test.skip(true, "The isolated PostgreSQL 16 release has fewer than three independently verified curriculum programs.");
+      return;
+    }
+    throw error;
+  }
+  expect(new Set(programs.map((program) => program.externalKey)).size).toBe(3);
+  expect(new Set(programs.map((program) => program.planKey)).size).toBe(3);
+  expect(new Set(programs.map((program) => program.releaseKey)).size).toBe(1);
+
+  await page.evaluate((programKeys) => {
+    localStorage.setItem("andromeda.compare.v1", JSON.stringify(programKeys));
+  }, programs.map((program) => program.externalKey));
+  const response = await page.goto("/compare", { waitUntil: "domcontentloaded" });
+  expect(response?.status()).toBe(200);
+  await expect(page.getByRole("heading", { name: "Сравни программы" })).toBeVisible();
+  await expect(page.getByText("3 / 3")).toBeVisible();
+  await expect(page.locator("[data-qa=active-release-key]")).toHaveText(programs[0]!.releaseKey);
+  for (const program of programs) {
+    await expect(page.getByRole("button", { name: `Убрать программу ${program.code} из сравнения` })).toBeVisible();
+  }
+
+  const chartCards = page.locator("section[aria-labelledby='category-title'] article");
+  await expect(chartCards).toHaveCount(3);
+  for (const program of programs) {
+    await expect(chartCards.filter({ hasText: program.code })).toHaveAttribute("data-plan-key", program.planKey);
+  }
+
+  await page.getByText("Открыть таблицу и фильтры", { exact: true }).click();
+  const matrix = page.getByRole("table", { name: "Матрица дисциплин по выбранным образовательным программам." });
+  const headers = await matrix.locator("thead th").allInnerTexts();
+  for (const [index, program] of programs.entries()) {
+    expect(headers[index + 1]).toContain(program.code);
+    const row = matrix.getByRole("row").filter({ hasText: program.courseName }).first();
+    await expect(row, `${program.code} curriculum item row`).toBeVisible();
+    await expect(row.locator("td").nth(index), `${program.code} data stays in its selected program column`)
+      .not.toContainText("Нет позиции с таким названием");
+  }
+
   expectSuccessfulAdmissionCalls(diagnostics.apiResponses);
   expectLiveApiCalls(diagnostics, [...catalogEndpoints, "/api/v1/study-plans"]);
   expectHealthyBrowser(diagnostics);

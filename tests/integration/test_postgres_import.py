@@ -1,1325 +1,235 @@
-from __future__ import annotations
-
-import csv
-import hashlib
-import json
-import os
-import shutil
-from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime, timezone
-from pathlib import Path
-from threading import Barrier
-from uuid import UUID, uuid4
-
-import pytest
-from andromeda_api.application.importer.bundle import BundleReader
-from andromeda_api.application.importer.mapping import MappingResult, project_bundle
-from andromeda_api.application.operations.releases import (
-    export_release_bundle,
-    rollback_active_release,
-)
-from andromeda_api.application.publication import prepare_release_archive
-from andromeda_api.application.settings import Settings, load_settings
-from andromeda_db.connection import verify_server_identity
-from andromeda_db.repositories.release_publication import (
-    ReleasePublicationError,
-    publish_projection,
-)
-from andromeda_parser.bundle import build_candidate_bundle, materialize_reviewed_bundle
-from andromeda_parser.ingest import (
-    IngestionError,
-    capture_sources,
-    parse_capture,
-    write_parse_report,
-)
-from andromeda_parser.moderation import compare_candidate_bundle
-from sqlalchemy import Engine, create_engine, text
-from sqlalchemy.exc import DBAPIError
-
-pytestmark = pytest.mark.integration
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
-BUNDLE = PROJECT_ROOT / "data" / "bmstu-2026"
-
-
-def commit_projection(
-    engine: Engine, settings: Settings, projection: MappingResult, **kwargs
-) -> dict[str, object]:
-    """Prepare the application artifact before testing the DB publication repository."""
-
-    prepare_release_archive(projection)
-    return publish_projection(engine, settings, projection, **kwargs)
-FIXTURE_DIR = PROJECT_ROOT / "tests" / "fixtures" / "bmstu" / "ingestion"
-FIXTURE_STATISTIC_KEY = "admission_statistic:bmstu:2025:01.03.02:paid:direction"
-
-
-@pytest.fixture(scope="module", autouse=True)
-def _reset_isolated_postgres_test_schema():
-    """Make lifecycle tests repeatable; destructive DDL is guarded to one test DB."""
-
-    if not os.environ.get("ACADEMIC_DATA_DATABASE_URL"):
-        yield
-        return
-    settings = load_settings()
-    if (
-        settings.environment != "test"
-        or settings.database_name != "academic_data_test"
-        or settings.database_host not in {"localhost", "127.0.0.1"}
-    ):
-        pytest.fail("integration schema reset is restricted to localhost academic_data_test in test mode")
-    engine = create_engine(settings.database_url)
-    try:
-        with engine.connect() as connection:
-            identity = verify_server_identity(connection, settings)
-            database_user = connection.execute(text("SELECT current_user")).scalar_one()
-        if (
-            identity["database_name"] != "academic_data_test"
-            or identity["database_host"] not in {"localhost", "127.0.0.1"}
-            or identity["server_major"] != 16
-            or database_user != "andromeda_test"
-        ):
-            pytest.fail("integration schema reset target is not the dedicated local PostgreSQL 16 test database")
-        with engine.begin() as connection:
-            connection.execute(text("DROP SCHEMA IF EXISTS directus_read CASCADE"))
-            connection.execute(text("DROP SCHEMA IF EXISTS academic_read CASCADE"))
-            connection.execute(text("DROP SCHEMA IF EXISTS directus_meta CASCADE"))
-            connection.execute(text("DROP SCHEMA public CASCADE"))
-            connection.execute(text("CREATE SCHEMA public AUTHORIZATION andromeda_test"))
-            connection.execute(text("GRANT ALL ON SCHEMA public TO andromeda_test"))
-    finally:
-        engine.dispose()
-    from andromeda_api.cli import run_database_upgrade
-
-    run_database_upgrade()
-    yield
-
-
-def _test_database() -> tuple[Engine, Settings]:
-    if not os.environ.get("ACADEMIC_DATA_DATABASE_URL"):
-        pytest.skip("set ACADEMIC_DATA_DATABASE_URL to the dedicated local PostgreSQL test DB")
-    settings = load_settings()
-    if (
-        settings.environment != "test"
-        or settings.database_name != "academic_data_test"
-        or settings.database_host not in {"localhost", "127.0.0.1"}
-    ):
-        pytest.fail("integration tests may only use localhost academic_data_test in test mode")
-    return create_engine(settings.database_url), settings
-
-
-def _active_release(engine: Engine) -> UUID | None:
-    with engine.connect() as connection:
-        value = connection.execute(
-            text("SELECT release_id FROM active_data_release WHERE slot_key = 'active'")
-        ).scalar_one_or_none()
-    return value
-
-
-def _release_counts(engine: Engine, release_id: UUID) -> dict[str, int]:
-    tables = (
-        "directions",
-        "departments",
-        "educational_programs",
-        "program_offerings",
-        "competition_pools",
-        "study_plans",
-        "curriculum_items",
-        "curriculum_evidence",
-        "admission_requirement_sets",
-        "admission_requirement_nodes",
-        "admission_statistics",
-        "historical_admission_statistics",
-        "source_artifacts",
-        "source_evidence",
-        "source_observations",
-        "source_relationships",
-        "manual_review_items",
-    )
-    with engine.connect() as connection:
-        return {
-            table: connection.execute(
-                text(f"SELECT count(*) FROM {table} WHERE release_id = :release_id"),
-                {"release_id": release_id},
-            ).scalar_one()
-            for table in tables
-        }
-
-
-def _set_release_context(bundle: Path, release_id: UUID, digest: str) -> None:
-    (bundle / "release_context.json").write_text(
-        json.dumps(
-            {
-                "schema_version": 1,
-                "base_release_id": str(release_id),
-                "base_source_bundle_sha256": digest,
-            },
-            sort_keys=True,
-        )
-        + "\n",
-        encoding="utf-8",
-    )
-
-
-def _export_release(engine: Engine, settings: Settings, release_id: UUID, output: Path) -> tuple[Path, dict]:
-    with engine.connect() as connection:
-        archive_format = connection.execute(
-            text(
-                "SELECT archive_format FROM data_release_bundle_artifacts "
-                "WHERE release_id = :release_id"
-            ),
-            {"release_id": release_id},
-        ).scalar_one_or_none()
-    if archive_format is None:
-        pytest.fail("integration test requires an archived active release")
-    target = output.with_suffix(".zip") if archive_format == "source_zip_v1" else output
-    exported = export_release_bundle(
-        engine, settings, output_path=target, release_id=release_id
-    )
-    return target, exported
-
-
-def _copy_bundle(source: Path, target: Path) -> Path:
-    target.mkdir(parents=True, exist_ok=False)
-    with BundleReader(source) as reader:
-        for relative in reader._file_names():
-            destination = target / Path(relative)
-            destination.parent.mkdir(parents=True, exist_ok=True)
-            destination.write_bytes(reader.read_bytes(relative))
-    return target
-
-
-def _set_statistic(bundle: Path, *, external_key: str, admitted_count: int) -> None:
-    path = bundle / "data" / "historical_admission_statistics.jsonl"
-    rows = [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
-    found = False
-    for row in rows:
-        if row.get("external_key") == external_key:
-            row["admitted_count"] = admitted_count
-            found = True
-    if not found:
-        raise AssertionError(f"integration statistic was not found: {external_key}")
-    path.write_text(
-        "".join(json.dumps(row, ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n" for row in rows),
-        encoding="utf-8",
-    )
-
-
-def _wrap_requirement_with_at_least(bundle: Path) -> str:
-    path = bundle / "data" / "admission_exam_requirements.jsonl"
-    rows = [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
-    selected = rows[0]
-    selected["requirement_tree"] = {
-        "operator": "AT_LEAST",
-        "min_count": 1,
-        "children": [selected["requirement_tree"]],
-    }
-    path.write_text(
-        "".join(json.dumps(row, ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n" for row in rows),
-        encoding="utf-8",
-    )
-    return str(selected["external_key"])
-
-
-def _set_direction_name(bundle: Path, external_key: str, name: str) -> None:
-    path = bundle / "data" / "directions.jsonl"
-    rows = [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
-    for row in rows:
-        if row.get("external_key") == external_key:
-            row["name"] = name
-            break
-    else:
-        raise AssertionError(f"direction was not found: {external_key}")
-    path.write_text(
-        "".join(json.dumps(row, ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n" for row in rows),
-        encoding="utf-8",
-    )
-
-
-def _wrap_requirement_with_nested_operators(bundle: Path) -> str:
-    path = bundle / "data" / "admission_exam_requirements.jsonl"
-    rows = [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
-    selected = rows[0]
-    leaves: list[dict] = []
-
-    def collect_leaves(node: dict) -> None:
-        exam = node.get("exam")
-        if isinstance(exam, dict):
-            leaves.append({"exam": exam})
-            return
-        for child in node.get("children", []):
-            if isinstance(child, dict):
-                collect_leaves(child)
-
-    collect_leaves(selected["requirement_tree"])
-    if len(leaves) < 2:
-        raise AssertionError("nested requirement regression needs two exact exam leaves")
-    selected["requirement_tree"] = {
-        "operator": "AT_LEAST",
-        "min_count": 1,
-        "children": [
-            {
-                "operator": "AND",
-                "children": [
-                    {"operator": "OR", "min_count": 1, "children": leaves[:2]}
-                ],
-            }
-        ],
-    }
-    path.write_text(
-        "".join(json.dumps(row, ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n" for row in rows),
-        encoding="utf-8",
-    )
-    return str(selected["external_key"])
-
-
-def _statistic_values(engine: Engine, release_id: UUID, external_key: str) -> tuple[int | None, int | None, int | None]:
-    with engine.connect() as connection:
-        row = connection.execute(
-            text(
-                "SELECT admitted_count, minimum_score, maximum_score "
-                "FROM historical_admission_statistics "
-                "WHERE release_id = :release_id AND external_key = :external_key"
-            ),
-            {"release_id": release_id, "external_key": external_key},
-        ).one()
-    return tuple(row)
-
-
-def _review_fixture_statistic(
-    tmp_path: Path, *, base_bundle: Path, base_release_id: UUID, base_digest: str
-) -> Path:
-    capture = capture_sources(
-        mode="fixture",
-        fixture_dir=FIXTURE_DIR,
-        output_dir=tmp_path / "capture",
-    )
-    parse_path = tmp_path / "parse-report.json"
-    write_parse_report(parse_capture(capture.capture_dir), parse_path)
-    candidate_dir = tmp_path / "candidate-bundle"
-    build_candidate_bundle(
-        base_bundle=base_bundle,
-        parse_report_path=parse_path,
-        output_dir=candidate_dir,
-        base_release_id=str(base_release_id),
-        base_source_bundle_sha256=base_digest,
-    )
-    candidates = [
-        json.loads(line)
-        for line in (candidate_dir / "data" / "bmstu_ingestion_candidates.jsonl")
-        .read_text(encoding="utf-8")
-        .splitlines()
-    ]
-    target = next(
-        row for row in candidates
-        if row["candidate_type"] == "typed_record"
-        and row["target_dataset"] == "historical_admission_statistics.jsonl"
-        and row["suggested_target"] == FIXTURE_STATISTIC_KEY
-    )
-    decisions_path = tmp_path / "review-decisions.csv"
-    reviewed_at = datetime.now(timezone.utc).isoformat()
-    with decisions_path.open("w", encoding="utf-8", newline="") as stream:
-        writer = csv.DictWriter(
-            stream,
-            fieldnames=("external_key", "decision", "reviewed_at", "target_external_key"),
-        )
-        writer.writeheader()
-        for row in candidates:
-            decision = (
-                "accept_observation" if row["candidate_type"] == "canonical_snapshot"
-                else "accept_typed_fact" if row["external_key"] == target["external_key"]
-                else "reject"
-            )
-            writer.writerow({
-                "external_key": row["external_key"],
-                "decision": decision,
-                "reviewed_at": reviewed_at,
-                "target_external_key": FIXTURE_STATISTIC_KEY if decision == "accept_typed_fact" else "",
-            })
-    reviewed_dir = tmp_path / "reviewed-bundle"
-    materialize_reviewed_bundle(
-        candidate_dir=candidate_dir,
-        decisions_path=decisions_path,
-        output_dir=reviewed_dir,
-    )
-    return reviewed_dir
-
-
-def test_commit_is_idempotent_and_failed_activation_rolls_back(tmp_path: Path) -> None:
-    engine, settings = _test_database()
-    try:
-        active_before = _active_release(engine)
-        if active_before is None:
-            baseline_bundle = tmp_path / "baseline-bundle"
-            shutil.copytree(BUNDLE, baseline_bundle)
-            baseline_readme = baseline_bundle / "README.md"
-            baseline_readme.write_text(
-                baseline_readme.read_text(encoding="utf-8")
-                + f"\n<!-- pg test bootstrap {uuid4()} -->\n",
-                encoding="utf-8",
-            )
-            first = commit_projection(
-                engine, settings, project_bundle(str(baseline_bundle))
-            )
-            assert first["outcome"] == "committed"
-            active_before = UUID(first["active_release_id"])
-        assert active_before is not None
-        base_bundle, base_export = _export_release(
-            engine, settings, active_before, tmp_path / "base-release"
-        )
-        first = commit_projection(engine, settings, project_bundle(str(base_bundle)))
-        assert first["outcome"] == "no_op"
-        assert _active_release(engine) == active_before
-
-        counts_before = _release_counts(engine, active_before)
-        assert counts_before["directions"] == 53
-        assert counts_before["departments"] == 77
-        assert counts_before["educational_programs"] == 152
-        assert counts_before["program_offerings"] == 127
-        assert counts_before["competition_pools"] == 940
-        assert counts_before["study_plans"] == 152
-        assert counts_before["curriculum_items"] == 14_165
-        assert counts_before["curriculum_evidence"] == 14_165
-        assert counts_before["admission_requirement_sets"] == 81
-        assert counts_before["admission_requirement_nodes"] == 405
-        assert counts_before["admission_statistics"] == 311
-        assert counts_before["historical_admission_statistics"] == 783
-        assert counts_before["source_artifacts"] == 498
-        assert counts_before["source_evidence"] == 19_153
-        assert counts_before["source_observations"] == 23_020
-        assert counts_before["source_relationships"] == 3_478
-        assert counts_before["manual_review_items"] == 560
-
-        second = commit_projection(engine, settings, project_bundle(str(base_bundle)))
-        assert second["outcome"] == "no_op"
-        assert _active_release(engine) == active_before
-        assert _release_counts(engine, active_before) == counts_before
-
-        reviewed_dir = _review_fixture_statistic(
-            tmp_path,
-            base_bundle=base_bundle,
-            base_release_id=active_before,
-            base_digest=base_export["source_bundle_sha256"],
-        )
-        fixture_projection = project_bundle(str(reviewed_dir))
-        fixture_commit = commit_projection(engine, settings, fixture_projection)
-        assert fixture_commit["outcome"] == "committed"
-        fixture_release = _active_release(engine)
-        assert fixture_release == UUID(fixture_commit["active_release_id"])
-        assert fixture_release != active_before
-        with engine.connect() as connection:
-            persisted = connection.execute(
-                text(
-                    "SELECT admitted_count, minimum_score, maximum_score "
-                    "FROM historical_admission_statistics "
-                    "WHERE release_id = :release_id AND external_key = :external_key"
-                ),
-                {"release_id": fixture_release, "external_key": FIXTURE_STATISTIC_KEY},
-            ).one()
-            evidence_count = connection.execute(
-                text(
-                    "SELECT count(*) FROM historical_statistic_evidence evidence "
-                    "JOIN historical_admission_statistics statistic "
-                    "ON statistic.release_id = evidence.release_id AND statistic.id = evidence.statistic_id "
-                    "WHERE statistic.release_id = :release_id AND statistic.external_key = :external_key"
-                ),
-                {"release_id": fixture_release, "external_key": FIXTURE_STATISTIC_KEY},
-            ).scalar_one()
-        assert tuple(persisted) == (12, 201, 280)
-        assert evidence_count > 0
-        assert _release_counts(engine, active_before) == counts_before
-
-        repeated_fixture_commit = commit_projection(engine, settings, fixture_projection)
-        assert repeated_fixture_commit["outcome"] == "no_op"
-        assert _active_release(engine) == fixture_release
-
-        changed_bundle = tmp_path / "changed-bundle"
-        shutil.copytree(reviewed_dir, changed_bundle)
-        _set_release_context(
-            changed_bundle, fixture_release, fixture_commit["input_digest"]
-        )
-        readme = changed_bundle / "README.md"
-        readme.write_text(
-            readme.read_text(encoding="utf-8") + f"\n<!-- injected failure {uuid4()} -->\n",
-            encoding="utf-8",
-        )
-        changed_projection = project_bundle(str(changed_bundle))
-
-        def fail_before_activation() -> None:
-            raise RuntimeError("intentional integration-test failure")
-
-        with pytest.raises(ReleasePublicationError, match="rolled back"):
-            commit_projection(
-                engine,
-                settings,
-                changed_projection,
-                before_activation=fail_before_activation,
-            )
-
-        assert _active_release(engine) == fixture_release
-        with engine.connect() as connection:
-            failed_release_count = connection.execute(
-                text("SELECT count(*) FROM data_releases WHERE source_bundle_sha256 = :digest"),
-                {"digest": changed_projection.input_digest},
-            ).scalar_one()
-            failed_batch_count = connection.execute(
-                text("SELECT count(*) FROM import_batches WHERE source_bundle_sha256 = :digest AND status = 'failed'"),
-                {"digest": changed_projection.input_digest},
-            ).scalar_one()
-            operators = dict(
-                connection.execute(
-                    text(
-                        "SELECT operator, count(*) FROM admission_requirement_nodes "
-                        "WHERE release_id = :release_id GROUP BY operator"
-                    ),
-                    {"release_id": fixture_release},
-                ).all()
-            )
-        assert failed_release_count == 0
-        assert failed_batch_count >= 1
-        assert operators == {None: 284, "AND": 81, "OR": 40}
-        rollback = rollback_active_release(
-            engine,
-            settings,
-            target_release_id=active_before,
-            expected_active_release_id=fixture_release,
-            reason="restore verified PostgreSQL fixture after rollback scenario",
-        )
-        assert rollback["outcome"] == "rolled_back"
-        assert _active_release(engine) == active_before
-        assert _release_counts(engine, active_before) == counts_before
-
-        exported_bundle, exported = _export_release(
-            engine, settings, active_before, tmp_path / "exported-active-release"
-        )
-        assert exported["source_bundle_sha256"] == base_export["source_bundle_sha256"]
-        assert exported["reconciliation"]["reconciled"] is True
-        with BundleReader(base_bundle) as source_reader, BundleReader(exported_bundle) as export_reader:
-            assert source_reader.input_digest == export_reader.input_digest
-            assert {item.relative_path: item.sha256 for item in source_reader.files} == {
-                item.relative_path: item.sha256 for item in export_reader.files
-            }
-        exported_repeat = commit_projection(
-            engine, settings, project_bundle(str(exported_bundle))
-        )
-        assert exported_repeat["outcome"] == "no_op"
-        assert _active_release(engine) == active_before
-        with engine.connect() as connection:
-            archive_rows = connection.execute(
-                text(
-                    "SELECT count(*) FROM data_release_bundle_artifacts "
-                    "WHERE release_id = :release_id"
-                ),
-                {"release_id": active_before},
-            ).scalar_one()
-        assert archive_rows == 1
-        with pytest.raises(DBAPIError), engine.begin() as connection:
-            connection.execute(
-                text(
-                    "UPDATE data_release_bundle_artifacts "
-                    "SET archive_sha256 = :digest WHERE release_id = :release_id"
-                ),
-                {"digest": "0" * 64, "release_id": active_before},
-            )
-        assert _active_release(engine) == active_before
-        with pytest.raises(DBAPIError), engine.begin() as connection:
-            connection.execute(
-                text(
-                    "UPDATE release_activation_events SET reason = 'changed' "
-                    "WHERE operation = 'rollback' AND active_release_id = :release_id"
-                ),
-                {"release_id": active_before},
-            )
-    finally:
-        engine.dispose()
-
-
-def test_stale_prepared_bundle_is_rejected_after_another_release_activates(
-    tmp_path: Path,
-) -> None:
-    engine, settings = _test_database()
-    try:
-        base_release_id = _active_release(engine)
-        assert base_release_id is not None, "run the PostgreSQL lifecycle test before stale-base test"
-        base_bundle, base_export = _export_release(
-            engine, settings, base_release_id, tmp_path / "stale-base"
-        )
-        before_counts = _release_counts(engine, base_release_id)
-
-        winner_bundle = tmp_path / "winner-bundle"
-        stale_bundle = tmp_path / "stale-bundle"
-        shutil.copytree(base_bundle, winner_bundle)
-        shutil.copytree(base_bundle, stale_bundle)
-        _set_release_context(
-            winner_bundle, base_release_id, base_export["source_bundle_sha256"]
-        )
-        _set_release_context(stale_bundle, base_release_id, base_export["source_bundle_sha256"])
-        winner_readme = winner_bundle / "README.md"
-        winner_readme.write_text(
-            winner_readme.read_text(encoding="utf-8") + f"\n<!-- winner {uuid4()} -->\n",
-            encoding="utf-8",
-        )
-        stale_readme = stale_bundle / "README.md"
-        stale_readme.write_text(
-            stale_readme.read_text(encoding="utf-8") + f"\n<!-- stale {uuid4()} -->\n",
-            encoding="utf-8",
-        )
-        winner = commit_projection(
-            engine, settings, project_bundle(str(winner_bundle))
-        )
-        assert winner["outcome"] == "committed"
-        winner_id = UUID(winner["active_release_id"])
-        assert winner_id != base_release_id
-
-        with pytest.raises(ReleasePublicationError, match="candidate base is stale"):
-            commit_projection(engine, settings, project_bundle(str(stale_bundle)))
-        assert _active_release(engine) == winner_id
-        assert _release_counts(engine, base_release_id) == before_counts
-        assert _release_counts(engine, winner_id) == before_counts
-        with engine.connect() as connection:
-            publication_count = connection.execute(
-                text(
-                    "SELECT count(*) FROM release_activation_events "
-                    "WHERE operation = 'publish' AND previous_release_id = :previous "
-                    "AND active_release_id = :active"
-                ),
-                {"previous": base_release_id, "active": winner_id},
-            ).scalar_one()
-        assert publication_count == 1
-
-        rollback_active_release(
-            engine,
-            settings,
-            target_release_id=base_release_id,
-            expected_active_release_id=winner_id,
-            reason="restore lifecycle test base after stale publisher check",
-        )
-        assert _active_release(engine) == base_release_id
-        assert _release_counts(engine, base_release_id) == before_counts
-    finally:
-        engine.dispose()
-
-
-def test_five_sequential_updates_preserve_every_previously_accepted_fact(
-    tmp_path: Path,
-) -> None:
-    engine, settings = _test_database()
-    external_key = FIXTURE_STATISTIC_KEY
-    try:
-        base_release_id = _active_release(engine)
-        if base_release_id is None:
-            seed = tmp_path / "seed-bundle"
-            shutil.copytree(BUNDLE, seed)
-            seed_readme = seed / "README.md"
-            seed_readme.write_text(seed_readme.read_text(encoding="utf-8") + f"\n<!-- sequence seed {uuid4()} -->\n", encoding="utf-8")
-            seeded = commit_projection(engine, settings, project_bundle(str(seed)))
-            base_release_id = UUID(seeded["active_release_id"])
-        assert base_release_id is not None
-
-        base_bundle, base_export = _export_release(
-            engine, settings, base_release_id, tmp_path / "sequence-base"
-        )
-        base_counts = _release_counts(engine, base_release_id)
-
-        def assert_no_count_loss(previous: dict[str, int], release_id: UUID) -> dict[str, int]:
-            current = _release_counts(engine, release_id)
-            assert current.keys() == previous.keys()
-            assert all(current[table] >= count for table, count in previous.items())
-            return current
-
-        source_rows = [
-            json.loads(line)
-            for line in (base_bundle / "data" / "historical_admission_statistics.jsonl").read_text(encoding="utf-8").splitlines()
-        ]
-        source_row = next(row for row in source_rows if row["external_key"] == external_key)
-        original_count = source_row["admitted_count"]
-
-        # 1: a reviewed-value change under the same exact key.
-        update_one = _copy_bundle(base_bundle, tmp_path / "sequence-update-one")
-        _set_release_context(update_one, base_release_id, base_export["source_bundle_sha256"])
-        _set_statistic(update_one, external_key=external_key, admitted_count=original_count + 1)
-        requirement_key = _wrap_requirement_with_at_least(update_one)
-        first_projection = project_bundle(str(update_one))
-        assert first_projection.report["requirement_operator_counts"]["AT_LEAST"] == 1
-        first = commit_projection(engine, settings, first_projection)
-        assert first["outcome"] == "committed"
-        first_release_id = UUID(first["active_release_id"])
-        first_counts = assert_no_count_loss(base_counts, first_release_id)
-        assert _statistic_values(engine, first_release_id, external_key) == (
-            original_count + 1,
-            source_row["minimum_score"],
-            source_row["maximum_score"],
-        )
-        with engine.connect() as connection:
-            operators = dict(connection.execute(
-                text(
-                    "SELECT operator, count(*) FROM admission_requirement_nodes "
-                    "WHERE release_id = :release_id AND operator IS NOT NULL GROUP BY operator"
-                ),
-                {"release_id": first_release_id},
-            ).all())
-            at_least_count = connection.execute(
-                text(
-                    "SELECT count(*) FROM admission_requirement_nodes node "
-                    "JOIN admission_requirement_sets requirement "
-                    "ON requirement.release_id = node.release_id "
-                    "AND requirement.id = node.requirement_set_id "
-                    "WHERE node.release_id = :release_id AND node.operator = 'AT_LEAST' "
-                    "AND requirement.external_key = :external_key"
-                ),
-                {"release_id": first_release_id, "external_key": requirement_key},
-            ).scalar_one()
-        assert operators.get("AND", 0) > 0 and operators.get("OR", 0) > 0
-        assert at_least_count == 1
-        assert _release_counts(engine, first_release_id)["admission_requirement_nodes"] == base_counts["admission_requirement_nodes"] + 1
-        assert _release_counts(engine, base_release_id) == base_counts
-
-        # 2: add a separately keyed aggregate row while preserving update 1.
-        second_base, second_export = _export_release(
-            engine, settings, first_release_id, tmp_path / "sequence-second-base"
-        )
-        update_two = _copy_bundle(second_base, tmp_path / "sequence-update-two")
-        _set_release_context(update_two, first_release_id, second_export["source_bundle_sha256"])
-        added_key = f"{external_key}:sequential-addition:{uuid4()}"
-        added = dict(source_row)
-        added.update(
-            {
-                "external_key": added_key,
-                "admission_year": 2022,
-                "admitted_count": 7,
-                "minimum_score": 210,
-                "maximum_score": 310,
-                "source_locator": {"sequence_test": str(uuid4())},
-            }
-        )
-        statistics_path = update_two / "data" / "historical_admission_statistics.jsonl"
-        statistics = [json.loads(line) for line in statistics_path.read_text(encoding="utf-8").splitlines()]
-        statistics.append(added)
-        statistics_path.write_text(
-            "".join(json.dumps(row, ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n" for row in statistics),
-            encoding="utf-8",
-        )
-        second_projection = project_bundle(str(update_two))
-        second = commit_projection(engine, settings, second_projection)
-        assert second["outcome"] == "committed"
-        second_release_id = UUID(second["active_release_id"])
-        second_counts = assert_no_count_loss(first_counts, second_release_id)
-        assert _statistic_values(engine, second_release_id, external_key)[0] == original_count + 1
-        assert _statistic_values(engine, second_release_id, added_key) == (7, 210, 310)
-        with engine.connect() as connection:
-            assert connection.execute(
-                text(
-                    "SELECT count(*) FROM admission_requirement_nodes "
-                    "WHERE release_id = :release_id AND operator = 'AT_LEAST'"
-                ),
-                {"release_id": second_release_id},
-            ).scalar_one() == 1
-        assert _release_counts(engine, first_release_id)["historical_admission_statistics"] == base_counts["historical_admission_statistics"]
-        assert _release_counts(engine, second_release_id)["historical_admission_statistics"] == base_counts["historical_admission_statistics"] + 1
-
-        # 3: exporting and importing an unchanged active release is a true no-op.
-        unchanged_bundle, unchanged_export = _export_release(
-            engine, settings, second_release_id, tmp_path / "sequence-no-change"
-        )
-        assert unchanged_export["source_bundle_sha256"] == second["input_digest"]
-        unchanged = commit_projection(engine, settings, project_bundle(str(unchanged_bundle)))
-        assert unchanged["outcome"] == "no_op"
-        assert _active_release(engine) == second_release_id
-        second_counts = _release_counts(engine, second_release_id)
-        assert second_counts["historical_admission_statistics"] == base_counts["historical_admission_statistics"] + 1
-
-        # 4: block contradictory source values, then resolve with one explicit exact-key decision.
-        capture = capture_sources(
-            mode="fixture",
-            fixture_dir=FIXTURE_DIR,
-            output_dir=tmp_path / "sequence-conflict-capture",
-        )
-        parse_path = tmp_path / "sequence-conflict-parse.json"
-        write_parse_report(parse_capture(capture.capture_dir), parse_path)
-        conflict_candidate_dir = tmp_path / "sequence-conflict-candidate"
-        build_candidate_bundle(
-            base_bundle=unchanged_bundle,
-            parse_report_path=parse_path,
-            output_dir=conflict_candidate_dir,
-            base_release_id=str(second_release_id),
-            base_source_bundle_sha256=unchanged_export["source_bundle_sha256"],
-        )
-        candidate_path = conflict_candidate_dir / "data" / "bmstu_ingestion_candidates.jsonl"
-        conflict_candidates = [json.loads(line) for line in candidate_path.read_text(encoding="utf-8").splitlines()]
-        selected_candidate = next(
-            row
-            for row in conflict_candidates
-            if row.get("candidate_type") == "typed_record"
-            and row.get("target_dataset") == "historical_admission_statistics.jsonl"
-            and row.get("suggested_target") == external_key
-        )
-        conflict_artifacts = [
-            json.loads(line)
-            for line in (conflict_candidate_dir / "source_artifacts.jsonl").read_text(encoding="utf-8").splitlines()
-        ]
-        other_artifact = next(
-            row for row in conflict_artifacts if row["source_key"] != selected_candidate["source_artifact_key"]
-        )
-        contradiction = dict(selected_candidate)
-        contradiction["external_key"] = f"bmstu_fact_candidate:sequence-conflict:{uuid4()}"
-        contradiction["source_identity"] = f"{selected_candidate['source_identity']}:contradictory-source"
-        contradiction["source_artifact_key"] = other_artifact["source_key"]
-        contradiction_payload = json.loads(selected_candidate["payload_json"])
-        contradiction_payload["admitted_count"] = int(contradiction_payload["admitted_count"]) + 10
-        contradiction_payload["source_artifact_key"] = other_artifact["source_key"]
-        contradiction_payload["source_artifact_keys"] = [other_artifact["source_key"]]
-        contradiction_payload["source_sha256"] = other_artifact["sha256"]
-        contradiction["payload_json"] = json.dumps(
-            contradiction_payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")
-        )
-        contradiction["payload_sha256"] = hashlib.sha256(
-            contradiction["payload_json"].encode("utf-8")
-        ).hexdigest()
-        conflict_candidates.append(contradiction)
-        candidate_path.write_text(
-            "".join(json.dumps(row, ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n" for row in conflict_candidates),
-            encoding="utf-8",
-        )
-        candidate_manifest_path = conflict_candidate_dir / "ingestion_candidate_manifest.json"
-        conflict_manifest = json.loads(candidate_manifest_path.read_text(encoding="utf-8"))
-        conflict_manifest["candidate_keys"].append(contradiction["external_key"])
-        conflict_manifest["typed_candidate_count"] += 1
-        candidate_manifest_path.write_text(
-            json.dumps(conflict_manifest, ensure_ascii=False, sort_keys=True) + "\n", encoding="utf-8"
-        )
-        conflict_report = compare_candidate_bundle(conflict_candidate_dir)
-        conflict_keys = {
-            row["candidate_key"]
-            for row in conflict_report["records"]
-            if row.get("target_external_key") == external_key
-        }
-        assert selected_candidate["external_key"] in conflict_keys
-        assert contradiction["external_key"] in conflict_keys
-
-        def write_conflict_review(path: Path, accepted_keys: set[str]) -> None:
-            with path.open("w", encoding="utf-8", newline="") as stream:
-                writer = csv.DictWriter(
-                    stream,
-                    fieldnames=("external_key", "decision", "reviewed_at", "target_external_key"),
-                )
-                writer.writeheader()
-                for row in conflict_candidates:
-                    if row["candidate_type"] == "canonical_snapshot":
-                        decision = "accept_observation"
-                    elif row["external_key"] in accepted_keys:
-                        decision = "accept_typed_fact"
-                    else:
-                        decision = "reject"
-                    writer.writerow(
-                        {
-                            "external_key": row["external_key"],
-                            "decision": decision,
-                            "reviewed_at": datetime.now(timezone.utc).isoformat(),
-                            "target_external_key": row["suggested_target"] if decision == "accept_typed_fact" else "",
-                        }
-                    )
-
-        both_review = tmp_path / "sequence-conflict-both.csv"
-        write_conflict_review(both_review, conflict_keys)
-        with pytest.raises(IngestionError, match="conflicting accepted sources target the same exact external key"):
-            materialize_reviewed_bundle(
-                candidate_dir=conflict_candidate_dir,
-                decisions_path=both_review,
-                output_dir=tmp_path / "sequence-conflict-blocked",
-            )
-        assert _active_release(engine) == second_release_id
-        assert _release_counts(engine, second_release_id) == second_counts
-        assert _statistic_values(engine, second_release_id, external_key)[0] == original_count + 1
-        assert _statistic_values(engine, second_release_id, added_key) == (7, 210, 310)
-
-        resolved_review = tmp_path / "sequence-conflict-resolved.csv"
-        # Reject both contradictory candidates: the already accepted base fact
-        # must remain unchanged until an operator deliberately selects a value.
-        write_conflict_review(resolved_review, set())
-        resolved_bundle = tmp_path / "sequence-conflict-resolved-bundle"
-        materialize_reviewed_bundle(
-            candidate_dir=conflict_candidate_dir,
-            decisions_path=resolved_review,
-            output_dir=resolved_bundle,
-            actor="sequence-test-reviewer",
-        )
-        resolved_projection = project_bundle(str(resolved_bundle))
-        resolved_commit = commit_projection(engine, settings, resolved_projection)
-        assert resolved_commit["outcome"] == "committed"
-        resolved_release_id = UUID(resolved_commit["active_release_id"])
-        resolved_counts = assert_no_count_loss(second_counts, resolved_release_id)
-        assert _statistic_values(engine, resolved_release_id, external_key)[0] == original_count + 1
-        assert _statistic_values(engine, resolved_release_id, added_key) == (7, 210, 310)
-        assert _release_counts(engine, second_release_id) == second_counts
-        assert _release_counts(engine, resolved_release_id) == resolved_counts
-
-        # 5: repeating the resolved import neither creates a release nor duplicates facts.
-        repeated = commit_projection(engine, settings, resolved_projection)
-        assert repeated["outcome"] == "no_op"
-        assert _active_release(engine) == resolved_release_id
-        assert _release_counts(engine, resolved_release_id) == resolved_counts
-        assert _release_counts(engine, first_release_id)["historical_admission_statistics"] == base_counts["historical_admission_statistics"]
-        assert _release_counts(engine, base_release_id) == base_counts
-    finally:
-        engine.dispose()
-
-
-def test_concurrent_publishers_allow_only_one_candidate_from_the_same_base(
-    tmp_path: Path,
-) -> None:
-    engine, settings = _test_database()
-    concurrent_engine = create_engine(settings.database_url, pool_size=2, max_overflow=0)
-    try:
-        base_release_id = _active_release(engine)
-        assert base_release_id is not None
-        base_bundle, base_export = _export_release(
-            engine, settings, base_release_id, tmp_path / "concurrent-base"
-        )
-        base_counts = _release_counts(engine, base_release_id)
-        projections = []
-        for label in ("left", "right"):
-            candidate = _copy_bundle(base_bundle, tmp_path / f"concurrent-{label}")
-            _set_release_context(candidate, base_release_id, base_export["source_bundle_sha256"])
-            readme = candidate / "README.md"
-            readme.write_text(readme.read_text(encoding="utf-8") + f"\n<!-- {label} {uuid4()} -->\n", encoding="utf-8")
-            projections.append(project_bundle(str(candidate)))
-
-        gate = Barrier(2)
-
-        def publish(projection):
-            gate.wait(timeout=60)
-            try:
-                return commit_projection(concurrent_engine, settings, projection)
-            except ReleasePublicationError as error:
-                return {"outcome": "rejected", "error": str(error)}
-
-        with ThreadPoolExecutor(max_workers=2) as executor:
-            futures = [executor.submit(publish, projection) for projection in projections]
-            outcomes = [future.result(timeout=300) for future in futures]
-        assert sum(item["outcome"] == "committed" for item in outcomes) == 1
-        assert sum(item["outcome"] == "rejected" and "candidate base is stale" in item["error"] for item in outcomes) == 1
-        winner_id = _active_release(engine)
-        assert winner_id is not None and winner_id != base_release_id
-        assert _release_counts(engine, base_release_id) == base_counts
-        with engine.connect() as connection:
-            winners = connection.execute(
-                text(
-                    "SELECT count(*) FROM release_activation_events "
-                    "WHERE operation = 'publish' AND previous_release_id = :previous "
-                    "AND active_release_id = :active"
-                ),
-                {"previous": base_release_id, "active": winner_id},
-            ).scalar_one()
-        assert winners == 1
-        rollback_active_release(
-            engine,
-            settings,
-            target_release_id=base_release_id,
-            expected_active_release_id=winner_id,
-            reason="restore base after concurrent publication test",
-        )
-        assert _active_release(engine) == base_release_id
-        assert _release_counts(engine, base_release_id) == base_counts
-    finally:
-        concurrent_engine.dispose()
-        engine.dispose()
-
-
-def test_read_api_uses_one_active_release_and_directus_is_physically_read_only(
-    tmp_path: Path,
-) -> None:
-    from urllib.parse import quote
-
-    from andromeda_api.main import create_app
-    from fastapi.testclient import TestClient
-    from sqlalchemy import event
-
-    engine, settings = _test_database()
-    api_engine = None
-    directus_engine = None
-    api_password = uuid4().hex
-    directus_password = uuid4().hex
-    try:
-        base_release_id = _active_release(engine)
-        if base_release_id is None:
-            bootstrap = commit_projection(engine, settings, project_bundle(str(BUNDLE)))
-            assert bootstrap["outcome"] == "committed"
-            base_release_id = UUID(bootstrap["active_release_id"])
-        assert base_release_id is not None
-        base_bundle, base_export = _export_release(
-            engine, settings, base_release_id, tmp_path / "api-base-release"
-        )
-        target_source = next(
-            json.loads(line)
-            for line in (BUNDLE / "data" / "competition_pools.jsonl")
-            .read_text(encoding="utf-8")
-            .splitlines()
-            if json.loads(line).get("quota_type") == "targeted"
-        )
-        exported_target_pool = next(
-            json.loads(line)
-            for line in (base_bundle / "data" / "competition_pools.jsonl")
-            .read_text(encoding="utf-8")
-            .splitlines()
-            if json.loads(line).get("external_key") == target_source["external_key"]
-        )
-        for field in (
-            "target_organization",
-            "target_organization_inn",
-            "target_organization_kpp",
-            "target_organization_ogrn",
-            "target_region",
-            "campus_label_in_document",
-        ):
-            assert exported_target_pool[field] == target_source[field]
-        with engine.connect() as connection:
-            direction_key, old_direction_name = connection.execute(
-                text(
-                    "SELECT external_key, name FROM directions "
-                    "WHERE release_id=:release_id ORDER BY external_key LIMIT 1"
-                ),
-                {"release_id": base_release_id},
-            ).one()
-            requirement_key = connection.execute(
-                text(
-                    "SELECT requirement.external_key FROM admission_requirement_sets requirement "
-                    "JOIN admission_requirement_nodes node "
-                    "ON node.release_id=requirement.release_id "
-                    "AND node.requirement_set_id=requirement.id "
-                    "WHERE requirement.release_id=:release_id AND node.parent_id IS NULL "
-                    "ORDER BY requirement.external_key LIMIT 1"
-                ),
-                {"release_id": base_release_id},
-            ).scalar_one()
-            plan_key = connection.execute(
-                text(
-                    "SELECT plan.external_key FROM study_plans plan "
-                    "JOIN study_plan_evidence evidence "
-                    "ON evidence.release_id=plan.release_id AND evidence.study_plan_id=plan.id "
-                    "WHERE plan.release_id=:release_id ORDER BY plan.external_key LIMIT 1"
-                ),
-                {"release_id": base_release_id},
-            ).scalar_one()
-
-        candidate = _copy_bundle(base_bundle, tmp_path / "api-changed-release")
-        _set_release_context(candidate, base_release_id, base_export["source_bundle_sha256"])
-        changed_direction_name = f"{old_direction_name} â€” API test release {uuid4().hex[:8]}"
-        _set_direction_name(candidate, direction_key, changed_direction_name)
-        requirement_key = _wrap_requirement_with_nested_operators(candidate)
-        committed = commit_projection(engine, settings, project_bundle(str(candidate)))
-        assert committed["outcome"] == "committed"
-        new_release_id = UUID(committed["active_release_id"])
-        assert new_release_id != base_release_id
-        with engine.connect() as connection:
-            new_release_key = connection.execute(
-                text("SELECT release_key FROM data_releases WHERE id=:release_id"),
-                {"release_id": new_release_id},
-            ).scalar_one()
-
-        with engine.begin() as connection:
-            connection.execute(
-                text(f"ALTER ROLE andromeda_api_runtime PASSWORD '{api_password}'")
-            )
-            connection.execute(
-                text(f"ALTER ROLE andromeda_directus_runtime PASSWORD '{directus_password}'")
-            )
-        api_url = settings.parsed_database_url.set(
-            username="andromeda_api_runtime", password=api_password
-        )
-        directus_url = settings.parsed_database_url.set(
-            username="andromeda_directus_runtime", password=directus_password
-        )
-        api_engine = create_engine(api_url, pool_size=2, max_overflow=0)
-        directus_engine = create_engine(directus_url, pool_size=1, max_overflow=0)
-        app = create_app(settings=settings, engine=api_engine)
-
-        with TestClient(app) as client:
-            health = client.get("/api/v1/health")
-            assert health.status_code == 200
-            assert health.json()["active_release_key"] == new_release_key
-
-            target_pool = None
-            cursor = None
-            while target_pool is None:
-                pool_page_response = client.get(
-                    "/api/v1/competition-pools",
-                    params={
-                        "campaign_key": target_source["linked_campaign_key"],
-                        "direction_code": target_source["direction_code"],
-                        "limit": 100,
-                        **({"cursor": cursor} if cursor else {}),
-                    },
-                )
-                assert pool_page_response.status_code == 200
-                pool_page = pool_page_response.json()
-                target_pool = next(
-                    (
-                        row for row in pool_page["items"]
-                        if row["external_key"] == target_source["external_key"]
-                    ),
-                    None,
-                )
-                cursor = pool_page["page"]["next_cursor"]
-                if target_pool is None:
-                    assert cursor is not None, "the imported targeted quota row is missing from the API"
-
-            for field in (
-                "target_organization",
-                "target_organization_inn",
-                "target_organization_kpp",
-                "target_organization_ogrn",
-                "target_region",
-                "campus_label_in_document",
-            ):
-                assert target_pool[field] == target_source[field]
-            assert isinstance(target_pool["target_organization_inn"], str)
-            assert isinstance(target_pool["target_organization_kpp"], str)
-            assert isinstance(target_pool["target_organization_ogrn"], str)
-            assert any(
-                source["sha256"] == target_source["source_sha256"]
-                for source in target_pool["sources"]
-            )
-
-            first_page = client.get("/api/v1/directions", params={"limit": 1}).json()
-            assert first_page["page"]["release_key"] == new_release_key
-            assert first_page["page"]["total_count"] > 1
-            assert first_page["items"][0]["sources"]
-            next_cursor = first_page["page"]["next_cursor"]
-            assert next_cursor
-            second_page = client.get(
-                "/api/v1/directions", params={"limit": 1, "cursor": next_cursor}
-            ).json()
-            first_key = first_page["items"][0]["external_key"]
-            second_key = second_page["items"][0]["external_key"]
-            assert first_key < second_key
-
-            invalid_cursor = client.get("/api/v1/directions", params={"cursor": "!"})
-            assert invalid_cursor.status_code == 422
-            assert invalid_cursor.json()["error"]["code"] == "invalid_cursor"
-            missing = client.get("/api/v1/directions/no-such-exact-key")
-            assert missing.status_code == 404
-            assert missing.json()["error"]["code"] == "record_not_found"
-            assert client.post("/api/v1/release").status_code == 405
-
-            plan_response = client.get(f"/api/v1/study-plans/{quote(plan_key, safe='')}")
-            assert plan_response.status_code == 200
-            assert plan_response.json()["sources"]
-
-            requirement_response = client.get(
-                f"/api/v1/requirements/{quote(requirement_key, safe='')}"
-            )
-            tree = requirement_response.json()["root"]
-            assert requirement_response.status_code == 200
-            assert tree["operator"] == "AT_LEAST"
-            assert tree["children"][0]["operator"] == "AND"
-            assert tree["children"][0]["children"][0]["operator"] == "OR"
-
-            with engine.connect() as connection:
-                requirement_direction_key = connection.execute(
-                    text(
-                        "SELECT direction.external_key "
-                        "FROM admission_requirement_sets requirement "
-                        "JOIN directions direction "
-                        "ON direction.release_id = requirement.release_id "
-                        "AND direction.id = requirement.direction_id "
-                        "JOIN admission_campaigns campaign "
-                        "ON campaign.release_id = requirement.release_id "
-                        "AND campaign.id = requirement.campaign_id "
-                        "WHERE requirement.release_id = :release_id "
-                        "AND campaign.external_key = :campaign_key "
-                        "GROUP BY direction.external_key "
-                        "HAVING count(*) > 1 "
-                        "ORDER BY direction.external_key "
-                        "LIMIT 1"
-                    ),
-                    {
-                        "release_id": new_release_id,
-                        "campaign_key": "campaign:bmstu:2026",
-                    },
-                ).scalar_one()
-
-            def fetch_requirement_pages(params: dict[str, str]) -> tuple[list[dict], str]:
-                records: list[dict] = []
-                cursor = None
-                release_key = ""
-                while True:
-                    response = client.get(
-                        "/api/v1/requirements",
-                        params={"limit": "100", **params, **({"cursor": cursor} if cursor else {})},
-                    )
-                    assert response.status_code == 200
-                    page = response.json()
-                    assert page["page"]["release_key"] == new_release_key
-                    release_key = page["page"]["release_key"]
-                    records.extend(page["items"])
-                    cursor = page["page"]["next_cursor"]
-                    if cursor is None:
-                        return records, release_key
-
-            unfiltered_requirements, unfiltered_release_key = fetch_requirement_pages(
-                {"campaign_key": "campaign:bmstu:2026"}
-            )
-            expected_direction_requirements = [
-                record for record in unfiltered_requirements
-                if record["direction_key"] == requirement_direction_key
-            ]
-            assert len(expected_direction_requirements) > 1
-            assert unfiltered_release_key == new_release_key
-
-            filtered_requirements: list[dict] = []
-            cursor = None
-            filtered_total_count = None
-            while True:
-                filtered_response = client.get(
-                    "/api/v1/requirements",
-                    params={
-                        "campaign_key": "campaign:bmstu:2026",
-                        "direction_key": requirement_direction_key,
-                        "limit": 1,
-                        **({"cursor": cursor} if cursor else {}),
-                    },
-                )
-                assert filtered_response.status_code == 200
-                filtered_page = filtered_response.json()
-                assert filtered_page["page"]["release_key"] == new_release_key
-                if filtered_total_count is None:
-                    filtered_total_count = filtered_page["page"]["total_count"]
-                assert filtered_page["page"]["total_count"] == filtered_total_count
-                filtered_requirements.extend(filtered_page["items"])
-                cursor = filtered_page["page"]["next_cursor"]
-                if cursor is None:
-                    break
-
-            expected_requirement_keys = [
-                record["external_key"] for record in expected_direction_requirements
-            ]
-            assert filtered_total_count == len(expected_direction_requirements)
-            assert [record["external_key"] for record in filtered_requirements] == expected_requirement_keys
-            assert all(record["direction_key"] == requirement_direction_key for record in filtered_requirements)
-
-            invalid_direction_response = client.get(
-                "/api/v1/requirements",
-                params={
-                    "campaign_key": "campaign:bmstu:2026",
-                    "direction_key": "direction:missing",
-                },
-            )
-            assert invalid_direction_response.status_code == 404
-            assert invalid_direction_response.json()["error"]["code"] == "record_not_found"
-
-            taxonomy_response = client.get("/api/v1/subject-taxonomies/bmstu-subject-domain-16/v1")
-            assert taxonomy_response.status_code == 200
-            taxonomy = taxonomy_response.json()
-            assert taxonomy["taxonomy_key"] == "bmstu-subject-domain-16"
-            assert taxonomy["taxonomy_version"] == "v1"
-            category_codes = [category["category_code"] for category in taxonomy["categories"]]
-            assert category_codes
-            assert len(category_codes) == len(set(category_codes))
-
-            tuition = client.get("/api/v1/tuition", params={"limit": 100}).json()
-            assert all(
-                "unspecified" not in (item["academic_year"] or "").casefold()
-                for item in tuition["items"]
-            )
-
-            flipped = False
-
-            def rollback_between_release_lookup_and_page(
-                connection, cursor, statement, parameters, context, executemany
-            ):
-                nonlocal flipped
-                normalized = " ".join(statement.casefold().split())
-                if not flipped and normalized.startswith("select count(*)") and "from directions" in normalized:
-                    flipped = True
-                    rollback_active_release(
-                        engine,
-                        settings,
-                        target_release_id=base_release_id,
-                        expected_active_release_id=new_release_id,
-                        reason="simulate active release change during one API request",
-                        actor="api-integration-test",
-                    )
-
-            event.listen(api_engine, "before_cursor_execute", rollback_between_release_lookup_and_page)
-            try:
-                stable_snapshot = client.get("/api/v1/directions", params={"limit": 1}).json()
-            finally:
-                event.remove(api_engine, "before_cursor_execute", rollback_between_release_lookup_and_page)
-            assert flipped
-            assert stable_snapshot["page"]["release_key"] == new_release_key
-            assert stable_snapshot["items"][0]["name"] == changed_direction_name
-
-            restored = client.get("/api/v1/directions", params={"limit": 100}).json()
-            restored_direction = next(
-                item for item in restored["items"] if item["external_key"] == direction_key
-            )
-            assert restored["page"]["release_key"] == base_export["release_key"]
-            assert restored_direction["name"] == old_direction_name
-
-        with engine.connect() as owner_connection:
-            academic_direction_view_oid = owner_connection.execute(
-                text("SELECT 'academic_read.directions'::regclass::oid")
-            ).scalar_one()
-        with directus_engine.connect() as connection:
-            projection_release_key = connection.execute(
-                text("SELECT release_key FROM directus_read.active_release")
-            ).scalar_one()
-            assert projection_release_key == base_export["release_key"]
-            assert connection.execute(
-                text("SELECT count(DISTINCT release_id) FROM directus_read.directions")
-            ).scalar_one() <= 1
-            assert connection.execute(
-                text("SELECT has_table_privilege(current_user, 'directus_read.directions', 'SELECT')")
-            ).scalar_one()
-            assert connection.execute(
-                text("SELECT has_table_privilege(current_user, 'directus_read.directions', 'UPDATE')")
-            ).scalar_one() is False
-            assert connection.execute(
-                text("SELECT has_schema_privilege(current_user, 'directus_read', 'CREATE')")
-            ).scalar_one() is False
-            assert connection.execute(
-                text("SELECT has_schema_privilege(current_user, 'academic_read', 'USAGE')")
-            ).scalar_one() is False
-            assert connection.execute(
-                text("SELECT has_table_privilege(current_user, :view_oid, 'SELECT')"),
-                {"view_oid": academic_direction_view_oid},
-            ).scalar_one() is False
-            with pytest.raises(DBAPIError):
-                connection.execute(text("SELECT * FROM public.directions LIMIT 1"))
-            connection.rollback()
-            with pytest.raises(DBAPIError):
-                connection.execute(text("UPDATE public.directions SET name=name WHERE false"))
-            connection.rollback()
-            with pytest.raises(DBAPIError):
-                connection.execute(text("UPDATE directus_read.directions SET name=name WHERE false"))
-            connection.rollback()
-            with pytest.raises(DBAPIError):
-                connection.execute(text("DROP TABLE directus_read.directions"))
-            connection.rollback()
-
-        with api_engine.connect() as connection:
-            assert connection.execute(
-                text("SELECT has_table_privilege(current_user, 'public.directions', 'SELECT')")
-            ).scalar_one()
-            assert connection.execute(
-                text("SELECT has_table_privilege(current_user, 'public.admission_result_sources', 'SELECT')")
-            ).scalar_one() is False
-            assert connection.execute(
-                text("SELECT has_schema_privilege(current_user, 'public', 'CREATE')")
-            ).scalar_one() is False
-            with pytest.raises(DBAPIError):
-                connection.execute(text("UPDATE public.directions SET name=name WHERE false"))
-            connection.rollback()
-            with pytest.raises(DBAPIError):
-                connection.execute(text("SELECT * FROM public.admission_result_sources LIMIT 1"))
-            connection.rollback()
-            with pytest.raises(DBAPIError):
-                connection.execute(text("SELECT * FROM directus_read.directions LIMIT 1"))
-            connection.rollback()
-    finally:
-        if api_engine is not None:
-            api_engine.dispose()
-        if directus_engine is not None:
-            directus_engine.dispose()
-        with engine.begin() as connection:
-            connection.execute(text("ALTER ROLE andromeda_api_runtime PASSWORD NULL"))
-            connection.execute(text("ALTER ROLE andromeda_directus_runtime PASSWORD NULL"))
-        engine.dispose()
+YªçŠx-®éÜj×¢ëiºÚ+Š§j[h‘éÜ¢éíÛO9é:-jZ.¶›­–)Ş³Vg&öÒõögWGW&Uõò–×÷'Bææ÷FF–öç0 ¦–×÷'B77`¦–×÷'B†6†Æ– ¦–×÷'B§6öà¦–×÷'B÷0¦–×÷'B6‡WF–À¦g&öÒ6öæ7W'&VçBægWGW&W2–×÷'BF‡&VEööÄW†V7WF÷ ¦g&öÒFFWF–ÖR–×÷'BFFWF–ÖRÂF–ÖW¦öæP¦g&öÒF†Æ–"–×÷'BF€¦g&öÒF‡&VF–ær–×÷'B&'&–W ¦g&öÒWV–B–×÷'BUT”BÂWV–C@ ¦–×÷'B—FW7@¦g&öÒæG&öÖVFö’æÆ–6F–öâæ–×÷'FW"æ'VæFÆR–×÷'B'VæFÆU&VFW ¦g&öÒæG&öÖVFö’æÆ–6F–öâæ–×÷'FW"æÖ–ær–×÷'BÖ–æu&W7VÇBÂ&ö¦V7Eö'VæFÆP¦g&öÒæG&öÖVFö’æÆ–6F–öâæ÷W&F–öç2ç&VÆV6W2–×÷'B€¢W‡÷'E÷&VÆV6Uö'VæFÆRÀ¢&öÆÆ&6µö7F—fU÷&VÆV6RÀ¢¦g&öÒæG&öÖVFö’æÆ–6F–öâçV&Æ–6F–öâ–×÷'B&W&U÷&VÆV6Uö&6†—fP¦g&öÒæG&öÖVFö’æÆ–6F–öâç6WGF–æw2–×÷'B6WGF–æw2ÂÆöE÷6WGF–æw0¦g&öÒæG&öÖVFöF"æ6öææV7F–öâ–×÷'BfW&–g•÷6W'fW%ö–FVçF—G¦g&öÒæG&öÖVFöF"ç&W÷6—F÷&–W2ç&VÆV6U÷V&Æ–6F–öâ–×÷'B€¢&VÆV6UV&Æ–6F–öäW'&÷"À¢V&Æ—6…÷&ö¦V7F–öâÀ¢¦g&öÒæG&öÖVF÷'6W"æ'VæFÆR–×÷'B'V–ÆEö6æF–FFUö'VæFÆRÂÖFW&–Æ—¦U÷&Wf–WvVEö'VæFÆP¦g&öÒæG&öÖVF÷'6W"æ–ævW7B–×÷'B€¢–ævW7F–öäW'&÷"À¢6GW&U÷6÷W&6W2À¢'6Uö6GW&RÀ¢w&—FU÷'6U÷&W÷'BÀ¢¦g&öÒæG&öÖVF÷'6W"æÖöFW&F–öâ–×÷'B6ö×&Uö6æF–FFUö'VæFÆP¦g&öÒ7ÆÆ6†V×’–×÷'BVæv–æRÂ7&VFUöVæv–æRÂFW‡@¦g&öÒ7ÆÆ6†V×’æW†2–×÷'BD$”W'&÷  §—FW7FÖ&²Ò—FW7BæÖ&²æ–çFVw&F–öà¥$ô¤T5Eõ$ôõBÒF‚…õöf–ÆUõò’ç&W6öÇfR‚’ç&VçG5³%Ğ¤%TäDÄRÒ$ô¤T5Eõ$ôõBò&FF"ò&&×7GRÓ##b   ¦FVb6öÖÖ—E÷&ö¦V7F–öâ€¢Væv–æS¢Væv–æRÂ6WGF–æw3¢6WGF–æw2Â&ö¦V7F–öã¢Ö–æu&W7VÇBÂ¢¦·v&w0¢’ÓâF–7E·7G"Âö&¦V7EÓ ¢""%&W&RF†RÆ–6F–öâ'F–f7B&Vf÷&RFW7F–ærF†RD"V&Æ–6F–öâ&W÷6—F÷'’â""  ¢&W&U÷&VÆV6Uö&6†—fR‡&ö¦V7F–öâ¢&WGW&âV&Æ—6…÷&ö¦V7F–öâ†Væv–æRÂ6WGF–æw2Â&ö¦V7F–öâÂ¢¦·v&w2¤d•…EU$UôD•"Ò$ô¤T5Eõ$ôõBò'FW7G2"ò&f—‡GW&W2"ò&&×7GR"ò&–ævW7F–öâ ¤d•…EU$Uõ5DD•5D”5ô´U’Ò&FÖ—76–öå÷7FF—7F–3¦&×7GS£##S£ã2ã#§–C¦F—&V7F–öâ   ¤—FW7Bæf—‡GW&R‡66÷SÒ&ÖöGVÆR"ÂWF÷W6SÕG'VR¦FVb÷&W6WEö—6öÆFVE÷÷7Fw&W5÷FW7E÷66†VÖ‚“ ¢""$Ö¶RÆ–fV7–6ÆRFW7G2&WVF&ÆS²FW7G'V7F—fRDDÂ—2wV&FVBFòöæRFW7BD"â""  ¢–bæ÷B÷2æVçf—&öâævWB‚$4DTÔ”5ôDDôDD$4UõU$Â"“ ¢––VÆ@¢&WGW&à¢6WGF–æw2ÒÆöE÷6WGF–æw2‚¢–b€¢6WGF–æw2æVçf—&öæÖVçBÒ'FW7B ¢÷"6WGF–æw2æFF&6UöæÖRÒ&6FVÖ–5öFF÷FW7B ¢÷"6WGF–æw2æFF&6Uö†÷7Bæ÷B–â²&Æö6Æ†÷7B"Â##rããã'Ğ¢“ ¢—FW7Bæf–Â‚&–çFVw&F–öâ66†VÖ&W6WB—2&W7G&–7FVBFòÆö6Æ†÷7B6FVÖ–5öFF÷FW7B–âFW7BÖöFR"¢Væv–æRÒ7&VFUöVæv–æR‡6WGF–æw2æFF&6U÷W&Â¢G'“ ¢v—F‚Væv–æRæ6öææV7B‚’26öææV7F–öã ¢–FVçF—G’ÒfW&–g•÷6W'fW%ö–FVçF—G’†6öææV7F–öâÂ6WGF–æw2¢FF&6U÷W6W"Ò6öææV7F–öâæW†V7WFR‡FW‡B‚%4TÄT5B7W'&VçE÷W6W""’’ç66Æ%ööæR‚¢–b€¢–FVçF—G•²&FF&6UöæÖR%ÒÒ&6FVÖ–5öFF÷FW7B ¢÷"–FVçF—G•²&FF&6Uö†÷7B%Òæ÷B–â²&Æö6Æ†÷7B"Â##rããã'Ğ¢÷"–FVçF—G•²'6W'fW%öÖ¦÷"%ÒÒ`¢÷"FF&6U÷W6W"Ò&æG&öÖVF÷FW7B ¢“ ¢—FW7Bæf–Â‚&–çFVw&F–öâ66†VÖ&W6WBF&vWB—2æ÷BF†RFVF–6FVBÆö6Â÷7Fw&U5ÂbFW7BFF&6R"¢v—F‚Væv–æRæ&Vv–â‚’26öææV7F–öã ¢6öææV7F–öâæW†V7WFR‡FW‡B‚$E$õ44„TÔ”bU„•5E2F—&V7GW5÷&VB444DR"’¢6öææV7F–öâæW†V7WFR‡FW‡B‚$E$õ44„TÔ”bU„•5E26FVÖ–5÷&VB444DR"’¢6öææV7F–öâæW†V7WFR‡FW‡B‚$E$õ44„TÔ”bU„•5E2F—&V7GW5öÖWF444DR"’¢6öææV7F–öâæW†V7WFR‡FW‡B‚$E$õ44„TÔV&Æ–2444DR"’¢6öææV7F–öâæW†V7WFR‡FW‡B‚$5$TDR44„TÔV&Æ–2UD„õ$•¤D”ôâæG&öÖVF÷FW7B"’¢6öææV7F–öâæW†V7WFR‡FW‡B‚$u$åBÄÂôâ44„TÔV&Æ–2DòæG&öÖVF÷FW7B"’¢f–æÆÇ“ ¢Væv–æRæF—7÷6R‚¢g&öÒæG&öÖVFö’æ6Æ’–×÷'B'VåöFF&6U÷Ww&FP ¢'VåöFF&6U÷Ww&FR‚¢––VÆ@  ¦FVb÷FW7EöFF&6R‚’ÓâGWÆU´Væv–æRÂ6WGF–æw5Ó ¢–bæ÷B÷2æVçf—&öâævWB‚$4DTÔ”5ôDDôDD$4UõU$Â"“ ¢—FW7Bç6¶—‚'6WB4DTÔ”5ôDDôDD$4UõU$ÂFòF†RFVF–6FVBÆö6Â÷7Fw&U5ÂFW7BD""¢6WGF–æw2ÒÆöE÷6WGF–æw2‚¢–b€¢6WGF–æw2æVçf—&öæÖVçBÒ'FW7B ¢÷"6WGF–æw2æFF&6UöæÖRÒ&6FVÖ–5öFF÷FW7B ¢÷"6WGF–æw2æFF&6Uö†÷7Bæ÷B–â²&Æö6Æ†÷7B"Â##rããã'Ğ¢“ ¢—FW7Bæf–Â‚&–çFVw&F–öâFW7G2Ö’öæÇ’W6RÆö6Æ†÷7B6FVÖ–5öFF÷FW7B–âFW7BÖöFR"¢&WGW&â7&VFUöVæv–æR‡6WGF–æw2æFF&6U÷W&Â’Â6WGF–æw0  ¦FVbö7F—fU÷&VÆV6R†Væv–æS¢Væv–æR’ÓâUT”BÂæöæS ¢v—F‚Væv–æRæ6öææV7B‚’26öææV7F–öã ¢fÇVRÒ6öææV7F–öâæW†V7WFR€¢FW‡B‚%4TÄT5B&VÆV6Uö–Be$ôÒ7F—fUöFF÷&VÆV6Rt„U$R6Æ÷Eö¶W’Òv7F—fRr"¢’ç66Æ%ööæUö÷%öæöæR‚¢&WGW&âfÇVP  ¦FVb÷&VÆV6Uö6÷VçG2†Væv–æS¢Væv–æRÂ&VÆV6Uö–C¢UT”B’ÓâF–7E·7G"Â–çEÓ ¢F&ÆW2Ò€¢&F—&V7F–öç2"À¢&FW'FÖVçG2"À¢&VGV6F–öæÅ÷&öw&×2"À¢'&öw&ÕööffW&–æw2"À¢&6ö×WF—F–öå÷ööÇ2"À¢'7GVG•÷Æç2"À¢&7W'&–7VÇVÕö—FV×2"À¢&7W'&–7VÇVÕöWf–FVæ6R"À¢&FÖ—76–öå÷&WV—&VÖVçE÷6WG2"À¢&FÖ—76–öå÷&WV—&VÖVçEöæöFW2"À¢&FÖ—76–öå÷7FF—7F–72"À¢&†—7F÷&–6ÅöFÖ—76–öå÷7FF—7F–72"À¢'6÷W&6Uö'F–f7G2"À¢'6÷W&6UöWf–FVæ6R"À¢'6÷W&6Uöö'6W'fF–öç2"À¢'6÷W&6U÷&VÆF–öç6†—2"À¢&ÖçVÅ÷&Wf–Wuö—FV×2"À¢¢v—F‚Væv–æRæ6öææV7B‚’26öææV7F–öã ¢&WGW&â°¢F&ÆS¢6öææV7F–öâæW†V7WFR€¢FW‡B†b%4TÄT5B6÷VçB‚¢’e$ôÒ·F&ÆWÒt„U$R&VÆV6Uö–BÒ§&VÆV6Uö–B"’À¢²'&VÆV6Uö–B#¢&VÆV6Uö–GÒÀ¢’ç66Æ%ööæR‚¢f÷"F&ÆR–âF&ÆW0¢Ğ  ¦FVb÷6WE÷&VÆV6Uö6öçFW‡B†'VæFÆS¢F‚Â&VÆV6Uö–C¢UT”BÂF–vW7C¢7G"’ÓâæöæS ¢†'VæFÆRò'&VÆV6Uö6öçFW‡Bæ§6öâ"’çw&—FU÷FW‡B€¢§6öâæGV×2€¢°¢'66†VÖ÷fW'6–öâ#¢À¢&&6U÷&VÆV6Uö–B#¢7G"‡&VÆV6Uö–B’À¢&&6U÷6÷W&6Uö'VæFÆU÷6†#Sb#¢F–vW7BÀ¢ÒÀ¢6÷'Eö¶W—3ÕG'VRÀ¢¢²%Æâ"À¢Væ6öF–æsÒ'WFbÓ‚"À¢  ¦FVböW‡÷'E÷&VÆV6R†Væv–æS¢Væv–æRÂ6WGF–æw3¢6WGF–æw2Â&VÆV6Uö–C¢UT”BÂ÷WGWC¢F‚’ÓâGWÆUµF‚ÂF–7EÓ ¢v—F‚Væv–æRæ6öææV7B‚’26öææV7F–öã ¢&6†—fUöf÷&ÖBÒ6öææV7F–öâæW†V7WFR€¢FW‡B€¢%4TÄT5B&6†—fUöf÷&ÖBe$ôÒFF÷&VÆV6Uö'VæFÆUö'F–f7G2 ¢%t„U$R&VÆV6Uö–BÒ§&VÆV6Uö–B ¢’À¢²'&VÆV6Uö–B#¢&VÆV6Uö–GÒÀ¢’ç66Æ%ööæUö÷%öæöæR‚¢–b&6†—fUöf÷&ÖB—2æöæS ¢—FW7Bæf–Â‚&–çFVw&F–öâFW7B&WV—&W2â&6†—fVB7F—fR&VÆV6R"¢F&vWBÒ÷WGWBçv—F…÷7Vff—‚‚"ç¦—"’–b&6†—fUöf÷&ÖBÓÒ'6÷W&6U÷¦—÷c"VÇ6R÷WGW@¢W‡÷'FVBÒW‡÷'E÷&VÆV6Uö'VæFÆR€¢Væv–æRÂ6WGF–æw2Â÷WGWE÷Fƒ×F&vWBÂ&VÆV6Uö–C×&VÆV6Uö–@¢¢&WGW&âF&vWBÂW‡÷'FV@  ¦FVbö6÷•ö'VæFÆR‡6÷W&6S¢F‚ÂF&vWC¢F‚’ÓâFƒ ¢F&vWBæÖ¶F—"‡&VçG3ÕG'VRÂW†—7Eöö³ÔfÇ6R¢v—F‚'VæFÆU&VFW"‡6÷W&6R’2&VFW# ¢f÷"&VÆF—fR–â&VFW"åöf–ÆUöæÖW2‚“ ¢FW7F–æF–öâÒF&vWBòF‚‡&VÆF—fR¢FW7F–æF–öâç&VçBæÖ¶F—"‡&VçG3ÕG'VRÂW†—7Eöö³ÕG'VR¢FW7F–æF–öâçw&—FUö'—FW2‡&VFW"ç&VEö'—FW2‡&VÆF—fR’¢&WGW&âF&vW@  ¦FVb÷6WE÷7FF—7F–2†'VæFÆS¢F‚Â¢ÂW‡FW&æÅö¶W“¢7G"ÂFÖ—GFVEö6÷VçC¢–çB’ÓâæöæS ¢F‚Ò'VæFÆRò&FF"ò&†—7F÷&–6ÅöFÖ—76–öå÷7FF—7F–72æ§6öæÂ ¢&÷w2Ò¶§6öâæÆöG2†Æ–æR’f÷"Æ–æR–âF‚ç&VE÷FW‡B†Væ6öF–æsÒ'WFbÓ‚"’ç7Æ—FÆ–æW2‚’–bÆ–æRç7G&—‚•Ğ¢f÷VæBÒfÇ6P¢f÷"&÷r–â&÷w3 ¢–b&÷rævWB‚&W‡FW&æÅö¶W’"’ÓÒW‡FW&æÅö¶W“ ¢&÷u²&FÖ—GFVEö6÷VçB%ÒÒFÖ—GFVEö6÷Vç@¢f÷VæBÒG'VP¢–bæ÷Bf÷VæC ¢&—6R76W'F–öäW'&÷"†b&–çFVw&F–öâ7FF—7F–2v2æ÷Bf÷VæC¢¶W‡FW&æÅö¶W—Ò"¢F‚çw&—FU÷FW‡B€¢""æ¦ö–â†§6öâæGV×2‡&÷rÂVç7W&Uö66–“ÔfÇ6RÂ6÷'Eö¶W—3ÕG'VRÂ6W&F÷'3Ò‚"Â"Â#¢"’’²%Æâ"f÷"&÷r–â&÷w2’À¢Væ6öF–æsÒ'WFbÓ‚"À¢  ¦FVb÷w&÷&WV—&VÖVçE÷v—F…öEöÆV7B†'VæFÆS¢F‚’Óâ7G# ¢F‚Ò'VæFÆRò&FF"ò&FÖ—76–öåöW†Õ÷&WV—&VÖVçG2æ§6öæÂ ¢&÷w2Ò¶§6öâæÆöG2†Æ–æR’f÷"Æ–æR–âF‚ç&VE÷FW‡B†Væ6öF–æsÒ'WFbÓ‚"’ç7Æ—FÆ–æW2‚’–bÆ–æRç7G&—‚•Ğ¢6VÆV7FVBÒ&÷w5³Ğ¢6VÆV7FVE²'&WV—&VÖVçE÷G&VR%ÒÒ°¢&÷W&F÷"#¢$EôÄT5B"À¢&Ö–åö6÷VçB#¢À¢&6†–ÆG&Vâ#¢·6VÆV7FVE²'&WV—&VÖVçE÷G&VR%ÕÒÀ¢Ğ¢F‚çw&—FU÷FW‡B€¢""æ¦ö–â†§6öâæGV×2‡&÷rÂVç7W&Uö66–“ÔfÇ6RÂ6÷'Eö¶W—3ÕG'VRÂ6W&F÷'3Ò‚"Â"Â#¢"’’²%Æâ"f÷"&÷r–â&÷w2’À¢Væ6öF–æsÒ'WFbÓ‚"À¢¢&WGW&â7G"‡6VÆV7FVE²&W‡FW&æÅö¶W’%Ò  ¦FVb÷6WEöF—&V7F–öåöæÖR†'VæFÆS¢F‚ÂW‡FW&æÅö¶W“¢7G"ÂæÖS¢7G"’ÓâæöæS ¢F‚Ò'VæFÆRò&FF"ò&F—&V7F–öç2æ§6öæÂ ¢&÷w2Ò¶§6öâæÆöG2†Æ–æR’f÷"Æ–æR–âF‚ç&VE÷FW‡B†Væ6öF–æsÒ'WFbÓ‚"’ç7Æ—FÆ–æW2‚’–bÆ–æRç7G&—‚•Ğ¢f÷"&÷r–â&÷w3 ¢–b&÷rævWB‚&W‡FW&æÅö¶W’"’ÓÒW‡FW&æÅö¶W“ ¢&÷u²&æÖR%ÒÒæÖP¢'&V°¢VÇ6S ¢&—6R76W'F–öäW'&÷"†b&F—&V7F–öâv2æ÷Bf÷VæC¢¶W‡FW&æÅö¶W—Ò"¢F‚çw&—FU÷FW‡B€¢""æ¦ö–â†§6öâæGV×2‡&÷rÂVç7W&Uö66–“ÔfÇ6RÂ6÷'Eö¶W—3ÕG'VRÂ6W&F÷'3Ò‚"Â"Â#¢"’’²%Æâ"f÷"&÷r–â&÷w2’À¢Væ6öF–æsÒ'WFbÓ‚"À¢  ¦FVb÷w&÷&WV—&VÖVçE÷v—F…öæW7FVEö÷W&F÷'2†'VæFÆS¢F‚’Óâ7G# ¢F‚Ò'VæFÆRò&FF"ò&FÖ—76–öåöW†Õ÷&WV—&VÖVçG2æ§6öæÂ ¢&÷w2Ò¶§6öâæÆöG2†Æ–æR’f÷"Æ–æR–âF‚ç&VE÷FW‡B†Væ6öF–æsÒ'WFbÓ‚"’ç7Æ—FÆ–æW2‚’–bÆ–æRç7G&—‚•Ğ¢6VÆV7FVBÒ&÷w5³Ğ¢ÆVfW3¢Æ—7E¶F–7EÒÒµĞ ¢FVb6öÆÆV7EöÆVfW2†æöFS¢F–7B’ÓâæöæS ¢W†ÒÒæöFRævWB‚&W†Ò"¢–b—6–ç7Fæ6R†W†ÒÂF–7B“ ¢ÆVfW2æVæB‡²&W†Ò#¢W†×Ò¢&WGW&à¢f÷"6†–ÆB–âæöFRævWB‚&6†–ÆG&Vâ"ÂµÒ“ ¢–b—6–ç7Fæ6R†6†–ÆBÂF–7B“ ¢6öÆÆV7EöÆVfW2†6†–ÆB ¢6öÆÆV7EöÆVfW2‡6VÆV7FVE²'&WV—&VÖVçE÷G&VR%Ò¢–bÆVâ†ÆVfW2’Â# ¢&—6R76W'F–öäW'&÷"‚&æW7FVB&WV—&VÖVçB&Vw&W76–öâæVVG2GvòW†7BW†ÒÆVfW2"¢6VÆV7FVE²'&WV—&VÖVçE÷G&VR%ÒÒ°¢&÷W&F÷"#¢$EôÄT5B"À¢&Ö–åö6÷VçB#¢À¢&6†–ÆG&Vâ#¢°¢°¢&÷W&F÷"#¢$äB"À¢&6†–ÆG&Vâ#¢°¢²&÷W&F÷"#¢$õ""Â&Ö–åö6÷VçB#¢Â&6†–ÆG&Vâ#¢ÆVfW5³£%×Ğ¢ÒÀ¢Ğ¢ÒÀ¢Ğ¢F‚çw&—FU÷FW‡B€¢""æ¦ö–â†§6öâæGV×2‡&÷rÂVç7W&Uö66–“ÔfÇ6RÂ6÷'Eö¶W—3ÕG'VRÂ6W&F÷'3Ò‚"Â"Â#¢"’’²%Æâ"f÷"&÷r–â&÷w2’À¢Væ6öF–æsÒ'WFbÓ‚"À¢¢&WGW&â7G"‡6VÆV7FVE²&W‡FW&æÅö¶W’%Ò  ¦FVb÷7FF—7F–5÷fÇVW2†Væv–æS¢Væv–æRÂ&VÆV6Uö–C¢UT”BÂW‡FW&æÅö¶W“¢7G"’ÓâGWÆU¶–çBÂæöæRÂ–çBÂæöæRÂ–çBÂæöæUÓ ¢v—F‚Væv–æRæ6öææV7B‚’26öææV7F–öã ¢&÷rÒ6öææV7F–öâæW†V7WFR€¢FW‡B€¢%4TÄT5BFÖ—GFVEö6÷VçBÂÖ–æ–×VÕ÷66÷&RÂÖ†–×VÕ÷66÷&R ¢$e$ôÒ†—7F÷&–6ÅöFÖ—76–öå÷7FF—7F–72 ¢%t„U$R&VÆV6Uö–BÒ§&VÆV6Uö–BäBW‡FW&æÅö¶W’Ò¦W‡FW&æÅö¶W’ ¢’À¢²'&VÆV6Uö–B#¢&VÆV6Uö–BÂ&W‡FW&æÅö¶W’#¢W‡FW&æÅö¶W—ÒÀ¢’æöæR‚¢&WGW&âGWÆR‡&÷r  ¦FVb÷&Wf–Wuöf—‡GW&U÷7FF—7F–2€¢F×÷Fƒ¢F‚Â¢Â&6Uö'VæFÆS¢F‚Â&6U÷&VÆV6Uö–C¢UT”BÂ&6UöF–vW7C¢7G ¢’ÓâFƒ ¢6GW&RÒ6GW&U÷6÷W&6W2€¢ÖöFSÒ&f—‡GW&R"À¢f—‡GW&UöF—#Ôd•…EU$UôD•"À¢÷WGWEöF—#×F×÷F‚ò&6GW&R"À¢¢'6U÷F‚ÒF×÷F‚ò''6R×&W÷'Bæ§6öâ ¢w&—FU÷'6U÷&W÷'B‡'6Uö6GW&R†6GW&Ræ6GW&UöF—"’Â'6U÷F‚¢6æF–FFUöF—"ÒF×÷F‚ò&6æF–FFRÖ'VæFÆR ¢'V–ÆEö6æF–FFUö'VæFÆR€¢&6Uö'VæFÆSÖ&6Uö'VæFÆRÀ¢'6U÷&W÷'E÷Fƒ×'6U÷F‚À¢÷WGWEöF—#Ö6æF–FFUöF—"À¢&6U÷&VÆV6Uö–C×7G"†&6U÷&VÆV6Uö–B’À¢&6U÷6÷W&6Uö'VæFÆU÷6†#ScÖ&6UöF–vW7BÀ¢¢6æF–FFW2Ò°¢§6öâæÆöG2†Æ–æR¢f÷"Æ–æR–â†6æF–FFUöF—"ò&FF"ò&&×7GUö–ævW7F–öåö6æF–FFW2æ§6öæÂ"¢ç&VE÷FW‡B†Væ6öF–æsÒ'WFbÓ‚"¢ç7Æ—FÆ–æW2‚¢Ğ¢F&vWBÒæW‡B€¢&÷rf÷"&÷r–â6æF–FFW0¢–b&÷u²&6æF–FFU÷G—R%ÒÓÒ'G—VE÷&V6÷&B ¢æB&÷u²'F&vWEöFF6WB%ÒÓÒ&†—7F÷&–6ÅöFÖ—76–öå÷7FF—7F–72æ§6öæÂ ¢æB&÷u²'7VvvW7FVE÷F&vWB%ÒÓÒd•…EU$Uõ5DD•5D”5ô´U¢¢FV6—6–öç5÷F‚ÒF×÷F‚ò'&Wf–WrÖFV6—6–öç2æ77b ¢&Wf–WvVEöBÒFFWF–ÖRææ÷r‡F–ÖW¦öæRçWF2’æ—6öf÷&ÖB‚¢v—F‚FV6—6–öç5÷F‚æ÷Vâ‚'r"ÂVæ6öF–æsÒ'WFbÓ‚"ÂæWvÆ–æSÒ""’27G&VÓ ¢w&—FW"Ò77bäF–7Ew&—FW"€¢7G&VÒÀ¢f–VÆFæÖW3Ò‚&W‡FW&æÅö¶W’"Â&FV6—6–öâ"Â'&Wf–WvVEöB"Â'F&vWEöW‡FW&æÅö¶W’"’À¢¢w&—FW"çw&—FV†VFW"‚¢f÷"&÷r–â6æF–FFW3 ¢FV6—6–öâÒ€¢&66WEöö'6W'fF–öâ"–b&÷u²&6æF–FFU÷G—R%ÒÓÒ&6æöæ–6Å÷6æ6†÷B ¢VÇ6R&66WE÷G—VEöf7B"–b&÷u²&W‡FW&æÅö¶W’%ÒÓÒF&vWE²&W‡FW&æÅö¶W’%Ğ¢VÇ6R'&V¦V7B ¢¢w&—FW"çw&—FW&÷r‡°¢&W‡FW&æÅö¶W’#¢&÷u²&W‡FW&æÅö¶W’%ÒÀ¢&FV6—6–öâ#¢FV6—6–öâÀ¢'&Wf–WvVEöB#¢&Wf–WvVEöBÀ¢'F&vWEöW‡FW&æÅö¶W’#¢d•…EU$Uõ5DD•5D”5ô´U’–bFV6—6–öâÓÒ&66WE÷G—VEöf7B"VÇ6R""À¢Ò¢&Wf–WvVEöF—"ÒF×÷F‚ò'&Wf–WvVBÖ'VæFÆR ¢ÖFW&–Æ—¦U÷&Wf–WvVEö'VæFÆR€¢6æF–FFUöF—#Ö6æF–FFUöF—"À¢FV6—6–öç5÷FƒÖFV6—6–öç5÷F‚À¢÷WGWEöF—#×&Wf–WvVEöF—"À¢¢&WGW&â&Wf–WvVEöF—   ¦FVbFW7Eö6öÖÖ—Eö—5ö–FV×÷FVçEöæEöf–ÆVEö7F—fF–öå÷&öÆÇ5ö&6²‡F×÷Fƒ¢F‚’ÓâæöæS ¢Væv–æRÂ6WGF–æw2Ò÷FW7EöFF&6R‚¢G'“ ¢7F—fUö&Vf÷&RÒö7F—fU÷&VÆV6R†Væv–æR¢–b7F—fUö&Vf÷&R—2æöæS ¢&6VÆ–æUö'VæFÆRÒF×÷F‚ò&&6VÆ–æRÖ'VæFÆR ¢6‡WF–Âæ6÷—G&VR„%TäDÄRÂ&6VÆ–æUö'VæFÆR¢&6VÆ–æU÷&VFÖRÒ&6VÆ–æUö'VæFÆRò%$TDÔRæÖB ¢&6VÆ–æU÷&VFÖRçw&—FU÷FW‡B€¢&6VÆ–æU÷&VFÖRç&VE÷FW‡B†Væ6öF–æsÒ'WFbÓ‚"¢²b%ÆãÂÒÒrFW7B&ö÷G7G&·WV–CB‚—ÒÒÓåÆâ"À¢Væ6öF–æsÒ'WFbÓ‚"À¢¢f—'7BÒ6öÖÖ—E÷&ö¦V7F–öâ€¢Væv–æRÂ6WGF–æw2Â&ö¦V7Eö'VæFÆR‡7G"†&6VÆ–æUö'VæFÆR’¢¢76W'Bf—'7E²&÷WF6öÖR%ÒÓÒ&6öÖÖ—GFVB ¢7F—fUö&Vf÷&RÒUT”B†f—'7E²&7F—fU÷&VÆV6Uö–B%Ò¢76W'B7F—fUö&Vf÷&R—2æ÷BæöæP¢&6Uö'VæFÆRÂ&6UöW‡÷'BÒöW‡÷'E÷&VÆV6R€¢Væv–æRÂ6WGF–æw2Â7F—fUö&Vf÷&RÂF×÷F‚ò&&6R×&VÆV6R ¢¢f—'7BÒ6öÖÖ—E÷&ö¦V7F–öâ†Væv–æRÂ6WGF–æw2Â&ö¦V7Eö'VæFÆR‡7G"†&6Uö'VæFÆR’’¢76W'Bf—'7E²&÷WF6öÖR%ÒÓÒ&æõö÷ ¢76W'Bö7F—fU÷&VÆV6R†Væv–æR’ÓÒ7F—fUö&Vf÷&P ¢6÷VçG5ö&Vf÷&RÒ÷&VÆV6Uö6÷VçG2†Væv–æRÂ7F—fUö&Vf÷&R¢76W'B6÷VçG5ö&Vf÷&U²&F—&V7F–öç2%ÒÓÒS0¢76W'B6÷VçG5ö&Vf÷&U²&FW'FÖVçG2%ÒÓÒsp¢76W'B6÷VçG5ö&Vf÷&U²&VGV6F–öæÅ÷&öw&×2%ÒÓÒS ¢76W'B6÷VçG5ö&Vf÷&U²'&öw&ÕööffW&–æw2%ÒÓÒ#p¢76W'B6÷VçG5ö&Vf÷&U²&6ö×WF—F–öå÷ööÇ2%ÒÓÒ“C ¢76W'B6÷VçG5ö&Vf÷&U²'7GVG•÷Æç2%ÒÓÒS ¢76W'B6÷VçG5ö&Vf÷&U²&7W'&–7VÇVÕö—FV×2%ÒÓÒEócP¢76W'B6÷VçG5ö&Vf÷&U²&7W'&–7VÇVÕöWf–FVæ6R%ÒÓÒEócP¢76W'B6÷VçG5ö&Vf÷&U²&FÖ—76–öå÷&WV—&VÖVçE÷6WG2%ÒÓÒƒ¢76W'B6÷VçG5ö&Vf÷&U²&FÖ—76–öå÷&WV—&VÖVçEöæöFW2%ÒÓÒCP¢76W'B6÷VçG5ö&Vf÷&U²&FÖ—76–öå÷7FF—7F–72%ÒÓÒ3¢76W'B6÷VçG5ö&Vf÷&U²&†—7F÷&–6ÅöFÖ—76–öå÷7FF—7F–72%ÒÓÒsƒ0¢76W'B6÷VçG5ö&Vf÷&U²'6÷W&6Uö'F–f7G2%ÒÓÒC“€¢76W'B6÷VçG5ö&Vf÷&U²'6÷W&6UöWf–FVæ6R%ÒÓÒ•óS0¢76W'B6÷VçG5ö&Vf÷&U²'6÷W&6Uöö'6W'fF–öç2%ÒÓÒ#5ó# ¢76W'B6÷VçG5ö&Vf÷&U²'6÷W&6U÷&VÆF–öç6†—2%ÒÓÒ5óCs€¢76W'B6÷VçG5ö&Vf÷&U²&ÖçVÅ÷&Wf–Wuö—FV×2%ÒÓÒSc  ¢6V6öæBÒ6öÖÖ—E÷&ö¦V7F–öâ†Væv–æRÂ6WGF–æw2Â&ö¦V7Eö'VæFÆR‡7G"†&6Uö'VæFÆR’’¢76W'B6V6öæE²&÷WF6öÖR%ÒÓÒ&æõö÷ ¢76W'Bö7F—fU÷&VÆV6R†Væv–æR’ÓÒ7F—fUö&Vf÷&P¢76W'B÷&VÆV6Uö6÷VçG2†Væv–æRÂ7F—fUö&Vf÷&R’ÓÒ6÷VçG5ö&Vf÷&P ¢&Wf–WvVEöF—"Ò÷&Wf–Wuöf—‡GW&U÷7FF—7F–2€¢F×÷F‚À¢&6Uö'VæFÆSÖ&6Uö'VæFÆRÀ¢&6U÷&VÆV6Uö–CÖ7F—fUö&Vf÷&RÀ¢&6UöF–vW7CÖ&6UöW‡÷'E²'6÷W&6Uö'VæFÆU÷6†#Sb%ÒÀ¢¢f—‡GW&U÷&ö¦V7F–öâÒ&ö¦V7Eö'VæFÆR‡7G"‡&Wf–WvVEöF—"’¢f—‡GW&Uö6öÖÖ—BÒ6öÖÖ—E÷&ö¦V7F–öâ†Væv–æRÂ6WGF–æw2Âf—‡GW&U÷&ö¦V7F–öâ¢76W'Bf—‡GW&Uö6öÖÖ—E²&÷WF6öÖR%ÒÓÒ&6öÖÖ—GFVB ¢f—‡GW&U÷&VÆV6RÒö7F—fU÷&VÆV6R†Væv–æR¢76W'Bf—‡GW&U÷&VÆV6RÓÒUT”B†f—‡GW&Uö6öÖÖ—E²&7F—fU÷&VÆV6Uö–B%Ò¢76W'Bf—‡GW&U÷&VÆV6RÒ7F—fUö&Vf÷&P¢v—F‚Væv–æRæ6öææV7B‚’26öææV7F–öã ¢W'6—7FVBÒ6öææV7F–öâæW†V7WFR€¢FW‡B€¢%4TÄT5BFÖ—GFVEö6÷VçBÂÖ–æ–×VÕ÷66÷&RÂÖ†–×VÕ÷66÷&R ¢$e$ôÒ†—7F÷&–6ÅöFÖ—76–öå÷7FF—7F–72 ¢%t„U$R&VÆV6Uö–BÒ§&VÆV6Uö–BäBW‡FW&æÅö¶W’Ò¦W‡FW&æÅö¶W’ ¢’À¢²'&VÆV6Uö–B#¢f—‡GW&U÷&VÆV6RÂ&W‡FW&æÅö¶W’#¢d•…EU$Uõ5DD•5D”5ô´U—ÒÀ¢’æöæR‚¢Wf–FVæ6Uö6÷VçBÒ6öææV7F–öâæW†V7WFR€¢FW‡B€¢%4TÄT5B6÷VçB‚¢’e$ôÒ†—7F÷&–6Å÷7FF—7F–5öWf–FVæ6RWf–FVæ6R ¢$¤ô”â†—7F÷&–6ÅöFÖ—76–öå÷7FF—7F–727FF—7F–2 ¢$ôâ7FF—7F–2ç&VÆV6Uö–BÒWf–FVæ6Rç&VÆV6Uö–BäB7FF—7F–2æ–BÒWf–FVæ6Rç7FF—7F–5ö–B ¢%t„U$R7FF—7F–2ç&VÆV6Uö–BÒ§&VÆV6Uö–BäB7FF—7F–2æW‡FW&æÅö¶W’Ò¦W‡FW&æÅö¶W’ ¢’À¢²'&VÆV6Uö–B#¢f—‡GW&U÷&VÆV6RÂ&W‡FW&æÅö¶W’#¢d•…EU$Uõ5DD•5D”5ô´U—ÒÀ¢’ç66Æ%ööæR‚¢76W'BGWÆR‡W'6—7FVB’ÓÒƒ"Â#Â#ƒ¢76W'BWf–FVæ6Uö6÷VçBâ ¢76W'B÷&VÆV6Uö6÷VçG2†Væv–æRÂ7F—fUö&Vf÷&R’ÓÒ6÷VçG5ö&Vf÷&P ¢&WVFVEöf—‡GW&Uö6öÖÖ—BÒ6öÖÖ—E÷&ö¦V7F–öâ†Væv–æRÂ6WGF–æw2Âf—‡GW&U÷&ö¦V7F–öâ¢76W'B&WVFVEöf—‡GW&Uö6öÖÖ—E²&÷WF6öÖR%ÒÓÒ&æõö÷ ¢76W'Bö7F—fU÷&VÆV6R†Væv–æR’ÓÒf—‡GW&U÷&VÆV6P ¢6†ævVEö'VæFÆRÒF×÷F‚ò&6†ævVBÖ'VæFÆR ¢6‡WF–Âæ6÷—G&VR‡&Wf–WvVEöF—"Â6†ævVEö'VæFÆR¢÷6WE÷&VÆV6Uö6öçFW‡B€¢6†ævVEö'VæFÆRÂf—‡GW&U÷&VÆV6RÂf—‡GW&Uö6öÖÖ—E²&–çWEöF–vW7B%Ğ¢¢&VFÖRÒ6†ævVEö'VæFÆRò%$TDÔRæÖB ¢&VFÖRçw&—FU÷FW‡B€¢&VFÖRç&VE÷FW‡B†Væ6öF–æsÒ'WFbÓ‚"’²b%ÆãÂÒÒ–æ¦V7FVBf–ÇW&R·WV–CB‚—ÒÒÓåÆâ"À¢Væ6öF–æsÒ'WFbÓ‚"À¢¢6†ævVE÷&ö¦V7F–öâÒ&ö¦V7Eö'VæFÆR‡7G"†6†ævVEö'VæFÆR’ ¢FVbf–Åö&Vf÷&Uö7F—fF–öâ‚’ÓâæöæS ¢&—6R'VçF–ÖTW'&÷"‚&–çFVçF–öæÂ–çFVw&F–öâ×FW7Bf–ÇW&R" ¢v—F‚—FW7Bç&—6W2…&VÆV6UV&Æ–6F–öäW'&÷"ÂÖF6ƒÒ'&öÆÆVB&6²"“ ¢6öÖÖ—E÷&ö¦V7F–öâ€¢Væv–æRÀ¢6WGF–æw2À¢6†ævVE÷&ö¦V7F–öâÀ¢&Vf÷&Uö7F—fF–öãÖf–Åö&Vf÷&Uö7F—fF–öâÀ¢ ¢76W'Bö7F—fU÷&VÆV6R†Væv–æR’ÓÒf—‡GW&U÷&VÆV6P¢v—F‚Væv–æRæ6öææV7B‚’26öææV7F–öã ¢f–ÆVE÷&VÆV6Uö6÷VçBÒ6öææV7F–öâæW†V7WFR€¢FW‡B‚%4TÄT5B6÷VçB‚¢’e$ôÒFF÷&VÆV6W2t„U$R6÷W&6Uö'VæFÆU÷6†#SbÒ¦F–vW7B"’À¢²&F–vW7B#¢6†ævVE÷&ö¦V7F–öâæ–çWEöF–vW7GÒÀ¢’ç66Æ%ööæR‚¢f–ÆVEö&F6…ö6÷VçBÒ6öææV7F–öâæW†V7WFR€¢FW‡B‚%4TÄT5B6÷VçB‚¢’e$ôÒ–×÷'Eö&F6†W2t„U$R6÷W&6Uö'VæFÆU÷6†#SbÒ¦F–vW7BäB7FGW2Òvf–ÆVBr"’À¢²&F–vW7B#¢6†ævVE÷&ö¦V7F–öâæ–çWEöF–vW7GÒÀ¢’ç66Æ%ööæR‚¢÷W&F÷'2ÒF–7B€¢6öææV7F–öâæW†V7WFR€¢FW‡B€¢%4TÄT5B÷W&F÷"Â6÷VçB‚¢’e$ôÒFÖ—76–öå÷&WV—&VÖVçEöæöFW2 ¢%t„U$R&VÆV6Uö–BÒ§&VÆV6Uö–Bu$õU%’÷W&F÷" ¢’À¢²'&VÆV6Uö–B#¢f—‡GW&U÷&VÆV6WÒÀ¢’æÆÂ‚¢¢76W'Bf–ÆVE÷&VÆV6Uö6÷VçBÓÒ ¢76W'Bf–ÆVEö&F6…ö6÷VçBãÒ¢76W'B÷W&F÷'2ÓÒ´æöæS¢#ƒBÂ$äB#¢ƒÂ$õ"#¢CĞ¢&öÆÆ&6²Ò&öÆÆ&6µö7F—fU÷&VÆV6R€¢Væv–æRÀ¢6WGF–æw2À¢F&vWE÷&VÆV6Uö–CÖ7F—fUö&Vf÷&RÀ¢W‡V7FVEö7F—fU÷&VÆV6Uö–CÖf—‡GW&U÷&VÆV6RÀ¢&V6öãÒ'&W7F÷&RfW&–f–VB÷7Fw&U5Âf—‡GW&RgFW"&öÆÆ&6²66Væ&–ò"À¢¢76W'B&öÆÆ&6µ²&÷WF6öÖR%ÒÓÒ'&öÆÆVEö&6² ¢76W'Bö7F—fU÷&VÆV6R†Væv–æR’ÓÒ7F—fUö&Vf÷&P¢76W'B÷&VÆV6Uö6÷VçG2†Væv–æRÂ7F—fUö&Vf÷&R’ÓÒ6÷VçG5ö&Vf÷&P ¢W‡÷'FVEö'VæFÆRÂW‡÷'FVBÒöW‡÷'E÷&VÆV6R€¢Væv–æRÂ6WGF–æw2Â7F—fUö&Vf÷&RÂF×÷F‚ò&W‡÷'FVBÖ7F—fR×&VÆV6R ¢¢76W'BW‡÷'FVE²'6÷W&6Uö'VæFÆU÷6†#Sb%ÒÓÒ&6UöW‡÷'E²'6÷W&6Uö'VæFÆU÷6†#Sb%Ğ¢76W'BW‡÷'FVE²'&V6öæ6–Æ–F–öâ%Õ²'&V6öæ6–ÆVB%Ò—2G'VP¢v—F‚'VæFÆU&VFW"†&6Uö'VæFÆR’26÷W&6U÷&VFW"Â'VæFÆU&VFW"†W‡÷'FVEö'VæFÆR’2W‡÷'E÷&VFW# ¢76W'B6÷W&6U÷&VFW"æ–çWEöF–vW7BÓÒW‡÷'E÷&VFW"æ–çWEöF–vW7@¢76W'B¶—FVÒç&VÆF—fU÷Fƒ¢—FVÒç6†#Sbf÷"—FVÒ–â6÷W&6U÷&VFW"æf–ÆW7ÒÓÒ°¢—FVÒç&VÆF—fU÷Fƒ¢—FVÒç6†#Sbf÷"—FVÒ–âW‡÷'E÷&VFW"æf–ÆW0¢Ğ¢W‡÷'FVE÷&WVBÒ6öÖÖ—E÷&ö¦V7F–öâ€¢Væv–æRÂ6WGF–æw2Â&ö¦V7Eö'VæFÆR‡7G"†W‡÷'FVEö'VæFÆR’¢¢76W'BW‡÷'FVE÷&WVE²&÷WF6öÖR%ÒÓÒ&æõö÷ ¢76W'Bö7F—fU÷&VÆV6R†Væv–æR’ÓÒ7F—fUö&Vf÷&P¢v—F‚Væv–æRæ6öææV7B‚’26öææV7F–öã ¢&6†—fU÷&÷w2Ò6öææV7F–öâæW†V7WFR€¢FW‡B€¢%4TÄT5B6÷VçB‚¢’e$ôÒFF÷&VÆV6Uö'VæFÆUö'F–f7G2 ¢%t„U$R&VÆV6Uö–BÒ§&VÆV6Uö–B ¢’À¢²'&VÆV6Uö–B#¢7F—fUö&Vf÷&WÒÀ¢’ç66Æ%ööæR‚¢76W'B&6†—fU÷&÷w2ÓÒ¢v—F‚—FW7Bç&—6W2„D$”W'&÷"’ÂVæv–æRæ&Vv–â‚’26öææV7F–öã ¢6öææV7F–öâæW†V7WFR€¢FW‡B€¢%UDDRFF÷&VÆV6Uö'VæFÆUö'F–f7G2 ¢%4UB&6†—fU÷6†#SbÒ¦F–vW7Bt„U$R&VÆV6Uö–BÒ§&VÆV6Uö–B ¢’À¢²&F–vW7B#¢#"¢cBÂ'&VÆV6Uö–B#¢7F—fUö&Vf÷&WÒÀ¢¢76W'Bö7F—fU÷&VÆV6R†Væv–æR’ÓÒ7F—fUö&Vf÷&P¢v—F‚—FW7Bç&—6W2„D$”W'&÷"’ÂVæv–æRæ&Vv–â‚’26öææV7F–öã ¢6öææV7F–öâæW†V7WFR€¢FW‡B€¢%UDDR&VÆV6Uö7F—fF–öåöWfVçG24UB&V6öâÒv6†ævVBr ¢%t„U$R÷W&F–öâÒw&öÆÆ&6²räB7F—fU÷&VÆV6Uö–BÒ§&VÆV6Uö–B ¢’À¢²'&VÆV6Uö–B#¢7F—fUö&Vf÷&WÒÀ¢¢f–æÆÇ“ ¢Væv–æRæF—7÷6R‚  ¦FVbFW7E÷7FÆU÷&W&VEö'VæFÆUö—5÷&V¦V7FVEögFW%öæ÷F†W%÷&VÆV6Uö7F—fFW2€¢F×÷Fƒ¢F‚À¢’ÓâæöæS ¢Væv–æRÂ6WGF–æw2Ò÷FW7EöFF&6R‚¢G'“ ¢&6U÷&VÆV6Uö–BÒö7F—fU÷&VÆV6R†Væv–æR¢76W'B&6U÷&VÆV6Uö–B—2æ÷BæöæRÂ''VâF†R÷7Fw&U5ÂÆ–fV7–6ÆRFW7B&Vf÷&R7FÆRÖ&6RFW7B ¢&6Uö'VæFÆRÂ&6UöW‡÷'BÒöW‡÷'E÷&VÆV6R€¢Væv–æRÂ6WGF–æw>|ç«h‘éì¶»§q«^t˜\ÙWØ[™K˜\ÙWÙ^ÜHÙ^ÜÜ™[X\ÙJˆ[™Ú[™KÙ][™ÜË˜\ÙWÜ™[X\ÙWÚY\Ü]È˜ÛÛ˜İ\œ™[X˜\ÙH‚ˆ
+Bˆ˜\ÙWØÛİ[ÈHÜ™[X\ÙWØÛİ[Ê[™Ú[™K˜\ÙWÜ™[X\ÙWÚY
+Bˆ›Ú™Xİ[ÛœÈH×Bˆ›ÜˆX™[[ˆ
+›Y‹œšYÚŠN‚ˆØ[™Y]HHØÛÜWØ[™J˜\ÙWØ[™K\Ü]Èˆ˜ÛÛ˜İ\œ™[^ÛX™[HŠBˆÜÙ]Ü™[X\ÙWØÛÛ^
+Ø[™Y]K˜\ÙWÜ™[X\ÙWÚY˜\ÙWÙ^ÜÈœÛİ\˜ÙWØ[™WÜÚLMˆ—JBˆ™XYYHHØ[™Y]HÈ”‘PQQK›Y‚ˆ™XYYKÜš]Wİ^
+™XYYKœ™XYİ^
+[˜ÛÙ[™ÏH]‹NŠH
+Èˆ—KKHÛX™[Hİ]ZY
+
+_HKO—ˆ‹[˜ÛÙ[™ÏH]‹NŠBˆ›Ú™Xİ[ÛœË˜\[™
+›Ú™XİØ[™JİŠØ[™Y]JJJB‚ˆØ]HH˜\œšY\ŠŠB‚ˆYˆX›\Ú
+›Ú™Xİ[ÛŠN‚ˆØ]KØZ]
+[Y[İ]MŒ
+BˆN‚ˆ™]\›ˆÛÛ[Z]Ü›Ú™Xİ[ÛŠÛÛ˜İ\œ™[Ù[™Ú[™KÙ][™ÜË›Ú™Xİ[ÛŠBˆ^Ù\™[X\ÙTX›XØ][Û‘\œ›Üˆ\È\œ›Ü‚ˆ™]\›ˆÈ›İ]ÛÛYHˆœ™Z™XİY‹™\œ›ÜˆˆİŠ\œ›ÜŠ_B‚ˆÚ]™XYÛÛ^Xİ]ÜŠX^İÛÜšÙ\œÏLŠH\È^Xİ]Ü‚ˆ]\™\ÈHÙ^Xİ]Ü‹œİX›Z]
+X›\Ú›Ú™Xİ[ÛŠH›Üˆ›Ú™Xİ[Ûˆ[ˆ›Ú™Xİ[Ûœ×Bˆİ]ÛÛY\ÈHÙ]\™Kœ™\İ[
+[Y[İ]LÌ
+H›Üˆ]\™H[ˆ]\™\×Bˆ\ÜÙ\İ[J][VÈ›İ]ÛÛYH—HOH˜ÛÛ[Z]Yˆ›Üˆ][H[ˆİ]ÛÛY\ÊHOHBˆ\ÜÙ\İ[J][VÈ›İ]ÛÛYH—HOHœ™Z™XİYˆ[™˜Ø[™Y]H˜\ÙH\Èİ[Hˆ[ˆ][VÈ™\œ›Üˆ—H›Üˆ][H[ˆİ]ÛÛY\ÊHOHBˆÚ[›™\—ÚYHØXİ]™WÜ™[X\ÙJ[™Ú[™JBˆ\ÜÙ\Ú[›™\—ÚY\È›İ›Û™H[™Ú[›™\—ÚYOH˜\ÙWÜ™[X\ÙWÚYˆ\ÜÙ\Ü™[X\ÙWØÛİ[Ê[™Ú[™K˜\ÙWÜ™[X\ÙWÚY
+HOH˜\ÙWØÛİ[ÂˆÚ][™Ú[™K˜ÛÛ›™Xİ
+
+H\ÈÛÛ›™Xİ[Û‚ˆÚ[›™\œÈHÛÛ›™Xİ[Û‹™^Xİ]Jˆ^
+ˆ”ÑSPÕÛİ[
+
+ŠH”“ÓH™[X\ÙWØXİ]˜][Û—Ù]™[È‚ˆ•ÒT‘HÜ\˜][ÛˆH	ÜX›\Ú	ÈS‘™]š[İ\×Ü™[X\ÙWÚYHœ™]š[İ\È‚ˆS‘Xİ]™WÜ™[X\ÙWÚYH˜Xİ]™H‚ˆ
+KˆÈœ™]š[İ\Èˆ˜\ÙWÜ™[X\ÙWÚY˜Xİ]™HˆÚ[›™\—ÚYKˆ
+KœØØ[\—ÛÛ™J
+Bˆ\ÜÙ\Ú[›™\œÈOHBˆ›Û˜XÚ×ØXİ]™WÜ™[X\ÙJˆ[™Ú[™KˆÙ][™ÜËˆ\™Ù]Ü™[X\ÙWÚYX˜\ÙWÜ™[X\ÙWÚYˆ^XİYØXİ]™WÜ™[X\ÙWÚY]Ú[›™\—ÚYˆ™X\ÛÛHœ™\İÜ™H˜\ÙHY\ˆÛÛ˜İ\œ™[X›XØ][Ûˆ\İ‹ˆ
+Bˆ\ÜÙ\ØXİ]™WÜ™[X\ÙJ[™Ú[™JHOH˜\ÙWÜ™[X\ÙWÚYˆ\ÜÙ\Ü™[X\ÙWØÛİ[Ê[™Ú[™K˜\ÙWÜ™[X\ÙWÚY
+HOH˜\ÙWØÛİ[Âˆš[˜[N‚ˆÛÛ˜İ\œ™[Ù[™Ú[™K™\ÜÜÙJ
+Bˆ[™Ú[™K™\ÜÜÙJ
+B‚‚™Yˆ\İÜ™XYØ\Wİ\Ù\×ÛÛ™WØXİ]™WÜ™[X\ÙWØ[™Ù\™Xİ\×Ú\×Ü\ÚXØ[WÜ™XYÛÛ›Jˆ\Ü]ˆ]ŠHOˆ›Û™N‚ˆœ›ÛH\›X‹œ\œÙH[\Ü][İB‚ˆœ›ÛH[™›ÛYYWØ\K›XZ[ˆ[\ÜÜ™X]WØ\ˆœ›ÛH˜\İ\K\İÛY[[\Ü\İÛY[ˆœ›ÛHÜ[[Ú[^H[\Ü]™[‚ˆ[™Ú[™KÙ][™ÜÈHİ\İÙ]X˜\ÙJ
+Bˆ\WÙ[™Ú[™HH›Û™Bˆ\™Xİ\×Ù[™Ú[™HH›Û™Bˆ\WÜ\ÜİÛÜ™H]ZY
+
+Kš^ˆ\™Xİ\×Ü\ÜİÛÜ™H]ZY
+
+Kš^ˆN‚ˆ˜\ÙWÜ™[X\ÙWÚYHØXİ]™WÜ™[X\ÙJ[™Ú[™JBˆYˆ˜\ÙWÜ™[X\ÙWÚY\È›Û™N‚ˆ›Ûİİ˜\HÛÛ[Z]Ü›Ú™Xİ[ÛŠ[™Ú[™KÙ][™ÜË›Ú™XİØ[™JİŠ•S‘JJJBˆ\ÜÙ\›Ûİİ˜\È›İ]ÛÛYH—HOH˜ÛÛ[Z]Y‚ˆ˜\ÙWÜ™[X\ÙWÚYHURQ
+›Ûİİ˜\È˜Xİ]™WÜ™[X\ÙWÚY—JBˆ\ÜÙ\˜\ÙWÜ™[X\ÙWÚY\È›İ›Û™Bˆ˜\ÙWØ[™K˜\ÙWÙ^ÜHÙ^ÜÜ™[X\ÙJˆ[™Ú[™KÙ][™ÜË˜\ÙWÜ™[X\ÙWÚY\Ü]È˜\KX˜\ÙK\™[X\ÙH‚ˆ
+Bˆ\™Ù]ÜÛİ\˜ÙHH™^
+ˆœÛÛ‹›ØYÊ[™JBˆ›Üˆ[™H[ˆ
+•S‘HÈ™]HˆÈ˜ÛÛ\]][Û—ÜÛÛËšœÛÛ›ŠBˆœ™XYİ^
+[˜ÛÙ[™ÏH]‹NŠBˆœÜ][™\Ê
+BˆYˆœÛÛ‹›ØYÊ[™JK™Ù]
+œ][İWİ\HŠHOH\™Ù]Y‚ˆ
+Bˆ^ÜYİ\™Ù]ÜÛÛH™^
+ˆœÛÛ‹›ØYÊ[™JBˆ›Üˆ[™H[ˆ
+˜\ÙWØ[™HÈ™]HˆÈ˜ÛÛ\]][Û—ÜÛÛËšœÛÛ›ŠBˆœ™XYİ^
+[˜ÛÙ[™ÏH]‹NŠBˆœÜ][™\Ê
+BˆYˆœÛÛ‹›ØYÊ[™JK™Ù]
+™^\›˜[ÚÙ^HŠHOH\™Ù]ÜÛİ\˜ÙVÈ™^\›˜[ÚÙ^H—Bˆ
+Bˆ›ÜˆšY[[ˆ
+ˆ\™Ù]ÛÜ™Ø[š^˜][Ûˆ‹ˆ\™Ù]ÛÜ™Ø[š^˜][Û—Ú[›ˆ‹ˆ\™Ù]ÛÜ™Ø[š^˜][Û—ÚÜ‹ˆ\™Ù]ÛÜ™Ø[š^˜][Û—ÛÙÜ›ˆ‹ˆ\™Ù]Ü™YÚ[Ûˆ‹ˆ˜Ø[\\×ÛX™[Ú[—ÙØİ[Y[‹ˆ
+N‚ˆ\ÜÙ\^ÜYİ\™Ù]ÜÛÛÙšY[HOH\™Ù]ÜÛİ\˜ÙVÙšY[BˆÚ][™Ú[™K˜ÛÛ›™Xİ
+
+H\ÈÛÛ›™Xİ[Û‚ˆ\™Xİ[Û—ÚÙ^KÛÙ\™Xİ[Û—Û˜[YHHÛÛ›™Xİ[Û‹™^Xİ]Jˆ^
+ˆ”ÑSPÕ^\›˜[ÚÙ^K˜[YH”“ÓH\™Xİ[ÛœÈ‚ˆ•ÒT‘H™[X\ÙWÚYNœ™[X\ÙWÚYÔ‘Tˆ–H^\›˜[ÚÙ^HSRUH‚ˆ
+KˆÈœ™[X\ÙWÚYˆ˜\ÙWÜ™[X\ÙWÚYKˆ
+K›Û™J
+Bˆ™\]Z\™[Y[ÚÙ^HHÛÛ›™Xİ[Û‹™^Xİ]Jˆ^
+ˆ”ÑSPÕ™\]Z\™[Y[™^\›˜[ÚÙ^H”“ÓHYZ\ÜÚ[Û—Ü™\]Z\™[Y[ÜÙ]È™\]Z\™[Y[‚ˆ’“ÒSˆYZ\ÜÚ[Û—Ü™\]Z\™[Y[Û›Ù\È›ÙH‚ˆ“Óˆ›ÙKœ™[X\ÙWÚY\™\]Z\™[Y[œ™[X\ÙWÚY‚ˆS‘›ÙKœ™\]Z\™[Y[ÜÙ]ÚY\™\]Z\™[Y[šY‚ˆ•ÒT‘H™\]Z\™[Y[œ™[X\ÙWÚYNœ™[X\ÙWÚYS‘›ÙKœ\™[ÚYTÈ•S‚ˆ“Ô‘Tˆ–H™\]Z\™[Y[™^\›˜[ÚÙ^HSRUH‚ˆ
+KˆÈœ™[X\ÙWÚYˆ˜\ÙWÜ™[X\ÙWÚYKˆ
+KœØØ[\—ÛÛ™J
+Bˆ[—ÚÙ^HHÛÛ›™Xİ[Û‹™^Xİ]Jˆ^
+ˆ”ÑSPÕ[‹™^\›˜[ÚÙ^H”“ÓHİYWÜ[œÈ[ˆ‚ˆ’“ÒSˆİYWÜ[—Ù]šY[˜ÙH]šY[˜ÙH‚ˆ“Óˆ]šY[˜ÙKœ™[X\ÙWÚY\[‹œ™[X\ÙWÚYS‘]šY[˜ÙKœİYWÜ[—ÚY\[‹šY‚ˆ•ÒT‘H[‹œ™[X\ÙWÚYNœ™[X\ÙWÚYÔ‘Tˆ–H[‹™^\›˜[ÚÙ^HSRUH‚ˆ
+KˆÈœ™[X\ÙWÚYˆ˜\ÙWÜ™[X\ÙWÚYKˆ
+KœØØ[\—ÛÛ™J
+B‚ˆØ[™Y]HHØÛÜWØ[™J˜\ÙWØ[™K\Ü]È˜\KXÚ[™ÙY\™[X\ÙHŠBˆÜÙ]Ü™[X\ÙWØÛÛ^
+Ø[™Y]K˜\ÙWÜ™[X\ÙWÚY˜\ÙWÙ^ÜÈœÛİ\˜ÙWØ[™WÜÚLMˆ—JBˆÚ[™ÙYÙ\™Xİ[Û—Û˜[YHHˆÛÛÙ\™Xİ[Û—Û˜[Y_H8 %TH\İ™[X\ÙHİ]ZY
+
+Kš^Î_H‚ˆÜÙ]Ù\™Xİ[Û—Û˜[YJØ[™Y]K\™Xİ[Û—ÚÙ^KÚ[™ÙYÙ\™Xİ[Û—Û˜[YJBˆ™\]Z\™[Y[ÚÙ^HHİÜ˜\Ü™\]Z\™[Y[İÚ]Û™\İYÛÜ\˜]ÜœÊØ[™Y]JBˆÛÛ[Z]YHÛÛ[Z]Ü›Ú™Xİ[ÛŠ[™Ú[™KÙ][™ÜË›Ú™XİØ[™JİŠØ[™Y]JJJBˆ\ÜÙ\ÛÛ[Z]YÈ›İ]ÛÛYH—HOH˜ÛÛ[Z]Y‚ˆ™]×Ü™[X\ÙWÚYHURQ
+ÛÛ[Z]YÈ˜Xİ]™WÜ™[X\ÙWÚY—JBˆ\ÜÙ\™]×Ü™[X\ÙWÚYOH˜\ÙWÜ™[X\ÙWÚYˆÚ][™Ú[™K˜ÛÛ›™Xİ
+
+H\ÈÛÛ›™Xİ[Û‚ˆ™]×Ü™[X\ÙWÚÙ^HHÛÛ›™Xİ[Û‹™^Xİ]Jˆ^
+”ÑSPÕ™[X\ÙWÚÙ^H”“ÓH]WÜ™[X\Ù\ÈÒT‘HYNœ™[X\ÙWÚYŠKˆÈœ™[X\ÙWÚYˆ™]×Ü™[X\ÙWÚYKˆ
+KœØØ[\—ÛÛ™J
+B‚ˆÚ][™Ú[™K˜™YÚ[Š
+H\ÈÛÛ›™Xİ[Û‚ˆÛÛ›™Xİ[Û‹™^Xİ]Jˆ^
+ˆSTˆ“ÓH[™›ÛYYWØ\WÜ[[YHTÔÕÓÔ‘	ŞØ\WÜ\ÜİÛÜ™IÈŠBˆ
+BˆÛÛ›™Xİ[Û‹™^Xİ]Jˆ^
+ˆSTˆ“ÓH[™›ÛYYWÙ\™Xİ\×Ü[[YHTÔÕÓÔ‘	ŞÙ\™Xİ\×Ü\ÜİÛÜ™IÈŠBˆ
+Bˆ\Wİ\›HÙ][™ÜËœ\œÙYÙ]X˜\ÙWİ\›œÙ]
+ˆ\Ù\›˜[YOH˜[™›ÛYYWØ\WÜ[[YH‹\ÜİÛÜ™X\WÜ\ÜİÛÜ™ˆ
+Bˆ\™Xİ\×İ\›HÙ][™ÜËœ\œÙYÙ]X˜\ÙWİ\›œÙ]
+ˆ\Ù\›˜[YOH˜[™›ÛYYWÙ\™Xİ\×Ü[[YH‹\ÜİÛÜ™Y\™Xİ\×Ü\ÜİÛÜ™ˆ
+Bˆ\WÙ[™Ú[™HHÜ™X]WÙ[™Ú[™J\Wİ\›ÛÛÜÚ^™OL‹X^Ûİ™\™›İÏL
+Bˆ\™Xİ\×Ù[™Ú[™HHÜ™X]WÙ[™Ú[™J\™Xİ\×İ\›ÛÛÜÚ^™OLKX^Ûİ™\™›İÏL
+Bˆ\HÜ™X]WØ\
+Ù][™ÜÏ\Ù][™ÜË[™Ú[™OX\WÙ[™Ú[™JB‚ˆÚ]\İÛY[
+\
+H\ÈÛY[‚ˆX[HÛY[™Ù]
+‹Ø\KİŒKÚX[ŠBˆ\ÜÙ\X[œİ]\×ØÛÙHOHŒˆ\ÜÙ\X[šœÛÛŠ
+VÈ˜Xİ]™WÜ™[X\ÙWÚÙ^H—HOH™]×Ü™[X\ÙWÚÙ^B‚ˆ\™Ù]ÜÛÛH›Û™Bˆİ\œÛÜˆH›Û™BˆÚ[H\™Ù]ÜÛÛ\È›Û™N‚ˆÛÛÜYÙWÜ™\ÜÛœÙHHÛY[™Ù]
+ˆ‹Ø\KİŒKØÛÛ\]][Û‹\ÛÛÈ‹ˆ\˜[\Ï^Âˆ˜Ø[\ZYÛ—ÚÙ^Hˆ\™Ù]ÜÛİ\˜ÙVÈ›[šÙYØØ[\ZYÛ—ÚÙ^H—Kˆ™\™Xİ[Û—ØÛÙHˆ\™Ù]ÜÛİ\˜ÙVÈ™\™Xİ[Û—ØÛÙH—Kˆ›[Z]ˆLˆ
+ŠŠÈ˜İ\œÛÜˆˆİ\œÛÜŸHYˆİ\œÛÜˆ[ÙHßJKˆKˆ
+Bˆ\ÜÙ\ÛÛÜYÙWÜ™\ÜÛœÙKœİ]\×ØÛÙHOHŒˆÛÛÜYÙHHÛÛÜYÙWÜ™\ÜÛœÙKšœÛÛŠ
+Bˆ\™Ù]ÜÛÛH™^
+ˆ
+ˆ›İÈ›Üˆ›İÈ[ˆÛÛÜYÙVÈš][\È—BˆYˆ›İÖÈ™^\›˜[ÚÙ^H—HOH\™Ù]ÜÛİ\˜ÙVÈ™^\›˜[ÚÙ^H—Bˆ
+Kˆ›Û™Kˆ
+Bˆİ\œÛÜˆHÛÛÜYÙVÈœYÙH—VÈ›™^Øİ\œÛÜˆ—BˆYˆ\™Ù]ÜÛÛ\È›Û™N‚ˆ\ÜÙ\İ\œÛÜˆ\È›İ›Û™KH[\ÜY\™Ù]Y][İH›İÈ\ÈZ\ÜÚ[™Èœ›ÛHHTH‚‚ˆ›ÜˆšY[[ˆ
+ˆ\™Ù]ÛÜ™Ø[š^˜][Ûˆ‹ˆ\™Ù]ÛÜ™Ø[š^˜][Û—Ú[›ˆ‹ˆ\™Ù]ÛÜ™Ø[š^˜][Û—ÚÜ‹ˆ\™Ù]ÛÜ™Ø[š^˜][Û—ÛÙÜ›ˆ‹ˆ\™Ù]Ü™YÚ[Ûˆ‹ˆ˜Ø[\\×ÛX™[Ú[—ÙØİ[Y[‹ˆ
+N‚ˆ\ÜÙ\\™Ù]ÜÛÛÙšY[HOH\™Ù]ÜÛİ\˜ÙVÙšY[Bˆ\ÜÙ\\Ú[œİ[˜ÙJ\™Ù]ÜÛÛÈ\™Ù]ÛÜ™Ø[š^˜][Û—Ú[›ˆ—KİŠBˆ\ÜÙ\\Ú[œİ[˜ÙJ\™Ù]ÜÛÛÈ\™Ù]ÛÜ™Ø[š^˜][Û—ÚÜ—KİŠBˆ\ÜÙ\\Ú[œİ[˜ÙJ\™Ù]ÜÛÛÈ\™Ù]ÛÜ™Ø[š^˜][Û—ÛÙÜ›ˆ—KİŠBˆ\ÜÙ\[JˆÛİ\˜ÙVÈœÚLMˆ—HOH\™Ù]ÜÛİ\˜ÙVÈœÛİ\˜ÙWÜÚLMˆ—Bˆ›ÜˆÛİ\˜ÙH[ˆ\™Ù]ÜÛÛÈœÛİ\˜Ù\È—Bˆ
+B‚ˆš\œİÜYÙHHÛY[™Ù]
+‹Ø\KİŒKÙ\™Xİ[ÛœÈ‹\˜[\Ï^È›[Z]ˆ_JKšœÛÛŠ
+Bˆ\ÜÙ\š\œİÜYÙVÈœYÙH—VÈœ™[X\ÙWÚÙ^H—HOH™]×Ü™[X\ÙWÚÙ^Bˆ\ÜÙ\š\œİÜYÙVÈœYÙH—VÈİ[ØÛİ[—HˆBˆ\ÜÙ\š\œİÜYÙVÈš][\È—VÌVÈœÛİ\˜Ù\È—Bˆ™^Øİ\œÛÜˆHš\œİÜYÙVÈœYÙH—VÈ›™^Øİ\œÛÜˆ—Bˆ\ÜÙ\™^Øİ\œÛÜ‚ˆÙXÛÛ™ÜYÙHHÛY[™Ù]
+ˆ‹Ø\KİŒKÙ\™Xİ[ÛœÈ‹\˜[\Ï^È›[Z]ˆK˜İ\œÛÜˆˆ™^Øİ\œÛÜŸBˆ
+KšœÛÛŠ
+Bˆš\œİÚÙ^HHš\œİÜYÙVÈš][\È—VÌVÈ™^\›˜[ÚÙ^H—BˆÙXÛÛ™ÚÙ^HHÙXÛÛ™ÜYÙVÈš][\È—VÌVÈ™^\›˜[ÚÙ^H—Bˆ\ÜÙ\š\œİÚÙ^HÙXÛÛ™ÚÙ^B‚ˆ[˜[YØİ\œÛÜˆHÛY[™Ù]
+‹Ø\KİŒKÙ\™Xİ[ÛœÈ‹\˜[\Ï^È˜İ\œÛÜˆˆˆHŸJBˆ\ÜÙ\[˜[YØİ\œÛÜ‹œİ]\×ØÛÙHOHŒ‚ˆ\ÜÙ\[˜[YØİ\œÛÜ‹šœÛÛŠ
+VÈ™\œ›Üˆ—VÈ˜ÛÙH—HOHš[˜[YØİ\œÛÜˆ‚ˆZ\ÜÚ[™ÈHÛY[™Ù]
+‹Ø\KİŒKÙ\™Xİ[ÛœËÛ›Ë\İXÚY^XİZÙ^HŠBˆ\ÜÙ\Z\ÜÚ[™Ëœİ]\×ØÛÙHOHˆ\ÜÙ\Z\ÜÚ[™ËšœÛÛŠ
+VÈ™\œ›Üˆ—VÈ˜ÛÙH—HOHœ™XÛÜ™Û›İÙ›İ[™‚ˆ\ÜÙ\ÛY[œÜİ
+‹Ø\KİŒKÜ™[X\ÙHŠKœİ]\×ØÛÙHOHB‚ˆ[—Ü™\ÜÛœÙHHÛY[™Ù]
+ˆ‹Ø\KİŒKÜİYK\[œËŞÜ][İJ[—ÚÙ^KØY™OIÉÊ_HŠBˆ\ÜÙ\[—Ü™\ÜÛœÙKœİ]\×ØÛÙHOHŒˆ\ÜÙ\[—Ü™\ÜÛœÙKšœÛÛŠ
+VÈœÛİ\˜Ù\È—B‚ˆ™\]Z\™[Y[Ü™\ÜÛœÙHHÛY[™Ù]
+ˆˆ‹Ø\KİŒKÜ™\]Z\™[Y[ËŞÜ][İJ™\]Z\™[Y[ÚÙ^KØY™OIÉÊ_H‚ˆ
+Bˆ™YHH™\]Z\™[Y[Ü™\ÜÛœÙKšœÛÛŠ
+VÈœ›Ûİ—Bˆ\ÜÙ\™\]Z\™[Y[Ü™\ÜÛœÙKœİ]\×ØÛÙHOHŒˆ\ÜÙ\™YVÈ›Ü\˜]Üˆ—HOHUÓPTÕ‚ˆ\ÜÙ\™YVÈ˜Ú[™[ˆ—VÌVÈ›Ü\˜]Üˆ—HOHS‘‚ˆ\ÜÙ\™YVÈ˜Ú[™[ˆ—VÌVÈ˜Ú[™[ˆ—VÌVÈ›Ü\˜]Üˆ—HOH“Ôˆ‚‚ˆÚ][™Ú[™K˜ÛÛ›™Xİ
+
+H\ÈÛÛ›™Xİ[Û‚ˆ™\]Z\™[Y[Ù\™Xİ[Û—ÚÙ^HHÛÛ›™Xİ[Û‹™^Xİ]Jˆ^
+ˆ”ÑSPÕ\™Xİ[Û‹™^\›˜[ÚÙ^H‚ˆ‘”“ÓHYZ\ÜÚ[Û—Ü™\]Z\™[Y[ÜÙ]È™\]Z\™[Y[‚ˆ’“ÒSˆ\™Xİ[ÛœÈ\™Xİ[Ûˆ‚ˆ“Óˆ\™Xİ[Û‹œ™[X\ÙWÚYH™\]Z\™[Y[œ™[X\ÙWÚY‚ˆS‘\™Xİ[Û‹šYH™\]Z\™[Y[™\™Xİ[Û—ÚY‚ˆ’“ÒSˆYZ\ÜÚ[Û—ØØ[\ZYÛœÈØ[\ZYÛˆ‚ˆ“ÓˆØ[\ZYÛ‹œ™[X\ÙWÚYH™\]Z\™[Y[œ™[X\ÙWÚY‚ˆS‘Ø[\ZYÛ‹šYH™\]Z\™[Y[˜Ø[\ZYÛ—ÚY‚ˆ•ÒT‘H™\]Z\™[Y[œ™[X\ÙWÚYHœ™[X\ÙWÚY‚ˆS‘Ø[\ZYÛ‹™^\›˜[ÚÙ^HH˜Ø[\ZYÛ—ÚÙ^H‚ˆ‘Ô“ÕT–H\™Xİ[Û‹™^\›˜[ÚÙ^H‚ˆ’U’S‘ÈÛİ[
+
+ŠHˆH‚ˆ“Ô‘Tˆ–H\™Xİ[Û‹™^\›˜[ÚÙ^H‚ˆ“SRUH‚ˆ
+KˆÂˆœ™[X\ÙWÚYˆ™]×Ü™[X\ÙWÚYˆ˜Ø[\ZYÛ—ÚÙ^Hˆ˜Ø[\ZYÛ˜›\İNŒŒˆ‹ˆKˆ
+KœØØ[\—ÛÛ™J
+B‚ˆYˆ™]ÚÜ™\]Z\™[Y[ÜYÙ\Ê\˜[\ÎˆXİÜİ‹İ—JHOˆ\VÛ\İÙXİKİ—N‚ˆ™XÛÜ™Îˆ\İÙXİHH×Bˆİ\œÛÜˆH›Û™Bˆ™[X\ÙWÚÙ^HHˆ‚ˆÚ[HYN‚ˆ™\ÜÛœÙHHÛY[™Ù]
+ˆ‹Ø\KİŒKÜ™\]Z\™[Y[È‹ˆ\˜[\Ï^È›[Z]ˆŒL‹
+Šœ\˜[\Ë
+ŠŠÈ˜İ\œÛÜˆˆİ\œÛÜŸHYˆİ\œÛÜˆ[ÙHßJ_Kˆ
+Bˆ\ÜÙ\™\ÜÛœÙKœİ]\×ØÛÙHOHŒˆYÙHH™\ÜÛœÙKšœÛÛŠ
+Bˆ\ÜÙ\YÙVÈœYÙH—VÈœ™[X\ÙWÚÙ^H—HOH™]×Ü™[X\ÙWÚÙ^Bˆ™[X\ÙWÚÙ^HHYÙVÈœYÙH—VÈœ™[X\ÙWÚÙ^H—Bˆ™XÛÜ™Ë™^[™
+YÙVÈš][\È—JBˆİ\œÛÜˆHYÙVÈœYÙH—VÈ›™^Øİ\œÛÜˆ—BˆYˆİ\œÛÜˆ\È›Û™N‚ˆ™]\›ˆ™XÛÜ™Ë™[X\ÙWÚÙ^B‚ˆ[™š[\™YÜ™\]Z\™[Y[Ë[™š[\™YÜ™[X\ÙWÚÙ^HH™]ÚÜ™\]Z\™[Y[ÜYÙ\ÊˆÈ˜Ø[\ZYÛ—ÚÙ^Hˆ˜Ø[\ZYÛ˜›\İNŒŒˆŸBˆ
+Bˆ^XİYÙ\™Xİ[Û—Ü™\]Z\™[Y[ÈHÂˆ™XÛÜ™›Üˆ™XÛÜ™[ˆ[™š[\™YÜ™\]Z\™[Y[ÂˆYˆ™XÛÜ™È™\™Xİ[Û—ÚÙ^H—HOH™\]Z\™[Y[Ù\™Xİ[Û—ÚÙ^BˆBˆ\ÜÙ\[Š^XİYÙ\™Xİ[Û—Ü™\]Z\™[Y[ÊHˆBˆ\ÜÙ\[™š[\™YÜ™[X\ÙWÚÙ^HOH™]×Ü™[X\ÙWÚÙ^B‚ˆš[\™YÜ™\]Z\™[Y[Îˆ\İÙXİHH×Bˆİ\œÛÜˆH›Û™Bˆš[\™Yİİ[ØÛİ[H›Û™BˆÚ[HYN‚ˆš[\™YÜ™\ÜÛœÙHHÛY[™Ù]
+ˆ‹Ø\KİŒKÜ™\]Z\™[Y[È‹ˆ\˜[\Ï^Âˆ˜Ø[\ZYÛ—ÚÙ^Hˆ˜Ø[\ZYÛ˜›\İNŒŒˆ‹ˆ™\™Xİ[Û—ÚÙ^Hˆ™\]Z\™[Y[Ù\™Xİ[Û—ÚÙ^Kˆ›[Z]ˆKˆ
+ŠŠÈ˜İ\œÛÜˆˆİ\œÛÜŸHYˆİ\œÛÜˆ[ÙHßJKˆKˆ
+Bˆ\ÜÙ\š[\™YÜ™\ÜÛœÙKœİ]\×ØÛÙHOHŒˆš[\™YÜYÙHHš[\™YÜ™\ÜÛœÙKšœÛÛŠ
+Bˆ\ÜÙ\š[\™YÜYÙVÈœYÙH—VÈœ™[X\ÙWÚÙ^H—HOH™]×Ü™[X\ÙWÚÙ^BˆYˆš[\™Yİİ[ØÛİ[\È›Û™N‚ˆš[\™Yİİ[ØÛİ[Hš[\™YÜYÙVÈœYÙH—VÈİ[ØÛİ[—Bˆ\ÜÙ\š[\™YÜYÙVÈœYÙH—VÈİ[ØÛİ[—HOHš[\™Yİİ[ØÛİ[ˆš[\™YÜ™\]Z\™[Y[Ë™^[™
+š[\™YÜYÙVÈš][\È—JBˆİ\œÛÜˆHš[\™YÜYÙVÈœYÙH—VÈ›™^Øİ\œÛÜˆ—BˆYˆİ\œÛÜˆ\È›Û™N‚ˆœ™XZÂ‚ˆ^XİYÜ™\]Z\™[Y[ÚÙ^\ÈHÂˆ™XÛÜ™È™^\›˜[ÚÙ^H—H›Üˆ™XÛÜ™[ˆ^XİYÙ\™Xİ[Û—Ü™\]Z\™[Y[ÂˆBˆ\ÜÙ\š[\™Yİİ[ØÛİ[OH[Š^XİYÙ\™Xİ[Û—Ü™\]Z\™[Y[ÊBˆ\ÜÙ\Ü™XÛÜ™È™^\›˜[ÚÙ^H—H›Üˆ™XÛÜ™[ˆš[\™YÜ™\]Z\™[Y[×HOH^XİYÜ™\]Z\™[Y[ÚÙ^\Âˆ\ÜÙ\[
+™XÛÜ™È™\™Xİ[Û—ÚÙ^H—HOH™\]Z\™[Y[Ù\™Xİ[Û—ÚÙ^H›Üˆ™XÛÜ™[ˆš[\™YÜ™\]Z\™[Y[ÊB‚ˆ[˜[YÙ\™Xİ[Û—Ü™\ÜÛœÙHHÛY[™Ù]
+ˆ‹Ø\KİŒKÜ™\]Z\™[Y[È‹ˆ\˜[\Ï^Âˆ˜Ø[\ZYÛ—ÚÙ^Hˆ˜Ø[\ZYÛ˜›\İNŒŒˆ‹ˆ™\™Xİ[Û—ÚÙ^Hˆ™\™Xİ[Û›Z\ÜÚ[™È‹ˆKˆ
+Bˆ\ÜÙ\[˜[YÙ\™Xİ[Û—Ü™\ÜÛœÙKœİ]\×ØÛÙHOHˆ\ÜÙ\[˜[YÙ\™Xİ[Û—Ü™\ÜÛœÙKšœÛÛŠ
+VÈ™\œ›Üˆ—VÈ˜ÛÙH—HOHœ™XÛÜ™Û›İÙ›İ[™‚‚ˆ^Û›Û^WÜ™\ÜÛœÙHHÛY[™Ù]
+‹Ø\KİŒKÜİXš™Xİ]^Û›ÛZY\ËØ›\İK\İXš™XİYÛXZ[‹LM‹İŒHŠBˆ\ÜÙ\^Û›Û^WÜ™\ÜÛœÙKœİ]\×ØÛÙHOHŒˆ^Û›Û^HH^Û›Û^WÜ™\ÜÛœÙKšœÛÛŠ
+Bˆ\ÜÙ\^Û›Û^VÈ^Û›Û^WÚÙ^H—HOH˜›\İK\İXš™XİYÛXZ[‹LMˆ‚ˆ\ÜÙ\^Û›Û^VÈ^Û›Û^Wİ™\œÚ[Ûˆ—HOHŒH‚ˆØ]YÛÜWØÛÙ\ÈHØØ]YÛÜVÈ˜Ø]YÛÜWØÛÙH—H›ÜˆØ]YÛÜH[ˆ^Û›Û^VÈ˜Ø]YÛÜšY\È—WBˆ\ÜÙ\Ø]YÛÜWØÛÙ\Âˆ\ÜÙ\[ŠØ]YÛÜWØÛÙ\ÊHOH[ŠÙ]
+Ø]YÛÜWØÛÙ\ÊJB‚ˆZ][ÛˆHÛY[™Ù]
+‹Ø\KİŒKİZ][Ûˆ‹\˜[\Ï^È›[Z]ˆLJKšœÛÛŠ
+Bˆ\ÜÙ\[
+ˆ[œÜXÚYšYYˆ›İ[ˆ
+][VÈ˜XØY[ZX×ŞYX\ˆ—HÜˆˆŠK˜Ø\ÙY›Û
+
+Bˆ›Üˆ][H[ˆZ][Û–Èš][\È—Bˆ
+B‚ˆ^XİYÜ›ÙÜ˜[WÜYÙHHÛY[™Ù]
+ˆ‹Ø\KİŒKÜ›ÙÜ˜[\È‹\˜[\Ï^È›[Z]ˆLBˆ
+KšœÛÛŠ
+Bˆ\ÜÙ\^XİYÜ›ÙÜ˜[WÜYÙVÈœYÙH—VÈœ™[X\ÙWÚÙ^H—HOH™]×Ü™[X\ÙWÚÙ^Bˆ›\YH˜[ÙB‚ˆYˆ›Û˜XÚ×Ø™]ÙY[—Ü™[X\ÙWÛÛÚİ\Ø[™ÜYÙJˆÛÛ›™Xİ[Û‹İ\œÛÜ‹İ][Y[\˜[Y]\œËÛÛ^^Xİ][X[Bˆ
+N‚ˆ›Û›ØØ[›\Yˆ›Ü›X[^™YHˆ‹š›Ú[Šİ][Y[˜Ø\ÙY›Û
+
+KœÜ]
+
+JBˆYˆ
+ˆ›İ›\Yˆ[™›Ü›X[^™Yœİ\İÚ]
+œÙ[XİÛİ[
+
+ŠHŠBˆ[™™œ›ÛHYXØ][Û˜[Ü›ÙÜ˜[\Èˆ[ˆ›Ü›X[^™Yˆ
+N‚ˆ›\YHYBˆ›Û˜XÚ×ØXİ]™WÜ™[X\ÙJˆ[™Ú[™KˆÙ][™ÜËˆ\™Ù]Ü™[X\ÙWÚYX˜\ÙWÜ™[X\ÙWÚYˆ^XİYØXİ]™WÜ™[X\ÙWÚY[™]×Ü™[X\ÙWÚYˆ™X\ÛÛHœÚ[][]HXİ]™H™[X\ÙHÚ[™ÙH\š[™ÈÛ™HTH™\]Y\İ‹ˆXİÜH˜\KZ[YÜ˜][Û‹]\İ‹ˆ
+B‚ˆ]™[›\İ[Š\WÙ[™Ú[™K˜™Y›Ü™WØİ\œÛÜ—Ù^Xİ]H‹›Û˜XÚ×Ø™]ÙY[—Ü™[X\ÙWÛÛÚİ\Ø[™ÜYÙJBˆN‚ˆİX›WÜÛ˜\ÚİHÛY[™Ù]
+ˆ‹Ø\KİŒKÜ›ÙÜ˜[\È‹\˜[\Ï^È›[Z]ˆLBˆ
+KšœÛÛŠ
+Bˆš[˜[N‚ˆ]™[œ™[[İ™J\WÙ[™Ú[™K˜™Y›Ü™WØİ\œÛÜ—Ù^Xİ]H‹›Û˜XÚ×Ø™]ÙY[—Ü™[X\ÙWÛÛÚİ\Ø[™ÜYÙJBˆ\ÜÙ\›\Yˆ\ÜÙ\İX›WÜÛ˜\ÚİÈœYÙH—VÈœ™[X\ÙWÚÙ^H—HOH™]×Ü™[X\ÙWÚÙ^Bˆ\ÜÙ\İX›WÜÛ˜\ÚİOH^XİYÜ›ÙÜ˜[WÜYÙB‚ˆ™\İÜ™YHÛY[™Ù]
+‹Ø\KİŒKÙ\™Xİ[ÛœÈ‹\˜[\Ï^È›[Z]ˆLJKšœÛÛŠ
+Bˆ™\İÜ™YÙ\™Xİ[ÛˆH™^
+ˆ][H›Üˆ][H[ˆ™\İÜ™YÈš][\È—HYˆ][VÈ™^\›˜[ÚÙ^H—HOH\™Xİ[Û—ÚÙ^Bˆ
+Bˆ\ÜÙ\™\İÜ™YÈœYÙH—VÈœ™[X\ÙWÚÙ^H—HOH˜\ÙWÙ^ÜÈœ™[X\ÙWÚÙ^H—Bˆ\ÜÙ\™\İÜ™YÙ\™Xİ[Û–È›˜[YH—HOHÛÙ\™Xİ[Û—Û˜[YB‚ˆÚ][™Ú[™K˜ÛÛ›™Xİ
+
+H\ÈİÛ™\—ØÛÛ›™Xİ[Û‚ˆXØY[ZX×Ù\™Xİ[Û—İšY]×ÛÚYHİÛ™\—ØÛÛ›™Xİ[Û‹™^Xİ]Jˆ^
+”ÑSPÕ	ØXØY[ZX×Ü™XY™\™Xİ[ÛœÉÎœ™YØÛ\ÜÎ›ÚYŠBˆ
+KœØØ[\—ÛÛ™J
+BˆÚ]\™Xİ\×Ù[™Ú[™K˜ÛÛ›™Xİ
+
+H\ÈÛÛ›™Xİ[Û‚ˆ›Ú™Xİ[Û—Ü™[X\ÙWÚÙ^HHÛÛ›™Xİ[Û‹™^Xİ]Jˆ^
+”ÑSPÕ™[X\ÙWÚÙ^H”“ÓH\™Xİ\×Ü™XY˜Xİ]™WÜ™[X\ÙHŠBˆ
+KœØØ[\—ÛÛ™J
+Bˆ\ÜÙ\›Ú™Xİ[Û—Ü™[X\ÙWÚÙ^HOH˜\ÙWÙ^ÜÈœ™[X\ÙWÚÙ^H—Bˆ\ÜÙ\ÛÛ›™Xİ[Û‹™^Xİ]Jˆ^
+”ÑSPÕÛİ[
+TÕSÕ™[X\ÙWÚY
+H”“ÓH\™Xİ\×Ü™XY™\™Xİ[ÛœÈŠBˆ
+KœØØ[\—ÛÛ™J
+HHBˆ\ÜÙ\ÛÛ›™Xİ[Û‹™^Xİ]Jˆ^
+”ÑSPÕ\×İX›WÜš]š[YÙJİ\œ™[İ\Ù\‹	Ù\™Xİ\×Ü™XY™\™Xİ[ÛœÉË	ÔÑSPÕ	ÊHŠBˆ
+KœØØ[\—ÛÛ™J
+Bˆ\ÜÙ\ÛÛ›™Xİ[Û‹™^Xİ]Jˆ^
+”ÑSPÕ\×İX›WÜš]š[YÙJİ\œ™[İ\Ù\‹	Ù\™Xİ\×Ü™XY™\™Xİ[ÛœÉË	ÕTUIÊHŠBˆ
+KœØØ[\—ÛÛ™J
+H\È˜[ÙBˆ\ÜÙ\ÛÛ›™Xİ[Û‹™^Xİ]Jˆ^
+”ÑSPÕ\×ÜØÚ[XWÜš]š[YÙJİ\œ™[İ\Ù\‹	Ù\™Xİ\×Ü™XY	Ë	ĞÔ‘PUIÊHŠBˆ
+KœØØ[\—ÛÛ™J
+H\È˜[ÙBˆ\ÜÙ\ÛÛ›™Xİ[Û‹™^Xİ]Jˆ^
+”ÑSPÕ\×ÜØÚ[XWÜš]š[YÙJİ\œ™[İ\Ù\‹	ØXØY[ZX×Ü™XY	Ë	ÕTĞQÑIÊHŠBˆ
+KœØØ[\—ÛÛ™J
+H\È˜[ÙBˆ\ÜÙ\ÛÛ›™Xİ[Û‹™^Xİ]Jˆ^
+”ÑSPÕ\×İX›WÜš]š[YÙJİ\œ™[İ\Ù\‹šY]×ÛÚY	ÔÑSPÕ	ÊHŠKˆÈšY]×ÛÚYˆXØY[ZX×Ù\™Xİ[Û—İšY]×ÛÚYKˆ
+KœØØ[\—ÛÛ™J
+H\È˜[ÙBˆÚ]]\İœ˜Z\Ù\ÊTQ\œ›ÜŠN‚ˆÛÛ›™Xİ[Û‹™^Xİ]J^
+”ÑSPÕ
+ˆ”“ÓHX›XË™\™Xİ[ÛœÈSRUHŠJBˆÛÛ›™Xİ[Û‹œ›Û˜XÚÊ
+BˆÚ]]\İœ˜Z\Ù\ÊTQ\œ›ÜŠN‚ˆÛÛ›™Xİ[Û‹™^Xİ]J^
+•TUHX›XË™\™Xİ[ÛœÈÑU˜[YO[˜[YHÒT‘H˜[ÙHŠJBˆÛÛ›™Xİ[Û‹œ›Û˜XÚÊ
+BˆÚ]]\İœ˜Z\Ù\ÊTQ\œ›ÜŠN‚ˆÛÛ›™Xİ[Û‹™^Xİ]J^
+•TUH\™Xİ\×Ü™XY™\™Xİ[ÛœÈÑU˜[YO[˜[YHÒT‘H˜[ÙHŠJBˆÛÛ›™Xİ[Û‹œ›Û˜XÚÊ
+BˆÚ]]\İœ˜Z\Ù\ÊTQ\œ›ÜŠN‚ˆÛÛ›™Xİ[Û‹™^Xİ]J^
+‘“ÔP“H\™Xİ\×Ü™XY™\™Xİ[ÛœÈŠJBˆÛÛ›™Xİ[Û‹œ›Û˜XÚÊ
+B‚ˆÚ]\WÙ[™Ú[™K˜ÛÛ›™Xİ
+
+H\ÈÛÛ›™Xİ[Û‚ˆ\ÜÙ\ÛÛ›™Xİ[Û‹™^Xİ]Jˆ^
+”ÑSPÕ\×İX›WÜš]š[YÙJİ\œ™[İ\Ù\‹	ÜX›XË™\™Xİ[ÛœÉË	ÔÑSPÕ	ÊHŠBˆ
+KœØØ[\—ÛÛ™J
+Bˆ\ÜÙ\ÛÛ›™Xİ[Û‹™^Xİ]Jˆ^
+”ÑSPÕ\×İX›WÜš]š[YÙJİ\œ™[İ\Ù\‹	ÜX›XË˜YZ\ÜÚ[Û—Ü™\İ[ÜÛİ\˜Ù\ÉË	ÔÑSPÕ	ÊHŠBˆ
+KœØØ[\—ÛÛ™J
+H\È˜[ÙBˆ\ÜÙ\ÛÛ›™Xİ[Û‹™^Xİ]Jˆ^
+”ÑSPÕ\×ÜØÚ[XWÜš]š[YÙJİ\œ™[İ\Ù\‹	ÜX›XÉË	ĞÔ‘PUIÊHŠBˆ
+KœØØ[\—ÛÛ™J
+H\È˜[ÙBˆÚ]]\İœ˜Z\Ù\ÊTQ\œ›ÜŠN‚ˆÛÛ›™Xİ[Û‹™^Xİ]J^
+•TUHX›XË™\™Xİ[ÛœÈÑU˜[YO[˜[YHÒT‘H˜[ÙHŠJBˆÛÛ›™Xİ[Û‹œ›Û˜XÚÊ
+BˆÚ]]\İœ˜Z\Ù\ÊTQ\œ›ÜŠN‚ˆÛÛ›™Xİ[Û‹™^Xİ]J^
+”ÑSPÕ
+ˆ”“ÓHX›XË˜YZ\ÜÚ[Û—Ü™\İ[ÜÛİ\˜Ù\ÈSRUHŠJBˆÛÛ›™Xİ[Û‹œ›Û˜XÚÊ
+BˆÚ]]\İœ˜Z\Ù\ÊTQ\œ›ÜŠN‚ˆÛÛ›™Xİ[Û‹™^Xİ]J^
+”ÑSPÕ
+ˆ”“ÓH\™Xİ\×Ü™XY™\™Xİ[ÛœÈSRUHŠJBˆÛÛ›™Xİ[Û‹œ›Û˜XÚÊ
+Bˆš[˜[N‚ˆYˆ\WÙ[™Ú[™H\È›İ›Û™N‚ˆ\WÙ[™Ú[™K™\ÜÜÙJ
+BˆYˆ\™Xİ\×Ù[™Ú[™H\È›İ›Û™N‚ˆ\™Xİ\×Ù[™Ú[™K™\ÜÜÙJ
+BˆÚ][™Ú[™K˜™YÚ[Š
+H\ÈÛÛ›™Xİ[Û‚ˆÛÛ›™Xİ[Û‹™^Xİ]J^
+STˆ“ÓH[™›ÛYYWØ\WÜ[[YHTÔÕÓÔ‘•SŠJBˆÛÛ›™Xİ[Û‹™^Xİ]J^
+STˆ“ÓH[™›ÛYYWÙ\™Xİ\×Ü[[YHTÔÕÓÔ‘•SŠJBˆ[™Ú[™K™\ÜÜÙJ
+B
