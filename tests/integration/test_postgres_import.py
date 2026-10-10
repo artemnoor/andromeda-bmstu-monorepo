@@ -1001,7 +1001,7 @@ def test_read_api_uses_one_active_release_and_directus_is_physically_read_only(
 
         candidate = _copy_bundle(base_bundle, tmp_path / "api-changed-release")
         _set_release_context(candidate, base_release_id, base_export["source_bundle_sha256"])
-        changed_direction_name = f"{old_direction_name} � API test release {uuid4().hex[:8]}"
+        changed_direction_name = f"{old_direction_name} — API test release {uuid4().hex[:8]}"
         _set_direction_name(candidate, direction_key, changed_direction_name)
         requirement_key = _wrap_requirement_with_nested_operators(candidate)
         committed = commit_projection(engine, settings, project_bundle(str(candidate)))
