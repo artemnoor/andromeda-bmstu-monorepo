@@ -102,6 +102,9 @@ test("workspace forward navigation and reload restore the comparison route and s
 });
 
 test("first-screen logo and menu lead to the original home and catalog destinations", async ({ page, browserDiagnostics }) => {
+  // Keep the navigation assertion deterministic in WebKit without changing the
+  // product animation: the site already honors this user motion preference.
+  await page.emulateMedia({ reducedMotion: "reduce" });
   await openDemoPage(page, "first-screen.html");
   await page.getByRole("link", { name: "Andromeda × BMSTU — главная" }).click();
   await expect(page).toHaveURL(/\/index\.html(?:\?|$)/);
