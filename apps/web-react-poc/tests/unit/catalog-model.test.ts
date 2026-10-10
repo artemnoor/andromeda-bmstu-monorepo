@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { components } from "@/shared/api/schema";
 import {
+  buildCatalogSearchIndex,
   filterPrograms,
   getCatalogOptions,
   normalizeCatalogProgram,
@@ -117,6 +118,24 @@ describe("catalog model", () => {
     }
     expect(filterPrograms([item], { query: "   " })).toEqual([item]);
     expect(filterPrograms([item], { query: "не существует" })).toEqual([]);
+  });
+
+  it("keeps indexed search identical to the unindexed reference for Cyrillic, codes, and field boundaries", () => {
+    const first = normalize();
+    const second = normalize(makeProgram({
+      external_key: "program:mechanics",
+      code: "24.05.01",
+      name: "Ракетные комплексы",
+      description: "Проектирование двигателей",
+      direction_key: "direction:mechanics",
+      department_relations: [],
+    }));
+    const programs = [first, second];
+    const index = buildCatalogSearchIndex(programs);
+
+    for (const query of ["КИБЕР", "24.05", "ракетные", "двигателей", "информатика", "безопасности", "1инф", "не существует", "   "]) {
+      expect(filterPrograms(programs, { query }, index)).toEqual(filterPrograms(programs, { query }));
+    }
   });
 
   it("does not turn an unresolved department key into a display fact", () => {
