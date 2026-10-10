@@ -122,18 +122,40 @@ describe("catalog model", () => {
 
   it("keeps indexed search identical to the unindexed reference for Cyrillic, codes, and field boundaries", () => {
     const first = normalize();
-    const second = normalize(makeProgram({
-      external_key: "program:mechanics",
-      code: "24.05.01",
-      name: "Ракетные комплексы",
-      description: "Проектирование двигателей",
-      direction_key: "direction:mechanics",
-      department_relations: [],
-    }));
+    const mechanicsDirection: DirectionDto = {
+      external_key: "direction:mechanics",
+      code: "15.03.04",
+      name: "Автоматизация технологических процессов",
+    };
+    const second = normalizeCatalogProgram(
+      makeProgram({
+        external_key: "program:mechanics",
+        code: "24.05.01",
+        name: "Ракетные комплексы",
+        description: "Проектирование двигателей",
+        direction_key: mechanicsDirection.external_key,
+        department_relations: [],
+      }),
+      new Map([[mechanicsDirection.external_key, mechanicsDirection]]),
+      new Map(),
+    );
     const programs = [first, second];
     const index = buildCatalogSearchIndex(programs);
 
-    for (const query of ["КИБЕР", "24.05", "ракетные", "двигателей", "информатика", "безопасности", "1инф", "не существует", "   "]) {
+    for (const query of [
+      "КИБЕР",
+      "24.05",
+      "ракетные",
+      "двигателей",
+      "технологических процессов",
+      "15.03.04",
+      "информатика",
+      "ИУ10",
+      "безопасности",
+      "1инф",
+      "не существует",
+      "   ",
+    ]) {
       expect(filterPrograms(programs, { query }, index)).toEqual(filterPrograms(programs, { query }));
     }
   });
