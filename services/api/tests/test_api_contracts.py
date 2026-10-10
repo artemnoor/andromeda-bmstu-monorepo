@@ -103,6 +103,23 @@ def test_http_errors_share_stable_envelope_and_request_id() -> None:
     assert route_missing.json()["error"]["code"] == "route_not_found"
 
 
+def test_server_timing_is_opt_in_and_contains_no_query_or_academic_payload(monkeypatch) -> None:
+    monkeypatch.delenv("ACADEMIC_DATA_PROFILE_REQUESTS", raising=False)
+    with TestClient(_app_with_fixture_queries()) as client:
+        ordinary = client.get("/api/v1/release")
+    assert "server-timing" not in ordinary.headers
+
+    monkeypatch.setenv("ACADEMIC_DATA_PROFILE_REQUESTS", "1")
+    with TestClient(_app_with_fixture_queries()) as client:
+        profiled = client.get("/api/v1/release")
+
+    assert profiled.status_code == 200
+    assert profiled.headers["server-timing"].startswith("app;dur=")
+    assert 'sql;dur=0.00;desc="queries=0"' in profiled.headers["server-timing"]
+    assert "source" not in profiled.headers["server-timing"]
+    assert "release_key" not in profiled.headers["server-timing"]
+
+
 def test_requirements_route_forwards_optional_direction_key() -> None:
     class RequirementsQueries(_Queries):
         def __init__(self):

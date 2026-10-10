@@ -415,6 +415,10 @@ jobs:
         run: |
           uv run academic-data db upgrade
           uv run academic-data bundle import --input data/bmstu-2026 --commit
+      - name: Capture seeded PostgreSQL read profile
+        env:
+          ANDROMEDA_PROFILE_OUTPUT: ${{ runner.temp }}/andromeda-backend-read-profile.json
+        run: uv run pytest -q tests/integration/test_api_read_profile.py
       - name: Install PostgreSQL client for runtime role setup
         run: |
           sudo apt-get update
@@ -430,6 +434,7 @@ jobs:
       - name: Start FastAPI and wait for an active release
         run: |
           ACADEMIC_DATA_ENV=test \
+          ACADEMIC_DATA_PROFILE_REQUESTS=1 \
           ACADEMIC_DATA_DATABASE_URL='postgresql+psycopg://andromeda_api_runtime:andromeda-ci-runtime@localhost:5432/academic_data_test' \
             uv run --package andromeda-api uvicorn andromeda_api.main:app \
               --host 127.0.0.1 --port 8000 \
@@ -469,7 +474,7 @@ jobs:
         env:
           API_ORIGIN: http://127.0.0.1:8000
           API_PROXY_TARGET: http://127.0.0.1:8000
-          BENCHMARK_ITERATIONS: '5'
+          BENCHMARK_ITERATIONS: '10'
           CI: 'true'
         run: npm --prefix apps/web-react-poc run test:paired
       - name: Capture opt-in React Profiler and Chromium comparison trace
@@ -504,6 +509,24 @@ jobs:
             apps/web-react-poc/test-results/profile/
           if-no-files-found: ignore
           retention-days: 7
+
+      - name: Retain raw paired benchmark samples
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: andromeda-backend-performance-samples-${{ github.run_id }}
+          path: apps/web-react-poc/test-results/paired-visual-performance/**/paired-performance-report.json
+          if-no-files-found: ignore
+          retention-days: 90
+
+      - name: Retain PostgreSQL API read profile
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: andromeda-postgres-read-profile-${{ github.run_id }}
+          path: ${{ runner.temp }}/andromeda-backend-read-profile.json
+          if-no-files-found: ignore
+          retention-days: 90
 
   full-check:
     if: >-

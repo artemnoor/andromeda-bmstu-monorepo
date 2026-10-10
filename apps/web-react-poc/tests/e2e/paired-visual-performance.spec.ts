@@ -27,6 +27,10 @@ interface ScreenRoute {
 interface ApiResponseMetric {
   readonly path: string;
   readonly status: number | null;
+  readonly appDurationMs: number | null;
+  readonly sqlDurationMs: number | null;
+  readonly sqlQueryCount: number | null;
+  readonly responseBytes: number | null;
 }
 
 interface ApiResourceMetric {
@@ -66,6 +70,13 @@ interface PageMetrics {
   readonly apiResponses: readonly ApiResponseMetric[];
   readonly apiResources: readonly ApiResourceMetric[];
   readonly apiTransferBytes: number;
+  readonly apiProfile: {
+    readonly profiledRequestCount: number;
+    readonly appDurationTotalMs: number | null;
+    readonly sqlDurationTotalMs: number | null;
+    readonly sqlQueryCountTotal: number | null;
+    readonly responseBytesTotal: number | null;
+  };
   readonly comparisonStageMs: Readonly<Record<string, number>>;
   readonly scriptCount: number;
   readonly scriptBytes: number;
@@ -150,14 +161,14 @@ function requirePairedRun(): void {
 function attachDiagnostics(page: Page): {
   readonly pageErrors: string[];
   readonly requestFailures: string[];
-  readonly apiRequests: { path: string; status: number | null }[];
+  readonly apiRequests: ApiResponseMetric[];
   readonly studyPlanResponses: Promise<StudyPlanPageEvidence>[];
   readonly studyPlanResponseErrors: string[];
 } {
   const diagnostics = {
     pageErrors: [] as string[],
     requestFailures: [] as string[],
-    apiRequests: [] as { path: string; status: number | null }[],
+    apiRequests: [] as ApiResponseMetric[],
     studyPlanResponses: [] as Promise<StudyPlanPageEvidence>[],
     studyPlanResponseErrors: [] as string[],
   };
@@ -166,13 +177,33 @@ function attachDiagnostics(page: Page): {
     diagnostics.requestFailures.push(`${request.method()} ${request.url()}: ${request.failure()?.errorText ?? "failed"}`);
     const url = new URL(request.url());
     if (url.pathname.startsWith("/api/v1/")) {
-      diagnostics.apiRequests.push({ path: url.pathname, status: null });
+      diagnostics.apiRequests.push({
+        path: url.pathname,
+        status: null,
+        appDurationMs: null,
+        sqlDurationMs: null,
+        sqlQueryCount: null,
+        responseBytes: null,
+      });
     }
   });
   page.on("response", (response) => {
     const url = new URL(response.url());
     if (url.pathname.startsWith("/api/v1/")) {
-      diagnostics.apiRequests.push({ path: url.pathname, status: response.status() });
+      const headers = response.headers();
+      const serverTiming = headers["server-timing"] ?? "";
+      const appDuration = serverTiming.match(/(?:^|,)\s*app;dur=([0-9.]+)/i)?.[1];
+      const sqlDuration = serverTiming.match(/(?:^|,)\s*sql;dur=([0-9.]+)/i)?.[1];
+      const sqlQueryCount = serverTiming.match(/queries=(\d+)/i)?.[1];
+      const contentLength = headers["content-length"];
+      diagnostics.apiRequests.push({
+        path: url.pathname,
+        status: response.status(),
+        appDurationMs: appDuration === undefined ? null : Number(appDuration),
+        sqlDurationMs: sqlDuration === undefined ? null : Number(sqlDuration),
+        sqlQueryCount: sqlQueryCount === undefined ? null : Number(sqlQueryCount),
+        responseBytes: contentLength === undefined ? null : Number(contentLength),
+      });
     }
     const programKey = url.pathname === "/api/v1/study-plans" ? url.searchParams.get("program_key") : null;
     if (programKey && response.status() === 200) {
@@ -1520,6 +1551,15 @@ async function visitForBenchmark(
     await page.waitForLoadState("networkidle");
     assertHealthy(diagnostics);
   }
+  const profiledResponses = diagnostics.apiRequests.filter((metric) => (
+    metric.appDurationMs !== null || metric.sqlDurationMs !== null
+  ));
+  const sumProfile = (key: "appDurationMs" | "sqlDurationMs" | "sqlQueryCount" | "responseBytes") => {
+    const values = profiledResponses.flatMap((metric) => metric[key] === null ? [] : [metric[key] as number]);
+    return values.length
+      ? Number(values.reduce((total, value) => total + value, 0).toFixed(2))
+      : null;
+  };
   const scriptStats = await page.evaluate(() => {
     const resources = performance.getEntriesByType("resource")
       .filter((entry): entry is PerformanceResourceTiming => entry.entryType === "resource");
@@ -1564,6 +1604,13 @@ async function visitForBenchmark(
     apiResponses: [...diagnostics.apiRequests],
     apiResources: scriptStats.apiResources,
     apiTransferBytes: scriptStats.apiResources.reduce((total, entry) => total + entry.transferBytes, 0),
+    apiProfile: {
+      profiledRequestCount: profiledResponses.length,
+      appDurationTotalMs: sumProfile("appDurationMs"),
+      sqlDurationTotalMs: sumProfile("sqlDurationMs"),
+      sqlQueryCountTotal: sumProfile("sqlQueryCount"),
+      responseBytesTotal: sumProfile("responseBytes"),
+    },
     comparisonStageMs: scriptStats.comparisonStageMs,
     scriptCount: scriptStats.scriptCount,
     scriptBytes: scriptStats.scriptBytes,
@@ -1583,6 +1630,11 @@ function median(values: readonly number[]): number {
     ? ((sorted[middle - 1] ?? 0) + (sorted[middle] ?? 0)) / 2
     : sorted[middle] ?? 0;
   return Number(value.toFixed(2));
+}
+
+function medianPresent(values: readonly (number | null)[]): number | null {
+  const present = values.flatMap((value) => value === null ? [] : [value]);
+  return present.length ? median(present) : null;
 }
 
 function nearestRankPercentile(values: readonly number[], percentile: number): number {
@@ -1620,6 +1672,13 @@ function summarizeMetrics(metrics: readonly PageMetrics[]) {
       ...(actionTimes.length ? { actionMs: { median: median(actionTimes), p95: nearestRankPercentile(actionTimes, 95) } } : {}),
       apiRequestsMedian: median(apiCounts),
       apiTransferBytesMedian: median(samples.map((sample) => sample.apiTransferBytes)),
+      apiProfileMedian: {
+        profiledRequestCount: median(samples.map((sample) => sample.apiProfile.profiledRequestCount)),
+        appDurationTotalMs: medianPresent(samples.map((sample) => sample.apiProfile.appDurationTotalMs)),
+        sqlDurationTotalMs: medianPresent(samples.map((sample) => sample.apiProfile.sqlDurationTotalMs)),
+        sqlQueryCountTotal: medianPresent(samples.map((sample) => sample.apiProfile.sqlQueryCountTotal)),
+        responseBytesTotal: medianPresent(samples.map((sample) => sample.apiProfile.responseBytesTotal)),
+      },
       comparisonStageMs: Object.fromEntries([...stages].map((stage) => {
         const values = samples.flatMap((sample) => stage in sample.comparisonStageMs
           ? [sample.comparisonStageMs[stage] ?? 0]
@@ -1756,6 +1815,7 @@ test("@paired @benchmark repeated vanilla-versus-React browser measurements", as
         scriptBytes: "sum of ResourceTiming encodedBodySize (or transferSize fallback) for every loaded .js/.mjs resource; cache disabled for each measured navigation",
         transferredResourceBytes: "navigation transferSize plus encodedBodySize (or transferSize fallback) for all resource entries; cache disabled for each measured navigation and API response bodies are included",
         apiResourceTimings: "Resource Timing duration, transferSize, encodedBodySize, and decodedBodySize for each /api/v1/ response; durations are browser-observed request/response spans",
+        apiServerTiming: "When ACADEMIC_DATA_PROFILE_REQUESTS=1, each API response records FastAPI request/serialization duration, SQLAlchemy cursor round-trip duration/count, and Content-Length; SQL duration is driver-observed elapsed time, not PostgreSQL executor-only time",
         comparisonStages: "opt-in performance.mark/measure around catalog, selection, plans, items, taxonomy, curriculum-model, admission, final release verification, and total loader time; enabled only in paired React comparison benchmark navigations",
         longTasks: "PerformanceObserver longtask count and total duration during the page visit; Chromium support only",
         cumulativeLayoutShift: "sum of layout-shift values without recent user input during the page visit",

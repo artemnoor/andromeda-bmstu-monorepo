@@ -6,6 +6,7 @@ import logging
 import re
 import uuid
 from contextlib import asynccontextmanager
+from time import perf_counter_ns
 from typing import Any
 
 from andromeda_contracts.api.v1.models import ApiErrorEnvelope
@@ -17,6 +18,11 @@ from sqlalchemy.exc import SQLAlchemyError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from andromeda_api.application.queries import ApiReadError
+from andromeda_api.profiling import (
+    new_request_profile,
+    profiling_enabled,
+    server_timing_header,
+)
 from andromeda_api.routers.v1 import router as v1_router
 
 REQUEST_ID_PATTERN = re.compile(r"^[A-Za-z0-9._:-]{1,128}$")
@@ -55,8 +61,16 @@ def create_app(*, settings: Any | None = None, engine: Any | None = None) -> Fas
         incoming = request.headers.get("x-request-id", "")
         request_id = incoming if REQUEST_ID_PATTERN.fullmatch(incoming) else str(uuid.uuid4())
         request.state.request_id = request_id
+        profile = new_request_profile() if profiling_enabled() else None
+        if profile is not None:
+            request.state.api_profile = profile
+        started_at = perf_counter_ns()
         response = await call_next(request)
         response.headers["X-Request-ID"] = request_id
+        if profile is not None:
+            response.headers["Server-Timing"] = server_timing_header(
+                profile, perf_counter_ns() - started_at
+            )
         return response
 
     @app.exception_handler(ApiReadError)
