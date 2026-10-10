@@ -490,9 +490,13 @@ def test_profile_seeded_catalog_and_curriculum_reads(
             assert selected_plans_profile["sql_query_count"] <= 20
             assert all(page["sql_query_count"] <= 20 for page in study_plan_page_profiles)
             assert items_profile["sql_query_count"] <= 20
+            admission_query_counts = {
+                name: page["sql_query_count"] for name, page in admission_profiles.items()
+            }
+            admission_query_counts["campaigns"] = campaign_profile["sql_query_count"]
             assert all(
-                page["sql_query_count"] <= 20 for page in admission_profiles.values()
-            )
+                query_count <= 20 for query_count in admission_query_counts.values()
+            ), admission_query_counts
 
         output_path = os.environ.get("ANDROMEDA_PROFILE_OUTPUT")
         serialized = json.dumps(profile, ensure_ascii=False, indent=2)

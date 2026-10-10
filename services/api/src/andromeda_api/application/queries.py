@@ -533,13 +533,29 @@ class AcademicDataQueries:
                 evidence_for_many("curriculum_items", [row["id"] for row in rows])
             if manual_reviews_for_many is not None:
                 manual_reviews_for_many([row["external_key"] for row in rows])
+        elif table == "admission_campaigns":
+            if get_by_ids is not None:
+                get_by_ids(
+                    "universities",
+                    list(dict.fromkeys(row["university_id"] for row in rows if row["university_id"])),
+                )
+            if evidence_for_many is not None:
+                evidence_for_many(table, [row["id"] for row in rows])
+            if manual_reviews_for_many is not None:
+                manual_reviews_for_many([row["external_key"] for row in rows])
         elif table == "campaign_calendar_events":
+            if get_by_ids is not None:
+                get_by_ids(
+                    "admission_campaigns",
+                    list(dict.fromkeys(row["campaign_id"] for row in rows if row["campaign_id"])),
+                )
             if evidence_for_many is not None:
                 evidence_for_many(table, [row["id"] for row in rows])
             if manual_reviews_for_many is not None:
                 manual_reviews_for_many([row["external_key"] for row in rows])
         elif table == "program_offerings":
             for linked_table, field in (
+                ("admission_campaigns", "campaign_id"),
                 ("educational_programs", "program_id"),
                 ("directions", "direction_id"),
                 ("departments", "department_id"),
@@ -555,6 +571,7 @@ class AcademicDataQueries:
                 manual_reviews_for_many([row["external_key"] for row in rows])
         elif table == "competition_pools":
             for linked_table, field in (
+                ("admission_campaigns", "campaign_id"),
                 ("directions", "direction_id"),
                 ("departments", "department_id"),
                 ("funding_types", "funding_type_id"),
@@ -581,8 +598,11 @@ class AcademicDataQueries:
                 get_by_ids("program_offerings", list(dict.fromkeys(offering_ids)))
             if evidence_for_many is not None:
                 evidence_for_many(table, pool_ids)
+            if manual_reviews_for_many is not None:
+                manual_reviews_for_many([row["external_key"] for row in rows])
         elif table == "place_quota_assertions":
             for linked_table, field in (
+                ("admission_campaigns", "campaign_id"),
                 ("competition_pools", "pool_id"),
                 ("funding_types", "funding_type_id"),
                 ("quota_types", "quota_type_id"),
@@ -594,8 +614,15 @@ class AcademicDataQueries:
                     )
             if evidence_for_many is not None:
                 evidence_for_many(table, [row["id"] for row in rows])
+            if manual_reviews_for_many is not None:
+                manual_reviews_for_many([row["external_key"] for row in rows])
         elif table == "admission_requirement_sets":
             set_ids = [row["id"] for row in rows]
+            if get_by_ids is not None:
+                get_by_ids(
+                    "admission_campaigns",
+                    list(dict.fromkeys(row["campaign_id"] for row in rows if row["campaign_id"])),
+                )
             nodes_by_set = (
                 related_many("admission_requirement_nodes", "requirement_set_id", set_ids)
                 if related_many is not None
