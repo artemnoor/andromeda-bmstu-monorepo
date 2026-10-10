@@ -1559,6 +1559,14 @@ async function visitForBenchmark(
       profiledResponses.length,
       "every comparison API response should include FastAPI and SQL Server-Timing data",
     ).toBe(diagnostics.apiRequests.length);
+    expect(
+      diagnostics.apiRequests.every((metric) => (
+        metric.appDurationMs !== null
+        && metric.sqlDurationMs !== null
+        && metric.sqlQueryCount !== null
+      )),
+      "every comparison API response should include app duration, SQL duration, and query count",
+    ).toBe(true);
   }
   const sumProfile = (key: "appDurationMs" | "sqlDurationMs" | "sqlQueryCount" | "responseBytes") => {
     const values = profiledResponses.flatMap((metric) => metric[key] === null ? [] : [metric[key] as number]);
