@@ -71,7 +71,7 @@ Values are median / p95 (ms) across five measured samples. “React before” is
 
 The comparison target of 1,800 ms was not reached: final median is 1,331 ms above it. Final React full-data readiness is 12.2% below the controlled baseline median and 340.9 ms faster than the same-run Vanilla control. The loader's final median was 2,572.9 ms / p95 2,677.4 ms; its catalog stage was 1,092.7 / 1,190.5 ms, selected curriculum item stage 1,385.2 / 1,411.4 ms, admission stage 1,397.3 / 1,469.1 ms (overlapping the curriculum path), and final active-release check 6.6 / 7.3 ms. The large verified payload and round trips, particularly the full catalog and two 131-item curricula, remain on the critical path. A substantial further reduction likely requires a release-bound bulk-read API or a different server pagination contract, outside this React-only optimization; removing release checks or using an unbound detail API would be unsafe.
 
-The catalog readiness numbers vary substantially between independent CI runs. In the same final run React remained faster than Vanilla for the 500-row catalog's initial readiness, but slower for 50 and 100 rows. The search index did not produce a measurable readiness win; at 500 rows it narrowed repeated filter latency to within 5.3 ms median of the same-run Vanilla control. This is a targeted large-list interaction win, not evidence that React's initial catalog load is faster.
+Catalog readiness varied substantially between CI runs. For 100 synthetic programs, the controlled baseline-to-final median moved from 482.4 to 957.3 ms; however, the immediately pre-index candidate measured 968.5 ms, so the index itself was effectively flat at 957.3 ms. The data does not establish a cause for the cross-run difference, so catalog readiness remains an unresolved measurement risk rather than a claimed non-regression. In the same final run React was faster than Vanilla for the 500-row catalog's initial readiness, but slower for 50 and 100 rows. The search index did not produce a measurable readiness win; at 500 rows it narrowed repeated filter latency to within 5.3 ms median of the same-run Vanilla control. This is a targeted large-list interaction win, not evidence that React's initial catalog load is faster.
 
 ## 7. Visual comparison
 
@@ -107,5 +107,5 @@ AIF Ultra produced the execution plan under `.ai-factory/plans/codex-react-perfo
 
 - PR: [#10](https://github.com/artemnoor/andromeda-bmstu-monorepo/pull/10)
 - Implementation SHA measured: `a74c43c24a9a8b38524fc106b3b65d6c0fc105a3`
-- CI run: [38033053299](https://github.com/artemnoor/andromeda-bmstu-monorepo/actions/runs/38033053299)
-- Merge status: pending final independent review and PR merge.
+- Implementation CI run: [38033053299](https://github.com/artemnoor/andromeda-bmstu-monorepo/actions/runs/38033053299)
+- Report and regression-test commit: `23af8db7309c6c7794de9ddbd1fd016f171b3dd4`; its PR-head check is [38035377127](https://github.com/artemnoor/andromeda-bmstu-monorepo/actions/runs/38035377127). Check the linked PR for current merge status.
