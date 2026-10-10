@@ -18,6 +18,11 @@ from sqlalchemy.engine import Connection, Engine
 
 from andromeda_api.application.queries import AcademicDataQueries, ApiReadError
 from andromeda_api.application.settings import Settings, load_settings
+from andromeda_api.profiling import (
+    attach_engine_profiler,
+    bind_request_profile,
+    unbind_request_profile,
+)
 
 
 def _runtime_settings(request: Request) -> Settings:
@@ -47,9 +52,13 @@ def get_queries(request: Request) -> Iterator[AcademicDataQueries]:
     """Open one read-only PostgreSQL snapshot and bind all queries to it."""
     settings = _runtime_settings(request)
     engine = _runtime_engine(request, settings)
+    profile = getattr(request.state, "api_profile", None)
+    if profile is not None:
+        attach_engine_profiler(engine)
     connection: Connection = engine.connect().execution_options(
         isolation_level="REPEATABLE READ"
     )
+    bind_request_profile(connection, profile)
     transaction = connection.begin()
     try:
         connection.execute(text("SET TRANSACTION READ ONLY"))
@@ -68,6 +77,7 @@ def get_queries(request: Request) -> Iterator[AcademicDataQueries]:
                 "No committed data release is ready.",
             ) from error
     finally:
+        unbind_request_profile(connection)
         if transaction.is_active:
             transaction.rollback()
         connection.close()

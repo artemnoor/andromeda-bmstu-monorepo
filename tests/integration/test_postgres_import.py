@@ -1220,6 +1220,10 @@ def test_read_api_uses_one_active_release_and_directus_is_physically_read_only(
                 for item in tuition["items"]
             )
 
+            expected_program_page = client.get(
+                "/api/v1/programs", params={"limit": 100}
+            ).json()
+            assert expected_program_page["page"]["release_key"] == new_release_key
             flipped = False
 
             def rollback_between_release_lookup_and_page(
@@ -1227,7 +1231,11 @@ def test_read_api_uses_one_active_release_and_directus_is_physically_read_only(
             ):
                 nonlocal flipped
                 normalized = " ".join(statement.casefold().split())
-                if not flipped and normalized.startswith("select count(*)") and "from directions" in normalized:
+                if (
+                    not flipped
+                    and normalized.startswith("select count(*)")
+                    and "from educational_programs" in normalized
+                ):
                     flipped = True
                     rollback_active_release(
                         engine,
@@ -1240,12 +1248,14 @@ def test_read_api_uses_one_active_release_and_directus_is_physically_read_only(
 
             event.listen(api_engine, "before_cursor_execute", rollback_between_release_lookup_and_page)
             try:
-                stable_snapshot = client.get("/api/v1/directions", params={"limit": 1}).json()
+                stable_snapshot = client.get(
+                    "/api/v1/programs", params={"limit": 100}
+                ).json()
             finally:
                 event.remove(api_engine, "before_cursor_execute", rollback_between_release_lookup_and_page)
             assert flipped
             assert stable_snapshot["page"]["release_key"] == new_release_key
-            assert stable_snapshot["items"][0]["name"] == changed_direction_name
+            assert stable_snapshot == expected_program_page
 
             restored = client.get("/api/v1/directions", params={"limit": 100}).json()
             restored_direction = next(
