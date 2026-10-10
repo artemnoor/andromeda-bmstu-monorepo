@@ -9,6 +9,7 @@ from pathlib import Path
 from time import perf_counter_ns
 from typing import Any
 from urllib.parse import quote
+from uuid import uuid4
 
 import pytest
 from andromeda_api.application.queries import AcademicDataQueries
@@ -18,6 +19,7 @@ from andromeda_db.connection import verify_server_identity
 from andromeda_db.repositories.read_repository import (
     SQLAlchemyAcademicDataReadRepository,
 )
+from andromeda_ontology.ports import PageRows
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, event, text
 from sqlalchemy.engine import Engine
@@ -64,6 +66,124 @@ class _WithoutBatchReads:
         if name in BATCH_METHODS:
             raise AttributeError(name)
         return getattr(self._repository, name)
+
+
+class _SyntheticPlaceQuotaPage:
+    """Provide read-only test rows while delegating all linked reads to PostgreSQL."""
+
+    def __init__(self, repository: Any, rows: list[dict[str, Any]]) -> None:
+        self._repository = repository
+        self._rows = rows
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self._repository, name)
+
+    def page(
+        self,
+        table_name: str,
+        *,
+        filters: dict[str, Any] | None = None,
+        limit: int = 50,
+        cursor: str | None = None,
+    ) -> PageRows:
+        if table_name == "place_quota_assertions":
+            return PageRows(self._rows[:limit], None, len(self._rows))
+        return self._repository.page(
+            table_name, filters=filters, limit=limit, cursor=cursor
+        )
+
+
+def _profile_nonempty_place_quota_batch_parity(
+    engine: Engine, settings: Any
+) -> dict[str, Any]:
+    """Exercise quota DTO batching without writing synthetic rows to a release."""
+    with engine.connect().execution_options(
+        isolation_level="REPEATABLE READ"
+    ) as connection:
+        transaction = connection.begin()
+        try:
+            connection.execute(text("SET TRANSACTION READ ONLY"))
+            verify_server_identity(connection, settings)
+            seed_repository = SQLAlchemyAcademicDataReadRepository(connection)
+            campaigns = seed_repository.page("admission_campaigns", limit=100).items
+            assert campaigns, "the isolated PG16 release must include an admission campaign"
+            campaign = campaigns[0]
+            pools = seed_repository.page(
+                "competition_pools",
+                filters={"campaign_id": campaign["id"]},
+                limit=100,
+            ).items
+            pools_with_quota_types = [
+                pool
+                for pool in pools
+                if pool["funding_type_id"] is not None
+                and pool["quota_type_id"] is not None
+            ]
+            assert len(pools_with_quota_types) >= 2, (
+                "the isolated PG16 release must provide two campaign pools with linked quota types"
+            )
+            rows = [
+                {
+                    "id": uuid4(),
+                    "external_key": f"place_quota:profile-test:synthetic-{index}",
+                    "campaign_id": campaign["id"],
+                    "pool_id": pool["id"],
+                    "funding_type_id": pool["funding_type_id"],
+                    "quota_type_id": pool["quota_type_id"],
+                    "places": 0 if index == 0 else 2,
+                    "scope_level": pool["scope_level"],
+                    "source_locators": [{"test_fixture": True, "ordinal": index}],
+                    "valid_from": None,
+                    "valid_to": None,
+                    "observed_at": None,
+                    "ingested_at": "2026-10-08T00:00:00Z",
+                }
+                for index, pool in enumerate(pools_with_quota_types[:2])
+            ]
+
+            def read(use_batch: bool) -> tuple[dict[str, Any], int]:
+                repository: Any = SQLAlchemyAcademicDataReadRepository(connection)
+                if not use_batch:
+                    repository = _WithoutBatchReads(repository)
+                queries = AcademicDataQueries(_SyntheticPlaceQuotaPage(repository, rows))
+                count = 0
+
+                def count_statement(*_args: Any, **_kwargs: Any) -> None:
+                    nonlocal count
+                    count += 1
+
+                event.listen(engine, "before_cursor_execute", count_statement)
+                try:
+                    body = queries.place_quotas(100, None).model_dump(mode="json")
+                finally:
+                    event.remove(engine, "before_cursor_execute", count_statement)
+                return body, count
+
+            batched_body, batched_queries = read(use_batch=True)
+            unbatched_body, unbatched_queries = read(use_batch=False)
+            assert batched_body == unbatched_body
+            assert [item["places"] for item in batched_body["items"]] == [0, 2]
+            assert [item["pool_key"] for item in batched_body["items"]] == [
+                pool["external_key"] for pool in pools_with_quota_types[:2]
+            ]
+            assert all(item["campaign_key"] == campaign["external_key"] for item in batched_body["items"])
+            assert all(item["scope_level"] == rows[index]["scope_level"] for index, item in enumerate(batched_body["items"]))
+            assert all(item["source_locators"] == rows[index]["source_locators"] for index, item in enumerate(batched_body["items"]))
+            assert batched_queries < unbatched_queries, {
+                "batched": batched_queries,
+                "unbatched": unbatched_queries,
+            }
+            return {
+                "records": len(batched_body["items"]),
+                "places": [item["places"] for item in batched_body["items"]],
+                "batchedDtoMappingSqlQueries": batched_queries,
+                "unbatchedDtoMappingSqlQueries": unbatched_queries,
+                "dtoMatchesUnbatched": True,
+                "releaseKey": batched_body["page"]["release_key"],
+            }
+        finally:
+            if transaction.is_active:
+                transaction.rollback()
 
 
 def _server_timing(header: str) -> dict[str, float | int | None]:
@@ -342,6 +462,10 @@ def test_profile_seeded_catalog_and_curriculum_reads(
                     admission_profiles[name] = endpoint_profile
                     admission_bodies[name] = body
 
+        nonempty_place_quota_profile = _profile_nonempty_place_quota_batch_parity(
+            engine, settings
+        )
+        assert nonempty_place_quota_profile["releaseKey"] == active_release
         profile = {
             "databaseServerMajor": identity["server_major"],
             "databaseName": identity["database_name"],
@@ -411,6 +535,7 @@ def test_profile_seeded_catalog_and_curriculum_reads(
                 }
                 for name, endpoint_profile in admission_profiles.items()
             },
+            "nonEmptyPlaceQuota": nonempty_place_quota_profile,
             "curriculumItemPageExplainAnalyze": _explain_queries(
                 engine, item_statements, "curriculum_items"
             ),
@@ -484,6 +609,9 @@ def test_profile_seeded_catalog_and_curriculum_reads(
             "unbatchedReadModelMatchesSelectedProgramStudyPlans": True,
             "unbatchedReadModelMatchesCurriculumPage": True,
             "unbatchedReadModelMatchesAdmissionPages": True,
+            "unbatchedReadModelMatchesNonEmptyPlaceQuota": (
+                nonempty_place_quota_profile["dtoMatchesUnbatched"]
+            ),
             "releaseKey": active_release,
         }
         if os.environ.get("ANDROMEDA_PROFILE_EXPECT_BATCHED") == "1":

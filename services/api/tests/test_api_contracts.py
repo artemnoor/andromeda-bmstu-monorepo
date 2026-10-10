@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import Mock, call
+from uuid import uuid4
 
 import pytest
 from andromeda_api.application.importer.errors import BundleImportError
@@ -398,6 +399,102 @@ def test_competition_pool_projection_preserves_target_metadata_and_unresolved_de
     assert result.target_organization_ogrn == "0123456789012"
     assert result.target_region == "Калужская область"
     assert result.campus_label_in_document == "Калужский филиал"
+
+
+def test_place_quota_page_prefetch_preserves_exact_links_zero_and_provenance() -> None:
+    campaign_id = uuid4()
+    pool_id = uuid4()
+    funding_type_id = uuid4()
+    quota_type_id = uuid4()
+    quota_id = uuid4()
+    lookup_rows = {
+        ("admission_campaigns", campaign_id): {"external_key": "campaign:bmstu:2026"},
+        ("competition_pools", pool_id): {"external_key": "pool:bmstu:2026:direction-a"},
+        ("funding_types", funding_type_id): {"code": "budget"},
+        ("quota_types", quota_type_id): {"code": "special_rights"},
+    }
+    cached_rows = {}
+    evidence_row = {
+        "source_artifact_key": "source:fixture:admission",
+        "final_url": "https://example.test/quota.pdf",
+        "requested_url": None,
+        "fetched_at": "2026-10-08T00:00:00Z",
+        "sha256": "a" * 64,
+        "field_path": "places",
+        "locator": "page 2, table 1",
+        "observed_at": "2026-10-08T00:00:00Z",
+        "evidence_key": "evidence:fixture:quota:places",
+        "claim": "0 places",
+        "quoted_fragment": None,
+        "verification_status": "source_backed",
+    }
+    repository = Mock()
+    repository.active_release_key = "fixture-release"
+    repository.page.return_value = PageRows(
+        items=[
+            {
+                "id": quota_id,
+                "external_key": "place_quota:fixture:pool-a",
+                "campaign_id": campaign_id,
+                "pool_id": pool_id,
+                "funding_type_id": funding_type_id,
+                "quota_type_id": quota_type_id,
+                "places": 0,
+                "scope_level": "competition_pool",
+                "source_locators": [{"page": 2, "table": 1}],
+                "valid_from": None,
+                "valid_to": None,
+                "observed_at": "2026-10-08T00:00:00Z",
+                "ingested_at": "2026-10-08T00:00:00Z",
+            }
+        ],
+        next_cursor=None,
+        total_count=1,
+    )
+
+    def prefetch_rows(table: str, record_ids: list[object]) -> dict:
+        rows = {
+            (table, record_id): lookup_rows[(table, record_id)]
+            for record_id in record_ids
+            if (table, record_id) in lookup_rows
+        }
+        cached_rows.update(rows)
+        return {record_id: row for (row_table, record_id), row in rows.items() if row_table == table}
+
+    repository.get_by_ids.side_effect = prefetch_rows
+    repository.get_by_id.side_effect = lambda table, record_id: cached_rows.get(
+        (table, record_id)
+    )
+    repository.evidence_for_many.return_value = None
+    repository.evidence_for.return_value = [evidence_row]
+    repository.manual_reviews_for_many.return_value = None
+    repository.manual_reviews_for.return_value = []
+
+    result = AcademicDataQueries(repository).place_quotas(limit=100, cursor=None)
+
+    assert result.page.release_key == "fixture-release"
+    assert len(result.items) == 1
+    quota = result.items[0]
+    assert quota.external_key == "place_quota:fixture:pool-a"
+    assert quota.campaign_key == "campaign:bmstu:2026"
+    assert quota.pool_key == "pool:bmstu:2026:direction-a"
+    assert quota.funding_type == "budget"
+    assert quota.quota_type == "special_rights"
+    assert quota.places == 0
+    assert quota.scope_level == "competition_pool"
+    assert quota.source_locators == [{"page": 2, "table": 1}]
+    assert quota.sources[0].source_artifact_key == "source:fixture:admission"
+    assert quota.evidence[0].evidence_key == "evidence:fixture:quota:places"
+    assert repository.get_by_ids.call_args_list == [
+        call("admission_campaigns", [campaign_id]),
+        call("competition_pools", [pool_id]),
+        call("funding_types", [funding_type_id]),
+        call("quota_types", [quota_type_id]),
+    ]
+    repository.evidence_for_many.assert_called_once_with("place_quota_assertions", [quota_id])
+    repository.manual_reviews_for_many.assert_called_once_with(
+        ["place_quota:fixture:pool-a"]
+    )
 
 
 def test_curriculum_query_preserves_explicit_zero_hours_and_falls_back_only_for_nulls() -> None:
