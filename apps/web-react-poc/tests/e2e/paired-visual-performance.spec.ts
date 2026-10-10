@@ -42,6 +42,7 @@ interface PageMetrics {
   readonly scenario: BenchmarkName;
   readonly iteration: number;
   readonly readyMs: number;
+  readonly fullDataReadyMs: number | null;
   readonly actionMs: number | null;
   readonly apiRequests: number;
   readonly apiResponses: readonly ApiResponseMetric[];
@@ -1210,6 +1211,30 @@ async function waitForBenchmarkScenario(
   });
 }
 
+async function waitForFullComparisonData(
+  page: Page,
+  app: AppName,
+  scenario: BenchmarkName,
+  comparisonPrograms: readonly LiveCurriculumProgram[],
+): Promise<number | null> {
+  if (scenario !== "compare-load") return null;
+
+  if (app === "react") {
+    const releaseKey = comparisonPrograms[0]?.releaseKey;
+    if (!releaseKey) throw new Error("The comparison benchmark requires a verified release key.");
+    await expect(page.locator('[data-qa="active-release-key"]')).toHaveText(releaseKey);
+  } else {
+    const content = page.locator("#compareContent");
+    await expect(content.locator(".admission-loading-note, .admission-error-note")).toHaveCount(0);
+    await expect(content.locator("table.comparison-table")).toBeVisible();
+  }
+
+  return page.evaluate(() => {
+    const navigation = performance.getEntriesByType("navigation")[0] as PerformanceNavigationTiming | undefined;
+    return navigation ? performance.now() - navigation.startTime : Number.NaN;
+  });
+}
+
 async function visitForBenchmark(
   page: Page,
   cacheSession: CDPSession,
@@ -1235,6 +1260,10 @@ async function visitForBenchmark(
   await page.goto(new URL(path, baseURL).href, { waitUntil: "domcontentloaded" });
   const readyMs = await waitForBenchmarkScenario(page, app, scenario, comparisonPrograms);
   expect(Number.isFinite(readyMs), "Navigation Timing should expose the navigation start").toBe(true);
+  const fullDataReadyMs = await waitForFullComparisonData(page, app, scenario, comparisonPrograms);
+  if (fullDataReadyMs !== null) {
+    expect(Number.isFinite(fullDataReadyMs), "full comparison readiness should expose the navigation start").toBe(true);
+  }
   await page.waitForLoadState("networkidle");
   assertHealthy(diagnostics);
   const actionMs = scaleCount === null ? null : await measureCatalogScaleFilter(page, app, scaleCount);
@@ -1279,6 +1308,7 @@ async function visitForBenchmark(
     scenario,
     iteration,
     readyMs: Number(readyMs.toFixed(2)),
+    fullDataReadyMs: fullDataReadyMs === null ? null : Number(fullDataReadyMs.toFixed(2)),
     actionMs: actionMs === null ? null : Number(actionMs.toFixed(2)),
     apiRequests: diagnostics.apiRequests.length,
     apiResponses: [...diagnostics.apiRequests],
@@ -1319,6 +1349,9 @@ function summarizeMetrics(metrics: readonly PageMetrics[]) {
   }
   return [...groups.entries()].map(([key, samples]) => {
     const readyTimes = samples.map((sample) => sample.readyMs);
+    const fullDataReadyTimes = samples.flatMap((sample) => (
+      sample.fullDataReadyMs === null ? [] : [sample.fullDataReadyMs]
+    ));
     const actionTimes = samples.flatMap((sample) => sample.actionMs === null ? [] : [sample.actionMs]);
     const apiCounts = samples.map((sample) => sample.apiRequests);
     const scriptBytes = samples.map((sample) => sample.scriptBytes);
@@ -1328,6 +1361,12 @@ function summarizeMetrics(metrics: readonly PageMetrics[]) {
       appAndScenario: key,
       sampleCount: samples.length,
       readyMs: { median: median(readyTimes), p95: nearestRankPercentile(readyTimes, 95) },
+      ...(fullDataReadyTimes.length ? {
+        fullDataReadyMs: {
+          median: median(fullDataReadyTimes),
+          p95: nearestRankPercentile(fullDataReadyTimes, 95),
+        },
+      } : {}),
       ...(actionTimes.length ? { actionMs: { median: median(actionTimes), p95: nearestRankPercentile(actionTimes, 95) } } : {}),
       apiRequestsMedian: median(apiCounts),
       apiTransferBytesMedian: median(samples.map((sample) => sample.apiTransferBytes)),
@@ -1460,7 +1499,8 @@ test("@paired @benchmark repeated vanilla-versus-React browser measurements", as
       metrics: summarizeMetrics(metrics),
       samples: metrics,
       methodology: {
-        readyMs: "PerformanceNavigationTiming.startTime to the screen-specific ready condition in the browser; full document navigation starts at zero",
+        readyMs: "PerformanceNavigationTiming.startTime to the first visible screen-specific comparison content; for Vanilla, admission may still be loading",
+        fullDataReadyMs: "For compare-load only: Vanilla waits for the admission loading panel to be replaced by the comparison table; React waits for its active-release key, which appears only after the loader has resolved. This is the primary full-data comparison-readiness metric.",
         actionMs: "catalog fill to the single matching QA code becoming visible; synthetic catalog sizes are 50, 100, and 500 rows",
         scriptBytes: "sum of ResourceTiming encodedBodySize (or transferSize fallback) for every loaded .js/.mjs resource; cache disabled for each measured navigation",
         transferredResourceBytes: "navigation transferSize plus encodedBodySize (or transferSize fallback) for all resource entries; cache disabled for each measured navigation and API response bodies are included",
