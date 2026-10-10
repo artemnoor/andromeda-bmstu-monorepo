@@ -204,10 +204,12 @@ The independent runtime review of candidate head `64b45c9` and CI run #141 found
 
 ## 10. GitHub and outstanding limits
 
-- Pull request: [#11](https://github.com/artemnoor/andromeda-bmstu-monorepo/pull/11) (draft; final evidence commit and merge are pending).
+- Pull request: [#11](https://github.com/artemnoor/andromeda-bmstu-monorepo/pull/11), merged after all required checks passed.
 - Candidate code head: `6ea458ead3495f90876c434e85cf18c20f60050b`.
+- Final report/evidence head before merge: `b032dcfe71a4a9c322e593677c1e9ec42c4b4e05`.
+- Squash merge commit on `main`: `4d8737801d2232e6a3b265c58c82c519fd92752a`.
 - Baseline main: `6a2da949c098b1198c2c4ccf7a93c641d87716f9`.
 - Candidate CI at head `6ea458e`: [run 38071680052](https://github.com/artemnoor/andromeda-bmstu-monorepo/actions/runs/38071680052); all ten jobs succeeded.
-- Final evidence commit, documentation CI, reviewer recheck, and merge status will be recorded after the report is committed and the PR is eligible for merge.
+- Final evidence commit CI at `b032dcf`: [run 38073660357](https://github.com/artemnoor/andromeda-bmstu-monorepo/actions/runs/38073660357); all ten jobs succeeded. The independent reviewer recomputed final run #143 values and reported no P0/P1 findings.
 
 Open evidence limits to retain in the final decision: the historic 482→957 ms catalog spread's exact cross-run cause remains unresolved; warmed database means no cold-start comparison; server application time does not isolate JSON encoder cost; SQL cursor duration is not pure PostgreSQL execution time; n=10 is descriptive and not a stable production p95; no isolated cross-framework render-duration metric is available; EXPLAIN did not cover every admission query shape. The 1,800 ms target was met in this controlled warm-server sample. No React production routing was changed, no other page migrated, and no frontend redesign was included.

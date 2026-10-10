@@ -75,7 +75,7 @@ Authority: the user's task defines scope and acceptance; existing API contracts,
 
 ### Phase 4: Independent audit and delivery
 - [x] Task 7: Obtain independent architecture/performance review and resolve P0/P1 findings ([details](phase-04-audit-delivery.md#task-7-independent-review-and-recheck)) (depends on 4, 5, 6)
-- [ ] Task 8: Publish the research report, create PR, wait for CI, fix failures, and merge when eligible ([details](phase-04-audit-delivery.md#task-8-publish-pr-and-deliver)) (depends on 7)
+- [x] Task 8: Publish the research report, create PR, wait for CI, fix failures, and merge when eligible ([details](phase-04-audit-delivery.md#task-8-publish-pr-and-deliver)) (depends on 7; PR #11 merged as `4d8737801d2232e6a3b265c58c82c519fd92752a` after all required CI jobs passed)
 
 ## Commit Plan
 
