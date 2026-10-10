@@ -4,7 +4,7 @@ import pixelmatch from "pixelmatch";
 import { PNG } from "pngjs";
 import { expect, test } from "@playwright/test";
 import type { Browser, CDPSession, Page, TestInfo } from "@playwright/test";
-import { discoverLiveCurriculumProgram } from "./fixtures";
+import { discoverLiveCurriculumProgram, discoverLiveCurriculumPrograms } from "./fixtures";
 import type { LiveCurriculumProgram } from "./fixtures";
 
 declare global {
@@ -113,6 +113,8 @@ const viewportCases = [
 
 let verifiedProgramPromise: Promise<LiveCurriculumProgram | null> | null = null;
 let verifiedProgramSkipReason = "The isolated API release has no parsed, verified plan with numeric workload.";
+let verifiedComparisonProgramsPromise: Promise<readonly LiveCurriculumProgram[] | null> | null = null;
+let verifiedComparisonSkipReason = "The isolated API release needs two verified curriculum programs.";
 
 interface ScreenshotFrame {
   readonly label: string;
@@ -713,6 +715,25 @@ async function getVerifiedProgram(browser: Browser): Promise<LiveCurriculumProgr
   return verifiedProgramPromise;
 }
 
+async function getVerifiedComparisonPrograms(browser: Browser): Promise<readonly LiveCurriculumProgram[] | null> {
+  if (!verifiedComparisonProgramsPromise) {
+    verifiedComparisonProgramsPromise = (async () => {
+      const context = await browser.newContext({ baseURL: reactBaseURL });
+      try {
+        return await discoverLiveCurriculumPrograms(await context.newPage(), 2);
+      } catch (error) {
+        const noPair = error instanceof Error && error.message.includes("needs 2 distinct programs");
+        if (!noPair) throw error;
+        verifiedComparisonSkipReason = error.message;
+        return null;
+      } finally {
+        await context.close();
+      }
+    })();
+  }
+  return verifiedComparisonProgramsPromise;
+}
+
 interface ScaleSeed {
   readonly program: Record<string, unknown>;
   readonly releaseKey: string;
@@ -1159,7 +1180,7 @@ async function waitForBenchmarkScenario(
   page: Page,
   app: AppName,
   scenario: BenchmarkName,
-  program: LiveCurriculumProgram,
+  comparisonPrograms: readonly LiveCurriculumProgram[],
 ): Promise<number> {
   if (scenario === "home") {
     await expect(page.getByText("МГТУ имени Баумана × Андромеда", { exact: true })).toBeVisible();
@@ -1169,15 +1190,17 @@ async function waitForBenchmarkScenario(
       await waitForCatalogScale(page, app, scaleCount);
     } else {
       await expect(page.getByRole("heading", { name: "Матрица предметов" })).toBeVisible();
-      if (app === "react") {
-        const card = page.locator(`article[data-program-key="${program.externalKey}"]`);
-        await expect(card).toHaveAttribute("data-plan-key", program.planKey);
-      } else {
-        await expect(page.locator(".category-program-card").filter({ hasText: program.code })).toBeVisible();
+      for (const selectedProgram of comparisonPrograms) {
+        if (app === "react") {
+          const card = page.locator(`article[data-program-key="${selectedProgram.externalKey}"]`);
+          await expect(card).toHaveAttribute("data-plan-key", selectedProgram.planKey);
+        } else {
+          await expect(page.locator(".category-program-card").filter({ hasText: selectedProgram.code })).toBeVisible();
+        }
+        await expect(page.getByRole("group", {
+          name: new RegExp("Распределение программы " + escapeRegExp(selectedProgram.code)),
+        })).toBeVisible();
       }
-      await expect(page.getByRole("group", {
-        name: new RegExp("Распределение программы " + escapeRegExp(program.code)),
-      })).toBeVisible();
     }
   }
 
@@ -1194,7 +1217,7 @@ async function visitForBenchmark(
   scenario: BenchmarkName,
   iteration: number,
   diagnostics: ReturnType<typeof attachDiagnostics>,
-  program: LiveCurriculumProgram,
+  comparisonPrograms: readonly LiveCurriculumProgram[],
   scaleSeed: ScaleSeed,
 ): Promise<PageMetrics> {
   resetDiagnostics(diagnostics);
@@ -1210,7 +1233,7 @@ async function visitForBenchmark(
       : app === "vanilla" ? "/programs.html" : "/programs";
 
   await page.goto(new URL(path, baseURL).href, { waitUntil: "domcontentloaded" });
-  const readyMs = await waitForBenchmarkScenario(page, app, scenario, program);
+  const readyMs = await waitForBenchmarkScenario(page, app, scenario, comparisonPrograms);
   expect(Number.isFinite(readyMs), "Navigation Timing should expose the navigation start").toBe(true);
   await page.waitForLoadState("networkidle");
   assertHealthy(diagnostics);
@@ -1331,11 +1354,12 @@ test("@paired @benchmark repeated vanilla-versus-React browser measurements", as
   test.setTimeout(300_000);
   const iterationCount = Number.parseInt(process.env.BENCHMARK_ITERATIONS ?? "5", 10);
   expect(Number.isInteger(iterationCount) && iterationCount >= 3 && iterationCount <= 20).toBe(true);
-  const program = await getVerifiedProgram(browser);
-  if (!program) {
-    test.skip(true, verifiedProgramSkipReason);
+  const comparisonPrograms = await getVerifiedComparisonPrograms(browser);
+  if (!comparisonPrograms) {
+    test.skip(true, verifiedComparisonSkipReason);
     return;
   }
+  if (comparisonPrograms.length !== 2) throw new Error("The performance benchmark needs exactly two selected programs.");
   const scaleSeed = await getScaleSeed(browser);
   const context = await browser.newContext({
     viewport: { width: 1440, height: 900 },
@@ -1346,7 +1370,8 @@ test("@paired @benchmark repeated vanilla-versus-React browser measurements", as
     timezoneId: "Europe/Moscow",
   });
   const page = await context.newPage();
-  await page.addInitScript((programKey: string) => {
+  const comparisonProgramKeys = comparisonPrograms.map((selectedProgram) => selectedProgram.externalKey);
+  await page.addInitScript((programKeys: readonly string[]) => {
     window.__andromedaQaLongTaskDurations = [];
     window.__andromedaQaCumulativeLayoutShift = 0;
     window.__andromedaQaComparisonProfiling = window.location.pathname === "/compare";
@@ -1369,9 +1394,9 @@ test("@paired @benchmark repeated vanilla-versus-React browser measurements", as
     }
     if (["/compare.html", "/compare"].includes(window.location.pathname)) {
       localStorage.clear();
-      localStorage.setItem("andromeda.compare.v1", JSON.stringify([programKey]));
+      localStorage.setItem("andromeda.compare.v1", JSON.stringify(programKeys));
     }
-  }, program.externalKey);
+  }, comparisonProgramKeys);
   const diagnostics = attachDiagnostics(page);
   const cacheSession = await context.newCDPSession(page);
   await cacheSession.send("Network.enable");
@@ -1390,12 +1415,21 @@ test("@paired @benchmark repeated vanilla-versus-React browser measurements", as
     // Warm each app/screen once, then alternate app order for every measured pair.
     for (const scenario of scenarios) {
       for (const app of ["vanilla", "react"] as const) {
-        await visitForBenchmark(page, cacheSession, app, scenario, 0, diagnostics, program, scaleSeed);
+        await visitForBenchmark(page, cacheSession, app, scenario, 0, diagnostics, comparisonPrograms, scaleSeed);
       }
       for (let iteration = 1; iteration <= iterationCount; iteration += 1) {
         const order: readonly AppName[] = iteration % 2 === 0 ? ["react", "vanilla"] : ["vanilla", "react"];
         for (const app of order) {
-          metrics.push(await visitForBenchmark(page, cacheSession, app, scenario, iteration, diagnostics, program, scaleSeed));
+          metrics.push(await visitForBenchmark(
+            page,
+            cacheSession,
+            app,
+            scenario,
+            iteration,
+            diagnostics,
+            comparisonPrograms,
+            scaleSeed,
+          ));
         }
       }
     }
@@ -1408,15 +1442,16 @@ test("@paired @benchmark repeated vanilla-versus-React browser measurements", as
       cache: "Chromium HTTP cache disabled and cleared before every navigation; one context reused so storage remains isolated to this experiment.",
       iterationsPerAppAndScenario: iterationCount,
       warmupLoadsPerAppAndScenario: 1,
-      liveReleaseProgram: {
-        code: program.code,
-        name: program.name,
-        externalKey: program.externalKey,
-        verifiedPlanKey: program.planKey,
-        academicYear: program.academicYear,
-        expectedHours: program.expectedHours,
-        expectedCredits: program.expectedCredits,
-      },
+      liveReleasePrograms: comparisonPrograms.map((selectedProgram) => ({
+        code: selectedProgram.code,
+        name: selectedProgram.name,
+        externalKey: selectedProgram.externalKey,
+        verifiedPlanKey: selectedProgram.planKey,
+        academicYear: selectedProgram.academicYear,
+        expectedHours: selectedProgram.expectedHours,
+        expectedCredits: selectedProgram.expectedCredits,
+        releaseKey: selectedProgram.releaseKey,
+      })),
       catalogScale: {
         sizes: [50, 100, 500],
         source: "Synthetic catalog-only rows cloned from one live API program and renamed with unique QA identities; admission and curriculum facts are not asserted.",
