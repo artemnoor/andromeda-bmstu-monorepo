@@ -418,6 +418,9 @@ function CategoryChart({
       data-qa="category-chart-card"
       data-program-key={program.programKey}
       data-plan-key={program.planSelection.currentPlan?.external_key ?? ""}
+      data-item-count={program.items.length}
+      data-total-hours={total.count ? String(total.value) : ""}
+      data-total-credits={program.total.credits.count ? String(program.total.credits.value) : ""}
     >
       <header className={styles.categoryProgramHead} style={{ "--program-color": SERIES_COLORS[programIndex % SERIES_COLORS.length] } as CSSProperties}>
         <div className={styles.categoryProgramCopy}>
