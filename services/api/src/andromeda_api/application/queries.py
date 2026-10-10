@@ -233,12 +233,19 @@ class AcademicDataQueries:
         return self._exam(self._required("admission_exams", key))
 
     def requirements(
-        self, limit: int, cursor: str | None, campaign_key: str | None = None
+        self,
+        limit: int,
+        cursor: str | None,
+        campaign_key: str | None = None,
+        direction_key: str | None = None,
     ) -> PageResponse[RequirementTreeRecord]:
         filters: dict[str, Any] = {}
         if campaign_key is not None:
             campaign = self._required("admission_campaigns", campaign_key)
             filters["campaign_id"] = campaign["id"]
+        if direction_key is not None:
+            direction = self._required("directions", direction_key)
+            filters["direction_id"] = direction["id"]
         return self._page(
             "admission_requirement_sets",
             RequirementTreeRecord,

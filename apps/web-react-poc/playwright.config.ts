@@ -5,7 +5,7 @@ const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? `http://127.0.0.1:${webPort}`
 
 export default defineConfig({
   testDir: "./tests/e2e",
-  testIgnore: ["**/paired-visual-performance.spec.ts"],
+  testIgnore: ["**/paired-visual-performance.spec.ts", "**/comparison-profile.spec.ts"],
   outputDir: "./test-results/e2e",
   fullyParallel: true,
   // Comparison scenarios read several cursor-paginated collections from one

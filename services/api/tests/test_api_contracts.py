@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import Mock
+from unittest.mock import Mock, call
 
 import pytest
 from andromeda_api.application.importer.errors import BundleImportError
@@ -18,6 +18,7 @@ from andromeda_contracts.api.v1.models import (
     PageResponse,
     PaginationMetadata,
     ReleaseMetadataRecord,
+    RequirementTreeRecord,
     SubjectTaxonomyCategoryRecord,
     SubjectTaxonomyRecord,
 )
@@ -72,6 +73,13 @@ def test_openapi_publishes_get_only_v1_contracts() -> None:
     assert "/api/v1/individual-achievements" in schema["paths"]
     assert "/api/v1/competition-pools" in schema["paths"]
     assert "/api/v1/subject-taxonomies/{taxonomy_key}/{taxonomy_version}" in schema["paths"]
+    requirement_parameters = schema["paths"]["/api/v1/requirements"]["get"]["parameters"]
+    assert {parameter["name"] for parameter in requirement_parameters} >= {
+        "campaign_key",
+        "direction_key",
+        "limit",
+        "cursor",
+    }
     assert all(
         set(path_item) <= {"get", "parameters", "summary", "description", "operationId", "responses", "deprecated", "security", "servers", "tags"}
         for path_item in schema["paths"].values()
@@ -93,6 +101,43 @@ def test_http_errors_share_stable_envelope_and_request_id() -> None:
     assert invalid.json()["error"]["field_issues"]
     assert route_missing.status_code == 404
     assert route_missing.json()["error"]["code"] == "route_not_found"
+
+
+def test_requirements_route_forwards_optional_direction_key() -> None:
+    class RequirementsQueries(_Queries):
+        def __init__(self):
+            self.calls = []
+
+        def requirements(self, limit, cursor, campaign_key=None, direction_key=None):
+            self.calls.append((limit, cursor, campaign_key, direction_key))
+            return PageResponse[RequirementTreeRecord](
+                items=[],
+                page=PaginationMetadata(
+                    limit=limit,
+                    next_cursor=None,
+                    total_count=0,
+                    release_key="fixture-release",
+                ),
+            )
+
+    queries = RequirementsQueries()
+    with TestClient(_app_with_fixture_queries(queries)) as client:
+        filtered = client.get(
+            "/api/v1/requirements",
+            params={
+                "campaign_key": "campaign:bmstu:2026",
+                "direction_key": "direction:bmstu:09.03.01",
+                "limit": 20,
+            },
+        )
+        legacy = client.get("/api/v1/requirements?limit=25")
+
+    assert filtered.status_code == 200
+    assert legacy.status_code == 200
+    assert queries.calls == [
+        (20, None, "campaign:bmstu:2026", "direction:bmstu:09.03.01"),
+        (25, None, None, None),
+    ]
 
 
 def test_invalid_repository_cursor_is_mapped_at_the_http_boundary() -> None:
@@ -222,6 +267,72 @@ def test_competition_pool_direction_filter_is_applied_by_the_read_query() -> Non
         limit=30,
         cursor=None,
     )
+
+
+def test_requirements_query_filters_by_campaign_and_resolved_direction_key() -> None:
+    repository = Mock()
+    repository.active_release_key = "fixture-release"
+    repository.get.side_effect = lambda table, key: {
+        ("admission_campaigns", "campaign:bmstu:2026"): {"id": "campaign-id"},
+        ("directions", "direction:bmstu:09.03.01"): {"id": "direction-id"},
+    }.get((table, key))
+    repository.page.return_value = PageRows(items=[], next_cursor=None, total_count=0)
+
+    result = AcademicDataQueries(repository).requirements(
+        25,
+        None,
+        campaign_key="campaign:bmstu:2026",
+        direction_key="direction:bmstu:09.03.01",
+    )
+
+    assert result.items == []
+    assert repository.get.call_args_list == [
+        call("admission_campaigns", "campaign:bmstu:2026"),
+        call("directions", "direction:bmstu:09.03.01"),
+    ]
+    repository.page.assert_called_once_with(
+        "admission_requirement_sets",
+        filters={"campaign_id": "campaign-id", "direction_id": "direction-id"},
+        limit=25,
+        cursor=None,
+    )
+
+
+def test_requirements_query_without_filters_preserves_unfiltered_behavior() -> None:
+    repository = Mock()
+    repository.active_release_key = "fixture-release"
+    repository.page.return_value = PageRows(items=[], next_cursor=None, total_count=0)
+
+    AcademicDataQueries(repository).requirements(50, None)
+
+    repository.get.assert_not_called()
+    repository.page.assert_called_once_with(
+        "admission_requirement_sets",
+        filters={},
+        limit=50,
+        cursor=None,
+    )
+
+
+def test_requirements_query_rejects_unknown_direction_key_before_paging() -> None:
+    repository = Mock()
+    repository.active_release_key = "fixture-release"
+    repository.get.side_effect = lambda table, _key: (
+        {"id": "campaign-id"} if table == "admission_campaigns" else None
+    )
+
+    with pytest.raises(ApiReadError) as error:
+        AcademicDataQueries(repository).requirements(
+            50,
+            None,
+            campaign_key="campaign:bmstu:2026",
+            direction_key="direction:missing",
+        )
+
+    assert error.value.status_code == 404
+    assert error.value.code == "record_not_found"
+    assert repository.get.call_args_list[-1].args == ("directions", "direction:missing")
+    repository.page.assert_not_called()
 
 
 def test_competition_pool_projection_preserves_target_metadata_and_unresolved_department() -> None:

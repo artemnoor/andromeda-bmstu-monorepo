@@ -41,7 +41,7 @@ function CardHarness() {
   const [feedback, setFeedback] = useState("");
   return (
     <MemoryRouter>
-      <ProgramCard program={program} onSelectionLimit={setFeedback} />
+      <ProgramCard program={program} expectedReleaseKey="release:test" onSelectionLimit={setFeedback} />
       <p role="status">{feedback}</p>
     </MemoryRouter>
   );
@@ -74,7 +74,7 @@ describe("program card browser state", () => {
     };
     render(
       <MemoryRouter>
-        <ProgramCard program={programWithoutFacts} onSelectionLimit={() => undefined} />
+        <ProgramCard program={programWithoutFacts} expectedReleaseKey="release:test" onSelectionLimit={() => undefined} />
       </MemoryRouter>,
     );
 

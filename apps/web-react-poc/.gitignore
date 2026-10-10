@@ -1,6 +1,7 @@
 node_modules/
 .react-router/
 build/
+build-profile/
 dist/
 coverage/
 playwright-report/

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { components } from "@/shared/api/schema";
 import {
+  buildCatalogSearchIndex,
   filterPrograms,
   getCatalogOptions,
   normalizeCatalogProgram,
@@ -117,6 +118,49 @@ describe("catalog model", () => {
     }
     expect(filterPrograms([item], { query: "   " })).toEqual([item]);
     expect(filterPrograms([item], { query: "не существует" })).toEqual([]);
+  });
+
+  it("keeps indexed search identical to the unindexed reference for Cyrillic, codes, and field boundaries", () => {
+    const first = normalize();
+    const mechanicsDirection: DirectionDto = {
+      external_key: "direction:mechanics",
+      code: "15.03.04",
+      name: "Автоматизация технологических процессов",
+    };
+    const second = normalizeCatalogProgram(
+      makeProgram({
+        external_key: "program:mechanics",
+        code: "24.05.01",
+        name: "Ракетные комплексы",
+        description: "Проектирование двигателей",
+        direction_key: mechanicsDirection.external_key,
+        department_relations: [],
+      }),
+      new Map([[mechanicsDirection.external_key, mechanicsDirection]]),
+      new Map(),
+    );
+    const programs = [first, second];
+    const index = buildCatalogSearchIndex(programs);
+
+    const cases: Array<{ query: string; expected: CatalogProgram[] }> = [
+      { query: "КИБЕР", expected: [first] },
+      { query: "24.05", expected: [second] },
+      { query: "ракетные", expected: [second] },
+      { query: "двигателей", expected: [second] },
+      { query: "технологических процессов", expected: [second] },
+      { query: "15.03.04", expected: [second] },
+      { query: "информатика", expected: [first] },
+      { query: "ИУ10", expected: [first] },
+      { query: "безопас", expected: [first] },
+      { query: "1инф", expected: [] },
+      { query: "не существует", expected: [] },
+      { query: "   ", expected: programs },
+    ];
+
+    for (const { query, expected } of cases) {
+      expect(filterPrograms(programs, { query }, index), `indexed query: ${query}`).toEqual(expected);
+      expect(filterPrograms(programs, { query }), `unindexed query: ${query}`).toEqual(expected);
+    }
   });
 
   it("does not turn an unresolved department key into a display fact", () => {

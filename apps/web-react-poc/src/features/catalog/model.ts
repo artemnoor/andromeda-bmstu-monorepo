@@ -21,6 +21,7 @@ export type CatalogProgram = ProgramDto & {
 };
 
 export type FilterOption = { value: string; label: string };
+export type CatalogSearchIndex = ReadonlyMap<CatalogProgram, readonly string[]>;
 
 function clean(value: string | null | undefined): string {
   return value?.trim() ?? "";
@@ -98,23 +99,35 @@ export function getCatalogOptions(programs: readonly CatalogProgram[]): {
   return { directions: toOptions(directions), departments: toOptions(departments) };
 }
 
+function programSearchFields(program: CatalogProgram): string[] {
+  return [
+    program.name,
+    program.code,
+    program.description,
+    program.directionName,
+    program.directionCode,
+    ...program.departments.flatMap((department) => [department.name, department.code]),
+  ]
+    .map((value) => clean(value).toLocaleLowerCase("ru-RU"))
+    .filter(Boolean);
+}
+
+/** Normalize each immutable catalog row once for repeated search/filter interactions. */
+export function buildCatalogSearchIndex(programs: readonly CatalogProgram[]): CatalogSearchIndex {
+  return new Map(programs.map((program) => [program, programSearchFields(program)]));
+}
+
 export function filterPrograms(
   programs: readonly CatalogProgram[],
   filters: { query?: string; directionCode?: string; departmentCode?: string },
+  searchIndex?: CatalogSearchIndex,
 ): CatalogProgram[] {
   const query = clean(filters.query).toLocaleLowerCase("ru-RU");
   return programs.filter((program) => {
     if (filters.directionCode && program.directionCode !== filters.directionCode) return false;
     if (filters.departmentCode && !program.departments.some((department) => department.code === filters.departmentCode)) return false;
     if (!query) return true;
-    return [
-      program.name,
-      program.code,
-      program.description,
-      program.directionName,
-      program.directionCode,
-      ...program.departments.flatMap((department) => [department.name, department.code]),
-    ].some((value) => clean(value).toLocaleLowerCase("ru-RU").includes(query));
+    return (searchIndex?.get(program) ?? programSearchFields(program)).some((value) => value.includes(query));
   });
 }
 

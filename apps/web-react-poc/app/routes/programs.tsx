@@ -5,7 +5,7 @@ import type { Route } from "./+types/programs";
 import { AndromedaHeader } from "@/widgets/andromeda-navigation/andromeda-header";
 import { useComparisonSelection } from "@/shared/browser-state/hooks";
 import { loadCatalog } from "@/shared/api/client";
-import { filterPrograms, getCatalogOptions, normalizeCatalogProgram, russianPlural, type CatalogProgram } from "@/features/catalog/model";
+import { buildCatalogSearchIndex, filterPrograms, getCatalogOptions, normalizeCatalogProgram, russianPlural, type CatalogProgram } from "@/features/catalog/model";
 import { ProgramCard } from "@/features/catalog/program-card";
 import styles from "@/features/catalog/programs.module.css";
 import feedbackStyles from "@/features/catalog/feedback.module.css";
@@ -61,11 +61,12 @@ export default function ProgramsRoute({ loaderData }: Route.ComponentProps) {
   const directionCode = searchParams.get("direction") ?? "";
   const departmentCode = searchParams.get("department") ?? "";
   const options = useMemo(() => getCatalogOptions(loaderData.programs), [loaderData.programs]);
+  const searchIndex = useMemo(() => buildCatalogSearchIndex(loaderData.programs), [loaderData.programs]);
   const filteredPrograms = useMemo(() => filterPrograms(loaderData.programs, {
     query,
     directionCode,
     departmentCode,
-  }), [loaderData.programs, query, directionCode, departmentCode]);
+  }, searchIndex), [loaderData.programs, searchIndex, query, directionCode, departmentCode]);
 
   function setFilter(name: string, value: string) {
     const next = new URLSearchParams(searchParams);
@@ -150,7 +151,12 @@ export default function ProgramsRoute({ loaderData }: Route.ComponentProps) {
                 <p>Измените поисковый запрос или сбросьте фильтры, чтобы увидеть другие программы.</p>
               </div>
             ) : filteredPrograms.map((program: CatalogProgram) => (
-              <ProgramCard key={program.external_key} program={program} onSelectionLimit={setFeedback} />
+              <ProgramCard
+                key={program.external_key}
+                program={program}
+                expectedReleaseKey={loaderData.release.release_key}
+                onSelectionLimit={setFeedback}
+              />
             ))}
           </div>
 

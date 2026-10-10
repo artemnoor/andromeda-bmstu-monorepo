@@ -1112,6 +1112,99 @@ def test_read_api_uses_one_active_release_and_directus_is_physically_read_only(
             assert tree["children"][0]["operator"] == "AND"
             assert tree["children"][0]["children"][0]["operator"] == "OR"
 
+            with engine.connect() as connection:
+                requirement_direction_key = connection.execute(
+                    text(
+                        "SELECT direction.external_key "
+                        "FROM admission_requirement_sets requirement "
+                        "JOIN directions direction "
+                        "ON direction.release_id = requirement.release_id "
+                        "AND direction.id = requirement.direction_id "
+                        "JOIN admission_campaigns campaign "
+                        "ON campaign.release_id = requirement.release_id "
+                        "AND campaign.id = requirement.campaign_id "
+                        "WHERE requirement.release_id = :release_id "
+                        "AND campaign.external_key = :campaign_key "
+                        "GROUP BY direction.external_key "
+                        "HAVING count(*) > 1 "
+                        "ORDER BY direction.external_key "
+                        "LIMIT 1"
+                    ),
+                    {
+                        "release_id": new_release_id,
+                        "campaign_key": "campaign:bmstu:2026",
+                    },
+                ).scalar_one()
+
+            def fetch_requirement_pages(params: dict[str, str]) -> tuple[list[dict], str]:
+                records: list[dict] = []
+                cursor = None
+                release_key = ""
+                while True:
+                    response = client.get(
+                        "/api/v1/requirements",
+                        params={"limit": "100", **params, **({"cursor": cursor} if cursor else {})},
+                    )
+                    assert response.status_code == 200
+                    page = response.json()
+                    assert page["page"]["release_key"] == new_release_key
+                    release_key = page["page"]["release_key"]
+                    records.extend(page["items"])
+                    cursor = page["page"]["next_cursor"]
+                    if cursor is None:
+                        return records, release_key
+
+            unfiltered_requirements, unfiltered_release_key = fetch_requirement_pages(
+                {"campaign_key": "campaign:bmstu:2026"}
+            )
+            expected_direction_requirements = [
+                record for record in unfiltered_requirements
+                if record["direction_key"] == requirement_direction_key
+            ]
+            assert len(expected_direction_requirements) > 1
+            assert unfiltered_release_key == new_release_key
+
+            filtered_requirements: list[dict] = []
+            cursor = None
+            filtered_total_count = None
+            while True:
+                filtered_response = client.get(
+                    "/api/v1/requirements",
+                    params={
+                        "campaign_key": "campaign:bmstu:2026",
+                        "direction_key": requirement_direction_key,
+                        "limit": 1,
+                        **({"cursor": cursor} if cursor else {}),
+                    },
+                )
+                assert filtered_response.status_code == 200
+                filtered_page = filtered_response.json()
+                assert filtered_page["page"]["release_key"] == new_release_key
+                if filtered_total_count is None:
+                    filtered_total_count = filtered_page["page"]["total_count"]
+                assert filtered_page["page"]["total_count"] == filtered_total_count
+                filtered_requirements.extend(filtered_page["items"])
+                cursor = filtered_page["page"]["next_cursor"]
+                if cursor is None:
+                    break
+
+            expected_requirement_keys = [
+                record["external_key"] for record in expected_direction_requirements
+            ]
+            assert filtered_total_count == len(expected_direction_requirements)
+            assert [record["external_key"] for record in filtered_requirements] == expected_requirement_keys
+            assert all(record["direction_key"] == requirement_direction_key for record in filtered_requirements)
+
+            invalid_direction_response = client.get(
+                "/api/v1/requirements",
+                params={
+                    "campaign_key": "campaign:bmstu:2026",
+                    "direction_key": "direction:missing",
+                },
+            )
+            assert invalid_direction_response.status_code == 404
+            assert invalid_direction_response.json()["error"]["code"] == "record_not_found"
+
             taxonomy_response = client.get("/api/v1/subject-taxonomies/bmstu-subject-domain-16/v1")
             assert taxonomy_response.status_code == 200
             taxonomy = taxonomy_response.json()

@@ -24,8 +24,9 @@ function safeUrl(value: string): string | null {
   }
 }
 
-export function ProgramCard({ program, onSelectionLimit }: {
+export function ProgramCard({ program, expectedReleaseKey, onSelectionLimit }: {
   program: CatalogProgram;
+  expectedReleaseKey: string;
   onSelectionLimit: (message: string) => void;
 }) {
   const comparison = useComparisonSelection();
@@ -88,7 +89,7 @@ export function ProgramCard({ program, onSelectionLimit }: {
         </summary>
         {detailsOpen ? (
           <>
-            <AdmissionDetails program={program} />
+            <AdmissionDetails program={program} expectedReleaseKey={expectedReleaseKey} />
             <div className={styles.favoriteTools}>
               <button className={styles.favoriteAction} type="button" aria-pressed={isFavorite} onClick={toggleFavorite}>
                 {isFavorite ? "♥ Убрать из избранного" : "♡ Добавить в избранное"}

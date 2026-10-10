@@ -128,7 +128,11 @@ describe("typed OpenAPI client contract", () => {
       ["/api/v1/campaigns", { year: "2026", limit: "100" }],
       ["/api/v1/campaigns/campaign%2001/offerings", { limit: "100" }],
       ["/api/v1/campaigns/campaign%2001/calendar", { limit: "100" }],
-      ["/api/v1/requirements", { campaign_key: "campaign 01", limit: "100" }],
+      ["/api/v1/requirements", {
+        campaign_key: "campaign 01",
+        direction_key: "direction-1",
+        limit: "100",
+      }],
       ["/api/v1/competition-pools", {
         campaign_key: "campaign 01",
         direction_code: "09.03.01",
@@ -257,5 +261,46 @@ describe("typed OpenAPI client contract", () => {
       actualReleaseKey: "release-2026-02",
     });
     expect(releaseReadCount).toBe(2);
+  });
+
+  it("reuses a verified immutable catalog snapshot while bracketing it with active-release reads", async () => {
+    installFetch((url) => {
+      if (url.pathname === "/api/v1/release") return jsonResponse({ release_key: RELEASE_KEY });
+      return jsonResponse(page([]));
+    });
+
+    const first = await api.loadCatalog();
+    const collectionRequestsAfterFirstRead = fetchMock.mock.calls
+      .map(([input]) => requestUrl(input as RequestInfo | URL))
+      .filter((url) => ["/api/v1/programs", "/api/v1/directions", "/api/v1/departments"].includes(url.pathname));
+    const second = await api.loadCatalog();
+    const allRequests = fetchMock.mock.calls.map(([input]) => requestUrl(input as RequestInfo | URL));
+
+    expect(second).not.toBe(first);
+    expect(second.programs).toBe(first.programs);
+    expect(second.release.release_key).toBe(first.release.release_key);
+    expect(allRequests.filter((url) => url.pathname === "/api/v1/release")).toHaveLength(4);
+    expect(allRequests.filter((url) => ["/api/v1/programs", "/api/v1/directions", "/api/v1/departments"].includes(url.pathname)))
+      .toHaveLength(collectionRequestsAfterFirstRead.length);
+  });
+
+  it("rejects a cached catalog if activation changes during the cache read", async () => {
+    let releaseReadCount = 0;
+    installFetch((url) => {
+      if (url.pathname === "/api/v1/release") {
+        releaseReadCount += 1;
+        const releaseKey = releaseReadCount === 4 ? "release-2026-02" : RELEASE_KEY;
+        return jsonResponse({ release_key: releaseKey });
+      }
+      return jsonResponse(page([]));
+    });
+
+    await api.loadCatalog();
+    await expect(api.loadCatalog()).rejects.toMatchObject({
+      name: "AcademicReleaseMismatchError",
+      expectedReleaseKey: RELEASE_KEY,
+      actualReleaseKey: "release-2026-02",
+    });
+    expect(releaseReadCount).toBe(4);
   });
 });

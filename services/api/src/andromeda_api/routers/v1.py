@@ -169,11 +169,17 @@ def campaign(key: str, queries: AcademicDataQueries = _QUERIES_DEPENDENCY) -> Ad
 @router.get("/requirements", response_model=PageResponse[RequirementTreeRecord])
 def requirements(
     campaign_key: str | None = Query(default=None, min_length=1, max_length=256),
+    direction_key: str | None = Query(default=None, min_length=1, max_length=256),
     limit: int = Query(default=50, ge=1, le=100),
     cursor: str | None = Query(default=None, min_length=1, max_length=1024),
     queries: AcademicDataQueries = _QUERIES_DEPENDENCY,
 ) -> PageResponse[RequirementTreeRecord]:
-    return queries.requirements(limit, cursor, campaign_key=campaign_key)
+    return queries.requirements(
+        limit,
+        cursor,
+        campaign_key=campaign_key,
+        direction_key=direction_key,
+    )
 
 
 @router.get("/requirements/{key:path}", response_model=RequirementTreeRecord)
