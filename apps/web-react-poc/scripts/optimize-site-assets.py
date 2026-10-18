@@ -1,5 +1,6 @@
 """Encode existing artwork for the React site; leave Vanilla assets untouched."""
 from pathlib import Path
+
 from PIL import Image
 
 app = Path(__file__).resolve().parents[1]
