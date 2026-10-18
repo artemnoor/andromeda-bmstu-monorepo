@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import type { CatalogProgram } from "./model";
 import { getProgramAdmission } from "./admission-api";
-import { buildAdmissionSummary, type AdmissionSummary } from "./admission-model";
+import { buildAdmissionSummary, type AdmissionCampaignResult, type AdmissionSummary } from "./admission-model";
 import styles from "./programs.module.css";
 
 type LoadState =
@@ -12,6 +12,27 @@ type LoadState =
 function SourceLink({ href }: { href: string | null }) {
   if (!href) return null;
   return <a className={styles.sourceLink} href={href} target="_blank" rel="noopener noreferrer">Источник ↗</a>;
+}
+
+const COMPETITION_LABELS: Readonly<Record<string, string>> = {
+  general: "Общий конкурс",
+  other: "Конкурс, указанный в источнике",
+  separate_quota: "Отдельная квота",
+  special_quota: "Особая квота",
+  targeted: "Целевая квота",
+};
+
+function CampaignResult({ result }: { result: AdmissionCampaignResult }) {
+  const funding = result.funding === "budget" ? "Бюджет" : result.funding === "paid" ? "Платное" : "Основа не указана";
+  const stage = result.stage === "main" ? "основной этап" : result.stage === "first" ? "приоритетный этап" : "этап не указан";
+  const numeric = result.status === "numeric" && result.score !== null;
+  return <li>
+    <strong>{funding} · {COMPETITION_LABELS[result.competitionType ?? ""] ?? "Вид конкурса не указан"}</strong>
+    <span className={styles.campaignScore}>{numeric && result.score !== null ? `${new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 1 }).format(result.score)} баллов` : "Числовой балл не опубликован"}</span>
+    <span>{result.year} · {stage} · {result.scopeNote}</span>
+    {numeric ? <span>Минимум в опубликованном списке зачисленных, не гарантия поступления.</span> : null}
+    <SourceLink href={result.sourceUrl} />
+  </li>;
 }
 
 function Details({
@@ -29,7 +50,8 @@ function Details({
 
   useEffect(() => {
     let current = true;
-    getProgramAdmission(program, { expectedReleaseKey }).then((data) => {
+    const controller = new AbortController();
+    getProgramAdmission(program, { expectedReleaseKey, signal: controller.signal }).then((data) => {
       if (current) setState({
         kind: "ready",
         summary: buildAdmissionSummary(program, data),
@@ -41,7 +63,10 @@ function Details({
         message: "Не удалось загрузить условия из активного академического выпуска. Попробуйте повторить запрос.",
       });
     });
-    return () => { current = false; };
+    return () => {
+      current = false;
+      controller.abort();
+    };
   }, [program, expectedReleaseKey, retryKey]);
 
   if (state.kind === "loading") {
@@ -64,13 +89,27 @@ function Details({
           {summary.seats.map((metric) => (
             <article className={styles.admissionMetric} key={metric.label}>
               <span>{metric.label}</span>
-              <strong>{metric.value}</strong>
+              <strong>{metric.value === "—"
+                ? summary.relatedSeatFacts.some((fact) => fact.fundingType === (metric.label.startsWith("Бюджет") ? "budget" : "paid"))
+                  ? "Не подтверждено"
+                  : "Количество не указано"
+                : metric.value}</strong>
               {metric.note ? <span>{metric.note}</span> : null}
               <SourceLink href={metric.sourceUrl} />
             </article>
           ))}
         </div>
         {summary.seatNote ? <p className={styles.admissionMuted}>{summary.seatNote}</p> : null}
+        {summary.relatedSeatFacts.length ? <details className={styles.relatedFacts}>
+          <summary>Посмотреть сведения о местах из источника</summary>
+          <p>Связь этих предложений с выбранной программой не подтверждена. Значения показаны отдельно и не складываются с местами программы.</p>
+          <ul className={styles.admissionList}>{summary.relatedSeatFacts.map((fact) => <li key={fact.key}>
+            <strong>{fact.fundingType === "budget" ? "Бюджет" : "Платное"} · {fact.value}</strong>
+            <span>Предложение из источника: {fact.sourceProgramName}{fact.departmentCode ? ` · кафедра ${fact.departmentCode}` : ""}</span>
+            {fact.note ? <span>{fact.note}</span> : null}
+            <SourceLink href={fact.sourceUrl} />
+          </li>)}</ul>
+        </details> : null}
         {summary.quotas.length ? (
           <ul className={styles.admissionList} aria-label="Места по квотам">
             {summary.quotas.map((quota, index) => (
@@ -83,6 +122,14 @@ function Details({
           </ul>
         ) : <p className={styles.admissionMuted}>Не найдены квоты с подтверждённой связью с этой программой. Данные более широкого уровня без точной идентичности предложения не приписываются программе.</p>}
         {summary.quotaNote ? <p className={styles.admissionMuted}>{summary.quotaNote}</p> : null}
+      </section>
+
+      <section className={styles.admissionSection} aria-labelledby={`admission-results-${program.external_key}`}>
+        <h3 id={`admission-results-${program.external_key}`}>Проходные баллы · приём {summary.year ?? "год не указан"}</h3>
+        <p className={styles.admissionNote}>Общий конкурс и квоты показаны отдельно. У каждого результата указан уровень данных.</p>
+        {summary.campaignResults.length ? <ul className={styles.admissionList}>
+          {summary.campaignResults.map((result, index) => <CampaignResult key={`${result.funding}:${result.competitionType}:${result.stage}:${result.snapshotDate}:${index}`} result={result} />)}
+        </ul> : <p className={styles.admissionMuted}>Результаты текущего приёма не найдены в доступных источниках. История прошлых лет показана ниже.</p>}
       </section>
 
       <section className={styles.admissionSection} aria-labelledby={`admission-history-${program.external_key}`}>
@@ -132,7 +179,7 @@ export function AdmissionDetails({ program, expectedReleaseKey }: { program: Cat
   const [retryKey, setRetryKey] = useState(0);
   return (
     <Details
-      key={retryKey}
+      key={`${expectedReleaseKey}:${program.external_key}:${retryKey}`}
       program={program}
       expectedReleaseKey={expectedReleaseKey}
       retryKey={retryKey}

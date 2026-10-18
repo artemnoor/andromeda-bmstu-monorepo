@@ -7,16 +7,49 @@
 :global(html) {
   min-width: 320px;
   min-height: 100%;
-  background: #fafafa;
+  background: #111;
 }
 
 :global(body) {
   min-width: 320px;
   min-height: 100vh;
   margin: 0;
-  color: #111;
-  background: #fafafa;
+  color: #f4f4f4;
+  background: #111;
   font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
+
+.noise {
+  position: fixed;
+  z-index: 999;
+  inset: 0;
+  pointer-events: none;
+  opacity: .05;
+  overflow: hidden;
+}
+
+.noise::after {
+  position: absolute;
+  top: -110%;
+  left: -100%;
+  width: 300%;
+  height: 300%;
+  background-image: url("/assets/paper-noise.svg");
+  content: "";
+  animation: grain 8s steps(10) infinite;
+}
+
+@keyframes grain {
+  0%, 100% { transform: translate(0); }
+  10% { transform: translate(-5%, -10%); }
+  20% { transform: translate(-15%, 5%); }
+  30% { transform: translate(5%, -25%); }
+  40% { transform: translate(-5%, 25%); }
+  50% { transform: translate(-15%, 10%); }
+  60% { transform: translate(15%); }
+  70% { transform: translateY(15%); }
+  80% { transform: translate(5%, 35%); }
+  90% { transform: translate(-10%, 10%); }
 }
 
 :global(button),
@@ -41,6 +74,7 @@
 }
 
 :global(@media (prefers-reduced-motion: reduce)) {
+  .noise::after { animation: none; }
   *,
   *::before,
   *::after {
@@ -60,3 +94,14 @@
   margin: 10vh auto;
   padding: 2rem;
 }
+
+.skipLink { position: fixed; z-index: 300; top: 12px; left: 16px; padding: 13px 18px; transform: translateY(-180%); border-radius: 9px; background: #111; color: #fff; text-decoration: none; }
+.skipLink:focus { transform: translateY(0); }
+.navigationStatus { position: fixed; z-index: 200; top: 0; inset-inline: 0; padding: 8px 16px; color: #fff; background: #005fbd; font-size: 13px; text-align: center; }
+.loading { width: min(100% - 2rem, 1280px); margin: 120px auto 0; color: #c2c7ce; }
+.skeleton { height: 180px; margin-top: 24px; border-radius: 20px; background: #242424; }
+.error { margin-block-start: 120px; line-height: 1.6; }
+.error h1 { font-size: clamp(30px, 5vw, 48px); font-weight: 500; line-height: 1.1; letter-spacing: -.05em; }
+.error nav { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 24px; }
+.error a { display: inline-flex; min-height: 44px; align-items: center; color: #005fbd; }
+:global(main:focus) { outline: none; }

@@ -1,0 +1,41 @@
+{
+  "url": "http://185.135.174.233/compare",
+  "coldMs": 2274,
+  "charts": [
+    {
+      "items": "113",
+      "hours": "26944"
+    },
+    {
+      "items": "109",
+      "hours": "27088"
+    },
+    {
+      "items": "126",
+      "hours": "28492"
+    }
+  ],
+  "unavailable": "0",
+  "unconfirmed": 2,
+  "widths": [
+    {
+      "width": 320,
+      "actual": 320
+    },
+    {
+      "width": 390,
+      "actual": 390
+    },
+    {
+      "width": 768,
+      "actual": 768
+    },
+    {
+      "width": 1440,
+      "actual": 1440
+    }
+  ],
+  "afterReloadPrograms": 2,
+  "pageErrors": [],
+  "checkedAt": "2026-10-11T09:40:33.630Z"
+}

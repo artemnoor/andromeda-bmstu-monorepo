@@ -8,6 +8,9 @@ export const LEGACY_STORAGE_KEYS = {
   compare: "andromeda-compare-programs-v1",
 } as const;
 
+export const APPLICANT_PROFILE_KEY = "andromeda.applicant.v1";
+export const LEGACY_APPLICANT_PROFILE_KEY = "andromeda-applicant-profile-v1";
+
 export const COMPARE_OVERFLOW_KEY = "andromeda.compare.migration-overflow.v1";
 export const MAX_COMPARE_PROGRAMS = 3;
 
@@ -42,6 +45,23 @@ function uniqueStrings(value: unknown): string[] {
   return [...new Set(value.filter((entry): entry is string => (
     typeof entry === "string" && entry.trim().length > 0
   )).map((entry) => entry.trim()))];
+}
+
+function record(value: unknown): Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : {};
+}
+
+/** Read saved exam scores without migrating, rewriting, or deleting the user's profile. */
+export function readApplicantScores(storage = safeBrowserStorage()): Readonly<Record<string, unknown>> {
+  if (!storage) return {};
+  const legacy = record(readJson(storage, LEGACY_APPLICANT_PROFILE_KEY));
+  const canonical = record(readJson(storage, APPLICANT_PROFILE_KEY));
+  return {
+    ...record(legacy.scores),
+    ...record(canonical.scores),
+  };
 }
 
 function safeBrowserStorage(): StorageLike | null {

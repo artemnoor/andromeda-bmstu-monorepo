@@ -721,12 +721,14 @@ async function navigateAndWait(
       },
       viewport: { innerWidth, clientWidth: document.documentElement.clientWidth, bodyWidth: getComputedStyle(document.body).width },
       page: measureWidth(main),
-      hero: measure(":scope > section:nth-of-type(1)"),
-      stats: measure(":scope > section:nth-of-type(2)"),
-      actions: measure("#home-actions"),
-      process: measure("#how-it-works"),
-      processTitle: (() => {
-        const title = main.querySelector<HTMLElement>("#how-it-works h2");
+      hero: measure("[data-header-background-trigger]"),
+      comparison: measure("#comparison-overview"),
+      career: measure("#career-guidance"),
+      catalog: measure("#program-catalog"),
+      admission: measure("#admission-and-sources"),
+      finalActions: measure("#final-cta"),
+      careerTitle: (() => {
+        const title = main.querySelector<HTMLElement>("#career-guidance h2");
         if (!title) return null;
         const style = getComputedStyle(title);
         return {
@@ -739,7 +741,7 @@ async function navigateAndWait(
           height: Number(title.getBoundingClientRect().height.toFixed(1)),
         };
       })(),
-      processHeading: measure("#how-it-works > header"),
+      careerHeading: measure("#career-guidance > header"),
     };
   }) : null;
   const routeLayout = screen === "catalog" || screen === "empty-comparison" || screen === "populated-comparison"

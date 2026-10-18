@@ -1,10 +1,10 @@
 import { useMemo, useState } from "react";
-import { Link, useSearchParams } from "react-router";
+import { Link, useRevalidator, useRouteError, useSearchParams } from "react-router";
 import type { ShouldRevalidateFunctionArgs } from "react-router";
 import type { Route } from "./+types/programs";
 import { AndromedaHeader } from "@/widgets/andromeda-navigation/andromeda-header";
 import { useComparisonSelection } from "@/shared/browser-state/hooks";
-import { loadCatalog } from "@/shared/api/client";
+import { AcademicReleaseMismatchError, loadCatalog } from "@/shared/api/client";
 import { buildCatalogSearchIndex, filterPrograms, getCatalogOptions, normalizeCatalogProgram, russianPlural, type CatalogProgram } from "@/features/catalog/model";
 import { ProgramCard } from "@/features/catalog/program-card";
 import styles from "@/features/catalog/programs.module.css";
@@ -73,12 +73,12 @@ export default function ProgramsRoute({ loaderData }: Route.ComponentProps) {
     if (value) next.set(name, value);
     else next.delete(name);
     if (name === "q") next.delete("code");
-    setSearchParams(next, { replace: true });
+    setSearchParams(next, { replace: true, preventScrollReset: true });
     setFeedback("");
   }
 
   function resetFilters() {
-    setSearchParams(new URLSearchParams(), { replace: true });
+    setSearchParams(new URLSearchParams(), { replace: true, preventScrollReset: true });
     setFeedback("");
     document.getElementById("program-search")?.focus();
   }
@@ -171,11 +171,28 @@ export default function ProgramsRoute({ loaderData }: Route.ComponentProps) {
 }
 
 export function ErrorBoundary() {
+  const error = useRouteError();
+  const revalidator = useRevalidator();
+  const releaseChanged = error instanceof AcademicReleaseMismatchError;
+  const pending = revalidator.state === "loading";
   return (
-    <main className={styles.state} role="alert">
-      <h1>Каталог временно недоступен</h1>
-      <p>Не удалось получить программы из FastAPI или подтвердить единый академический выпуск. Обновите страницу и попробуйте ещё раз.</p>
-      <Link to="/programs">Повторить загрузку</Link>
-    </main>
+    <div className={styles.page}>
+      <AndromedaHeader />
+      <main className={styles.main}>
+        <section className={styles.state} role="alert">
+          <h1>{releaseChanged ? "Каталог обновился" : "Каталог временно недоступен"}</h1>
+          <p>{releaseChanged
+            ? "Опубликован новый академический выпуск. Обновите страницу, чтобы получить согласованные данные. Сохранённый выбор программ останется."
+            : "Не получилось загрузить программы. Проверьте соединение и повторите попытку."}</p>
+          <div className={styles.stateActions}>
+            <button className={styles.retryAdmission} type="button" disabled={pending} onClick={() => {
+              if (releaseChanged) window.location.reload();
+              else void revalidator.revalidate();
+            }}>{pending ? "Загружаем…" : releaseChanged ? "Обновить страницу" : "Повторить загрузку"}</button>
+            <Link className={styles.programLink} to="/">На главную</Link>
+          </div>
+        </section>
+      </main>
+    </div>
   );
 }

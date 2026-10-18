@@ -426,4 +426,114 @@ describe("buildAdmissionSummary", () => {
 
     expect(summary.offers).toEqual(["Форма обучения: не указана", "Срок обучения: 6 лет"]);
   });
+
+  it("keeps related unresolved seat facts separate from program identity and preserves zero and unknown", () => {
+    const verifiedProgram: CatalogProgram = {
+      ...program,
+      department_relations: [{ department_key: "department:iu1", verification_status: "verified" }],
+    };
+    const unresolvedOffer = offering({
+      program_key: null,
+      program_link_status: "manual_review",
+      direction_key: program.direction_key,
+      direction_code: program.directionCode,
+      department_key: "department:iu1",
+      department_code: "ИУ-1",
+      campus_scope: "head_moscow",
+      program_name_in_source: "Другое название в источнике",
+      study_form: "Очная",
+    });
+    const summary = buildAdmissionSummary(verifiedProgram, data({
+      offerings: [unresolvedOffer],
+      pools: [
+        pool({ external_key: "pool:zero", offering_key: "offer:1", direction_key: program.direction_key,
+          direction_code: program.directionCode, places: 0 }),
+        pool({ external_key: "pool:unknown", offering_keys: ["offer:1"], direction_key: program.direction_key,
+          direction_code: program.directionCode, funding_type: "paid", places: null }),
+        pool({ external_key: "pool:quota", offering_key: "offer:1", direction_key: program.direction_key,
+          direction_code: program.directionCode, quota_type: "special", places: 12 }),
+      ],
+    }));
+
+    expect(summary.seats.map((metric) => metric.value)).toEqual(["—", "—"]);
+    expect(summary.offers).toEqual([]);
+    expect(summary.quotas).toEqual([]);
+    expect(summary.relatedSeatFacts).toEqual([
+      expect.objectContaining({ fundingType: "budget", value: "0 мест", sourceProgramName: "Другое название в источнике" }),
+      expect.objectContaining({ fundingType: "paid", value: "Не указано", note: "Количество мест в источнике не указано." }),
+    ]);
+    expect(summary.relatedSeatFacts).toHaveLength(2);
+  });
+
+  it("excludes related seat facts without the same verified department, direction and campus", () => {
+    const verifiedProgram: CatalogProgram = {
+      ...program,
+      department_relations: [{ department_key: "department:iu1", verification_status: "verified" }],
+    };
+    const baseOffer: Partial<Offering> = {
+      program_key: null,
+      program_link_status: "manual_review",
+      direction_key: program.direction_key,
+      direction_code: program.directionCode,
+      department_key: "department:iu1",
+      campus_scope: "head_moscow",
+    };
+    const excludedOffers: Offering[] = [
+      offering({ ...baseOffer, external_key: "offer:other-campus", campus_scope: "branch_kaluga" }),
+      offering({ ...baseOffer, external_key: "offer:other-department", department_key: "department:iu11" }),
+      offering({ ...baseOffer, external_key: "offer:other-direction", direction_key: "direction:other" }),
+      offering({ ...baseOffer, external_key: "offer:other-code", direction_code: "01.03.02" }),
+      offering({ ...baseOffer, external_key: "offer:already-linked", program_key: "program:other" }),
+    ];
+    const candidatePool = pool({
+      offering_keys: excludedOffers.map((item) => item.external_key),
+      direction_key: program.direction_key,
+      direction_code: program.directionCode,
+    });
+    expect(buildAdmissionSummary(verifiedProgram, data({ offerings: excludedOffers, pools: [candidatePool] }))
+      .relatedSeatFacts).toEqual([]);
+
+    const eligibleData = data({
+      offerings: [offering(baseOffer)],
+      pools: [pool({ offering_key: "offer:1", direction_key: program.direction_key, direction_code: program.directionCode })],
+    });
+    expect(buildAdmissionSummary({ ...verifiedProgram, campus_status: "unverified" }, eligibleData).relatedSeatFacts).toEqual([]);
+    expect(buildAdmissionSummary({ ...verifiedProgram, department_relations: [
+      { department_key: "department:iu1", verification_status: "manual_review" },
+    ] }, eligibleData).relatedSeatFacts).toEqual([]);
+  });
+
+  it("recognizes department and full program labels without matching a neighboring department code", () => {
+    const statistic = (
+      externalKey: string,
+      scopeType: "department" | "program",
+      scopeLabel: string,
+    ): ApiSchemas["OfficialAdmissionStatisticRecord"] => ({
+      external_key: externalKey,
+      ingested_at: "2026-01-01T00:00:00Z",
+      year: 2026,
+      direction_code: program.directionCode,
+      admission_stage: "main",
+      competition_type: "general",
+      status: "numeric",
+      funding_type: "budget",
+      score: "280",
+      scope_type: scopeType,
+      scope_label: scopeLabel,
+    });
+    const summary = buildAdmissionSummary(program, data({ campaignStatistics: [
+      statistic("stat:department", "department", "кафедра ИУ-1"),
+      statistic("stat:department-spaced", "department", "Кафедра ИУ 1"),
+      statistic("stat:neighbor", "department", "кафедра ИУ11"),
+      statistic("stat:program", "program", `Программа: ${program.name}`),
+      statistic("stat:program-full", "program", `Образовательная программа ${program.name}`),
+      statistic("stat:other-program", "program", `Программа: ${program.name} и программирование`),
+    ] }));
+
+    expect(summary.campaignResults.map((result) => result.scopeLabel)).toEqual([
+      "кафедра ИУ-1", "Кафедра ИУ 1", "Программа: Информатика", "Образовательная программа Информатика",
+    ]);
+    expect(summary.campaignResults[0]?.scopeNote).toBe("по кафедре ИУ-1");
+    expect(summary.campaignResults[2]?.scopeNote).toBe("по программе Информатика");
+  });
 });

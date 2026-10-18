@@ -1,0 +1,783 @@
+{
+  "baseURL": "http://127.0.0.1:4181",
+  "chromium": "156.0.8078.4",
+  "measuredAt": "2026-10-11T09:19:42.983Z",
+  "keys": [
+    "program:bmstu:01.03.02:ИУ9:01.03.02-01:source:1-1",
+    "program:bmstu:01.03.03:ФН11:01.03.03-03:source:2-1",
+    "program:bmstu:01.03.03:ФН3:01.03.03-02:source:1-1"
+  ],
+  "conditions": "Production SPA; 1440x900; cold browser context per run; discarded server warmup; same-session return via catalog",
+  "samples": [
+    {
+      "run": 0,
+      "facts": {
+        "releaseKey": "bmstu-2026:42616ee9348ee009fa1b297f7ef697862134835e562c7840f413643ce71d2130:bmstu-2026-bundle-v4",
+        "admissionUnavailable": "0",
+        "programs": [
+          {
+            "key": "program:bmstu:01.03.02:ИУ9:01.03.02-01:source:1-1",
+            "plan": "study_plan:program:bmstu:01.03.02:ИУ9:01.03.02-01:source:1-1",
+            "items": 113,
+            "hours": 26944
+          },
+          {
+            "key": "program:bmstu:01.03.03:ФН11:01.03.03-03:source:2-1",
+            "plan": "study_plan:program:bmstu:01.03.03:ФН11:01.03.03-03:source:2-1",
+            "items": 109,
+            "hours": 27088
+          },
+          {
+            "key": "program:bmstu:01.03.03:ФН3:01.03.03-02:source:1-1",
+            "plan": "study_plan:program:bmstu:01.03.03:ФН3:01.03.03-02:source:1-1",
+            "items": 126,
+            "hours": 28492
+          }
+        ]
+      },
+      "cold": {
+        "firstUsefulMs": 2463.100000143051,
+        "readyMs": 2652.300000190735,
+        "apiRequests": 33,
+        "apiBytes": 225821,
+        "jsBytes": 145097,
+        "stages": [
+          {
+            "name": "andromeda:comparison:stage:catalog",
+            "duration": 1135.5999999046326
+          },
+          {
+            "name": "andromeda:comparison:stage:total",
+            "duration": 2530.5
+          },
+          {
+            "name": "andromeda:comparison:stage:selection",
+            "duration": 0.7999999523162842
+          },
+          {
+            "name": "andromeda:comparison:stage:admission",
+            "duration": 1039.3999998569489
+          },
+          {
+            "name": "andromeda:comparison:stage:plans",
+            "duration": 195.20000004768372
+          },
+          {
+            "name": "andromeda:comparison:stage:items",
+            "duration": 808.6000001430511
+          },
+          {
+            "name": "andromeda:comparison:stage:taxonomy",
+            "duration": 179.70000004768372
+          },
+          {
+            "name": "andromeda:comparison:stage:curriculum-model",
+            "duration": 5.200000047683716
+          },
+          {
+            "name": "andromeda:comparison:stage:final-release-check",
+            "duration": 153.20000004768372
+          }
+        ]
+      },
+      "returning": {
+        "readyMs": 2496.4000000953674,
+        "apiRequests": 4,
+        "apiBytes": 1460
+      }
+    },
+    {
+      "run": 1,
+      "facts": {
+        "releaseKey": "bmstu-2026:42616ee9348ee009fa1b297f7ef697862134835e562c7840f413643ce71d2130:bmstu-2026-bundle-v4",
+        "admissionUnavailable": "0",
+        "programs": [
+          {
+            "key": "program:bmstu:01.03.02:ИУ9:01.03.02-01:source:1-1",
+            "plan": "study_plan:program:bmstu:01.03.02:ИУ9:01.03.02-01:source:1-1",
+            "items": 113,
+            "hours": 26944
+          },
+          {
+            "key": "program:bmstu:01.03.03:ФН11:01.03.03-03:source:2-1",
+            "plan": "study_plan:program:bmstu:01.03.03:ФН11:01.03.03-03:source:2-1",
+            "items": 109,
+            "hours": 27088
+          },
+          {
+            "key": "program:bmstu:01.03.03:ФН3:01.03.03-02:source:1-1",
+            "plan": "study_plan:program:bmstu:01.03.03:ФН3:01.03.03-02:source:1-1",
+            "items": 126,
+            "hours": 28492
+          }
+        ]
+      },
+      "cold": {
+        "firstUsefulMs": 2092.2999999523163,
+        "readyMs": 2483.2999999523163,
+        "apiRequests": 33,
+        "apiBytes": 225821,
+        "jsBytes": 145097,
+        "stages": [
+          {
+            "name": "andromeda:comparison:stage:catalog",
+            "duration": 989.2000000476837
+          },
+          {
+            "name": "andromeda:comparison:stage:total",
+            "duration": 2358.9000000953674
+          },
+          {
+            "name": "andromeda:comparison:stage:selection",
+            "duration": 1.0999999046325684
+          },
+          {
+            "name": "andromeda:comparison:stage:admission",
+            "duration": 850.3000001907349
+          },
+          {
+            "name": "andromeda:comparison:stage:plans",
+            "duration": 245
+          },
+          {
+            "name": "andromeda:comparison:stage:items",
+            "duration": 816.1000001430511
+          },
+          {
+            "name": "andromeda:comparison:stage:taxonomy",
+            "duration": 151.5
+          },
+          {
+            "name": "andromeda:comparison:stage:curriculum-model",
+            "duration": 4
+          },
+          {
+            "name": "andromeda:comparison:stage:final-release-check",
+            "duration": 151.29999995231628
+          }
+        ]
+      },
+      "returning": {
+        "readyMs": 2344.2999999523163,
+        "apiRequests": 4,
+        "apiBytes": 1460
+      }
+    },
+    {
+      "run": 2,
+      "facts": {
+        "releaseKey": "bmstu-2026:42616ee9348ee009fa1b297f7ef697862134835e562c7840f413643ce71d2130:bmstu-2026-bundle-v4",
+        "admissionUnavailable": "0",
+        "programs": [
+          {
+            "key": "program:bmstu:01.03.02:ИУ9:01.03.02-01:source:1-1",
+            "plan": "study_plan:program:bmstu:01.03.02:ИУ9:01.03.02-01:source:1-1",
+            "items": 113,
+            "hours": 26944
+          },
+          {
+            "key": "program:bmstu:01.03.03:ФН11:01.03.03-03:source:2-1",
+            "plan": "study_plan:program:bmstu:01.03.03:ФН11:01.03.03-03:source:2-1",
+            "items": 109,
+            "hours": 27088
+          },
+          {
+            "key": "program:bmstu:01.03.03:ФН3:01.03.03-02:source:1-1",
+            "plan": "study_plan:program:bmstu:01.03.03:ФН3:01.03.03-02:source:1-1",
+            "items": 126,
+            "hours": 28492
+          }
+        ]
+      },
+      "cold": {
+        "firstUsefulMs": 2138.7999999523163,
+        "readyMs": 2497.2000000476837,
+        "apiRequests": 33,
+        "apiBytes": 225821,
+        "jsBytes": 145097,
+        "stages": [
+          {
+            "name": "andromeda:comparison:stage:catalog",
+            "duration": 986.7999999523163
+          },
+          {
+            "name": "andromeda:comparison:stage:total",
+            "duration": 2361.2000000476837
+          },
+          {
+            "name": "andromeda:comparison:stage:selection",
+            "duration": 1
+          },
+          {
+            "name": "andromeda:comparison:stage:admission",
+            "duration": 811.1000001430511
+          },
+          {
+            "name": "andromeda:comparison:stage:plans",
+            "duration": 201.29999995231628
+          },
+          {
+            "name": "andromeda:comparison:stage:items",
+            "duration": 837.4000000953674
+          },
+          {
+            "name": "andromeda:comparison:stage:taxonomy",
+            "duration": 151.59999990463257
+          },
+          {
+            "name": "andromeda:comparison:stage:curriculum-model",
+            "duration": 4.900000095367432
+          },
+          {
+            "name": "andromeda:comparison:stage:final-release-check",
+            "duration": 177.70000004768372
+          }
+        ]
+      },
+      "returning": {
+        "readyMs": 2518.800000190735,
+        "apiRequests": 4,
+        "apiBytes": 1460
+      }
+    },
+    {
+      "run": 3,
+      "facts": {
+        "releaseKey": "bmstu-2026:42616ee9348ee009fa1b297f7ef697862134835e562c7840f413643ce71d2130:bmstu-2026-bundle-v4",
+        "admissionUnavailable": "0",
+        "programs": [
+          {
+            "key": "program:bmstu:01.03.02:ИУ9:01.03.02-01:source:1-1",
+            "plan": "study_plan:program:bmstu:01.03.02:ИУ9:01.03.02-01:source:1-1",
+            "items": 113,
+            "hours": 26944
+          },
+          {
+            "key": "program:bmstu:01.03.03:ФН11:01.03.03-03:source:2-1",
+            "plan": "study_plan:program:bmstu:01.03.03:ФН11:01.03.03-03:source:2-1",
+            "items": 109,
+            "hours": 27088
+          },
+          {
+            "key": "program:bmstu:01.03.03:ФН3:01.03.03-02:source:1-1",
+            "plan": "study_plan:program:bmstu:01.03.03:ФН3:01.03.03-02:source:1-1",
+            "items": 126,
+            "hours": 28492
+          }
+        ]
+      },
+      "cold": {
+        "firstUsefulMs": 5189.799999952316,
+        "readyMs": 5400.599999904633,
+        "apiRequests": 33,
+        "apiBytes": 225821,
+        "jsBytes": 145097,
+        "stages": [
+          {
+            "name": "andromeda:comparison:stage:catalog",
+            "duration": 1119
+          },
+          {
+            "name": "andromeda:comparison:stage:total",
+            "duration": 5237.200000047684
+          },
+          {
+            "name": "andromeda:comparison:stage:selection",
+            "duration": 1.5999999046325684
+          },
+          {
+            "name": "andromeda:comparison:stage:admission",
+            "duration": 3749.100000143051
+          },
+          {
+            "name": "andromeda:comparison:stage:plans",
+            "duration": 228.19999980926514
+          },
+          {
+            "name": "andromeda:comparison:stage:items",
+            "duration": 805.7999999523163
+          },
+          {
+            "name": "andromeda:comparison:stage:taxonomy",
+            "duration": 152.5
+          },
+          {
+            "name": "andromeda:comparison:stage:curriculum-model",
+            "duration": 4.400000095367432
+          },
+          {
+            "name": "andromeda:comparison:stage:final-release-check",
+            "duration": 178.40000009536743
+          }
+        ]
+      },
+      "returning": {
+        "readyMs": 2392.300000190735,
+        "apiRequests": 4,
+        "apiBytes": 1460
+      }
+    },
+    {
+      "run": 4,
+      "facts": {
+        "releaseKey": "bmstu-2026:42616ee9348ee009fa1b297f7ef697862134835e562c7840f413643ce71d2130:bmstu-2026-bundle-v4",
+        "admissionUnavailable": "0",
+        "programs": [
+          {
+            "key": "program:bmstu:01.03.02:ИУ9:01.03.02-01:source:1-1",
+            "plan": "study_plan:program:bmstu:01.03.02:ИУ9:01.03.02-01:source:1-1",
+            "items": 113,
+            "hours": 26944
+          },
+          {
+            "key": "program:bmstu:01.03.03:ФН11:01.03.03-03:source:2-1",
+            "plan": "study_plan:program:bmstu:01.03.03:ФН11:01.03.03-03:source:2-1",
+            "items": 109,
+            "hours": 27088
+          },
+          {
+            "key": "program:bmstu:01.03.03:ФН3:01.03.03-02:source:1-1",
+            "plan": "study_plan:program:bmstu:01.03.03:ФН3:01.03.03-02:source:1-1",
+            "items": 126,
+            "hours": 28492
+          }
+        ]
+      },
+      "cold": {
+        "firstUsefulMs": 2145.2999999523163,
+        "readyMs": 2597.5,
+        "apiRequests": 33,
+        "apiBytes": 225821,
+        "jsBytes": 145097,
+        "stages": [
+          {
+            "name": "andromeda:comparison:stage:total",
+            "duration": 2475.2000000476837
+          },
+          {
+            "name": "andromeda:comparison:stage:catalog",
+            "duration": 1012.3000001907349
+          },
+          {
+            "name": "andromeda:comparison:stage:selection",
+            "duration": 0.9000000953674316
+          },
+          {
+            "name": "andromeda:comparison:stage:admission",
+            "duration": 902.5999999046326
+          },
+          {
+            "name": "andromeda:comparison:stage:plans",
+            "duration": 206.30000019073486
+          },
+          {
+            "name": "andromeda:comparison:stage:items",
+            "duration": 866.7999999523163
+          },
+          {
+            "name": "andromeda:comparison:stage:taxonomy",
+            "duration": 194.19999980926514
+          },
+          {
+            "name": "andromeda:comparison:stage:curriculum-model",
+            "duration": 4.1000001430511475
+          },
+          {
+            "name": "andromeda:comparison:stage:final-release-check",
+            "duration": 190
+          }
+        ]
+      },
+      "returning": {
+        "readyMs": 2423.100000143051,
+        "apiRequests": 4,
+        "apiBytes": 1460
+      }
+    },
+    {
+      "run": 5,
+      "facts": {
+        "releaseKey": "bmstu-2026:42616ee9348ee009fa1b297f7ef697862134835e562c7840f413643ce71d2130:bmstu-2026-bundle-v4",
+        "admissionUnavailable": "0",
+        "programs": [
+          {
+            "key": "program:bmstu:01.03.02:ИУ9:01.03.02-01:source:1-1",
+            "plan": "study_plan:program:bmstu:01.03.02:ИУ9:01.03.02-01:source:1-1",
+            "items": 113,
+            "hours": 26944
+          },
+          {
+            "key": "program:bmstu:01.03.03:ФН11:01.03.03-03:source:2-1",
+            "plan": "study_plan:program:bmstu:01.03.03:ФН11:01.03.03-03:source:2-1",
+            "items": 109,
+            "hours": 27088
+          },
+          {
+            "key": "program:bmstu:01.03.03:ФН3:01.03.03-02:source:1-1",
+            "plan": "study_plan:program:bmstu:01.03.03:ФН3:01.03.03-02:source:1-1",
+            "items": 126,
+            "hours": 28492
+          }
+        ]
+      },
+      "cold": {
+        "firstUsefulMs": 20299.39999985695,
+        "readyMs": 20775.599999904633,
+        "apiRequests": 33,
+        "apiBytes": 225821,
+        "jsBytes": 145097,
+        "stages": [
+          {
+            "name": "andromeda:comparison:stage:catalog",
+            "duration": 10174
+          },
+          {
+            "name": "andromeda:comparison:stage:total",
+            "duration": 20626.099999904633
+          },
+          {
+            "name": "andromeda:comparison:stage:selection",
+            "duration": 0.6999998092651367
+          },
+          {
+            "name": "andromeda:comparison:stage:admission",
+            "duration": 6800
+          },
+          {
+            "name": "andromeda:comparison:stage:plans",
+            "duration": 3257.7000000476837
+          },
+          {
+            "name": "andromeda:comparison:stage:items",
+            "duration": 6844.900000095367
+          },
+          {
+            "name": "andromeda:comparison:stage:taxonomy",
+            "duration": 193.39999985694885
+          },
+          {
+            "name": "andromeda:comparison:stage:curriculum-model",
+            "duration": 4.200000047683716
+          },
+          {
+            "name": "andromeda:comparison:stage:final-release-check",
+            "duration": 150.70000004768372
+          }
+        ]
+      },
+      "returning": {
+        "readyMs": 2475.2999999523163,
+        "apiRequests": 4,
+        "apiBytes": 1460
+      }
+    },
+    {
+      "run": 6,
+      "facts": {
+        "releaseKey": "bmstu-2026:42616ee9348ee009fa1b297f7ef697862134835e562c7840f413643ce71d2130:bmstu-2026-bundle-v4",
+        "admissionUnavailable": "0",
+        "programs": [
+          {
+            "key": "program:bmstu:01.03.02:ИУ9:01.03.02-01:source:1-1",
+            "plan": "study_plan:program:bmstu:01.03.02:ИУ9:01.03.02-01:source:1-1",
+            "items": 113,
+            "hours": 26944
+          },
+          {
+            "key": "program:bmstu:01.03.03:ФН11:01.03.03-03:source:2-1",
+            "plan": "study_plan:program:bmstu:01.03.03:ФН11:01.03.03-03:source:2-1",
+            "items": 109,
+            "hours": 27088
+          },
+          {
+            "key": "program:bmstu:01.03.03:ФН3:01.03.03-02:source:1-1",
+            "plan": "study_plan:program:bmstu:01.03.03:ФН3:01.03.03-02:source:1-1",
+            "items": 126,
+            "hours": 28492
+          }
+        ]
+      },
+      "cold": {
+        "firstUsefulMs": 5296.799999952316,
+        "readyMs": 5635,
+        "apiRequests": 33,
+        "apiBytes": 225821,
+        "jsBytes": 145097,
+        "stages": [
+          {
+            "name": "andromeda:comparison:stage:total",
+            "duration": 5518.900000095367
+          },
+          {
+            "name": "andromeda:comparison:stage:catalog",
+            "duration": 4068.9000000953674
+          },
+          {
+            "name": "andromeda:comparison:stage:selection",
+            "duration": 1
+          },
+          {
+            "name": "andromeda:comparison:stage:admission",
+            "duration": 948.7999999523163
+          },
+          {
+            "name": "andromeda:comparison:stage:plans",
+            "duration": 207.5
+          },
+          {
+            "name": "andromeda:comparison:stage:items",
+            "duration": 931.5999999046326
+          },
+          {
+            "name": "andromeda:comparison:stage:taxonomy",
+            "duration": 153.40000009536743
+          },
+          {
+            "name": "andromeda:comparison:stage:curriculum-model",
+            "duration": 4.599999904632568
+          },
+          {
+            "name": "andromeda:comparison:stage:final-release-check",
+            "duration": 151.30000019073486
+          }
+        ]
+      },
+      "returning": {
+        "readyMs": 2355.4000000953674,
+        "apiRequests": 4,
+        "apiBytes": 1460
+      }
+    },
+    {
+      "run": 7,
+      "facts": {
+        "releaseKey": "bmstu-2026:42616ee9348ee009fa1b297f7ef697862134835e562c7840f413643ce71d2130:bmstu-2026-bundle-v4",
+        "admissionUnavailable": "0",
+        "programs": [
+          {
+            "key": "program:bmstu:01.03.02:ИУ9:01.03.02-01:source:1-1",
+            "plan": "study_plan:program:bmstu:01.03.02:ИУ9:01.03.02-01:source:1-1",
+            "items": 113,
+            "hours": 26944
+          },
+          {
+            "key": "program:bmstu:01.03.03:ФН11:01.03.03-03:source:2-1",
+            "plan": "study_plan:program:bmstu:01.03.03:ФН11:01.03.03-03:source:2-1",
+            "items": 109,
+            "hours": 27088
+          },
+          {
+            "key": "program:bmstu:01.03.03:ФН3:01.03.03-02:source:1-1",
+            "plan": "study_plan:program:bmstu:01.03.03:ФН3:01.03.03-02:source:1-1",
+            "items": 126,
+            "hours": 28492
+          }
+        ]
+      },
+      "cold": {
+        "firstUsefulMs": 7968.100000143051,
+        "readyMs": 8200,
+        "apiRequests": 33,
+        "apiBytes": 225821,
+        "jsBytes": 145097,
+        "stages": [
+          {
+            "name": "andromeda:comparison:stage:catalog",
+            "duration": 4236.200000047684
+          },
+          {
+            "name": "andromeda:comparison:stage:total",
+            "duration": 8054.100000143051
+          },
+          {
+            "name": "andromeda:comparison:stage:selection",
+            "duration": 0.8000001907348633
+          },
+          {
+            "name": "andromeda:comparison:stage:admission",
+            "duration": 3428.0999999046326
+          },
+          {
+            "name": "andromeda:comparison:stage:plans",
+            "duration": 222.30000019073486
+          },
+          {
+            "name": "andromeda:comparison:stage:items",
+            "duration": 888.9000000953674
+          },
+          {
+            "name": "andromeda:comparison:stage:taxonomy",
+            "duration": 179.5
+          },
+          {
+            "name": "andromeda:comparison:stage:curriculum-model",
+            "duration": 8.200000047683716
+          },
+          {
+            "name": "andromeda:comparison:stage:final-release-check",
+            "duration": 201.80000019073486
+          }
+        ]
+      },
+      "returning": {
+        "readyMs": 2356.2000000476837,
+        "apiRequests": 4,
+        "apiBytes": 1460
+      }
+    },
+    {
+      "run": 8,
+      "facts": {
+        "releaseKey": "bmstu-2026:42616ee9348ee009fa1b297f7ef697862134835e562c7840f413643ce71d2130:bmstu-2026-bundle-v4",
+        "admissionUnavailable": "0",
+        "programs": [
+          {
+            "key": "program:bmstu:01.03.02:ИУ9:01.03.02-01:source:1-1",
+            "plan": "study_plan:program:bmstu:01.03.02:ИУ9:01.03.02-01:source:1-1",
+            "items": 113,
+            "hours": 26944
+          },
+          {
+            "key": "program:bmstu:01.03.03:ФН11:01.03.03-03:source:2-1",
+            "plan": "study_plan:program:bmstu:01.03.03:ФН11:01.03.03-03:source:2-1",
+            "items": 109,
+            "hours": 27088
+          },
+          {
+            "key": "program:bmstu:01.03.03:ФН3:01.03.03-02:source:1-1",
+            "plan": "study_plan:program:bmstu:01.03.03:ФН3:01.03.03-02:source:1-1",
+            "items": 126,
+            "hours": 28492
+          }
+        ]
+      },
+      "cold": {
+        "firstUsefulMs": 5300.299999952316,
+        "readyMs": 8613.5,
+        "apiRequests": 33,
+        "apiBytes": 225821,
+        "jsBytes": 145097,
+        "stages": [
+          {
+            "name": "andromeda:comparison:stage:catalog",
+            "duration": 1147.3999998569489
+          },
+          {
+            "name": "andromeda:comparison:stage:total",
+            "duration": 8496.799999952316
+          },
+          {
+            "name": "andromeda:comparison:stage:selection",
+            "duration": 0.9000000953674316
+          },
+          {
+            "name": "andromeda:comparison:stage:admission",
+            "duration": 867.7999999523163
+          },
+          {
+            "name": "andromeda:comparison:stage:plans",
+            "duration": 215.5
+          },
+          {
+            "name": "andromeda:comparison:stage:items",
+            "duration": 3789.5999999046326
+          },
+          {
+            "name": "andromeda:comparison:stage:taxonomy",
+            "duration": 3200.7999999523163
+          },
+          {
+            "name": "andromeda:comparison:stage:curriculum-model",
+            "duration": 4.700000047683716
+          },
+          {
+            "name": "andromeda:comparison:stage:final-release-check",
+            "duration": 137.29999995231628
+          }
+        ]
+      },
+      "returning": {
+        "readyMs": 11523.299999952316,
+        "apiRequests": 4,
+        "apiBytes": 1460
+      }
+    },
+    {
+      "run": 9,
+      "facts": {
+        "releaseKey": "bmstu-2026:42616ee9348ee009fa1b297f7ef697862134835e562c7840f413643ce71d2130:bmstu-2026-bundle-v4",
+        "admissionUnavailable": "0",
+        "programs": [
+          {
+            "key": "program:bmstu:01.03.02:ИУ9:01.03.02-01:source:1-1",
+            "plan": "study_plan:program:bmstu:01.03.02:ИУ9:01.03.02-01:source:1-1",
+            "items": 113,
+            "hours": 26944
+          },
+          {
+            "key": "program:bmstu:01.03.03:ФН11:01.03.03-03:source:2-1",
+            "plan": "study_plan:program:bmstu:01.03.03:ФН11:01.03.03-03:source:2-1",
+            "items": 109,
+            "hours": 27088
+          },
+          {
+            "key": "program:bmstu:01.03.03:ФН3:01.03.03-02:source:1-1",
+            "plan": "study_plan:program:bmstu:01.03.03:ФН3:01.03.03-02:source:1-1",
+            "items": 126,
+            "hours": 28492
+          }
+        ]
+      },
+      "cold": {
+        "firstUsefulMs": 8206.799999952316,
+        "readyMs": 14355.099999904633,
+        "apiRequests": 33,
+        "apiBytes": 225821,
+        "jsBytes": 145097,
+        "stages": [
+          {
+            "name": "andromeda:comparison:stage:catalog",
+            "duration": 3992
+          },
+          {
+            "name": "andromeda:comparison:stage:total",
+            "duration": 14238.200000047684
+          },
+          {
+            "name": "andromeda:comparison:stage:selection",
+            "duration": 0.7000000476837158
+          },
+          {
+            "name": "andromeda:comparison:stage:admission",
+            "duration": 3976.0999999046326
+          },
+          {
+            "name": "andromeda:comparison:stage:plans",
+            "duration": 3217.2999999523163
+          },
+          {
+            "name": "andromeda:comparison:stage:items",
+            "duration": 6641.700000047684
+          },
+          {
+            "name": "andromeda:comparison:stage:taxonomy",
+            "duration": 194
+          },
+          {
+            "name": "andromeda:comparison:stage:curriculum-model",
+            "duration": 5.1000001430511475
+          },
+          {
+            "name": "andromeda:comparison:stage:final-release-check",
+            "duration": 187.09999990463257
+          }
+        ]
+      },
+      "returning": {
+        "readyMs": 2445.600000143051,
+        "apiRequests": 4,
+        "apiBytes": 1460
+      }
+    }
+  ]
+}

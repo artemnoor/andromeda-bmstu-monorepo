@@ -1,12 +1,11 @@
 :root {
-  color-scheme: light;
-  --ink: #111318;
-  --muted: #656a73;
-  --line: rgba(17, 19, 24, .15);
-  --soft-line: rgba(17, 19, 24, .09);
+  color-scheme: dark;
+  --ink: #f4f4f4;
+  --muted: #b8bec7;
+  --line: rgba(255, 255, 255, .2);
+  --soft-line: rgba(255, 255, 255, .12);
   --paper: #fff;
-  --page-background: #fafafa;
-  --paper-texture: url("paper-noise.svg");
+  --page-background: #111;
   --soft: #f5f7fa;
   --blue: #006cdc;
   --blue-soft: #edf5ff;
@@ -17,22 +16,17 @@
 }
 
 *, *::before, *::after { box-sizing: border-box; }
-html { min-width: 320px; scroll-behavior: smooth; background-color: var(--page-background); background-image: var(--paper-texture); background-repeat: repeat; background-size: 180px 180px; background-blend-mode: multiply; }
+html { min-width: 320px; scroll-behavior: smooth; background-color: var(--page-background); }
 body {
   min-width: 320px;
   margin: 0;
   color: var(--ink);
   background-color: var(--page-background);
-  background-image: var(--paper-texture);
-  background-repeat: repeat;
-  background-size: 180px 180px;
-  background-blend-mode: multiply;
-  background-attachment: fixed;
-  background-position: 0 0;
-  animation: paper-grain 8s steps(10) infinite;
   font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
+
+.workspace-card, .workspace-panel, .workspace-surface { --ink: #111318; --muted: #656a73; --line: rgba(17, 19, 24, .15); color: #111318; }
 button, input, select { font: inherit; }
 button, select, input[type="checkbox"] { accent-color: var(--blue); }
 a { color: inherit; }
@@ -40,19 +34,6 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   outline: 3px solid rgba(0, 108, 220, .38);
   outline-offset: 3px;
 }
-@keyframes paper-grain {
-  0%, 100% { background-position: 0 0; }
-  10% { background-position: -8px -18px; }
-  20% { background-position: -27px 9px; }
-  30% { background-position: 9px -45px; }
-  40% { background-position: -9px 45px; }
-  50% { background-position: -27px 18px; }
-  60% { background-position: 27px 0; }
-  70% { background-position: 0 27px; }
-  80% { background-position: 9px 63px; }
-  90% { background-position: -18px 18px; }
-}
-
 .workspace-header,
 .workspace-nav,
 .workspace-main,

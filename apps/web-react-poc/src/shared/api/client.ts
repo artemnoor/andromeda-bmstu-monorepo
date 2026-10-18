@@ -188,6 +188,7 @@ async function request<T>(
   else externalSignal?.addEventListener("abort", abortFromCaller, { once: true });
 
   try {
+    externalSignal?.throwIfAborted();
     const result = await execute(controller.signal);
     if (!result.response.ok) throw apiError(result.response, result.error);
     if (result.data === undefined) {
@@ -370,15 +371,26 @@ export async function listDepartments(signal?: AbortSignal): Promise<AcademicCol
   });
 }
 
-export async function getStudyPlans(programKey: string, signal?: AbortSignal): Promise<AcademicCollection<StudyPlanDto>> {
+async function collectStudyPlans(
+  programKey: string | undefined,
+  signal?: AbortSignal,
+): Promise<AcademicCollection<StudyPlanDto>> {
   const expectedReleaseKey = await ensureRelease(signal);
   return collectPages("/api/v1/study-plans", expectedReleaseKey, async (cursor) => {
     const response = await request("/api/v1/study-plans", (requestSignal) => client.GET("/api/v1/study-plans", {
-      params: { query: { program_key: programKey, limit: PAGE_SIZE, ...(cursor ? { cursor } : {}) } },
+      params: { query: { ...(programKey ? { program_key: programKey } : {}), limit: PAGE_SIZE, ...(cursor ? { cursor } : {}) } },
       signal: requestSignal,
     }), signal);
     return response;
   });
+}
+
+export async function listStudyPlans(signal?: AbortSignal): Promise<AcademicCollection<StudyPlanDto>> {
+  return collectStudyPlans(undefined, signal);
+}
+
+export async function getStudyPlans(programKey: string, signal?: AbortSignal): Promise<AcademicCollection<StudyPlanDto>> {
+  return collectStudyPlans(programKey, signal);
 }
 
 export async function getStudyPlanItems(planKey: string, signal?: AbortSignal): Promise<AcademicCollection<CurriculumItemDto>> {

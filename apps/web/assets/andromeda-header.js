@@ -9,6 +9,7 @@
   const root = document.createElement("div");
   root.className = "andromeda-header-root";
   root.innerHTML = `
+    <div class="andromeda-noise" aria-hidden="true"></div>
     <header class="andromeda-site-header" aria-hidden="true"></header>
     <a class="andromeda-site-logo" href="index.html" aria-label="Andromeda × BMSTU — главная">
       <img src="assets/andromeda-symbol.png" alt="">

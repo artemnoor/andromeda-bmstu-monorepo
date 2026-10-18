@@ -7,12 +7,13 @@ test.beforeEach(async ({ page }) => {
 test("home navigation opens the catalog from the original menu", async ({ page, diagnostics }) => {
   await page.goto("/");
 
-  await expect(page.getByRole("heading", { name: "МГТУ имени Баумана × Андромеда" })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: /Выбери.*Спроектируй своё будущее/ })).toBeVisible();
   const menuButton = page.getByRole("button", { name: "Открыть меню" });
   await menuButton.click();
   await expect(page.getByRole("button", { name: "Закрыть меню" })).toHaveAttribute("aria-expanded", "true");
 
-  const catalogLink = page.getByRole("link", { name: "Каталог программ" });
+  const catalogLink = page.getByRole("dialog", { name: "Основная навигация" })
+    .getByRole("link", { name: "Каталог программ", exact: true });
   // The original menu intentionally animates each link for over a second.
   // Keyboard activation tests the same navigation without racing its transform.
   await catalogLink.focus();
@@ -71,7 +72,7 @@ test("shared catalog navigation keeps its close control inside the modal and res
 test("home catalog call to action opens the React catalog directly", async ({ page, diagnostics }) => {
   await page.goto("/");
 
-  const catalogLink = page.getByRole("link", { name: "Открыть каталог образовательных программ" });
+  const catalogLink = page.getByRole("link", { name: "Открыть каталог программ" }).first();
   await catalogLink.scrollIntoViewIfNeeded();
   await catalogLink.click();
 

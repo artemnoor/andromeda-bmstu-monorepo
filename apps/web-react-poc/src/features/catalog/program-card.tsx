@@ -100,7 +100,11 @@ export function ProgramCard({ program, expectedReleaseKey, onSelectionLimit }: {
       </details>
 
       <footer className={styles.cardBottom}>
-        <span className={styles.campusTag}>МГТУ · Москва</span>
+        <span className={styles.campusTag}>{program.campus_status === "verified" && program.campus_scope === "head_moscow"
+          ? "МГТУ · Москва"
+          : program.campus_status === "verified" && program.campus_scope === "other"
+            ? "МГТУ · другой кампус"
+            : "МГТУ · кампус не подтверждён"}</span>
         <div className={styles.cardLinks}>
           {externalLinks.length ? externalLinks.map((externalLink) => (
             <a key={`${externalLink.label}:${externalLink.href}`} className={styles.programLink} href={externalLink.href} target="_blank" rel="noopener noreferrer">

@@ -63,11 +63,25 @@
 
 ## Повторный запуск
 
-Классификатор обращается к внешнему API Jev и в этой интеграции не запускался.
-Для локального повторного запуска требуется полный bundle и ключ
-`POLZA_AI_API_KEY`. Перед использованием проверьте контракт CLI в
-`services/api/src/andromeda_api/application/classification/jev.py`; этот дополнительный процесс не входит в validate,
-dry-run и commit основного bundle.
+Для контрольного bundle Jev уже был запущен 2026-10-10. Manifest
+`artifacts/bmstu-2026/subject-taxonomy-16/jev-results.manifest.json` фиксирует
+`status=complete`, 14 915 из 14 915 ответов без ошибок: 14 165 строк учебных
+планов и 750 каталожных курсов. Подтверждённая стоимость этого запуска —
+289,71 ₽. Результаты находятся в соседнем `jev-results.jsonl`.
+
+Этот прогон ещё не импортирован в активный выпуск API. Его
+`source_release_digest` равен `42616ee9348ee009fa1b297f7ef697862134835e562c7840f413643ce71d2130`,
+а активный выпуск профтеста указывает другой digest bundle —
+`e0262bea2be3cd6145784dd5acd8fa9e5e1eb82747f145a21ffd75ddfb43421b`.
+Импортёр намеренно не принимает классификацию с несовпадающим digest: перед
+публикацией нужно заново подтвердить входы Jev для активного выпуска или
+выполнить классификацию на его точном bundle. Поэтому полный результат Jev пока
+не отражается в API и профтесте.
+
+Для нового локального запуска требуется полный bundle и ключ
+`POLZA_AI_API_KEY`. Перед использованием проверяйте контракт CLI в
+`services/api/src/andromeda_api/application/classification/jev.py`; этот
+дополнительный процесс не входит в validate, dry-run и commit основного bundle.
 
 ```powershell
 uv run --no-editable --package andromeda-api python -m andromeda_api.application.classification.jev `
@@ -91,5 +105,6 @@ uv run --no-editable --package andromeda-api python -m andromeda_api.application
 Доступность API/импорт и выгрузка незавершённого прогона — разные статусы: checkpoint не считается данными опубликованной версии.
 
 The referenced `tools/report_subject_classification.py` utility is not present
-in the supplied repositories and has not been recreated. The classifier's
-external API run and classification import remain optional follow-up work.
+in the supplied repositories and has not been recreated. The completed Jev run
+is recorded in its manifest. Importing its results into the active API release
+remains outstanding because the Jev source digest does not match that release.

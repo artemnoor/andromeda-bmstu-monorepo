@@ -161,9 +161,33 @@ function classifyItem(
   taxonomy: SubjectTaxonomyDto | null,
 ): SubjectClassification | null {
   const source = item.subject_classification;
-  if (!source || source.review_status !== "classified" || !taxonomy) return null;
+  if (!source || !taxonomy) return null;
   if (source.taxonomy_key !== taxonomy.taxonomy_key || source.taxonomy_version !== taxonomy.taxonomy_version) return null;
-  const category = taxonomy.categories.find((entry) => entry.category_code === source.category_code);
+  const categoryCodes = taxonomy.categories.map((entry) => entry.category_code);
+  const probabilities = source.probabilities;
+  const hasValidProbabilityVector = categoryCodes.length > 0
+    && Object.keys(probabilities).length === categoryCodes.length
+    && categoryCodes.every((code) => {
+      const probability = probabilities[code];
+      return typeof probability === "number" && Number.isFinite(probability) && probability >= 0 && probability <= 1;
+    })
+    && Math.abs(categoryCodes.reduce((total, code) => total + probabilities[code]!, 0) - 1) <= 0.015;
+  let categoryCode = source.category_code;
+  if (hasValidProbabilityVector) {
+    let mostLikelyCategory = taxonomy.categories[0];
+    for (let index = 1; index < taxonomy.categories.length; index += 1) {
+      const candidate = taxonomy.categories[index];
+      if (!candidate || !mostLikelyCategory) continue;
+      const probabilityDifference = probabilities[candidate.category_code]! - probabilities[mostLikelyCategory.category_code]!;
+      if (probabilityDifference > 0 || (probabilityDifference === 0 && candidate.ordinal < mostLikelyCategory.ordinal)) {
+        mostLikelyCategory = candidate;
+      }
+    }
+    if (mostLikelyCategory) categoryCode = mostLikelyCategory.category_code;
+  }
+  // `needs_review` means the prediction is uncertain, not that Jev returned no category.
+  // Use the top probability as the display assignment while retaining release/taxonomy guards.
+  const category = taxonomy.categories.find((entry) => entry.category_code === categoryCode);
   if (!category) return null;
   return {
     categoryCode: category.category_code,

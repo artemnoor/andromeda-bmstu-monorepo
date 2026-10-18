@@ -39,9 +39,9 @@ test("open navigation menu meets WCAG 2.1 AA automated checks", async ({ page })
   await page.goto("/");
   await page.getByRole("button", { name: "Открыть меню" }).click();
   await expect(page.getByRole("dialog", { name: "Основная навигация" })).toBeVisible();
-  // The original menu reveals its footer with a delayed transition. Audit the
-  // stable, user-visible state rather than an intermediate opacity frame.
-  await expect(page.getByText("Telegram").locator("xpath=../..")).toHaveCSS("opacity", "1");
+  // Wait for the last actual navigation item to finish its delayed reveal.
+  // Social links were removed from the product; they are not a readiness marker.
+  await expect(page.getByRole("dialog").getByRole("link", { name: "Каталог программ" })).toHaveCSS("opacity", "1");
   await expectAccessible(page);
 });
 

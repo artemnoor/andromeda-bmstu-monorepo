@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
+  APPLICANT_PROFILE_KEY,
   COMPARE_OVERFLOW_KEY,
+  LEGACY_APPLICANT_PROFILE_KEY,
   LEGACY_STORAGE_KEYS,
   STORAGE_KEYS,
   readList,
+  readApplicantScores,
   writeList,
   type StorageStatus,
 } from "../../src/shared/browser-state/storage";
@@ -82,5 +85,26 @@ describe("browser-state list compatibility", () => {
 
     expect(readList("compare", storage)).toEqual([]);
     expect(storage.getItem(LEGACY_STORAGE_KEYS.compare)).toBe("{bad json");
+  });
+});
+
+describe("read-only applicant profile compatibility", () => {
+  it("merges legacy scores with canonical values taking precedence without changing storage", () => {
+    const storage = new MemoryStorage();
+    storage.setItem(LEGACY_APPLICANT_PROFILE_KEY, JSON.stringify({ scores: { math: 82, physics: 61, history: 77 } }));
+    storage.setItem(APPLICANT_PROFILE_KEY, JSON.stringify({ scores: { math: 90, physics: null } }));
+
+    expect(readApplicantScores(storage)).toEqual({ math: 90, physics: null, history: 77 });
+    expect(storage.getItem(LEGACY_APPLICANT_PROFILE_KEY)).toBe(JSON.stringify({ scores: { math: 82, physics: 61, history: 77 } }));
+    expect(storage.getItem(APPLICANT_PROFILE_KEY)).toBe(JSON.stringify({ scores: { math: 90, physics: null } }));
+  });
+
+  it("ignores malformed profile records and preserves an empty score result", () => {
+    const storage = new MemoryStorage();
+    storage.setItem(LEGACY_APPLICANT_PROFILE_KEY, "{bad json");
+    storage.setItem(APPLICANT_PROFILE_KEY, JSON.stringify({ scores: [90, 80] }));
+
+    expect(readApplicantScores(storage)).toEqual({});
+    expect(storage.getItem(LEGACY_APPLICANT_PROFILE_KEY)).toBe("{bad json");
   });
 });

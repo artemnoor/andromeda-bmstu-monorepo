@@ -1,45 +1,52 @@
-# Andromeda React proof of concept
+# Andromeda React application
 
-This is an isolated prototype for the original home, program catalog, and comparison screens. The existing vanilla app in `apps/web/` remains independent and unchanged; this app has its own lockfile, build output, and development port.
+React-приложение Andromeda для знакомства с направлениями МГТУ имени Баумана: главная страница, профтест, каталог программ и сравнение учебных планов и условий поступления.
 
-## Stack and boundaries
+## Быстрый старт
 
-- React Router v7 Framework Mode with client-side rendering and route modules.
-- Vite, TypeScript strict mode, CSS Modules, Vitest, and Playwright.
-- The OpenAPI artifact and generated TypeScript declarations come from the FastAPI application. Screen components call a single typed API adapter; they do not form backend URLs.
-- Route loaders own route data. TanStack Query is intentionally omitted because the prototype has no cross-route server cache requirement that justifies a second cache owner.
-- Program selections and favorites use the browser-state adapter, including the existing and legacy storage keys. Academic records remain server-owned.
-- Every composed academic read is pinned to one active `release_key`; if the active release changes while the screen is loading, the UI fails closed and asks the user to reload.
-- The API currently exposes BMSTU records without a university identity/scope field. This prototype does not fabricate one; multi-university filtering needs an explicit backend contract first.
-
-## Run locally
-
-Use Node.js 22.12 or newer and npm 10:
+Нужны Node.js 22.12+, npm 10 и работающий FastAPI из этого репозитория.
 
 ```powershell
 Push-Location apps/web-react-poc
 npm ci
 $env:API_PROXY_TARGET = "http://127.0.0.1:8000"
-$env:VITE_LEGACY_WEB_BASE_URL = "http://127.0.0.1:4173"
 npm run dev
 Pop-Location
 ```
 
-The React app is at `http://127.0.0.1:4180`. Vite proxies `/api/*` and `/openapi.json` to `API_PROXY_TARGET` (default `http://localhost:8000`). `VITE_LEGACY_WEB_BASE_URL` is used for links to screens that are not part of the prototype; point it to the separately running vanilla app. These variables do not configure a Node business API. A deployed frontend must route `/api/*` to FastAPI or set the supported API origin.
+Откройте <http://127.0.0.1:4180>. Vite перенаправляет `/api/*` и `/openapi.json` на адрес `API_PROXY_TARGET` (по умолчанию `http://localhost:8000`). Страница `/discover` требует, чтобы снимок профилей соответствовал `release_key` активного академического выпуска API. При несовпадении приложение показывает ошибку и не смешивает версии данных.
 
-## Screens
+## Маршруты
 
-- `/` — the original landing page, with the hero, navigation, imagery, motion, and feature links.
-- `/programs` — active-release catalog loaded from FastAPI, URL-backed search and filters, program details, admissions data, favorites, and compare selection.
-- `/compare` — up to three selected programs, admission data, SVG workload/category charts, and a curriculum matrix. Only uniquely latest, parsed, verified plans contribute. Missing and unverified data remain explicit; title matching only groups matrix rows for display.
+| URL | Содержание |
+| --- | --- |
+| `/` | Первый экран и обзор сценариев: тест, сравнение, каталог и источники. |
+| `/discover` | Профориентационный тест, объяснение рекомендаций и подбор программ. |
+| `/programs` | Каталог с поиском, фильтрами, избранным, условиями приёма и выбором программ для сравнения. |
+| `/compare` | Сравнение до трёх выбранных программ: учебные планы, нагрузка, классификации и данные приёма. |
 
-Unavailable API data is shown as an error or unknown state. The app does not fall back to old JSON snapshots or merge live and demo data.
+## Документация и скриншоты
 
-## Checks
+Подробное руководство по пользовательским сценариям, данным, разработке и проверкам: [docs/РУКОВОДСТВО.md](docs/РУКОВОДСТВО.md).
 
-Run from this directory:
+![Главная страница на компьютере](docs/screenshots/home-desktop.png)
+
+## Технологии и границы
+
+- React 19, React Router Framework Mode, Vite, TypeScript strict, CSS Modules.
+- FastAPI остаётся владельцем академических данных; UI обращается к нему через единый типизированный API adapter.
+- OpenAPI и TypeScript-контракт проверяются из backend-кода; frontend не строит URL отдельных API в компонентах.
+- Выбранные программы и избранное сохраняются в браузере через адаптер с поддержкой прежних ключей хранилища.
+- Состав сравнения ограничен тремя программами. Академические чтения закрепляются за одним `release_key`; при смене активного выпуска во время загрузки UI не показывает смешанный результат.
+- Неизвестное, отсутствующее и недоступное значение остаются различимыми. Проверенные источники показываются рядом с фактами, где это возможно.
+- Это отдельное React-приложение. Production-маршрутизация не переключена; существующее Vanilla-приложение сохраняет свои маршруты и продолжает собираться отдельно.
+
+## Проверки
+
+Из `apps/web-react-poc`:
 
 ```powershell
+npm run api:check
 npm run typecheck
 npm run lint
 npm test
@@ -47,10 +54,11 @@ npm run build
 npm run test:e2e
 ```
 
-Playwright browser tests use the live FastAPI API. For a full local E2E run, start the repo’s disposable test stack and point `API_PROXY_TARGET` to its read-only FastAPI process; do not point this POC at production data. The CI browser job migrates and seeds PostgreSQL 16, starts FastAPI with its read-only runtime account, then runs both the existing vanilla E2E suite and this POC suite against that same isolated database.
+Полный E2E-прогон использует PostgreSQL 16 с тестовыми данными, FastAPI с read-only runtime-пользователем и Chromium. Не подключайте его к рабочей базе. В корневом CI также запускаются проверки Vanilla-приложения.
 
-`npm run api:generate` exports `create_app().openapi()` from the local Python workspace and updates `openapi.json` and `src/shared/api/schema.d.ts`. `npm run api:check` verifies both artifacts are current. Install the locked workspace first with `uv sync --locked --all-packages --group dev --no-editable`.
+## Решения и исследования
 
-## Scope and migration decision
-
-This is an architecture experiment, not a replacement for `apps/web/`. It demonstrates three routes and the current BMSTU read contracts; it does not implement the other vanilla screens, user accounts, server-side profile storage, or university selection. Keep the prototype separately deployable until its visual, data-correctness, performance, and maintenance evidence has been reviewed. Do not switch production routes as part of this experiment.
+- [Обновление сравнения и результаты профилирования](COMPARISON_REFRESH_REPORT.md)
+- [Проверка удобства профтеста](PROF_TEST_USABILITY_REPORT.md)
+- [Сторонние лицензии и атрибуция](THIRD_PARTY_NOTICES.md)
+- [Исследование backend-производительности](BACKEND_PERFORMANCE_RESEARCH.md)

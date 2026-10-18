@@ -1,0 +1,46 @@
+.root {
+  position: relative;
+  display: inline-flex;
+  flex-wrap: nowrap;
+  overflow: hidden;
+  vertical-align: baseline;
+  white-space: nowrap;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.inner {
+  position: relative;
+  display: inline-flex;
+  flex-wrap: nowrap;
+  white-space: nowrap;
+}
+
+.lines {
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+}
+
+.word {
+  display: inline-flex;
+  flex: 0 0 auto;
+}
+
+.character {
+  display: inline-block;
+}
+
+.space {
+  white-space: pre;
+}

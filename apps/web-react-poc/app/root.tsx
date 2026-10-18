@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import {
   isRouteErrorResponse,
   Links,
@@ -7,7 +7,10 @@ import {
   Scripts,
   ScrollRestoration,
   useRouteError,
+  useLocation,
+  useNavigation,
 } from "react-router";
+import { AndromedaHeader } from "@/widgets/andromeda-navigation/andromeda-header";
 import styles from "./root.module.css";
 
 export function Layout({ children }: { children: ReactNode }) {
@@ -20,7 +23,9 @@ export function Layout({ children }: { children: ReactNode }) {
         <Links />
       </head>
       <body>
+        <a className={styles.skipLink} href="#main-content" onClick={() => document.querySelector<HTMLElement>("main")?.focus()}>К содержимому</a>
         <div className={styles.root}>{children}</div>
+        <div className={styles.noise} aria-hidden="true" />
         <ScrollRestoration />
         <Scripts />
       </body>
@@ -29,11 +34,30 @@ export function Layout({ children }: { children: ReactNode }) {
 }
 
 export function meta() {
-  return [{ title: "Andromeda × BMSTU — React proof of concept" }];
+  return [{ title: "Андромеда × МГТУ имени Баумана" }];
 }
 
 export default function App() {
-  return <Outlet />;
+  const { pathname } = useLocation();
+  const navigation = useNavigation();
+  const previousPath = useRef<string | null>(null);
+  useEffect(() => {
+    if (navigation.state !== "idle") return;
+    const main = document.querySelector<HTMLElement>("main");
+    if (!main) return;
+    main.id = "main-content";
+    main.tabIndex = -1;
+    if (previousPath.current !== pathname) main.focus({ preventScroll: true });
+    previousPath.current = pathname;
+  }, [pathname, navigation.state]);
+  return <>
+    {navigation.state !== "idle" ? <div className={styles.navigationStatus} role="status">Открываем страницу…</div> : null}
+    <Outlet />
+  </>;
+}
+
+export function HydrateFallback() {
+  return <><AndromedaHeader /><main className={styles.loading} id="main-content" tabIndex={-1} aria-busy="true"><p role="status">Открываем Андромеду…</p><div className={styles.skeleton} aria-hidden="true" /></main></>;
 }
 
 export function ErrorBoundary() {
@@ -43,10 +67,10 @@ export function ErrorBoundary() {
     : "Не удалось загрузить страницу. Попробуйте обновить её.";
 
   return (
-    <main className={styles.error} role="alert">
+    <><AndromedaHeader /><main className={styles.error} id="main-content" tabIndex={-1} role="alert">
       <h1>Страница временно недоступна</h1>
       <p>{message}</p>
       <a href="/">Вернуться на главную</a>
-    </main>
+    </main></>
   );
 }

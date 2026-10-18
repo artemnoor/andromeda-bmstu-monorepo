@@ -1,0 +1,5516 @@
+{
+  "schema_version": 1,
+  "environment": {
+    "node": "v22.13.0",
+    "platform": "win32",
+    "arch": "x64",
+    "typescript": "5.9.3",
+    "icu": "76.1"
+  },
+  "sources": {
+    "model": {
+      "path": "src/features/prof-test/model.ts",
+      "sha256": "b8a98828ac18ca56b96f9825181b1dc4952039deac97ebdc90dcdb6b4f35d169"
+    },
+    "comparisonModel": {
+      "path": "src/features/comparison/model.ts",
+      "sha256": "a2d885ea09e9da13b7ec49775b92b3adb702cc6a6fdff958feeeccc35fb89bc6"
+    },
+    "snapshot": {
+      "path": "public/data/prof-test-profile-snapshot.json",
+      "sha256": "f207e218d8a746fe83f2d4bb7c1fb84a4143b96c20caad6f0c1bffb83476c4f0"
+    }
+  },
+  "academic_release": {
+    "release_key": "bmstu-2026:42616ee9348ee009fa1b297f7ef697862134835e562c7840f413643ce71d2130:bmstu-2026-bundle-v4",
+    "source_bundle_sha256": "42616ee9348ee009fa1b297f7ef697862134835e562c7840f413643ce71d2130",
+    "mapper_version": "bmstu-2026-bundle-v4",
+    "activated_at": "2026-10-11T06:27:51.641709Z",
+    "reconciliation_status": "passed_with_gaps",
+    "schema_revision": "f4b19a7c2d61"
+  },
+  "seed": 271828,
+  "prng": "LCG uint32: state = 1664525 * state + 1013904223; divide by 2**32",
+  "iterations": 10000,
+  "sampling": {
+    "interests": "First 16 flows select each single category; subsequent flows use unknown with 5% probability, otherwise 1..5 distinct uniformly shuffled categories.",
+    "activity": "Uniform among no preference and actual model activity options.",
+    "avoid": "0..3 shuffled categories excluding selected interests; empty avoid represents skipped question.",
+    "comparisons": "Uniform among actual pair values sorted ascending; actual adaptive pair selection and early stopping."
+  },
+  "catalog_program_count": 152,
+  "verified_profile_count": 127,
+  "unavailable_verified_plan_count": 25,
+  "no_signal_flows": 0,
+  "comparison_counts": {
+    "2": 1023,
+    "3": 387,
+    "4": 8590
+  },
+  "coverage": {
+    "top1": {
+      "count": 78,
+      "program_keys": [
+        "program:bmstu:01.03.02:ИУ9:01.03.02-01:source:1-1",
+        "program:bmstu:01.03.03:ФН11:01.03.03-03:source:2-1",
+        "program:bmstu:01.03.03:ФН3:01.03.03-02:source:1-1",
+        "program:bmstu:01.03.04:ФН12:01.03.04-04:source:3-1",
+        "program:bmstu:01.03.04:ФН1:01.03.04-03:source:1-1",
+        "program:bmstu:02.03.01:ФН11:02.03.01-01:source:1-1",
+        "program:bmstu:02.03.01:ФН11:02.03.01-22(АК3):source:1-2",
+        "program:bmstu:09.03.01:ИУ5:09.03.01-02:source:1-1",
+        "program:bmstu:09.03.01:ИУ5:09.03.01-12:source:1-2",
+        "program:bmstu:09.03.01:ИУ6:09.03.01-03:source:2-1",
+        "program:bmstu:09.03.01:ИУ6:09.03.01-13:source:2-2",
+        "program:bmstu:09.03.01:ИУ6:09.03.01-53:source:2-3",
+        "program:bmstu:09.03.03:БМТ1:09.03.03/06:source:2-1",
+        "program:bmstu:09.03.03:ИБМ3:09.03.03/10:source:1-1",
+        "program:bmstu:09.03.03:СГН3:09.03.03/01:source:3-1",
+        "program:bmstu:09.03.04:ИУ7:09.03.04/01:source:1-1",
+        "program:bmstu:09.03.04:ИУ7:09.03.04/02:source:1-2",
+        "program:bmstu:09.03.04:ИУ7:09.03.04/03:source:1-3",
+        "program:bmstu:10.05.01:ИУ8:10.05.01-02:source:1-1",
+        "program:bmstu:10.05.03:ИУ10:10.05.03-04:source:2-1",
+        "program:bmstu:10.05.03:ИУ10:10.05.03/05:source:2-2",
+        "program:bmstu:10.05.03:ИУ8:10.05.03/01:source:1-3",
+        "program:bmstu:10.05.03:ИУ8:10.05.03/03:source:1-4",
+        "program:bmstu:11.03.04:МТ11:11.03.04-01:source:1-1",
+        "program:bmstu:11.05.01:РЛ1:11.05.01-01:source:2-1",
+        "program:bmstu:11.05.01:РЛ1:11.05.01-21(РТ1):source:2-2",
+        "program:bmstu:11.05.01:РЛ6:11.05.01-05:source:3-1",
+        "program:bmstu:11.05.01:СМ5:11.05.01-09:source:1-1",
+        "program:bmstu:12.03.04:БМТ1:12.03.04/05:source:1-5",
+        "program:bmstu:12.03.05:РЛ2:12.03.05-01:source:1-1",
+        "program:bmstu:13.03.02:СМ10:13.03.02-02:source:1-1",
+        "program:bmstu:13.03.02:ФН7:13.03.02-03:source:3-1",
+        "program:bmstu:13.03.03:Э2:13.03.03-01:source:1-1",
+        "program:bmstu:15.03.03:РК5:15.03.03-01:source:1-1",
+        "program:bmstu:15.03.06:РК3:15.03.06-02:source:4-1",
+        "program:bmstu:15.03.06:СМ7:15.03.06-03:source:1-1",
+        "program:bmstu:15.05.01:МТ12:15.05.01-04:source:8-1",
+        "program:bmstu:15.05.01:МТ12:15.05.01-04:source:8-2",
+        "program:bmstu:15.05.01:МТ2:15.05.01-02:source:2-1",
+        "program:bmstu:15.05.01:МТ2:15.05.01-22(РКТ3):source:2-2",
+        "program:bmstu:15.05.01:МТ3:15.05.01-03:source:3-1",
+        "program:bmstu:15.05.01:МТ7:15.05.01-07:source:6-1",
+        "program:bmstu:15.05.02:МТ7:15.05.02-02:source:1-1",
+        "program:bmstu:15.05.02:СМ9:15.05.02-01:source:2-1",
+        "program:bmstu:16.03.01:ФН4:16.03.01-01:source:1-1",
+        "program:bmstu:17.05.01:СМ4:17.05.01-02:source:1-1",
+        "program:bmstu:17.05.02:СМ6:17.05.02-02:source:1-1",
+        "program:bmstu:20.03.01:Э9:20.03.01/01:source:1-1",
+        "program:bmstu:22.03.01:МТ8:22.03.01-01:source:1-1",
+        "program:bmstu:22.03.01:СМ13:22.03.01-02:source:2-1",
+        "program:bmstu:23.05.01:РК4:23.05.01-02:source:3-1",
+        "program:bmstu:23.05.01:СМ9:23.05.01-09:source:1-1",
+        "program:bmstu:23.05.02:СМ9:23.05.02-09:source:1-1",
+        "program:bmstu:24.03.01:СМ13:24.03.01-02:source:2-1",
+        "program:bmstu:24.03.01:СМ1:24.03.01-01:source:1-1",
+        "program:bmstu:24.05.01:СМ12:24.05.01-03:source:4-1",
+        "program:bmstu:24.05.01:СМ13:24.05.01-10:source:5-1",
+        "program:bmstu:24.05.02:Э2:24.05.02-09:source:2-1",
+        "program:bmstu:24.05.02:Э8:24.05.02-05:source:5-1",
+        "program:bmstu:24.05.04:СМ3:24.05.04-02:source:1-1",
+        "program:bmstu:24.05.06:ИУ11:24.05.06-20(ПС4):source:3-1",
+        "program:bmstu:24.05.06:ИУ1:24.05.06-02:source:1-1",
+        "program:bmstu:24.05.06:ИУ1:24.05.06-21(ПС2):source:1-3",
+        "program:bmstu:24.05.06:ИУ1:24.05.06-22(РТ4):source:1-5",
+        "program:bmstu:24.05.06:ИУ1:24.05.06-29(РКТ1):source:1-6",
+        "program:bmstu:24.05.06:ИУ2:24.05.06-04:source:2-1",
+        "program:bmstu:27.03.04:СМ5:27.03.04-02:source:2-1",
+        "program:bmstu:28.03.02:МТ11:28.03.02-02:source:1-1",
+        "program:bmstu:38.03.01:ИБМ1:38.03.01/01:source:1-1",
+        "program:bmstu:38.03.01:ИБМ5:38.03.01/05:source:2-1",
+        "program:bmstu:38.03.02:ИБМ4:38.03.02/04:source:1-1",
+        "program:bmstu:38.03.02:ИБМ7:38.03.02/07:source:2-1",
+        "program:bmstu:38.03.05:ИБМ3:38.03.05/02:source:1-1",
+        "program:bmstu:38.03.05:ИБМ6:38.03.05/01:source:2-1",
+        "program:bmstu:40.05.03/40.05.01:ЮР:40.05.03/Д1:source:1-1",
+        "program:bmstu:45.03.02:Л4:45.03.02/01:source:1-1",
+        "program:bmstu:45.03.03:Л4:45.03.03/01:source:1-1",
+        "program:bmstu:54.03.01:МТ9:54.03.01/01:source:1-1"
+      ]
+    },
+    "top3": {
+      "count": 110,
+      "program_keys": [
+        "program:bmstu:01.03.02:ИУ9:01.03.02-01:source:1-1",
+        "program:bmstu:01.03.03:ФН11:01.03.03-03:source:2-1",
+        "program:bmstu:01.03.03:ФН3:01.03.03-02:source:1-1",
+        "program:bmstu:01.03.04:ФН12:01.03.04-04:source:3-1",
+        "program:bmstu:01.03.04:ФН1:01.03.04-03:source:1-1",
+        "program:bmstu:02.03.01:ФН11:02.03.01-01:source:1-1",
+        "program:bmstu:02.03.01:ФН11:02.03.01-22(АК3):source:1-2",
+        "program:bmstu:09.03.01:ИУ5:09.03.01-02:source:1-1",
+        "program:bmstu:09.03.01:ИУ5:09.03.01-12:source:1-2",
+        "program:bmstu:09.03.01:ИУ5:09.03.01-22(РТ5):source:1-3",
+        "program:bmstu:09.03.01:ИУ6:09.03.01-03:source:2-1",
+        "program:bmstu:09.03.01:ИУ6:09.03.01-13:source:2-2",
+        "program:bmstu:09.03.01:ИУ6:09.03.01-53:source:2-3",
+        "program:bmstu:09.03.01:РК6:09.03.01-01:source:3-1",
+        "program:bmstu:09.03.03:БМТ1:09.03.03/06:source:2-1",
+        "program:bmstu:09.03.03:ИБМ3:09.03.03/10:source:1-1",
+        "program:bmstu:09.03.03:СГН3:09.03.03/01:source:3-1",
+        "program:bmstu:09.03.04:ИУ7:09.03.04/01:source:1-1",
+        "program:bmstu:09.03.04:ИУ7:09.03.04/02:source:1-2",
+        "program:bmstu:09.03.04:ИУ7:09.03.04/03:source:1-3",
+        "program:bmstu:10.05.01:ИУ8:10.05.01-02:source:1-1",
+        "program:bmstu:10.05.03:ИУ10:10.05.03-04:source:2-1",
+        "program:bmstu:10.05.03:ИУ10:10.05.03/05:source:2-2",
+        "program:bmstu:10.05.03:ИУ8:10.05.03-02:source:1-1",
+        "program:bmstu:10.05.03:ИУ8:10.05.03/01:source:1-3",
+        "program:bmstu:10.05.03:ИУ8:10.05.03/03:source:1-4",
+        "program:bmstu:10.05.05:ЮР:10.05.05-01:source:1-1",
+        "program:bmstu:11.03.03:ИУ4:11.03.03-01:source:1-1",
+        "program:bmstu:11.03.03:ИУ4:11.03.03-21(РТ2):source:1-2",
+        "program:bmstu:11.03.03:Э8:11.03.03-02:source:2-1",
+        "program:bmstu:11.03.04:МТ11:11.03.04-01:source:1-1",
+        "program:bmstu:11.05.01:РЛ1:11.05.01-01:source:2-1",
+        "program:bmstu:11.05.01:РЛ1:11.05.01-21(РТ1):source:2-2",
+        "program:bmstu:11.05.01:РЛ6:11.05.01-05:source:3-1",
+        "program:bmstu:11.05.01:СМ5:11.05.01-09:source:1-1",
+        "program:bmstu:12.03.04:БМТ1:12.03.04/05:source:1-5",
+        "program:bmstu:12.03.05:РЛ2:12.03.05-01:source:1-1",
+        "program:bmstu:12.05.01:РЛ2:12.05.01-01:source:1-1",
+        "program:bmstu:13.03.02:СМ10:13.03.02-02:source:1-1",
+        "program:bmstu:13.03.02:ФН7:13.03.02-03:source:3-1",
+        "program:bmstu:13.03.02:Э11:13.03.02-04:source:4-1",
+        "program:bmstu:13.03.03:Э2:13.03.03-01:source:1-1",
+        "program:bmstu:15.03.01:МТ13:15.03.01-02:source:1-1",
+        "program:bmstu:15.03.03:РК5:15.03.03-01:source:1-1",
+        "program:bmstu:15.03.04:РК9:15.03.04-01:source:2-1",
+        "program:bmstu:15.03.06:РК3:15.03.06-02:source:4-1",
+        "program:bmstu:15.03.06:РК4:15.03.06-08:source:5-2",
+        "program:bmstu:15.03.06:СМ11:15.03.06-04:source:3-1",
+        "program:bmstu:15.03.06:СМ7:15.03.06-03:source:1-1",
+        "program:bmstu:15.05.01:МТ12:15.05.01-04:source:8-1",
+        "program:bmstu:15.05.01:МТ12:15.05.01-04:source:8-2",
+        "program:bmstu:15.05.01:МТ2:15.05.01-02:source:2-1",
+        "program:bmstu:15.05.01:МТ2:15.05.01-22(РКТ3):source:2-2",
+        "program:bmstu:15.05.01:МТ3:15.05.01-03:source:3-1",
+        "program:bmstu:15.05.01:МТ5:15.05.01-05:source:4-1",
+        "program:bmstu:15.05.01:МТ7:15.05.01-07:source:6-1",
+        "program:bmstu:15.05.02:МТ7:15.05.02-02:source:1-1",
+        "program:bmstu:15.05.02:СМ9:15.05.02-01:source:2-1",
+        "program:bmstu:16.03.01:ФН4:16.03.01-01:source:1-1",
+        "program:bmstu:16.03.02:Э8:16.03.02-01:source:1-1",
+        "program:bmstu:16.03.03:Э4:16.03.03-01:source:1-1",
+        "program:bmstu:16.05.01:Э4:16.05.01-01:source:1-1",
+        "program:bmstu:17.05.01:СМ4:17.05.01-02:source:1-1",
+        "program:bmstu:17.05.02:СМ6:17.05.02-02:source:1-1",
+        "program:bmstu:20.03.01:Э9:20.03.01/01:source:1-1",
+        "program:bmstu:22.03.01:МТ8:22.03.01-01:source:1-1",
+        "program:bmstu:22.03.01:СМ13:22.03.01-02:source:2-1",
+        "program:bmstu:23.05.01:РК4:23.05.01-02:source:3-1",
+        "program:bmstu:23.05.01:СМ10:23.05.01-10:source:2-1",
+        "program:bmstu:23.05.01:СМ9:23.05.01-09:source:1-1",
+        "program:bmstu:23.05.02:СМ10:23.05.02-10:source:2-1",
+        "program:bmstu:23.05.02:СМ9:23.05.02-09:source:1-1",
+        "program:bmstu:24.03.01:СМ13:24.03.01-02:source:2-1",
+        "program:bmstu:24.03.01:СМ1:24.03.01-01:source:1-1",
+        "program:bmstu:24.05.01:СМ12:24.05.01-03:source:4-1",
+        "program:bmstu:24.05.01:СМ12:24.05.01-23(РКТ4):source:4-2",
+        "program:bmstu:24.05.01:СМ13:24.05.01-10:source:5-1",
+        "program:bmstu:24.05.01:СМ1:24.05.01-05:source:1-1",
+        "program:bmstu:24.05.01:СМ1:24.05.01-25(РКТ2):source:1-2",
+        "program:bmstu:24.05.01:СМ2:24.05.01-01:source:2-4",
+        "program:bmstu:24.05.01:СМ2:24.05.01-21(АК1):source:2-5",
+        "program:bmstu:24.05.01:СМ8:24.05.01-14(ПС3):source:3-2",
+        "program:bmstu:24.05.01:Э4:24.05.01-12:source:6-1",
+        "program:bmstu:24.05.02:Э2:24.05.02-09:source:2-1",
+        "program:bmstu:24.05.02:Э3:24.05.02-01:source:3-1",
+        "program:bmstu:24.05.02:Э8:24.05.02-05:source:5-1",
+        "program:bmstu:24.05.04:СМ3:24.05.04-02:source:1-1",
+        "program:bmstu:24.05.06:ИУ11:24.05.06-20(ПС4):source:3-1",
+        "program:bmstu:24.05.06:ИУ1:24.05.06-02:source:1-1",
+        "program:bmstu:24.05.06:ИУ1:24.05.06-03:source:1-2",
+        "program:bmstu:24.05.06:ИУ1:24.05.06-21(ПС2):source:1-3",
+        "program:bmstu:24.05.06:ИУ1:24.05.06-22(АК4):source:1-4",
+        "program:bmstu:24.05.06:ИУ1:24.05.06-22(РТ4):source:1-5",
+        "program:bmstu:24.05.06:ИУ1:24.05.06-29(РКТ1):source:1-6",
+        "program:bmstu:24.05.06:ИУ2:24.05.06-04:source:2-1",
+        "program:bmstu:27.03.01:МТ4:27.03.01-61:source:1-2",
+        "program:bmstu:27.03.04:ИУ1:27.03.04-01:source:1-1",
+        "program:bmstu:27.03.04:СМ5:27.03.04-02:source:2-1",
+        "program:bmstu:28.03.02:МТ11:28.03.02-02:source:1-1",
+        "program:bmstu:28.03.02:РЛ6:28.03.02-01:source:2-1",
+        "program:bmstu:38.03.01:ИБМ1:38.03.01/01:source:1-1",
+        "program:bmstu:38.03.01:ИБМ5:38.03.01/05:source:2-1",
+        "program:bmstu:38.03.02:ИБМ4:38.03.02/04:source:1-1",
+        "program:bmstu:38.03.02:ИБМ7:38.03.02/07:source:2-1",
+        "program:bmstu:38.03.05:ИБМ3:38.03.05/02:source:1-1",
+        "program:bmstu:38.03.05:ИБМ6:38.03.05/01:source:2-1",
+        "program:bmstu:40.05.03/40.05.01:ЮР:40.05.03/Д1:source:1-1",
+        "program:bmstu:45.03.02:Л4:45.03.02/01:source:1-1",
+        "program:bmstu:45.03.03:Л4:45.03.03/01:source:1-1",
+        "program:bmstu:54.03.01:МТ9:54.03.01/01:source:1-1"
+      ]
+    },
+    "top5": {
+      "count": 116,
+      "program_keys": [
+        "program:bmstu:01.03.02:ИУ9:01.03.02-01:source:1-1",
+        "program:bmstu:01.03.03:ФН11:01.03.03-03:source:2-1",
+        "program:bmstu:01.03.03:ФН3:01.03.03-02:source:1-1",
+        "program:bmstu:01.03.04:ФН12:01.03.04-04:source:3-1",
+        "program:bmstu:01.03.04:ФН1:01.03.04-03:source:1-1",
+        "program:bmstu:02.03.01:ФН11:02.03.01-01:source:1-1",
+        "program:bmstu:02.03.01:ФН11:02.03.01-22(АК3):source:1-2",
+        "program:bmstu:09.03.01:ИУ5:09.03.01-02:source:1-1",
+        "program:bmstu:09.03.01:ИУ5:09.03.01-12:source:1-2",
+        "program:bmstu:09.03.01:ИУ5:09.03.01-22(РТ5):source:1-3",
+        "program:bmstu:09.03.01:ИУ6:09.03.01-03:source:2-1",
+        "program:bmstu:09.03.01:ИУ6:09.03.01-13:source:2-2",
+        "program:bmstu:09.03.01:ИУ6:09.03.01-53:source:2-3",
+        "program:bmstu:09.03.01:РК6:09.03.01-01:source:3-1",
+        "program:bmstu:09.03.02:ИУ3:09.03.02/01:source:1-1",
+        "program:bmstu:09.03.03:БМТ1:09.03.03/06:source:2-1",
+        "program:bmstu:09.03.03:ИБМ3:09.03.03/10:source:1-1",
+        "program:bmstu:09.03.03:СГН3:09.03.03/01:source:3-1",
+        "program:bmstu:09.03.04:ИУ7:09.03.04/01:source:1-1",
+        "program:bmstu:09.03.04:ИУ7:09.03.04/02:source:1-2",
+        "program:bmstu:09.03.04:ИУ7:09.03.04/03:source:1-3",
+        "program:bmstu:10.05.01:ИУ8:10.05.01-02:source:1-1",
+        "program:bmstu:10.05.03:ИУ10:10.05.03-04:source:2-1",
+        "program:bmstu:10.05.03:ИУ10:10.05.03/05:source:2-2",
+        "program:bmstu:10.05.03:ИУ8:10.05.03-02:source:1-1",
+        "program:bmstu:10.05.03:ИУ8:10.05.03/01:source:1-3",
+        "program:bmstu:10.05.03:ИУ8:10.05.03/03:source:1-4",
+        "program:bmstu:10.05.05:ЮР:10.05.05-01:source:1-1",
+        "program:bmstu:11.03.03:ИУ4:11.03.03-01:source:1-1",
+        "program:bmstu:11.03.03:ИУ4:11.03.03-21(РТ2):source:1-2",
+        "program:bmstu:11.03.03:Э8:11.03.03-02:source:2-1",
+        "program:bmstu:11.03.04:МТ11:11.03.04-01:source:1-1",
+        "program:bmstu:11.05.01:РЛ1:11.05.01-01:source:2-1",
+        "program:bmstu:11.05.01:РЛ1:11.05.01-21(РТ1):source:2-2",
+        "program:bmstu:11.05.01:РЛ6:11.05.01-05:source:3-1",
+        "program:bmstu:11.05.01:СМ5:11.05.01-09:source:1-1",
+        "program:bmstu:12.03.04:БМТ1:12.03.04/05:source:1-5",
+        "program:bmstu:12.03.05:РЛ2:12.03.05-01:source:1-1",
+        "program:bmstu:12.05.01:РЛ2:12.05.01-01:source:1-1",
+        "program:bmstu:13.03.02:СМ10:13.03.02-02:source:1-1",
+        "program:bmstu:13.03.02:ФН7:13.03.02-03:source:3-1",
+        "program:bmstu:13.03.02:Э11:13.03.02-04:source:4-1",
+        "program:bmstu:13.03.03:Э2:13.03.03-01:source:1-1",
+        "program:bmstu:15.03.01:МТ13:15.03.01-02:source:1-1",
+        "program:bmstu:15.03.02:Э5:15.03.02-01:source:1-1",
+        "program:bmstu:15.03.03:РК5:15.03.03-01:source:1-1",
+        "program:bmstu:15.03.04:РК9:15.03.04-01:source:2-1",
+        "program:bmstu:15.03.06:РК3:15.03.06-02:source:4-1",
+        "program:bmstu:15.03.06:РК4:15.03.06-01:source:5-1",
+        "program:bmstu:15.03.06:РК4:15.03.06-08:source:5-2",
+        "program:bmstu:15.03.06:СМ10:15.03.06/М9:source:2-1",
+        "program:bmstu:15.03.06:СМ11:15.03.06-04:source:3-1",
+        "program:bmstu:15.03.06:СМ7:15.03.06-03:source:1-1",
+        "program:bmstu:15.05.01:МТ12:15.05.01-04:source:8-1",
+        "program:bmstu:15.05.01:МТ12:15.05.01-04:source:8-2",
+        "program:bmstu:15.05.01:МТ2:15.05.01-02:source:2-1",
+        "program:bmstu:15.05.01:МТ2:15.05.01-22(РКТ3):source:2-2",
+        "program:bmstu:15.05.01:МТ3:15.05.01-03:source:3-1",
+        "program:bmstu:15.05.01:МТ5:15.05.01-05:source:4-1",
+        "program:bmstu:15.05.01:МТ7:15.05.01-07:source:6-1",
+        "program:bmstu:15.05.02:МТ7:15.05.02-02:source:1-1",
+        "program:bmstu:15.05.02:СМ9:15.05.02-01:source:2-1",
+        "program:bmstu:16.03.01:ФН4:16.03.01-01:source:1-1",
+        "program:bmstu:16.03.02:Э8:16.03.02-01:source:1-1",
+        "program:bmstu:16.03.03:Э4:16.03.03-01:source:1-1",
+        "program:bmstu:16.05.01:Э4:16.05.01-01:source:1-1",
+        "program:bmstu:17.05.01:СМ4:17.05.01-02:source:1-1",
+        "program:bmstu:17.05.02:СМ6:17.05.02-02:source:1-1",
+        "program:bmstu:20.03.01:Э9:20.03.01/01:source:1-1",
+        "program:bmstu:22.03.01:МТ8:22.03.01-01:source:1-1",
+        "program:bmstu:22.03.01:СМ13:22.03.01-02:source:2-1",
+        "program:bmstu:23.05.01:РК4:23.05.01-02:source:3-1",
+        "program:bmstu:23.05.01:СМ10:23.05.01-10:source:2-1",
+        "program:bmstu:23.05.01:СМ9:23.05.01-09:source:1-1",
+        "program:bmstu:23.05.02:СМ10:23.05.02-10:source:2-1",
+        "program:bmstu:23.05.02:СМ9:23.05.02-09:source:1-1",
+        "program:bmstu:24.03.01:СМ13:24.03.01-02:source:2-1",
+        "program:bmstu:24.03.01:СМ1:24.03.01-01:source:1-1",
+        "program:bmstu:24.05.01:СМ12:24.05.01-03:source:4-1",
+        "program:bmstu:24.05.01:СМ12:24.05.01-23(РКТ4):source:4-2",
+        "program:bmstu:24.05.01:СМ13:24.05.01-10:source:5-1",
+        "program:bmstu:24.05.01:СМ1:24.05.01-05:source:1-1",
+        "program:bmstu:24.05.01:СМ1:24.05.01-25(РКТ2):source:1-2",
+        "program:bmstu:24.05.01:СМ2:24.05.01-01:source:2-4",
+        "program:bmstu:24.05.01:СМ2:24.05.01-21(АК1):source:2-5",
+        "program:bmstu:24.05.01:СМ8:24.05.01-14(ПС3):source:3-2",
+        "program:bmstu:24.05.01:Э4:24.05.01-12:source:6-1",
+        "program:bmstu:24.05.02:Э2:24.05.02-09:source:2-1",
+        "program:bmstu:24.05.02:Э3:24.05.02-01:source:3-1",
+        "program:bmstu:24.05.02:Э6:24.05.02-07:source:4-1",
+        "program:bmstu:24.05.02:Э8:24.05.02-05:source:5-1",
+        "program:bmstu:24.05.04:СМ3:24.05.04-02:source:1-1",
+        "program:bmstu:24.05.06:ИУ11:24.05.06-20(ПС4):source:3-1",
+        "program:bmstu:24.05.06:ИУ1:24.05.06-02:source:1-1",
+        "program:bmstu:24.05.06:ИУ1:24.05.06-03:source:1-2",
+        "program:bmstu:24.05.06:ИУ1:24.05.06-21(ПС2):source:1-3",
+        "program:bmstu:24.05.06:ИУ1:24.05.06-22(АК4):source:1-4",
+        "program:bmstu:24.05.06:ИУ1:24.05.06-22(РТ4):source:1-5",
+        "program:bmstu:24.05.06:ИУ1:24.05.06-29(РКТ1):source:1-6",
+        "program:bmstu:24.05.06:ИУ2:24.05.06-04:source:2-1",
+        "program:bmstu:27.03.01:МТ4:27.03.01-01:source:1-1",
+        "program:bmstu:27.03.01:МТ4:27.03.01-61:source:1-2",
+        "program:bmstu:27.03.04:ИУ1:27.03.04-01:source:1-1",
+        "program:bmstu:27.03.04:СМ5:27.03.04-02:source:2-1",
+        "program:bmstu:28.03.02:МТ11:28.03.02-02:source:1-1",
+        "program:bmstu:28.03.02:РЛ6:28.03.02-01:source:2-1",
+        "program:bmstu:38.03.01:ИБМ1:38.03.01/01:source:1-1",
+        "program:bmstu:38.03.01:ИБМ5:38.03.01/05:source:2-1",
+        "program:bmstu:38.03.02:ИБМ4:38.03.02/04:source:1-1",
+        "program:bmstu:38.03.02:ИБМ7:38.03.02/07:source:2-1",
+        "program:bmstu:38.03.05:ИБМ3:38.03.05/02:source:1-1",
+        "program:bmstu:38.03.05:ИБМ6:38.03.05/01:source:2-1",
+        "program:bmstu:40.05.03/40.05.01:ЮР:40.05.03/Д1:source:1-1",
+        "program:bmstu:45.03.02:Л4:45.03.02/01:source:1-1",
+        "program:bmstu:45.03.03:Л4:45.03.03/01:source:1-1",
+        "program:bmstu:54.03.01:МТ9:54.03.01/01:source:1-1"
+      ]
+    },
+    "top10": {
+      "count": 123,
+      "program_keys": [
+        "program:bmstu:01.03.02:ИУ9:01.03.02-01:source:1-1",
+        "program:bmstu:01.03.03:ФН11:01.03.03-03:source:2-1",
+        "program:bmstu:01.03.03:ФН3:01.03.03-02:source:1-1",
+        "program:bmstu:01.03.04:ФН12:01.03.04-04:source:3-1",
+        "program:bmstu:01.03.04:ФН1:01.03.04-03:source:1-1",
+        "program:bmstu:02.03.01:ФН11:02.03.01-01:source:1-1",
+        "program:bmstu:02.03.01:ФН11:02.03.01-22(АК3):source:1-2",
+        "program:bmstu:09.03.01:ИУ5:09.03.01-02:source:1-1",
+        "program:bmstu:09.03.01:ИУ5:09.03.01-12:source:1-2",
+        "program:bmstu:09.03.01:ИУ5:09.03.01-22(РТ5):source:1-3",
+        "program:bmstu:09.03.01:ИУ6:09.03.01-03:source:2-1",
+        "program:bmstu:09.03.01:ИУ6:09.03.01-13:source:2-2",
+        "program:bmstu:09.03.01:ИУ6:09.03.01-53:source:2-3",
+        "program:bmstu:09.03.01:РК6:09.03.01-01:source:3-1",
+        "program:bmstu:09.03.01:РК6:09.03.01-11:source:3-2",
+        "program:bmstu:09.03.02:ИУ3:09.03.02/01:source:1-1",
+        "program:bmstu:09.03.03:БМТ1:09.03.03/06:source:2-1",
+        "program:bmstu:09.03.03:ИБМ3:09.03.03/10:source:1-1",
+        "program:bmstu:09.03.03:СГН3:09.03.03/01:source:3-1",
+        "program:bmstu:09.03.04:ИУ7:09.03.04/01:source:1-1",
+        "program:bmstu:09.03.04:ИУ7:09.03.04/02:source:1-2",
+        "program:bmstu:09.03.04:ИУ7:09.03.04/03:source:1-3",
+        "program:bmstu:10.05.01:ИУ8:10.05.01-02:source:1-1",
+        "program:bmstu:10.05.03:ИУ10:10.05.03-04:source:2-1",
+        "program:bmstu:10.05.03:ИУ10:10.05.03/05:source:2-2",
+        "program:bmstu:10.05.03:ИУ8:10.05.03-02:source:1-1",
+        "program:bmstu:10.05.03:ИУ8:10.05.03/01:source:1-3",
+        "program:bmstu:10.05.03:ИУ8:10.05.03/03:source:1-4",
+        "program:bmstu:10.05.05:ЮР:10.05.05-01:source:1-1",
+        "program:bmstu:11.03.03:ИУ4:11.03.03-01:source:1-1",
+        "program:bmstu:11.03.03:ИУ4:11.03.03-21(РТ2):source:1-2",
+        "program:bmstu:11.03.03:Э8:11.03.03-02:source:2-1",
+        "program:bmstu:11.03.04:МТ11:11.03.04-01:source:1-1",
+        "program:bmstu:11.05.01:РЛ1:11.05.01-01:source:2-1",
+        "program:bmstu:11.05.01:РЛ1:11.05.01-21(РТ1):source:2-2",
+        "program:bmstu:11.05.01:РЛ6:11.05.01-05:source:3-1",
+        "program:bmstu:11.05.01:СМ5:11.05.01-09:source:1-1",
+        "program:bmstu:12.03.04:БМТ1:12.03.04/05:source:1-5",
+        "program:bmstu:12.03.05:РЛ2:12.03.05-01:source:1-1",
+        "program:bmstu:12.05.01:РЛ2:12.05.01-01:source:1-1",
+        "program:bmstu:13.03.02:СМ10:13.03.02-02:source:1-1",
+        "program:bmstu:13.03.02:ФН7:13.03.02-03:source:3-1",
+        "program:bmstu:13.03.02:Э11:13.03.02-04:source:4-1",
+        "program:bmstu:13.03.02:Э4:13.03.02-01:source:2-1",
+        "program:bmstu:13.03.03:Э2:13.03.03-01:source:1-1",
+        "program:bmstu:14.05.01:Э7:14.05.01-02:source:1-1",
+        "program:bmstu:15.03.01:МТ13:15.03.01-02:source:1-1",
+        "program:bmstu:15.03.02:Э5:15.03.02-01:source:1-1",
+        "program:bmstu:15.03.03:РК5:15.03.03-01:source:1-1",
+        "program:bmstu:15.03.04:РК9:15.03.04-01:source:2-1",
+        "program:bmstu:15.03.04:Э5:15.03.04-02:source:1-1",
+        "program:bmstu:15.03.06:РК3:15.03.06-02:source:4-1",
+        "program:bmstu:15.03.06:РК4:15.03.06-01:source:5-1",
+        "program:bmstu:15.03.06:РК4:15.03.06-08:source:5-2",
+        "program:bmstu:15.03.06:СМ10:15.03.06/М9:source:2-1",
+        "program:bmstu:15.03.06:СМ11:15.03.06-04:source:3-1",
+        "program:bmstu:15.03.06:СМ7:15.03.06-03:source:1-1",
+        "program:bmstu:15.05.01:МТ10:15.05.01-10:source:7-1",
+        "program:bmstu:15.05.01:МТ12:15.05.01-04:source:8-1",
+        "program:bmstu:15.05.01:МТ12:15.05.01-04:source:8-2",
+        "program:bmstu:15.05.01:МТ2:15.05.01-02:source:2-1",
+        "program:bmstu:15.05.01:МТ2:15.05.01-22(РКТ3):source:2-2",
+        "program:bmstu:15.05.01:МТ3:15.05.01-03:source:3-1",
+        "program:bmstu:15.05.01:МТ5:15.05.01-05:source:4-1",
+        "program:bmstu:15.05.01:МТ6:15.05.01-06:source:5-1",
+        "program:bmstu:15.05.01:МТ7:15.05.01-07:source:6-1",
+        "program:bmstu:15.05.02:МТ7:15.05.02-02:source:1-1",
+        "program:bmstu:15.05.02:СМ9:15.05.02-01:source:2-1",
+        "program:bmstu:16.03.01:ФН4:16.03.01-01:source:1-1",
+        "program:bmstu:16.03.02:Э8:16.03.02-01:source:1-1",
+        "program:bmstu:16.03.03:Э4:16.03.03-01:source:1-1",
+        "program:bmstu:16.05.01:Э4:16.05.01-01:source:1-1",
+        "program:bmstu:17.05.01:СМ4:17.05.01-02:source:1-1",
+        "program:bmstu:17.05.02:СМ6:17.05.02-02:source:1-1",
+        "program:bmstu:20.03.01:Э9:20.03.01/01:source:1-1",
+        "program:bmstu:22.03.01:МТ8:22.03.01-01:source:1-1",
+        "program:bmstu:22.03.01:СМ13:22.03.01-02:source:2-1",
+        "program:bmstu:23.05.01:РК4:23.05.01-02:source:3-1",
+        "program:bmstu:23.05.01:СМ10:23.05.01-10:source:2-1",
+        "program:bmstu:23.05.01:СМ9:23.05.01-09:source:1-1",
+        "program:bmstu:23.05.02:СМ10:23.05.02-10:source:2-1",
+        "program:bmstu:23.05.02:СМ9:23.05.02-09:source:1-1",
+        "program:bmstu:24.03.01:СМ13:24.03.01-02:source:2-1",
+        "program:bmstu:24.03.01:СМ1:24.03.01-01:source:1-1",
+        "program:bmstu:24.05.01:СМ12:24.05.01-03:source:4-1",
+        "program:bmstu:24.05.01:СМ12:24.05.01-23(РКТ4):source:4-2",
+        "program:bmstu:24.05.01:СМ13:24.05.01-10:source:5-1",
+        "program:bmstu:24.05.01:СМ1:24.05.01-05:source:1-1",
+        "program:bmstu:24.05.01:СМ1:24.05.01-25(РКТ2):source:1-2",
+        "program:bmstu:24.05.01:СМ2:24.05.01-01:source:2-4",
+        "program:bmstu:24.05.01:СМ2:24.05.01-21(АК1):source:2-5",
+        "program:bmstu:24.05.01:СМ8:24.05.01-07:source:3-1",
+        "program:bmstu:24.05.01:СМ8:24.05.01-14(ПС3):source:3-2",
+        "program:bmstu:24.05.01:Э4:24.05.01-12:source:6-1",
+        "program:bmstu:24.05.02:Э2:24.05.02-09:source:2-1",
+        "program:bmstu:24.05.02:Э3:24.05.02-01:source:3-1",
+        "program:bmstu:24.05.02:Э6:24.05.02-07:source:4-1",
+        "program:bmstu:24.05.02:Э8:24.05.02-05:source:5-1",
+        "program:bmstu:24.05.04:СМ3:24.05.04-02:source:1-1",
+        "program:bmstu:24.05.06:ИУ11:24.05.06-20(ПС4):source:3-1",
+        "program:bmstu:24.05.06:ИУ1:24.05.06-02:source:1-1",
+        "program:bmstu:24.05.06:ИУ1:24.05.06-03:source:1-2",
+        "program:bmstu:24.05.06:ИУ1:24.05.06-21(ПС2):source:1-3",
+        "program:bmstu:24.05.06:ИУ1:24.05.06-22(АК4):source:1-4",
+        "program:bmstu:24.05.06:ИУ1:24.05.06-22(РТ4):source:1-5",
+        "program:bmstu:24.05.06:ИУ1:24.05.06-29(РКТ1):source:1-6",
+        "program:bmstu:24.05.06:ИУ2:24.05.06-04:source:2-1",
+        "program:bmstu:27.03.01:МТ4:27.03.01-01:source:1-1",
+        "program:bmstu:27.03.01:МТ4:27.03.01-61:source:1-2",
+        "program:bmstu:27.03.04:ИУ1:27.03.04-01:source:1-1",
+        "program:bmstu:27.03.04:СМ5:27.03.04-02:source:2-1",
+        "program:bmstu:28.03.02:МТ11:28.03.02-02:source:1-1",
+        "program:bmstu:28.03.02:РЛ6:28.03.02-01:source:2-1",
+        "program:bmstu:38.03.01:ИБМ1:38.03.01/01:source:1-1",
+        "program:bmstu:38.03.01:ИБМ5:38.03.01/05:source:2-1",
+        "program:bmstu:38.03.02:ИБМ4:38.03.02/04:source:1-1",
+        "program:bmstu:38.03.02:ИБМ7:38.03.02/07:source:2-1",
+        "program:bmstu:38.03.05:ИБМ3:38.03.05/02:source:1-1",
+        "program:bmstu:38.03.05:ИБМ6:38.03.05/01:source:2-1",
+        "program:bmstu:40.05.03/40.05.01:ЮР:40.05.03/Д1:source:1-1",
+        "program:bmstu:45.03.02:Л4:45.03.02/01:source:1-1",
+        "program:bmstu:45.03.03:Л4:45.03.03/01:source:1-1",
+        "program:bmstu:54.03.01:МТ9:54.03.01/01:source:1-1"
+      ]
+    }
+  },
+  "full_ranking_coverage": 127,
+  "exact_duplicate_feature_vectors": [],
+  "milestones": [
+    {
+      "iterations": 1000,
+      "top1": 59,
+      "top3": 94,
+      "top5": 110,
+      "top10": 121
+    },
+    {
+      "iterations": 5000,
+      "top1": 74,
+      "top3": 103,
+      "top5": 114,
+      "top10": 122
+    },
+    {
+      "iterations": 10000,
+      "top1": 78,
+      "top3": 110,
+      "top5": 116,
+      "top10": 123
+    }
+  ],
+  "best_observed_ranks": [
+    {
+      "program_key": "program:bmstu:01.03.02:ИУ9:01.03.02-01:source:1-1",
+      "code": "01.03.02-01",
+      "rank": 1,
+      "score": 59.22086196621912,
+      "iteration": 59,
+      "answers": {
+        "interests": [
+          "16",
+          "01"
+        ],
+        "activity": "self_study_hours",
+        "avoid": [],
+        "comparisons": [
+          {
+            "left": "03",
+            "right": "16",
+            "value": 2
+          },
+          {
+            "left": "01",
+            "right": "04",
+            "value": 1
+          },
+          {
+            "left": "05",
+            "right": "09",
+            "value": 2
+          },
+          {
+            "left": "07",
+            "right": "14",
+            "value": 2
+          }
+        ]
+      }
+    },
+    {
+      "program_key": "program:bmstu:01.03.03:ФН11:01.03.03-03:source:2-1",
+      "code": "01.03.03-03",
+      "rank": 1,
+      "score": 61.65794788319987,
+      "iteration": 1,
+      "answers": {
+        "interests": [
+          "01"
+        ],
+        "activity": "practice_hours",
+        "avoid": [],
+        "comparisons": [
+          {
+            "left": "03",
+            "right": "13",
+            "value": -1
+          },
+          {
+            "left": "04",
+            "right": "14",
+            "value": -2
+          },
+          {
+            "left": "01",
+            "right": "05",
+            "value": 2
+          },
+          {
+            "left": "06",
+            "right": "09",
+            "value": 0
+          }
+        ]
+      }
+    },
+    {
+      "program_key": "program:bmstu:01.03.03:ФН3:01.03.03-02:source:1-1",
+      "code": "01.03.03-02",
+      "rank": 1,
+      "score": 40.26943514810242,
+      "iteration": 1871,
+      "answers": {
+        "interests": [
+          "09",
+          "12",
+          "01"
+        ],
+        "activity": "__no_activity_preference__",
+        "avoid": [],
+        "comparisons": [
+          {
+            "left": "03",
+            "right": "12",
+            "value": -1
+          },
+          {
+            "left": "04",
+            "right": "08",
+            "value": 2
+          },
+          {
+            "left": "01",
+            "right": "09",
+            "value": 0
+          },
+          {
+            "left": "11",
+            "right": "16",
+            "value": 1
+          }
+        ]
+      }
+    },
+    {
+      "program_key": "program:bmstu:01.03.04:ФН1:01.03.04-03:source:1-1",
+      "code": "01.03.04-03",
+      "rank": 1,
+      "score": 43.131810903521234,
+      "iteration": 227,
+      "answers": {
+        "interests": [
+          "01",
+          "16",
+          "04",
+          "13",
+          "02"
+        ],
+        "activity": "lab_hours",
+        "avoid": [
+          "03",
+          "05",
+          "15"
+        ],
+        "comparisons": [
+          {
+            "left": "03",
+            "right": "13",
+            "value": 1
+          },
+          {
+            "left": "02",
+            "right": "04",
+            "value": -2
+          },
+          {
+            "left": "01",
+            "right": "05",
+            "value": 0
+          },
+          {
+            "left": "08",
+            "right": "16",
+            "value": 2
+          }
+        ]
+      }
+    },
+    {
+      "program_key": "program:bmstu:01.03.04:ФН12:01.03.04-04:source:3-1",
+      "code": "01.03.04-04",
+      "rank": 1,
+      "score": 47.60228858345907,
+      "iteration": 203,
+      "answers": {
+        "interests": [
+          "07",
+          "01",
+          "16"
+        ],
+        "activity": "__no_activity_preference__",
+        "avoid": [
+          "11"
+        ],
+        "comparisons": [
+          {
+            "left": "07",
+            "right": "16",
+            "value": 0
+          },
+          {
+            "left": "03",
+            "right": "08",
+            "value": 1
+          },
+          {
+            "left": "01",
+            "right": "02",
+            "value": 0
+          },
+          {
+            "left": "04",
+            "right": "12",
+            "value": 1
+          }
+        ]
+      }
+    },
+    {
+      "program_key": "program:bmstu:02.03.01:ФН11:02.03.01-01:source:1-1",
+      "code": "02.03.01-01",
+      "rank": 1,
+      "score": 44.3573687626753,
+      "iteration": 82,
+      "answers": {
+        "interests": [
+          "09",
+          "03",
+          "06"
+        ],
+        "activity": "lecture_hours",
+        "avoid": [
+          "16",
+          "08",
+          "14"
+        ],
+        "comparisons": [
+          {
+            "left": "03",
+            "right": "06",
+            "value": 1
+          },
+          {
+            "left": "04",
+            "right": "09",
+            "value": 0
+          },
+          {
+            "left": "13",
+            "right": "14",
+            "value": 2
+          },
+          {
+            "left": "01",
+            "right": "10",
+            "value": 2
+          }
+        ]
+      }
+    },
+    {
+      "program_key": "program:bmstu:02.03.01:ФН11:02.03.01-22(АК3):source:1-2",
+      "code": "02.03.01-22(АК3)",
+      "rank": 1,
+      "score": 60.33154722190746,
+      "iteration": 557,
+      "answers": {
+        "interests": [
+          "16",
+          "01",
+          "04",
+          "02"
+        ],
+        "activity": "self_study_hours",
+        "avoid": [
+          "13"
+        ],
+        "comparisons": [
+          {
+            "left": "02",
+            "right": "03",
+            "value": -2
+          },
+          {
+            "left": "01",
+            "right": "04",
+            "value": -1
+          },
+          {
+            "left": "13",
+            "right": "14",
+            "value": 0
+          },
+          {
+            "left": "05",
+            "right": "16",
+            "value": -2
+          }
+        ]
+      }
+    },
+    {
+      "program_key": "program:bmstu:09.03.01:ИУ5:09.03.01-02:source:1-1",
+      "code": "09.03.01-02",
+      "rank": 1,
+      "score": 49.87548723011153,
+      "iteration": 2921,
+      "answers": {
+        "interests": [
+          "01",
+          "11",
+          "13",
+          "02",
+          "09"
+        ],
+        "activity": "__no_activity_preference__",
+        "avoid": [
+          "06"
+        ],
+        "comparisons": [
+          {
+            "left": "02",
+            "right": "13",
+            "value": 2
+          },
+          {
+            "left": "04",
+            "right": "11",
+            "value": 2
+          },
+          {
+            "left": "03",
+            "right": "09",
+            "value": 2
+          },
+          {
+            "left": "01",
+            "right": "05",
+            "value": -2
+          }
+        ]
+      }
+    },
+    {
+      "program_key": "program:bmstu:09.03.01:ИУ5:09.03.01-12:source:1-2",
+      "code": "09.03.01-12",
+      "rank": 1,
+      "score": 51.91947329995035,
+      "iteration": 21,
+      "answers": {
+        "interests": [
+          "03",
+          "09",
+          "16",
+          "02"
+        ],
+        "activity": "self_study_hours",
+        "avoid": [],
+        "comparisons": [
+          {
+            "left": "02",
+            "right": "03",
+            "value": 0
+          },
+          {
+            "left": "09",
+            "right": "16",
+            "value": 0
+          },
+          {
+            "left": "04",
+            "right": "11",
+            "value": 2
+          },
+          {
+            "left": "01",
+            "right": "05",
+            "value": -2
+          }
+        ]
+      }
+    },
+    {
+      "program_key": "program:bmstu:09.03.01:ИУ5:09.03.01-22(РТ5):source:1-3",
+      "code": "09.03.01-22(РТ5)",
+      "rank": 2,
+      "score": 46.35692453026261,
+      "iteration": 9640,
+      "answers": {
+        "interests": [
+          "02",
+          "08",
+          "03"
+        ],
+        "activity": "__no_activity_preference__",
+        "avoid": [],
+        "comparisons": [
+          {
+            "left": "02",
+            "right": "03",
+            "value": 0
+          },
+          {
+            "left": "04",
+            "right": "08",
+            "value": 1
+          },
+          {
+            "left": "13",
+            "right": "14",
+            "value": -1
+          },
+          {
+            "left": "05",
+            "right": "16",
+            "value": 1
+          }
+        ]
+      }
+    },
+    {
+      "program_key": "program:bmstu:09.03.01:ИУ6:09.03.01-03:source:2-1",
+      "code": "09.03.01-03",
+      "rank": 1,
+      "score": 51.28146435939392,
+      "iteration": 132,
+      "answers": {
+        "interests": [
+          "14"
+        ],
+        "activity": "practice_hours",
+        "avoid": [
+          "01",
+          "12",
+          "13"
+        ],
+        "comparisons": [
+          {
+            "left": "13",
+            "right": "14",
+            "value": 0
+          },
+          {
+            "left": "15",
+            "right": "16",
+            "value": -2
+          },
+          {
+            "left": "03",
+            "right": "08",
+            "value": 2
+          },
+          {
+            "left": "02",
+            "right": "04",
+            "value": -2
+          }
+        ]
+      }
+    },
+    {
+      "program_key": "program:bmstu:09.03.01:ИУ6:09.03.01-13:source:2-2",
+      "code": "09.03.01-13",
+      "rank": 1,
+      "score": 41.30456487476141,
+      "iteration": 7525,
+      "answers": {
+        "interests": [
+          "08",
+          "14",
+          "04"
+        ],
+        "activity": "__no_activity_preference__",
+        "avoid": [
+          "07",
+          "13"
+        ],
+        "comparisons": [
+          {
+            "left": "03",
+            "right": "08",
+            "value": 0
+          },
+          {
+            "left": "04",
+            "right": "16",
+            "value": 0
+          },
+          {
+            "left": "10",
+            "right": "14",
+            "value": -1
+          },
+          {
+            "left": "05",
+            "right": "09",
+            "value": 1
+          }
+        ]
+      }
+    },
+    {
+      "program_key": "program:bmstu:09.03.01:ИУ6:09.03.01-53:source:2-3",
+      "code": "09.03.01-53",
+      "rank": 1,
+      "score": 35.547049958502065,
+      "iteration": 53,
+      "answers": {
+        "interests": [
+          "07",
+          "05",
+          "02",
+          "08"
+        ],
+        "activity": "lab_hours",
+        "avoid": [
+          "06"
+        ],
+        "comparisons": [
+          {
+            "left": "07",
+            "right": "08",
+            "value": 0
+          },
+          {
+            "left": "03",
+            "right": "09",
+            "value": 0
+          },
+          {
+            "left": "04",
+            "right": "16",
+            "value": -2
+          },
+          {
+            "left": "02",
+            "right": "10",
+            "value": 1
+          }
+        ]
+      }
+    },
+    {
+      "program_key": "program:bmstu:09.03.01:РК6:09.03.01-01:source:3-1",
+      "code": "09.03.01-01",
+      "rank": 3,
+      "score": 48.113141141139394,
+      "iteration": 39,
+      "answers": {
+        "interests": [
+          "__unknown__"
+        ],
+        "activity": "lab_hours",
+        "avoid": [
+          "09",
+          "05",
+          "06"
+        ],
+        "comparisons": [
+          {
+            "left": "03",
+            "right": "14",
+            "value": 2
+          },
+          {
+            "left": "02",
+            "right": "13",
+            "value": 0
+          },
+          {
+            "left": "01",
+            "right": "04",
+            "value": -1
+          },
+          {
+            "left": "05",
+            "right": "09",
+            "value": -2
+          }
+        ]
+      }
+    },
+    {
+      "program_key": "program:bmstu:09.03.01:РК6:09.03.01-11:source:3-2",
+      "code": "09.03.01-11",
+      "rank": 7,
+      "score": 34.1587218976292,
+      "iteration": 6765,
+      "answers": {
+        "interests": [
+          "12",
+          "08"
+        ],
+        "activity": "self_study_hours",
+        "avoid": [
+          "07",
+          "15",
+          "11"
+        ],
+        "comparisons": [
+          {
+            "left": "08",
+            "right": "12",
+            "value": -2
+          },
+          {
+            "left": "03",
+            "right": "16",
+            "value": -2
+          },
+          {
+            "left": "10",
+            "right": "14",
+            "value": -2
+          },
+          {
+            "left": "02",
+            "right": "04",
+            "value": -2
+          }
+        ]
+      }
+    },
+    {
+      "program_key": "program:bmstu:09.03.02:ИУ3:09.03.02/01:source:1-1",
+      "code": "09.03.02/01",
+      "rank": 4,
+      "score": 41.91186507884527,
+      "iteration": 391,
+      "answers": {
+        "interests": [
+          "05",
+          "14",
+          "16",
+          "07",
+          "09"
+        ],
+        "activity": "self_study_hours",
+        "avoid": [
+          "11",
+          "02"
+        ],
+        "comparisons": [
+          {
+            "left": "07",
+            "right": "14",
+            "value": -2
+          },
+          {
+            "left": "03",
+            "right": "16",
+            "value": -2
+          },
+          {
+            "left": "04",
+            "right": "09",
+            "value": 1
+          },
+          {
+            "left": "05",
+            "right": "10",
+            "value": 2
+          }
+        ]
+      }
+    },
+    {
+      "program_key": "program:bmstu:09.03.03:БМТ1:09.03.03/06:source:2-1",
+      "code": "09.03.03/06",
+      "rank": 1,
+      "score": 49.5788104830908,
+      "iteration": 262,
+      "answers": {
+        "interests": [
+          "04",
+          "03"
+        ],
+        "activity": "practice_hours",
+        "avoid": [
+          "13",
+          "01",
+          "10"
+        ],
+        "comparisons": [
+          {
+            "left": "03",
+            "right": "13",
+            "value": 1
+          },
+          {
+            "left": "02",
+            "right": "04",
+            "value": 2
+          },
+          {
+            "left": "01",
+            "right": "05",
+            "value": 2
+          },
+          {
+            "left": "11",
+            "right": "16",
+            "value": 1
+          }
+        ]
+      }
+    },
+    {
+      "program_key": "program:bmstu:09.03.03:ИБМ3:09.03.03/10:source:1-1",
+      "code": "09.03.03/10",
+      "rank": 1,
+      "score": 83.90650493246224,
+      "iteration": 5,
+      "answers": {
+        "interests": [
+          "05"
+        ],
+        "activity": "self_study_hours",
+        "avoid": [
+          "04",
+          "07"
+        ],
+        "comparisons": [
+          {
+            "left": "03",
+            "right": "15",
+            "value": 1
+          },
+          {
+            "left": "04",
+            "right": "14",
+            "value": 1
+          }
+        ]
+      }
+    },
+    {
+      "program_key": "program:bmstu:09.03.03:СГН3:09.03.03/01:source:3-1",
+      "code": "09.03.03/01",
+      "rank": 1,
+      "score": 43.600109477088935,
+      "iteration": 37,
+      "answers": {
+        "interests": [
+          "01",
+          "02",
+          "05",
+          "04"
+        ],
+        "activity": "lab_hours",
+        "avoid": [
+          "09"
+        ],
+        "comparisons": [
+          {
+            "left": "03",
+            "right": "14",
+            "value": 0
+          },
+          {
+            "left": "01",
+            "right": "04",
+            "value": 1
+          },
+          {
+            "left": "02",
+            "right": "05",
+            "value": -1
+          },
+          {
+            "left": "13",
+            "right": "16",
+            "value": 2
+          }
+        ]
+      }
+    },
+    {
+      "program_key": "program:bmstu:09.03.04:ИУ7:09.03.04/01:source:1-1",
+      "code": "09.03.04/01",
+      "rank": 1,
+      "score": 90.08627952299442,
+      "iteration": 97,
+      "answers": {
+        "interests": [
+          "03"
+        ],
+        "activity": "practice_hours",
+        "avoid": [],
+        "comparisons": [
+          {
+            "left": "03",
+            "right": "13",
+            "value": 1
+          },
+          {
+            "left": "02",
+            "right": "04",
+            "value": 0
+          }
+        ]
+      }
+    },
+    {
+      "program_key": "program:bmstu:09.03.04:ИУ7:09.03.04/02:source:1-2",
+      "code": "09.03.04/02",
+      "rank": 1,
+      "score": 64.46784758842831,
+      "iteration": 4,
+      "answers": {
+        "interests": [
+          "04"
+        ],
+        "activity": "practice_hours",
+        "avoid": [],
+        "comparisons": [
+          {
+            "left": "03",
+            "right": "13",
+            "value": 2
+          },
+          {
+            "left": "01",
+            "right": "05",
+            "value": -1
+          },
+          {
+            "left": "02",
+            "right": "04",
+            "value": 0
+          },
+          {
+            "left": "11",
+            "right": "14",
+            "value": -2
+          }
+        ]
+      }
+    },
+    {
+      "program_key": "program:bmstu:09.03.04:ИУ7:09.03.04/03:source:1-3",
+      "code": "09.03.04/03",
+      "rank": 1,
+      "score": 39.88497691569548,
+      "iteration": 196,
+      "answers": {
+        "interests": [
+          "05",
+          "12",
+          "02",
+          "03",
+          "10"
+        ],
+        "activity": "lecture_hours",
+        "avoid": [
+          "14"
+        ],
+        "comparisons": [
+          {
+            "left": "03",
+            "right": "10",
+            "value": 2
+          },
+          {
+            "left": "02",
+            "right": "13",
+            "value": 2
+          },
+          {
+            "left": "04",
+            "right": "16",
+            "value": -2
+          },
+          {
+            "left": "11",
+            "right": "14",
+            "value": -2
+          }
+        ]
+      }
+    },
+    {
+      "program_key": "program:bmstu:10.05.01:ИУ8:10.05.01-02:source:1-1",
+      "code": "10.05.01-02",
+      "rank": 1,
+      "score": 44.88625031209586,
+      "iteration": 3241,
+      "answers": {
+        "interests": [
+          "04",
+          "06"
+        ],
+        "activity": "lecture_hours",
+        "avoid": [
+          "10",
+          "07"
+        ],
+        "comparisons": [
+          {
+            "left": "03",
+            "right": "06",
+            "value": 1
+          },
+          {
+            "left": "02",
+            "right": "13",
+            "value": 0
+          },
+          {
+            "left": "04",
+            "right": "15",
+            "value": -1
+          },
+          {
+            "left": "11",
+            "right": "14",
+            "value": 2
+          }
+        ]
+      }
+    },
+    {
+      "program_key": "program:bmstu:10.05.03:ИУ10:10.05.03-04:source:2-1",
+      "code": "10.05.03-04",
+      "rank": 1,
+      "score": 48.61998056818941,
+      "iteration": 6,
+      "answers": {
+        "interests": [
+          "06"
+        ],
+        "activity": "lecture_hours",
+        "avoid": [],
+        "comparisons": [
+          {
+            "left": "03",
+            "right": "15",
+            "value": -2
+          },
+          {
+            "left": "06",
+            "right": "14",
+            "value": 1
+          },
+          {
+            "left": "04",
+            "right": "16",
+            "value": 2
+          },
+          {
+            "left": "02",
+            "right": "13",
+            "value": -2
+          }
+        ]
+      }
+    },
+    {
+      "program_key": "program:bmstu:10.05.03:ИУ10:10.05.03/05:source:2-2",
+      "code": "10.05.03/05",
+      "rank": 1,
+      "score": 37.81201299752597,
+      "iteration": 3,
+      "answers": {
+        "interests": [
+          "03"
+        ],
+        "activity": "__no_activity_preference__",
+        "avoid": [
+          "02",
+          "14"
+        ],
+        "comparisons": [
+          {
+            "left": "03",
+            "right": "13",
+            "value": 0
+          },
+          {
+            "left": "02",
+            "right": "04",
+            "value": 2
+          },
+          {
+            "left": "05",
+            "right": "16",
+            "value": -2
+          },
+          {
+            "left": "11",
+            "right": "14",
+            "value": -1
+          }
+        ]
+      }
+    },
+    {
+      "program_key": "program:bmstu:10.05.03:ИУ8:10.05.03-02:source:1-1",
+      "code": "10.05.03-02",
+      "rank": 3,
+      "score": 49.6659577538688,
+      "iteration": 58,
+      "answers": {
+        "interests": [
+          "06",
+          "01",
+          "09",
+          "08"
+        ],
+        "activity": "self_study_hours",
+        "avoid": [
+          "02",
+          "04"
+        ],
+        "comparisons": [
+          {
+            "left": "03",
+            "right": "08",
+            "value": 2
+          },
+          {
+            "left": "06",
+            "right": "09",
+            "value": 2
+          },
+          {
+            "left": "04",
+            "right": "15",
+            "value": 2
+          },
+          {
+            "left": "01",
+            "right": "02",
+            "value": -2
+          }
+        ]
+      }
+    },
+    {
+      "program_key": "program:bmstu:10.05.03:ИУ8:10.05.03/01:source:1-3",
+      "code": "10.05.03/01",
+      "rank": 1,
+      "score": 37.727588310288965,
+      "iteration": 1074,
+      "answers": {
+        "interests": [
+          "05",
+          "06",
+          "12",
+          "02",
+          "09"
+        ],
+        "activity": "lecture_hours",
+        "avoid": [],
+        "comparisons": [
+          {
+            "left": "02",
+            "right": "03",
+            "value": -1
+          },
+          {
+            "left": "04",
+            "right": "06",
+            "value": 0
+          },
+          {
+            "left": "09",
+            "right": "14",
+            "value": -2
+          },
+          {
+            "left": "08",
+            "right": "16",
+            "value": -2
+          }
+        ]
+      }
+    },
+    {
+      "program_key": "program:bmstu:10.05.03:ИУ8:10.05.03/03:source:1-4",
+      "code": "10.05.03/03",
+      "rank": 1,
+      "score": 48.69456133319489,
+      "iteration": 105,
+      "answers": {
+        "interests": [
+          "06",
+          "01",
+          "13",
+          "02"
+        ],
+        "activity": "__no_activity_preference__",
+        "avoid": [],
+        "comparisons": [
+          {
+            "left": "03",
+            "right": "13",
+            "value": 2
+          },
+          {
+            "left": "02",
+            "right": "04",
+            "value": 2
+          },
+          {
+            "left": "01",
+            "right": "06",
+            "value": 0
+          },
+          {
+            "left": "15",
+            "right": "16",
+            "value": 0
+          }
+        ]
+      }
+    },
+    {
+      "program_key": "program:bmstu:10.05.05:ЮР:10.05.05-01:source:1-1",
+      "code": "10.05.05-01",
+      "rank": 2,
+      "score": 39.65293975504961,
+      "iteration": 201,
+      "answers": {
+        "interests": [
+          "06",
+          "16",
+          "11"
+        ],
+        "activity": "__no_activity_preference__",
+        "avoid": [],
+        "comparisons": [
+          {
+            "left": "15",
+            "right": "16",
+            "value": 2
+          },
+          {
+            "left": "03",
+            "right": "11",
+            "value": 2
+          },
+          {
+            "left": "04",
+            "right": "06",
+            "value": 1
+          },
+          {
+            "left": "13",
+            "right": "14",
+            "value": -2
+          }
+        ]
+      }
+    },
+    {
+      "program_key": "program:bmstu:11.03.03:ИУ4:11.03.03-01:source:1-1",
+      "code": "11.03.03-01",
+      "rank": 3,
+      "score": 36.66424975619194,
+      "iteration": 3893,
+      "answers": {
+        "interests": [
+          "14",
+          "15",
+          "16",
+          "11",
+          "06"
+        ],
+        "activity": "__no_activity_preference__",
+        "avoid": [
+          "07",
+          "10"
+        ],
+        "comparisons": [
+          {
+            "left": "15",
+            "right": "16",
+            "value": -2
+          },
+          {
+            "left": "03",
+            "right": "11",
+            "value": 1
+          },
+          {
+            "left": "04",
+            "right": "14",
+            "value": 2
+          },
+          {
+            "left": "06",
+            "right": "08",
+            "value": -2
+          }
+        ]
+      }
+    },
+    {
+      "program_key": "program:bmstu:11.03.03:ИУ4:11.03.03-21(РТ2):source:1-2",
+      "code": "11.03.03-21(РТ2)",
+      "rank": 3,
+      "score": 47.2448642241099,
+      "iteration": 7819,
+      "answers": {
+        "interests": [
+          "16",
+          "14"
+        ],
+        "activity": "self_study_hours",
+        "avoid": [
+          "01",
+          "05",
+          "10"
+        ],
+        "comparisons": [
+          {
+            "left": "14",
+            "right": "16",
+            "value": -1
+          },
+          {
+            "left": "03",
+            "right": "09",
+            "value": 1
+          },
+          {
+            "left": "07",
+            "right": "11",
+            "value": -2
+          },
+          {
+            "left": "02",
+            "right": "04",
+            "value": -2
+          }
+        ]
+      }
+    },
+    {
+      "program_key": "program:bmstu:11.03.03:Э8:11.03.03-02:source:2-1",
+      "code": "11.03.03-02",
+      "rank": 2,
+      "score": 47.82780567886603,
+      "iteration": 3598,
+      "answers": {
+        "interests": [
+          "__unknown__"
+        ],
+        "activity": "self_study_hours",
+        "avoid": [],
+        "comparisons": [
+          {
+            "left": "03",
+            "right": "14",
+            "value": 1
+          },
+          {
+            "left": "02",
+            "right": "13",
+            "value": 2
+          },
+          {
+            "left": "04",
+            "right": "11",
+            "value": 0
+          },
+          {
+            "left": "05",
+            "right": "16",
+            "value": -1
+          }
+        ]
+      }
+    },
+    {
+      "program_key": "program:bmstu:11.03.04:МТ11:11.03.04-01:source:1-1",
+      "code": "11.03.04-01",
+      "rank": 1,
+      "score": 40.142129911475955,
+      "iteration": 377,
+      "answers": {
+        "interests": [
+          "07"
+        ],
+        "activity": "lab_hours",
+        "avoid": [
+          "15",
+          "16"
+        ],
+        "comparisons": [
+          {
+            "left": "03",
+            "right": "09",
+            "value": 1
+          },
+          {
+            "left": "07",
+            "right": "08",
+            "value": -2
+          },
+          {
+            "left": "14",
+            "right": "16",
+            "value": 2
+          },
+          {
+            "left": "02",
+            "right": "04",
+            "value": -2
+          }
+        ]
+      }
+    },
+    {
+      "program_key": "program:bmstu:11.05.01:РЛ1:11.05.01-01:source:2-1",
+      "code": "11.05.01-01",
+      "rank": 1,
+      "score": 43.489600552363726,
+      "iteration": 230,
+      "answers": {
+        "interests": [
+          "08",
+          "06",
+          "03",
+          "14",
+          "11"
+        ],
+        "activity": "practice_hours",
+        "avoid": [
+          "12",
+          "13",
+          "09"
+        ],
+        "comparisons": [
+          {
+            "left": "03",
+            "right": "14",
+            "value": 1
+          },
+          {
+            "left": "04",
+            "right": "06",
+            "value": 1
+          },
+          {
+            "left": "05",
+            "right": "11",
+            "value": -2
+          },
+          {
+            "left": "02",
+            "right": "08",
+            "value": 1
+          }
+        ]
+      }
+    },
+    {
+      "program_key": "program:bmstu:11.05.01:РЛ1:11.05.01-21(РТ1):source:2-2",
+      "code": "11.05.01-21(РТ1)",
+      "rank": 1,
+      "score": 44.875780626847465,
+      "iteration": 134,
+      "answers": {
+        "interests": [
+          "10",
+          "08",
+          "04"
+        ],
+        "activity": "practice_hours",
+        "avoid": [
+          "06",
+          "15",
+          "13"
+        ],
+        "comparisons": [
+          {
+            "left": "03",
+            "right": "08",
+            "value": 0
+          },
+          {
+            "left": "04",
+            "right": "16",
+            "value": 1
+          },
+          {
+            "left": "10",
+            "right": "11",
+            "value": -2
+          },
+          {
+            "left": "02",
+            "right": "09",
+            "value": 1
+          }
+        ]
+      }
+    },
+    {
+      "program_key": "program:bmstu:11.05.01:РЛ6:11.05.01-05:source:3-1",
+      "code": "11.05.01-05",
+      "rank": 1,
+      "score": 44.071668696235676,
+      "iteration": 1671,
+      "answers": {
+        "interests": [
+          "12",
+          "16",
+          "03",
+          "10"
+        ],
+        "activity": "self_study_hours",
+        "avoid": [
+          "13",
+          "06"
+        ],
+        "comparisons": [
+          {
+            "left": "03",
+            "right": "16",
+            "value": 0
+          },
+          {
+            "left": "04",
+            "right": "08",
+            "value": -1
+          },
+          {
+            "left": "02",
+            "right": "07",
+            "value": 0
+          },
+          {
+            "left": "10",
+            "right": "11",
+            "value": -2
+          }
+        ]
+      }
+    },
+    {
+      "program_key": "program:bmstu:11.05.01:СМ5:11.05.01-09:source:1-1",
+      "code": "11.05.01-09",
+      "rank": 1,
+      "score": 43.05304189647903,
+      "iteration": 103,
+      "answers": {
+        "interests": [
+          "04",
+          "12"
+        ],
+        "activity": "self_study_hours",
+        "avoid": [
+          "03"
+        ],
+        "comparisons": [
+          {
+            "left": "03",
+            "right": "12",
+            "value": -1
+          },
+          {
+            "left": "04",
+            "right": "13",
+            "value": 2
+          },
+          {
+            "left": "05",
+            "right": "16",
+            "value": -1
+          },
+          {
+            "left": "01",
+            "right": "08",
+            "value": -2
+          }
+        ]
+      }
+    },
+    {
+      "program_key": "program:bmstu:12.03.04:БМТ1:12.03.04/05:source:1-5",
+      "code": "12.03.04/05",
+      "rank": 1,
+      "score": 30.12248925095017,
+      "iteration": 875,
+      "answers": {
+        "interests": [
+          "02",
+          "14",
+          "15",
+          "01"
+        ],
+        "activity": "lab_hours",
+        "avoid": [
+          "11",
+          "06",
+          "03"
+        ],
+        "comparisons": [
+          {
+            "left": "02",
+            "right": "14",
+            "value": 0
+          },
+          {
+            "left": "03",
+            "right": "15",
+            "value": 0
+          },
+          {
+            "left": "04",
+            "right": "11",
+            "value": -2
+          },
+          {
+            "left": "06",
+            "right": "16",
+            "value": 1
+          }
+        ]
+      }
+    },
+    {
+      "program_key": "program:bmstu:12.03.05:РЛ2:12.03.05-01:source:1-1",
+      "code": "12.03.05-01",
+      "rank": 1,
+      "score": 65.06376030810495,
+      "iteration": 11,
+      "answers": {
+        "interests": [
+          "11"
+        ],
+        "activity": "__no_activity_preference__",
+        "avoid": [],
+        "comparisons": [
+          {
+            "left": "02",
+            "right": "03",
+            "value": 1
+          },
+          {
+            "left": "04",
+            "right": "16",
+            "value": 1
+          },
+          {
+            "left": "08",
+            "right": "11",
+            "value": 0
+          }
+        ]
+      }
+    },
+    {
+      "program_key": "program:bmstu:12.05.01:РЛ2:12.05.01-01:source:1-1",
+      "code": "12.05.01-01",
+      "rank": 2,
+      "score": 38.83877988114744,
+      "iteration": 8188,
+      "answers": {
+        "interests": [
+          "04",
+          "08",
+          "02"
+        ],
+        "activity": "__no_activity_preference__",
+        "avoid": [],
+        "comparisons": [
+          {
+            "left": "02",
+            "right": "03",
+            "value": 0
+          },
+          {
+            "left": "04",
+            "right": "08",
+            "value": 0
+          },
+          {
+            "left": "14",
+            "right": "16",
+            "value": -2
+          },
+          {
+            "left": "10",
+            "right": "11",
+            "value": -2
+          }
+        ]
+      }
+    },
+    {
+      "program_key": "program:bmstu:13.03.02:СМ10:13.03.02-02:source:1-1",
+      "code": "13.03.02-02",
+      "rank": 1,
+      "score": 46.49456016393343,
+      "iteration": 896,
+      "answers": {
+        "interests": [
+          "07",
+          "11",
+          "12",
+          "08",
+          "03"
+        ],
+        "activity": "self_study_hours",
+        "avoid": [
+          "13"
+        ],
+        "comparisons": [
+          {
+            "left": "07",
+            "right": "08",
+            "value": -1
+          },
+          {
+            "left": "03",
+            "right": "09",
+            "value": 1
+          },
+          {
+            "left": "04",
+            "right": "16",
+            "value": 1
+          },
+          {
+            "left": "10",
+            "right": "11",
+            "value": 0
+          }
+        ]
+      }
+    },
+    {
+      "program_key": "program:bmstu:13.03.02:ФН7:13.03.02-03:source:3-1",
+      "code": "13.03.02-03",
+      "rank": 1,
+      "score": 34.57854790336395,
+      "iteration": 4456,
+      "answers": {
+        "interests": [
+          "10",
+          "11",
+          "07"
+        ],
+        "activity": "lab_hours",
+        "avoid": [],
+        "comparisons": [
+          {
+            "left": "07",
+            "right": "10",
+            "value": 1
+          },
+          {
+            "left": "03",
+            "right": "11",
+            "value": -2
+          },
+          {
+            "left": "04",
+            "right": "16",
+            "value": 2
+          },
+          {
+            "left": "02",
+            "right": "08",
+            "value": -2
+          }
+        ]
+      }
+    },
+    {
+      "program_key": "program:bmstu:13.03.02:Э11:13.03.02-04:source:4-1",
+      "code": "13.03.02-04",
+      "rank": 3,
+      "score": 31.597499962422503,
+      "iteration": 9116,
+      "answers": {
+        "interests": [
+          "09",
+          "10",
+          "04",
+          "11",
+          "05"
+        ],
+        "activity": "__no_activity_preference__",
+        "avoid": [
+          "14"
+        ],
+        "comparisons": [
+          {
+            "left": "03",
+            "right": "10",
+            "value": 2
+          },
+          {
+            "left": "02",
+            "right": "13",
+            "value": -1
+          },
+          {
+            "left": "04",
+            "right": "16",
+            "value": -2
+          },
+          {
+            "left": "05",
+            "right": "11",
+            "value": -1
+          }
+        ]
+      }
+    },
+    {
+      "program_key": "program:bmstu:13.03.02:Э4:13.03.02-01:source:2-1",
+      "code": "13.03.02-01",
+      "rank": 7,
+      "score": 34.08011232738163,
+      "iteration": 8290,
+      "answers": {
+        "interests": [
+          "02",
+          "04"
+        ],
+        "activity": "__no_activity_preference__",
+        "avoid": [],
+        "comparisons": [
+          {
+            "left": "02",
+            "right": "03",
+            "value": 2
+          },
+          {
+            "left": "04",
+            "right": "16",
+            "value": -1
+          },
+          {
+            "left": "11",
+            "right": "14",
+            "value": 1
+          },
+          {
+            "left": "06",
+            "right": "09",
+            "value": -1
+          }
+        ]
+      }
+    },
+    {
+      "program_key": "program:bmstu:13.03.03:Э10:13.03.03-02:source:2-1",
+      "code": "13.03.03-02",
+      "rank": 12,
+      "score": 25.7126170614965,
+      "iteration": 1027,
+      "answers": {
+        "interests": [
+          "10",
+          "09",
+          "15",
+          "03",
+          "14"
+        ],
+        "activity": "__no_activity_preference__",
+        "avoid": [
+          "02",
+          "01"
+        ],
+        "comparisons": [
+          {
+            "left": "03",
+            "right": "16",
+            "value": 1
+          },
+          {
+            "left": "04",
+            "right": "07",
+            "value": -1
+          },
+          {
+            "left": "09",
+            "right": "10",
+            "value": 1
+          },
+          {
+            "left": "08",
+            "right": "11",
+            "value": -1
+          }
+        ]
+      }
+    },
+    {
+      "program_key": "program:bmstu:13.03.03:Э2:13.03.03-01:source:1-1",
+      "code": "13.03.03-01",
+      "rank": 1,
+      "score": 45.558037958357126,
+      "iteration": 46,
+      "answers": {
+        "interests": [
+          "11",
+          "08"
+        ],
+        "activity": "practice_hours",
+        "avoid": [
+          "14",
+          "15"
+        ],
+        "comparisons": [
+          {
+            "left": "08",
+            "right": "11",
+            "value": 0
+          },
+          {
+            "left": "03",
+            "right": "14",
+            "value": 0
+          },
+          {
+            "left": "02",
+            "right": "04",
+            "value": -2
+          },
+          {
+            "left": "09",
+            "right": "16",
+            "value": -1
+          }
+        ]
+      }
+    },
+    {
+      "program_key": "program:bmstu:14.05.01:Э7:14.05.01-02:source:1-1",
+      "code": "14.05.01-02",
+      "rank": 7,
+      "score": 15.754997245301395,
+      "iteration": 7717,
+      "answers": {
+        "interests": [
+          "15",
+          "08"
+        ],
+        "activity": "lecture_hours",
+        "avoid": [
+          "06",
+          "01",
+          "16"
+        ],
+        "comparisons": [
+          {
+            "left": "08",
+            "right": "15",
+            "value": -2
+          },
+          {
+            "left": "03",
+            "right": "14",
+            "value": 0
+          }
+        ]
+      }
+    },
+    {
+      "program_key": "program:bmstu:15.03.01:МТ13:15.03.01-02:source:1-1",
+      "code": "15.03.01-02",
+      "rank": 3,
+      "score": 43.093867122261855,
+      "iteration": 3732,
+      "answers": {
+        "interests": [
+          "09",
+          "03",
+          "16"
+        ],
+        "activity": "practice_hours",
+        "avoid": [
+          "05"
+        ],
+        "comparisons": [
+          {
+            "left": "03",
+            "right": "09",
+            "value": -1
+          },
+          {
+            "left": "04",
+            "right": "08",
+            "value": 2
+          },
+          {
+            "left": "01",
+            "right": "10",
+            "value": -2
+          },
+          {
+            "left": "11",
+            "right": "16",
+            "value": -2
+          }
+        ]
+      }
+    },
+    {
+      "program_key": "program:bmstu:15.03.02:Э5:15.03.02-01:source:1-1",
+      "code": "15.03.02-01",
+      "rank": 5,
+      "score": 40.36010358177075,
+      "iteration": 5959,
+      "answers": {
+        "interests": [
+          "13",
+          "11"
+        ],
+        "activity": "practice_hours",
+        "avoid": [
+          "02"
+        ],
+        "comparisons": [
+          {
+            "left": "11",
+            "right": "13",
+            "value": 2
+          },
+          {
+            "left": "03",
+            "right": "16",
+            "value": 2
+          },
+          {
+            "left": "02",
+            "right": "04",
+            "value": 0
+          },
+          {
+            "left": "08",
+            "right": "14",
+            "value": -1
+          }
+        ]
+      }
+    },
+    {
+      "program_key": "program:bmstu:15.03.03:РК5:15.03.03-01:source:1-1",
+      "code": "15.03.03-01",
+      "rank": 1,
+      "score": 60.175429951835255,
+      "iteration": 9,
+      "answers": {
+        "interests": [
+          "09"
+        ],
+        "activity": "__no_activity_preference__",
+        "avoid": [
+          "12",
+          "05"
+        ],
+        "comparisons": [
+          {
+            "left": "03",
+            "right": "08",
+            "value": -1
+          },
+          {
+            "left": "04",
+            "right": "14",
+            "value": 2
+          },
+          {
+            "left": "07",
+            "right": "09",
+            "value": -1
+          },
+          {
+            "left": "01",
+            "right": "16",
+            "value": -2
+          }
+        ]
+      }
+    },
+    {
+      "program_key": "program:bmstu:15.03.04:РК9:15.03.04-01:source:2-1",
+      "code": "15.03.04-01",
+      "rank": 3,
+      "score": 30.276617207395923,
+      "iteration": 3898,
+      "answers": {
+        "interests": [
+          "12",
+          "07",
+          "05",
+          "16"
+        ],
+        "activity": "lecture_hours",
+        "avoid": [
+          "02",
+          "14",
+          "15"
+        ],
+        "comparisons": [
+          {
+            "left": "03",
+            "right": "16",
+            "value": 1
+          },
+          {
+            "left": "05",
+            "right": "07",
+            "value": 0
+          },
+          {
+            "left": "04",
+            "right": "09",
+            "value": 0
+          },
+          {
+            "left": "02",
+            "right": "13",
+            "value": -2
+          }
+        ]
+      }
+    },
+    {
+      "program_key": "program:bmstu:15.03.04:Э5:15.03.04-02:source:1-1",
+      "code": "15.03.04-02",
+      "rank": 9,
+      "score": 12.484301266666064,
+      "iteration": 2041,
+      "answers": {
+        "interests": [
+          "15"
+        ],
+        "activity": "practice_hours",
+        "avoid": [
+          "01"
+        ],
+        "comparisons": [
+          {
+            "left": "03",
+            "right": "14",
+            "value": 0
+          },
+          {
+            "left": "13",
+            "right": "15",
+            "value": -2
+          }
+        ]
+      }
+    },
+    {
+      "program_key": "program:bmstu:15.03.06:РК3:15.03.06-02:source:4-1",
+      "code": "15.03.06-02",
+      "rank": 1,
+      "score": 39.48706292288412,
+      "iteration": 317,
+      "answers": {
+        "interests": [
+          "03",
+          "08",
+          "12",
+          "07"
+        ],
+        "activity": "practice_hours",
+        "avoid": [
+          "14",
+          "04"
+        ],
+        "comparisons": [
+          {
+            "left": "07",
+            "right": "08",
+            "value": -1
+          },
+          {
+            "left": "03",
+            "right": "09",
+            "value": 1
+          },
+          {
+            "left": "04",
+            "right": "16",
+            "value": 1
+          },
+          {
+            "left": "11",
+            "right": "14",
+            "value": 0
+          }
+        ]
+      }
+    },
+    {
+      "program_key": "program:bmstu:15.03.06:РК4:15.03.06-01:source:5-1",
+      "code": "15.03.06-01",
+      "rank": 5,
+      "score": 31.245761248959784,
+      "iteration": 4433,
+      "answers": {
+        "interests": [
+          "09",
+          "13",
+          "16",
+          "11"
+        ],
+        "activity": "lab_hours",
+        "avoid": [
+          "15",
+          "08"
+        ],
+        "comparisons": [
+          {
+            "left": "13",
+            "right": "16",
+            "value": -2
+          },
+          {
+            "left": "04",
+            "right": "11",
+            "value": 1
+          },
+          {
+            "left": "09",
+            "right": "14",
+            "value": 1
+          },
+          {
+            "left": "03",
+            "right": "10",
+            "value": 2
+          }
+        ]
+      }
+    },
+    {
+      "program_key": "program:bmstu:15.03.06:РК4:15.03.06-08:source:5-2",
+      "code": "15.03.06-08",
+      "rank": 2,
+      "score": 44.17786889325897,
+      "iteration": 3394,
+      "answers": {
+        "interests": [
+          "04",
+          "13",
+          "08",
+          "06",
+          "07"
+        ],
+        "activity": "practice_hours",
+        "avoid": [],
+        "comparisons": [
+          {
+            "left": "03",
+            "right": "07",
+            "value": 0
+          },
+          {
+            "left": "13",
+            "right": "16",
+            "value": -1
+          },
+          {
+            "left": "04",
+            "right": "06",
+            "value": 2
+          },
+          {
+            "left": "05",
+            "right": "08",
+            "value": 0
+          }
+        ]
+      }
+    },
+    {
+      "program_key": "program:bmstu:15.03.06:СМ10:15.03.06/М9:source:2-1",
+      "code": "15.03.06/М9",
+      "rank": 4,
+      "score": 35.990245045156826,
+      "iteration": 317,
+      "answers": {
+        "interests": [
+          "03",
+          "08",
+          "12",
+          "07"
+        ],
+        "activity": "practice_hours",
+        "avoid": [
+          "14",
+          "04"
+        ],
+        "comparisons": [
+          {
+            "left": "07",
+            "right": "08",
+            "value": -1
+          },
+          {
+            "left": "03",
+            "right": "09",
+            "value": 1
+          },
+          {
+            "left": "04",
+            "right": "16",
+            "value": 1
+          },
+          {
+            "left": "11",
+            "right": "14",
+            "value": 0
+          }
+        ]
+      }
+    },
+    {
+      "program_key": "program:bmstu:15.03.06:СМ11:15.03.06-04:source:3-1",
+      "code": "15.03.06-04",
+      "rank": 2,
+      "score": 36.593521911090875,
+      "iteration": 1237,
+      "answers": {
+        "interests": [
+          "09"
+        ],
+        "activity": "__no_activity_preference__",
+        "avoid": [
+          "04",
+          "10"
+        ],
+        "comparisons": [
+          {
+            "left": "03",
+            "right": "08",
+            "value": -1
+          },
+          {
+            "left": "04",
+            "right": "14",
+            "value": 2
+          },
+          {
+            "left": "07",
+            "right": "09",
+            "value": 1
+          },
+          {
+            "left": "10",
+            "right": "16",
+            "value": -2
+          }
+        ]
+      }
+    },
+    {
+      "program_key": "program:bmstu:15.03.06:СМ7:15.03.06-03:source:1-1",
+      "code": "15.03.06-03",
+      "rank": 1,
+      "score": 45.75606662651921,
+      "iteration": 558,
+      "answers": {
+        "interests": [
+          "13",
+          "08",
+          "07"
+        ],
+        "activity": "__no_activity_preference__",
+        "avoid": [
+          "11"
+        ],
+        "comparisons": [
+          {
+            "left": "07",
+            "right": "13",
+            "value": 1
+          },
+          {
+            "left": "03",
+            "right": "08",
+            "value": -2
+          },
+          {
+            "left": "04",
+            "right": "16",
+            "value": 2
+          },
+          {
+            "left": "09",
+            "right": "10",
+            "value": 1
+          }
+        ]
+      }
+    },
+    {
+      "program_key": "program:bmstu:15.05.01:МТ1:15.05.01-01:source:1-1",
+      "code": "15.05.01-01",
+      "rank": 13,
+      "score": 33.06022605611876,
+      "iteration": 7768,
+      "answers": {
+        "interests": [
+          "10",
+          "16",
+          "07",
+          "09"
+        ],
+        "activity": "__no_activity_preference__",
+        "avoid": [
+          "13",
+          "14",
+          "05"
+        ],
+        "comparisons": [
+          {
+            "left": "07",
+            "right": "10",
+            "value": 1
+          },
+          {
+            "left": "03",
+            "right": "08",
+            "value": 1
+          },
+          {
+            "left": "04",
+            "right": "09",
+            "value": 0
+          },
+          {
+            "left": "13",
+            "right": "16",
+            "value": -1
+          }
+        ]
+      }
+    },
+    {
+      "program_key": "program:bmstu:15.05.01:МТ10:15.05.01-10:source:7-1",
+      "code": "15.05.01-10",
+      "rank": 10,
+      "score": 44.05862082958285,
+      "iteration": 5915,
+      "answers": {
+        "interests": [
+          "09"
+        ],
+        "activity": "practice_hours",
+        "avoid": [
+          "06"
+        ],
+        "comparisons": [
+          {
+            "left": "03",
+            "right": "08",
+            "value": -1
+          },
+          {
+            "left": "04",
+            "right": "14",
+            "value": 2
+          },
+          {
+            "left": "01",
+            "right": "09",
+            "value": 0
+          },
+          {
+            "left": "10",
+            "right": "16",
+            "value": 1
+          }
+        ]
+      }
+    },
+    {
+      "program_key": "program:bmstu:15.05.01:МТ12:15.05.01-04:source:8-1",
+      "code": "15.05.01-04",
+      "rank": 1,
+      "score": 39.58167651613382,
+      "iteration": 919,
+      "answers": {
+        "interests": [
+          "16",
+          "04",
+          "10",
+          "08"
+        ],
+        "activity": "lab_hours",
+        "avoid": [
+          "06",
+          "01"
+        ],
+        "comparisons": [
+          {
+            "left": "03",
+            "right": "08",
+            "value": 2
+          },
+          {
+            "left": "04",
+            "right": "10",
+            "value": 0
+          },
+          {
+            "left": "05",
+            "right": "16",
+            "value": -2
+          },
+          {
+            "left": "09",
+            "right": "14",
+            "value": 1
+          }
+        ]
+      }
+    },
+    {
+      "program_key": "program:bmstu:15.05.01:МТ12:15.05.01-04:source:8-2",
+      "code": "15.05.01-04",
+      "rank": 1,
+      "score": 43.50115692959907,
+      "iteration": 4109,
+      "answers": {
+        "interests": [
+          "10",
+          "11"
+        ],
+        "activity": "lab_hours",
+        "avoid": [
+          "05"
+        ],
+        "comparisons": [
+          {
+            "left": "03",
+            "right": "11",
+            "value": 2
+          },
+          {
+            "left": "04",
+            "right": "16",
+            "value": -1
+          },
+          {
+            "left": "08",
+            "right": "12",
+            "value": -1
+          },
+          {
+            "left": "02",
+            "right": "07",
+            "value": 0
+          }
+        ]
+      }
+    },
+    {
+      "program_key": "program:bmstu:15.05.01:МТ2:15.05.01-02:source:2-1",
+      "code": "15.05.01-02",
+      "rank": 1,
+      "score": 61.04371877238446,
+      "iteration": 269,
+      "answers": {
+        "interests": [
+          "04",
+          "08",
+          "10",
+          "03"
+        ],
+        "activity": "self_study_hours",
+        "avoid": [
+          "07"
+        ],
+        "comparisons": [
+          {
+            "left": "03",
+            "right": "16",
+            "value": 0
+          },
+          {
+            "left": "08",
+            "right": "11",
+            "value": 0
+          },
+          {
+            "left": "07",
+            "right": "10",
+            "value": 0
+          },
+          {
+            "left": "02",
+            "right": "04",
+            "value": 1
+          }
+        ]
+      }
+    },
+    {
+      "program_key": "program:bmstu:15.05.01:МТ2:15.05.01-22(РКТ3):source:2-2",
+      "code": "15.05.01-22(РКТ3)",
+      "rank": 1,
+      "score": 52.98929907745925,
+      "iteration": 727,
+      "answers": {
+        "interests": [
+          "06",
+          "03",
+          "10"
+        ],
+        "activity": "self_study_hours",
+        "avoid": [],
+        "comparisons": [
+          {
+            "left": "06",
+            "right": "10",
+            "value": 0
+          },
+          {
+            "left": "03",
+            "right": "16",
+            "value": 1
+          },
+          {
+            "left": "04",
+            "right": "08",
+            "value": -2
+          },
+          {
+            "left": "02",
+            "right": "09",
+            "value": -1
+          }
+        ]
+      }
+    },
+    {
+      "program_key": "program:bmstu:15.05.01:МТ3:15.05.01-03:source:3-1",
+      "code": "15.05.01-03",
+      "rank": 1,
+      "score": 31.959866698587643,
+      "iteration": 1380,
+      "answers": {
+        "interests": [
+          "12",
+          "13",
+          "06"
+        ],
+        "activity": "practice_hours",
+        "avoid": [
+          "05",
+          "07"
+        ],
+        "comparisons": [
+          {
+            "left": "12",
+            "right": "13",
+            "value": 0
+          },
+          {
+            "left": "03",
+            "right": "14",
+            "value": 1
+          },
+          {
+            "left": "02",
+            "right": "04",
+            "value": 2
+          },
+          {
+            "left": "06",
+            "right": "10",
+            "value": -2
+          }
+        ]
+      }
+    },
+    {
+      "program_key": "program:bmstu:15.05.01:МТ5:15.05.01-05:source:4-1",
+      "code": "15.05.01-05",
+      "rank": 3,
+      "score": 48.72056324097613,
+      "iteration": 2971,
+      "answers": {
+        "interests": [
+          "04",
+          "10",
+          "16",
+          "03"
+        ],
+        "activity": "self_study_hours",
+        "avoid": [
+          "05",
+          "12",
+          "15"
+        ],
+        "comparisons": [
+          {
+            "left": "03",
+            "right": "16",
+            "value": -1
+          },
+          {
+            "left": "04",
+            "right": "08",
+            "value": -1
+          },
+          {
+            "left": "10",
+            "right": "11",
+            "value": -1
+          },
+          {
+            "left": "02",
+            "right": "09",
+            "value": -1
+          }
+        ]
+      }
+    },
+    {
+      "program_key": "program:bmstu:15.05.01:МТ6:15.05.01-06:source:5-1",
+      "code": "15.05.01-06",
+      "rank": 6,
+      "score": 43.86864737025088,
+      "iteration": 3244,
+      "answers": {
+        "interests": [
+          "09",
+          "03"
+        ],
+        "activity": "lecture_hours",
+        "avoid": [],
+        "comparisons": [
+          {
+            "left": "03",
+            "right": "09",
+            "value": -1
+          },
+          {
+            "left": "04",
+            "right": "08",
+            "value": 1
+          },
+          {
+            "left": "01",
+            "right": "10",
+            "value": -2
+          },
+          {
+            "left": "11",
+            "right": "16",
+            "value": 2
+          }
+        ]
+      }
+    },
+    {
+      "program_key": "program:bmstu:15.05.01:МТ7:15.05.01-07:source:6-1",
+      "code": "15.05.01-07",
+      "rank": 1,
+      "score": 74.58517699191421,
+      "iteration": 111,
+      "answers": {
+        "interests": [
+          "10"
+        ],
+        "activity": "lecture_hours",
+        "avoid": [
+          "04",
+          "07",
+          "16"
+        ],
+        "comparisons": [
+          {
+            "left": "03",
+            "right": "16",
+            "value": 0
+          },
+          {
+            "left": "04",
+            "right": "08",
+            "value": 1
+          },
+          {
+            "left": "10",
+            "right": "11",
+            "value": 1
+          },
+          {
+            "left": "02",
+            "right": "07",
+            "value": 0
+          }
+        ]
+      }
+    },
+    {
+      "program_key": "program:bmstu:15.05.01:Э5:15.05.01-09:source:9-1",
+      "code": "15.05.01-09",
+      "rank": 14,
+      "score": 38.407154647174714,
+      "iteration": 5572,
+      "answers": {
+        "interests": [
+          "11",
+          "16"
+        ],
+        "activity": "practice_hours",
+        "avoid": [
+          "05"
+        ],
+        "comparisons": [
+          {
+            "left": "11",
+            "right": "16",
+            "value": 0
+          },
+          {
+            "left": "03",
+            "right": "09",
+            "value": 0
+          },
+          {
+            "left": "02",
+            "right": "04",
+            "value": -2
+          },
+          {
+            "left": "08",
+            "right": "14",
+            "value": 2
+          }
+        ]
+      }
+    },
+    {
+      "program_key": "program:bmstu:15.05.02:МТ7:15.05.02-02:source:1-1",
+      "code": "15.05.02-02",
+      "rank": 1,
+      "score": 39.02672285313437,
+      "iteration": 32,
+      "answers": {
+        "interests": [
+          "14",
+          "09",
+          "05",
+          "10",
+          "06"
+        ],
+        "activity": "lecture_hours",
+        "avoid": [
+          "03",
+          "11"
+        ],
+        "comparisons": [
+          {
+            "left": "10",
+            "right": "14",
+            "value": 1
+          },
+          {
+            "left": "03",
+            "right": "16",
+            "value": 0
+          },
+          {
+            "left": "02",
+            "right": "04",
+            "value": 1
+          },
+          {
+            "left": "08",
+            "right": "11",
+            "value": 0
+          }
+        ]
+      }
+    },
+    {
+      "program_key": "program:bmstu:15.05.02:СМ9:15.05.02-01:source:2-1",
+      "code": "15.05.02-01",
+      "rank": 1,
+      "score": 58.07267948773119,
+      "iteration": 7,
+      "answers": {
+        "interests": [
+          "07"
+        ],
+        "activity": "self_study_hours",
+        "avoid": [
+          "04"
+        ],
+        "comparisons": [
+          {
+            "left": "03",
+            "right": "09",
+            "value": -1
+          },
+          {
+            "left": "07",
+            "right": "10",
+            "value": 0
+          },
+          {
+            "left": "04",
+            "right": "08",
+            "value": -1
+          },
+          {
+            "left": "15",
+            "right": "16",
+            "value": 1
+          }
+        ]
+      }
+    },
+    {
+      "program_key": "program:bmstu:16.03.01:ФН4:16.03.01-01:source:1-1",
+      "code": "16.03.01-01",
+      "rank": 1,
+      "score": 70.71989386296785,
+      "iteration": 2,
+      "answers": {
+        "interests": [
+          "02"
+        ],
+        "activity": "lecture_hours",
+        "avoid": [
+          "09",
+          "14"
+        ],
+        "comparisons": [
+          {
+            "left": "03",
+            "right": "14",
+            "value": 0
+          },
+          {
+            "left": "04",
+            "right": "16",
+            "value": -2
+          },
+          {
+            "left": "02",
+            "right": "11",
+            "value": 2
+          }
+        ]
+      }
+    },
+    {
+      "program_key": "program:bmstu:16.03.02:Э8:16.03.02-01:source:1-1",
+      "code": "16.03.02-01",
+      "rank": 2,
+      "score": 40.610624163435155,
+      "iteration": 891,
+      "answers": {
+        "interests": [
+          "02",
+          "14",
+          "16",
+          "11",
+          "12"
+        ],
+        "activity": "self_study_hours",
+        "avoid": [
+          "06",
+          "05",
+          "09"
+        ],
+        "comparisons": [
+          {
+            "left": "02",
+            "right": "16",
+            "value": 0
+          },
+          {
+            "left": "03",
+            "right": "14",
+            "value": 1
+          },
+          {
+            "left": "04",
+            "right": "11",
+            "value": -1
+          },
+          {
+            "left": "07",
+            "right": "09",
+            "value": 1
+          }
+        ]
+      }
+    },
+    {
+      "program_key": "program:bmstu:16.03.03:Э4:16.03.03-01:source:1-1",
+      "code": "16.03.03-01",
+      "rank": 3,
+      "score": 32.42503322027643,
+      "iteration": 5611,
+      "answers": {
+        "interests": [
+          "06",
+          "08",
+          "11",
+          "12"
+        ],
+        "activity": "practice_hours",
+        "avoid": [
+          "04",
+          "16",
+          "13"
+        ],
+        "comparisons": [
+          {
+            "left": "08",
+            "right": "15",
+            "value": 0
+          },
+          {
+            "left": "03",
+            "right": "09",
+            "value": -2
+          },
+          {
+            "left": "04",
+            "right": "16",
+            "value": 1
+          },
+          {
+            "left": "10",
+            "right": "11",
+            "value": -2
+          }
+        ]
+      }
+    },
+    {
+      "program_key": "program:bmstu:16.05.01:Э4:16.05.01-01:source:1-1",
+      "code": "16.05.01-01",
+      "rank": 2,
+      "score": 38.50519030884617,
+      "iteration": 273,
+      "answers": {
+        "interests": [
+          "11",
+          "15"
+        ],
+        "activity": "lab_hours",
+        "avoid": [
+          "16"
+        ],
+        "comparisons": [
+          {
+            "left": "15",
+            "right": "16",
+            "value": -1
+          },
+          {
+            "left": "02",
+            "right": "03",
+            "value": 0
+          },
+          {
+            "left": "04",
+            "right": "14",
+            "value": 0
+          },
+          {
+            "left": "06",
+            "right": "11",
+            "value": -2
+          }
+        ]
+      }
+    },
+    {
+      "program_key": "program:bmstu:17.05.01:СМ4:17.05.01-02:source:1-1",
+      "code": "17.05.01-02",
+      "rank": 1,
+      "score": 41.35488395412418,
+      "iteration": 1173,
+      "answers": {
+        "interests": [
+          "02",
+          "16",
+          "11",
+          "12",
+          "09"
+        ],
+        "activity": "practice_hours",
+        "avoid": [
+          "01",
+          "15",
+          "05"
+        ],
+        "comparisons": [
+          {
+            "left": "02",
+            "right": "09",
+            "value": -2
+          },
+          {
+            "left": "03",
+            "right": "16",
+            "value": 0
+          },
+          {
+            "left": "04",
+            "right": "11",
+            "value": -1
+          },
+          {
+            "left": "06",
+            "right": "08",
+            "value": -1
+          }
+        ]
+      }
+    },
+    {
+      "program_key": "program:bmstu:17.05.02:СМ6:17.05.02-02:source:1-1",
+      "code": "17.05.02-02",
+      "rank": 1,
+      "score": 41.58736361103795,
+      "iteration": 815,
+      "answers": {
+        "interests": [
+          "01",
+          "12",
+          "08"
+        ],
+        "activity": "self_study_hours",
+        "avoid": [
+          "04"
+        ],
+        "comparisons": [
+          {
+            "left": "08",
+            "right": "12",
+            "value": 0
+          },
+          {
+            "left": "09",
+            "right": "16",
+            "value": -2
+          },
+          {
+            "left": "10",
+            "right": "11",
+            "value": -2
+          },
+          {
+            "left": "02",
+            "right": "13",
+            "value": -2
+          }
+        ]
+      }
+    },
+    {
+      "program_key": "program:bmstu:20.03.01:Э9:20.03.01/01:source:1-1",
+      "code": "20.03.01/01",
+      "rank": 1,
+      "score": 36.08913896133594,
+      "iteration": 435,
+      "answers": {
+        "interests": [
+          "01",
+          "09",
+          "13",
+          "15"
+        ],
+        "activity": "practice_hours",
+        "avoid": [
+          "03",
+          "16"
+        ],
+        "comparisons": [
+          {
+            "left": "09",
+            "right": "13",
+            "value": 0
+          },
+          {
+            "left": "14",
+            "right": "15",
+            "value": -1
+          },
+          {
+            "left": "03",
+            "right": "08",
+            "value": -2
+          },
+          {
+            "left": "01",
+            "right": "02",
+            "value": 0
+          }
+        ]
+      }
+    },
+    {
+      "program_key": "program:bmstu:22.03.01:МТ8:22.03.01-01:source:1-1",
+      "code": "22.03.01-01",
+      "rank": 1,
+      "score": 42.92812965466135,
+      "iteration": 88,
+      "answers": {
+        "interests": [
+          "15",
+          "10",
+          "02",
+          "16"
+        ],
+        "activity": "lab_hours",
+        "avoid": [
+          "07",
+          "09"
+        ],
+        "comparisons": [
+          {
+            "left": "03",
+            "right": "16",
+            "value": 0
+          },
+          {
+            "left": "02",
+            "right": "10",
+            "value": -1
+          },
+          {
+            "left": "04",
+            "right": "08",
+            "value": 0
+          },
+          {
+            "left": "07",
+            "right": "09",
+            "value": 0
+          }
+        ]
+      }
+    },
+    {
+      "program_key": "program:bmstu:22.03.01:СМ13:22.03.01-02:source:2-1",
+      "code": "22.03.01-02",
+      "rank": 1,
+      "score": 38.63698147128143,
+      "iteration": 584,
+      "answers": {
+        "interests": [
+          "09",
+          "10",
+          "01",
+          "11",
+          "16"
+        ],
+        "activity": "practice_hours",
+        "avoid": [
+          "12",
+          "13",
+          "08"
+        ],
+        "comparisons": [
+          {
+            "left": "03",
+            "right": "11",
+            "value": 1
+          },
+          {
+            "left": "01",
+            "right": "10",
+            "value": -1
+          },
+          {
+            "left": "04",
+            "right": "16",
+            "value": 0
+          },
+          {
+            "left": "08",
+            "right": "12",
+            "value": -2
+          }
+        ]
+      }
+    },
+    {
+      "program_key": "program:bmstu:23.05.01:РК4:23.05.01-02:source:3-1",
+      "code": "23.05.01-02",
+      "rank": 1,
+      "score": 52.42877110520941,
+      "iteration": 1477,
+      "answers": {
+        "interests": [
+          "06"
+        ],
+        "activity": "self_study_hours",
+        "avoid": [
+          "01"
+        ],
+        "comparisons": [
+          {
+            "left": "03",
+            "right": "15",
+            "value": 0
+          },
+          {
+            "left": "04",
+            "right": "16",
+            "value": -2
+          },
+          {
+            "left": "06",
+            "right": "09",
+            "value": -2
+          },
+          {
+            "left": "07",
+            "right": "11",
+            "value": -1
+          }
+        ]
+      }
+    },
+    {
+      "program_key": "program:bmstu:23.05.01:СМ10:23.05.01-10:source:2-1",
+      "code": "23.05.01-10",
+      "rank": 3,
+      "score": 48.16194015557154,
+      "iteration": 24,
+      "answers": {
+        "interests": [
+          "09"
+        ],
+        "activity": "self_study_hours",
+        "avoid": [
+          "06",
+          "16",
+          "14"
+        ],
+        "comparisons": [
+          {
+            "left": "03",
+            "right": "08",
+            "value": -2
+          },
+          {
+            "left": "04",
+            "right": "16",
+            "value": -2
+          },
+          {
+            "left": "09",
+            "right": "11",
+            "value": -1
+          },
+          {
+            "left": "12",
+            "right": "14",
+            "value": -2
+          }
+        ]
+      }
+    },
+    {
+      "program_key": "program:bmstu:23.05.01:СМ9:23.05.01-09:source:1-1",
+      "code": "23.05.01-09",
+      "rank": 1,
+      "score": 97.57728845670601,
+      "iteration": 8,
+      "answers": {
+        "interests": [
+          "08"
+        ],
+        "activity": "__no_activity_preference__",
+        "avoid": [
+          "02",
+          "03",
+          "16"
+        ],
+        "comparisons": [
+          {
+            "left": "14",
+            "right": "16",
+            "value": 0
+          },
+          {
+            "left": "03",
+            "right": "08",
+            "value": -2
+          }
+        ]
+      }
+    },
+    {
+      "program_key": "program:bmstu:23.05.02:СМ10:23.05.02-10:source:2-1",
+      "code": "23.05.02-10",
+      "rank": 2,
+      "score": 46.94837307042122,
+      "iteration": 6251,
+      "answers": {
+        "interests": [
+          "12"
+        ],
+        "activity": "self_study_hours",
+        "avoid": [
+          "04"
+        ],
+        "comparisons": [
+          {
+            "left": "12",
+            "right": "16",
+            "value": -1
+          },
+          {
+            "left": "11",
+            "right": "14",
+            "value": 0
+          },
+          {
+            "left": "03",
+            "right": "09",
+            "value": -2
+          },
+          {
+            "left": "08",
+            "right": "15",
+            "value": 0
+          }
+        ]
+      }
+    },
+    {
+      "program_key": "program:bmstu:23.05.02:СМ9:23.05.02-09:source:1-1",
+      "code": "23.05.02-09",
+      "rank": 1,
+      "score": 53.023667967594136,
+      "iteration": 24,
+      "answers": {
+        "interests": [
+          "09"
+        ],
+        "activity": "self_study_hours",
+        "avoid": [
+          "06",
+          "16",
+          "14"
+        ],
+        "comparisons": [
+          {
+            "left": "03",
+            "right": "08",
+            "value": -2
+          },
+          {
+            "left": "04",
+            "right": "16",
+            "value": -2
+          },
+          {
+            "left": "09",
+            "right": "11",
+            "value": -1
+          },
+          {
+            "left": "12",
+            "right": "14",
+            "value": -2
+          }
+        ]
+      }
+    },
+    {
+      "program_key": "program:bmstu:24.03.01:СМ1:24.03.01-01:source:1-1",
+      "code": "24.03.01-01",
+      "rank": 1,
+      "score": 36.711174488019275,
+      "iteration": 4230,
+      "answers": {
+        "interests": [
+          "15",
+          "13",
+          "08",
+          "03",
+          "12"
+        ],
+        "activity": "practice_hours",
+        "avoid": [
+          "16",
+          "07",
+          "05"
+        ],
+        "comparisons": [
+          {
+            "left": "03",
+            "right": "13",
+            "value": 2
+          },
+          {
+            "left": "04",
+            "right": "08",
+            "value": -1
+          },
+          {
+            "left": "05",
+            "right": "16",
+            "value": 0
+          },
+          {
+            "left": "02",
+            "right": "14",
+            "value": -1
+          }
+        ]
+      }
+    },
+    {
+      "program_key": "program:bmstu:24.03.01:СМ13:24.03.01-02:source:2-1",
+      "code": "24.03.01-02",
+      "rank": 1,
+      "score": 45.76242443419521,
+      "iteration": 10,
+      "answers": {
+        "interests": [
+          "10"
+        ],
+        "activity": "lecture_hours",
+        "avoid": [
+          "06",
+          "01"
+        ],
+        "comparisons": [
+          {
+            "left": "03",
+            "right": "16",
+            "value": 2
+          },
+          {
+            "left": "04",
+            "right": "07",
+            "value": -1
+          },
+          {
+            "left": "08",
+            "right": "11",
+            "value": 0
+          },
+          {
+            "left": "10",
+            "right": "12",
+            "value": -1
+          }
+        ]
+      }
+    },
+    {
+      "program_key": "program:bmstu:24.05.01:СМ1:24.05.01-05:source:1-1",
+      "code": "24.05.01-05",
+      "rank": 2,
+      "score": 33.37331824113827,
+      "iteration": 9107,
+      "answers": {
+        "interests": [
+          "09",
+          "16",
+          "10"
+        ],
+        "activity": "__no_activity_preference__",
+        "avoid": [],
+        "comparisons": [
+          {
+            "left": "03",
+            "right": "16",
+            "value": 1
+          },
+          {
+            "left": "04",
+            "right": "07",
+            "value": 1
+          },
+          {
+            "left": "08",
+            "right": "11",
+            "value": -1
+          },
+          {
+            "left": "10",
+            "right": "12",
+            "value": -2
+          }
+        ]
+      }
+    },
+    {
+      "program_key": "program:bmstu:24.05.01:СМ1:24.05.01-25(РКТ2):source:1-2",
+      "code": "24.05.01-25(РКТ2)",
+      "rank": 2,
+      "score": 46.87515784887374,
+      "iteration": 9,
+      "answers": {
+        "interests": [
+          "09"
+        ],
+        "activity": "__no_activity_preference__",
+        "avoid": [
+          "12",
+          "05"
+        ],
+        "comparisons": [
+          {
+            "left": "03",
+            "right": "08",
+            "value": -1
+          },
+          {
+            "left": "04",
+            "right": "14",
+            "value": 2
+          },
+          {
+            "left": "07",
+            "right": "09",
+            "value": -1
+          },
+          {
+            "left": "01",
+            "right": "16",
+            "value": -2
+          }
+        ]
+      }
+    },
+    {
+      "program_key": "program:bmstu:24.05.01:СМ12:24.05.01-03:source:4-1",
+      "code": "24.05.01-03",
+      "rank": 1,
+      "score": 60.459738088731626,
+      "iteration": 240,
+      "answers": {
+        "interests": [
+          "10"
+        ],
+        "activity": "lecture_hours",
+        "avoid": [
+          "09"
+        ],
+        "comparisons": [
+          {
+            "left": "03",
+            "right": "16",
+            "value": 0
+          },
+          {
+            "left": "04",
+            "right": "08",
+            "value": 2
+          },
+          {
+            "left": "05",
+            "right": "10",
+            "value": -1
+          },
+          {
+            "left": "11",
+            "right": "14",
+            "value": -1
+          }
+        ]
+      }
+    },
+    {
+      "program_key": "program:bmstu:24.05.01:СМ12:24.05.01-23(РКТ4):source:4-2",
+      "code": "24.05.01-23(РКТ4)",
+      "rank": 2,
+      "score": 42.889896660884105,
+      "iteration": 931,
+      "answers": {
+        "interests": [
+          "11",
+          "02",
+          "10"
+        ],
+        "activity": "__no_activity_preference__",
+        "avoid": [
+          "09"
+        ],
+        "comparisons": [
+          {
+            "left": "02",
+            "right": "10",
+            "value": -1
+          },
+          {
+            "left": "03",
+            "right": "11",
+            "value": 0
+          },
+          {
+            "left": "04",
+            "right": "16",
+            "value": 2
+          },
+          {
+            "left": "08",
+            "right": "14",
+            "value": -1
+          }
+        ]
+      }
+    },
+    {
+      "program_key": "program:bmstu:24.05.01:СМ13:24.05.01-10:source:5-1",
+      "code": "24.05.01-10",
+      "rank": 1,
+      "score": 40.275315908075456,
+      "iteration": 3305,
+      "answers": {
+        "interests": [
+          "04",
+          "10",
+          "01",
+          "05"
+        ],
+        "activity": "__no_activity_preference__",
+        "avoid": [
+          "15"
+        ],
+        "comparisons": [
+          {
+            "left": "03",
+            "right": "14",
+            "value": -2
+          },
+          {
+            "left": "01",
+            "right": "10",
+            "value": -2
+          },
+          {
+            "left": "04",
+            "right": "16",
+            "value": -1
+          },
+          {
+            "left": "08",
+            "right": "11",
+            "value": -2
+          }
+        ]
+      }
+    },
+    {
+      "program_key": "program:bmstu:24.05.01:СМ2:24.05.01-01:source:2-4",
+      "code": "24.05.01-01",
+      "rank": 3,
+      "score": 36.67236475965865,
+      "iteration": 169,
+      "answers": {
+        "interests": [
+          "13",
+          "04",
+          "10",
+          "02",
+          "09"
+        ],
+        "activity": "self_study_hours",
+        "avoid": [
+          "08"
+        ],
+        "comparisons": [
+          {
+            "left": "03",
+            "right": "16",
+            "value": 0
+          },
+          {
+            "left": "09",
+            "right": "10",
+            "value": 1
+          },
+          {
+            "left": "04",
+            "right": "08",
+            "value": -1
+          },
+          {
+            "left": "02",
+            "right": "12",
+            "value": -2
+          }
+        ]
+      }
+    },
+    {
+      "program_key": "program:bmstu:24.05.01:СМ2:24.05.01-21(АК1):source:2-5",
+      "code": "24.05.01-21(АК1)",
+      "rank": 3,
+      "score": 45.57648570476221,
+      "iteration": 7918,
+      "answers": {
+        "interests": [
+          "14",
+          "09",
+          "16",
+          "02",
+          "04"
+        ],
+        "activity": "self_study_hours",
+        "avoid": [],
+        "comparisons": [
+          {
+            "left": "02",
+            "right": "03",
+            "value": -2
+          },
+          {
+            "left": "04",
+            "right": "09",
+            "value": -1
+          },
+          {
+            "left": "01",
+            "right": "16",
+            "value": -1
+          },
+          {
+            "left": "07",
+            "right": "14",
+            "value": 0
+          }
+        ]
+      }
+    },
+    {
+      "program_key": "program:bmstu:24.05.01:СМ8:24.05.01-07:source:3-1",
+      "code": "24.05.01-07",
+      "rank": 7,
+      "score": 37.61478576584367,
+      "iteration": 68,
+      "answers": {
+        "interests": [
+          "03",
+          "11",
+          "14",
+          "09",
+          "02"
+        ],
+        "activity": "lecture_hours",
+        "avoid": [
+          "16"
+        ],
+        "comparisons": [
+          {
+            "left": "03",
+            "right": "09",
+            "value": 1
+          },
+          {
+            "left": "04",
+            "right": "11",
+            "value": -2
+          },
+          {
+            "left": "14",
+            "right": "16",
+            "value": -2
+          },
+          {
+            "left": "02",
+            "right": "08",
+            "value": -1
+          }
+        ]
+      }
+    },
+    {
+      "program_key": "program:bmstu:24.05.01:СМ8:24.05.01-14(ПС3):source:3-2",
+      "code": "24.05.01-14(ПС3)",
+      "rank": 2,
+      "score": 44.94033003453995,
+      "iteration": 3767,
+      "answers": {
+        "interests": [
+          "09",
+          "02"
+        ],
+        "activity": "self_study_hours",
+        "avoid": [
+          "01"
+        ],
+        "comparisons": [
+          {
+            "left": "02",
+            "right": "03",
+            "value": -1
+          },
+          {
+            "left": "04",
+            "right": "08",
+            "value": 0
+          },
+          {
+            "left": "15",
+            "right": "16",
+            "value": -2
+          },
+          {
+            "left": "09",
+            "right": "11",
+            "value": 0
+          }
+        ]
+      }
+    },
+    {
+      "program_key": "program:bmstu:24.05.01:Э4:24.05.01-12:source:6-1",
+      "code": "24.05.01-12",
+      "rank": 2,
+      "score": 34.79731010831542,
+      "iteration": 8005,
+      "answers": {
+        "interests": [
+          "11",
+          "12"
+        ],
+        "activity": "self_study_hours",
+        "avoid": [
+          "16",
+          "07",
+          "08"
+        ],
+        "comparisons": [
+          {
+            "left": "12",
+            "right": "16",
+            "value": 1
+          },
+          {
+            "left": "03",
+            "right": "09",
+            "value": -1
+          },
+          {
+            "left": "04",
+            "right": "11",
+            "value": 1
+          },
+          {
+            "left": "01",
+            "right": "02",
+            "value": 0
+          }
+        ]
+      }
+    },
+    {
+      "program_key": "program:bmstu:24.05.02:Э1:24.05.02-03:source:1-1",
+      "code": "24.05.02-03",
+      "rank": 13,
+      "score": 22.306969819110396,
+      "iteration": 1135,
+      "answers": {
+        "interests": [
+          "12",
+          "02",
+          "03",
+          "11"
+        ],
+        "activity": "lab_hours",
+        "avoid": [
+          "06",
+          "13"
+        ],
+        "comparisons": [
+          {
+            "left": "03",
+            "right": "12",
+            "value": -2
+          },
+          {
+            "left": "02",
+            "right": "09",
+            "value": -2
+          },
+          {
+            "left": "04",
+            "right": "16",
+            "value": 1
+          },
+          {
+            "left": "08",
+            "right": "11",
+            "value": 0
+          }
+        ]
+      }
+    },
+    {
+      "program_key": "program:bmstu:24.05.02:Э2:24.05.02-09:source:2-1",
+      "code": "24.05.02-09",
+      "rank": 1,
+      "score": 36.746170683382424,
+      "iteration": 5254,
+      "answers": {
+        "interests": [
+          "15",
+          "11",
+          "08",
+          "07",
+          "13"
+        ],
+        "activity": "__no_activity_preference__",
+        "avoid": [],
+        "comparisons": [
+          {
+            "left": "08",
+            "right": "15",
+            "value": 1
+          },
+          {
+            "left": "03",
+            "right": "09",
+            "value": -2
+          },
+          {
+            "left": "04",
+            "right": "16",
+            "value": 2
+          },
+          {
+            "left": "07",
+            "right": "11",
+            "value": -2
+          }
+        ]
+      }
+    },
+    {
+      "program_key": "program:bmstu:24.05.02:Э3:24.05.02-01:source:3-1",
+      "code": "24.05.02-01",
+      "rank": 3,
+      "score": 28.247159963010063,
+      "iteration": 766,
+      "answers": {
+        "interests": [
+          "12",
+          "15",
+          "09",
+          "11"
+        ],
+        "activity": "lab_hours",
+        "avoid": [
+          "02",
+          "10"
+        ],
+        "comparisons": [
+          {
+            "left": "12",
+            "right": "16",
+            "value": 0
+          },
+          {
+            "left": "09",
+            "right": "15",
+            "value": 1
+          },
+          {
+            "left": "03",
+            "right": "11",
+            "value": -1
+          },
+          {
+            "left": "02",
+            "right": "04",
+            "value": -2
+          }
+        ]
+      }
+    },
+    {
+      "program_key": "program:bmstu:24.05.02:Э6:24.05.02-07:source:4-1",
+      "code": "24.05.02-07",
+      "rank": 5,
+      "score": 34.39299021544055,
+      "iteration": 8290,
+      "answers": {
+        "interests": [
+          "02",
+          "04"
+        ],
+        "activity": "__no_activity_preference__",
+        "avoid": [],
+        "comparisons": [
+          {
+            "left": "02",
+            "right": "03",
+            "value": 2
+          },
+          {
+            "left": "04",
+            "right": "16",
+            "value": -1
+          },
+          {
+            "left": "11",
+            "right": "14",
+            "value": 1
+          },
+          {
+            "left": "06",
+            "right": "09",
+            "value": -1
+          }
+        ]
+      }
+    },
+    {
+      "program_key": "program:bmstu:24.05.02:Э8:24.05.02-05:source:5-1",
+      "code": "24.05.02-05",
+      "rank": 1,
+      "score": 39.37892565989054,
+      "iteration": 8188,
+      "answers": {
+        "interests": [
+          "04",
+          "08",
+          "02"
+        ],
+        "activity": "__no_activity_preference__",
+        "avoid": [],
+        "comparisons": [
+          {
+            "left": "02",
+            "right": "03",
+            "value": 0
+          },
+          {
+            "left": "04",
+            "right": "08",
+            "value": 0
+          },
+          {
+            "left": "14",
+            "right": "16",
+            "value": -2
+          },
+          {
+            "left": "10",
+            "right": "11",
+            "value": -2
+          }
+        ]
+      }
+    },
+    {
+      "program_key": "program:bmstu:24.05.04:СМ3:24.05.04-02:source:1-1",
+      "code": "24.05.04-02",
+      "rank": 1,
+      "score": 45.91010101639353,
+      "iteration": 2982,
+      "answers": {
+        "interests": [
+          "07"
+        ],
+        "activity": "lecture_hours",
+        "avoid": [
+          "05"
+        ],
+        "comparisons": [
+          {
+            "left": "03",
+            "right": "09",
+            "value": -2
+          },
+          {
+            "left": "07",
+            "right": "08",
+            "value": 0
+          },
+          {
+            "left": "04",
+            "right": "16",
+            "value": 0
+          },
+          {
+            "left": "11",
+            "right": "14",
+            "value": 2
+          }
+        ]
+      }
+    },
+    {
+      "program_key": "program:bmstu:24.05.06:ИУ1:24.05.06-02:source:1-1",
+      "code": "24.05.06-02",
+      "rank": 1,
+      "score": 56.38892015843574,
+      "iteration": 124,
+      "answers": {
+        "interests": [
+          "16",
+          "07"
+        ],
+        "activity": "lab_hours",
+        "avoid": [],
+        "comparisons": [
+          {
+            "left": "07",
+            "right": "16",
+            "value": 2
+          },
+          {
+            "left": "03",
+            "right": "09",
+            "value": 2
+          },
+          {
+            "left": "04",
+            "right": "08",
+            "value": 2
+          },
+          {
+            "left": "12",
+            "right": "14",
+            "value": 1
+          }
+        ]
+      }
+    },
+    {
+      "program_key": "program:bmstu:24.05.06:ИУ1:24.05.06-03:source:1-2",
+      "code": "24.05.06-03",
+      "rank": 2,
+      "score": 42.99338712531213,
+      "iteration": 4422,
+      "answers": {
+        "interests": [
+          "07",
+          "16",
+          "03"
+        ],
+        "activity": "__no_activity_preference__",
+        "avoid": [
+          "01"
+        ],
+        "comparisons": [
+          {
+            "left": "03",
+            "right": "16",
+            "value": 2
+          },
+          {
+            "left": "04",
+            "right": "07",
+            "value": 0
+          },
+          {
+            "left": "02",
+            "right": "05",
+            "value": 2
+          },
+          {
+            "left": "11",
+            "right": "14",
+            "value": 2
+          }
+        ]
+      }
+    },
+    {
+      "program_key": "program:bmstu:24.05.06:ИУ1:24.05.06-21(ПС2):source:1-3",
+      "code": "24.05.06-21(ПС2)",
+      "rank": 1,
+      "score": 44.52951824924531,
+      "iteration": 5923,
+      "answers": {
+        "interests": [
+          "11",
+          "15",
+          "09"
+        ],
+        "activity": "self_study_hours",
+        "avoid": [
+          "10",
+          "05"
+        ],
+        "comparisons": [
+          {
+            "left": "15",
+            "right": "16",
+            "value": -1
+          },
+          {
+            "left": "03",
+            "right": "11",
+            "value": 1
+          },
+          {
+            "left": "04",
+            "right": "14",
+            "value": 1
+          },
+          {
+            "left": "07",
+            "right": "09",
+            "value": 1
+          }
+        ]
+      }
+    },
+    {
+      "program_key": "program:bmstu:24.05.06:ИУ1:24.05.06-22(АК4):source:1-4",
+      "code": "24.05.06-22(АК4)",
+      "rank": 2,
+      "score": 53.56423781154563,
+      "iteration": 35,
+      "answers": {
+        "interests": [
+          "02",
+          "07"
+        ],
+        "activity": "__no_activity_preference__",
+        "avoid": [],
+        "comparisons": [
+          {
+            "left": "02",
+            "right": "07",
+            "value": -1
+          },
+          {
+            "left": "03",
+            "right": "08",
+            "value": 0
+          },
+          {
+            "left": "04",
+            "right": "16",
+            "value": -1
+          },
+          {
+            "left": "06",
+            "right": "09",
+            "value": -2
+          }
+        ]
+      }
+    },
+    {
+      "program_key": "program:bmstu:24.05.06:ИУ1:24.05.06-22(РТ4):source:1-5",
+      "code": "24.05.06-22(РТ4)",
+      "rank": 1,
+      "score": 55.631221822472,
+      "iteration": 35,
+      "answers": {
+        "interests": [
+          "02",
+          "07"
+        ],
+        "activity": "__no_activity_preference__",
+        "avoid": [],
+        "comparisons": [
+          {
+            "left": "02",
+            "right": "07",
+            "value": -1
+          },
+          {
+            "left": "03",
+            "right": "08",
+            "value": 0
+          },
+          {
+            "left": "04",
+            "right": "16",
+            "value": -1
+          },
+          {
+            "left": "06",
+            "right": "09",
+            "value": -2
+          }
+        ]
+      }
+    },
+    {
+      "program_key": "program:bmstu:24.05.06:ИУ1:24.05.06-29(РКТ1):source:1-6",
+      "code": "24.05.06-29(РКТ1)",
+      "rank": 1,
+      "score": 48.73517932621421,
+      "iteration": 16,
+      "answers": {
+        "interests": [
+          "16"
+        ],
+        "activity": "practice_hours",
+        "avoid": [
+          "14",
+          "09"
+        ],
+        "comparisons": [
+          {
+            "left": "03",
+            "right": "16",
+            "value": 0
+          },
+          {
+            "left": "07",
+            "right": "14",
+            "value": -1
+          },
+          {
+            "left": "02",
+            "right": "04",
+            "value": -1
+          },
+          {
+            "left": "01",
+            "right": "13",
+            "value": 1
+          }
+        ]
+      }
+    },
+    {
+      "program_key": "program:bmstu:24.05.06:ИУ11:24.05.06-20(ПС4):source:3-1",
+      "code": "24.05.06-20(ПС4)",
+      "rank": 1,
+      "score": 44.42505173437621,
+      "iteration": 3149,
+      "answers": {
+        "interests": [
+          "04",
+          "06",
+          "16"
+        ],
+        "activity": "self_study_hours",
+        "avoid": [
+          "03"
+        ],
+        "comparisons": [
+          {
+            "left": "03",
+            "right": "16",
+            "value": -2
+          },
+          {
+            "left": "04",
+            "right": "14",
+            "value": 1
+          },
+          {
+            "left": "06",
+            "right": "07",
+            "value": -1
+          },
+          {
+            "left": "01",
+            "right": "11",
+            "value": -2
+          }
+        ]
+      }
+    },
+    {
+      "program_key": "program:bmstu:24.05.06:ИУ2:24.05.06-04:source:2-1",
+      "code": "24.05.06-04",
+      "rank": 1,
+      "score": 58.29371500442938,
+      "iteration": 60,
+      "answers": {
+        "interests": [
+          "15",
+          "06",
+          "16",
+          "07"
+        ],
+        "activity": "self_study_hours",
+        "avoid": [
+          "11"
+        ],
+        "comparisons": [
+          {
+            "left": "15",
+            "right": "16",
+            "value": -2
+          },
+          {
+            "left": "06",
+            "right": "07",
+            "value": -2
+          },
+          {
+            "left": "03",
+            "right": "08",
+            "value": -2
+          },
+          {
+            "left": "04",
+            "right": "10",
+            "value": 2
+          }
+        ]
+      }
+    },
+    {
+      "program_key": "program:bmstu:27.03.01:МТ4:27.03.01-01:source:1-1",
+      "code": "27.03.01-01",
+      "rank": 4,
+      "score": 22.380432729274187,
+      "iteration": 1640,
+      "answers": {
+        "interests": [
+          "01",
+          "12",
+          "02",
+          "07"
+        ],
+        "activity": "lab_hours",
+        "avoid": [
+          "03",
+          "06",
+          "04"
+        ],
+        "comparisons": [
+          {
+            "left": "07",
+            "right": "12",
+            "value": -2
+          },
+          {
+            "left": "02",
+            "right": "03",
+            "value": 1
+          }
+        ]
+      }
+    },
+    {
+      "program_key": "program:bmstu:27.03.01:МТ4:27.03.01-61:source:1-2",
+      "code": "27.03.01-61",
+      "rank": 2,
+      "score": 55.9445097761998,
+      "iteration": 652,
+      "answers": {
+        "interests": [
+          "16"
+        ],
+        "activity": "self_study_hours",
+        "avoid": [
+          "06"
+        ],
+        "comparisons": [
+          {
+            "left": "11",
+            "right": "16",
+            "value": 0
+          },
+          {
+            "left": "07",
+            "right": "14",
+            "value": -1
+          }
+        ]
+      }
+    },
+    {
+      "program_key": "program:bmstu:27.03.04:ИУ1:27.03.04-01:source:1-1",
+      "code": "27.03.04-01",
+      "rank": 3,
+      "score": 41.91874259151766,
+      "iteration": 6339,
+      "answers": {
+        "interests": [
+          "16",
+          "15"
+        ],
+        "activity": "practice_hours",
+        "avoid": [
+          "01"
+        ],
+        "comparisons": [
+          {
+            "left": "15",
+            "right": "16",
+            "value": -2
+          },
+          {
+            "left": "03",
+            "right": "14",
+            "value": 2
+          },
+          {
+            "left": "04",
+            "right": "07",
+            "value": 1
+          },
+          {
+            "left": "02",
+            "right": "13",
+            "value": 0
+          }
+        ]
+      }
+    },
+    {
+      "program_key": "program:bmstu:27.03.04:СМ5:27.03.04-02:source:2-1",
+      "code": "27.03.04-02",
+      "rank": 1,
+      "score": 46.755866334808545,
+      "iteration": 34,
+      "answers": {
+        "interests": [
+          "02",
+          "15",
+          "04",
+          "16",
+          "07"
+        ],
+        "activity": "practice_hours",
+        "avoid": [
+          "11",
+          "09",
+          "10"
+        ],
+        "comparisons": [
+          {
+            "left": "02",
+            "right": "03",
+            "value": -2
+          },
+          {
+            "left": "04",
+            "right": "07",
+            "value": -1
+          },
+          {
+            "left": "08",
+            "right": "16",
+            "value": 2
+          },
+          {
+            "left": "09",
+            "right": "14",
+            "value": 0
+          }
+        ]
+      }
+    },
+    {
+      "program_key": "program:bmstu:28.03.02:МТ11:28.03.02-02:source:1-1",
+      "code": "28.03.02-02",
+      "rank": 1,
+      "score": 50.17498603240758,
+      "iteration": 61,
+      "answers": {
+        "interests": [
+          "04",
+          "08",
+          "10"
+        ],
+        "activity": "practice_hours",
+        "avoid": [
+          "09"
+        ],
+        "comparisons": [
+          {
+            "left": "03",
+            "right": "08",
+            "value": -2
+          },
+          {
+            "left": "04",
+            "right": "16",
+            "value": -1
+          },
+          {
+            "left": "10",
+            "right": "11",
+            "value": -1
+          },
+          {
+            "left": "02",
+            "right": "09",
+            "value": 2
+          }
+        ]
+      }
+    },
+    {
+      "program_key": "program:bmstu:28.03.02:РЛ6:28.03.02-01:source:2-1",
+      "code": "28.03.02-01",
+      "rank": 2,
+      "score": 49.382701218752125,
+      "iteration": 2386,
+      "answers": {
+        "interests": [
+          "08",
+          "01",
+          "16",
+          "03",
+          "02"
+        ],
+        "activity": "self_study_hours",
+        "avoid": [
+          "07",
+          "06"
+        ],
+        "comparisons": [
+          {
+            "left": "03",
+            "right": "08",
+            "value": -1
+          },
+          {
+            "left": "02",
+            "right": "09",
+            "value": 0
+          },
+          {
+            "left": "04",
+            "right": "16",
+            "value": -2
+          },
+          {
+            "left": "10",
+            "right": "11",
+            "value": -2
+          }
+        ]
+      }
+    },
+    {
+      "program_key": "program:bmstu:38.03.01:ИБМ1:38.03.01/01:source:1-1",
+      "code": "38.03.01/01",
+      "rank": 1,
+      "score": 40.27167371152108,
+      "iteration": 15,
+      "answers": {
+        "interests": [
+          "15"
+        ],
+        "activity": "practice_hours",
+        "avoid": [
+          "02"
+        ],
+        "comparisons": [
+          {
+            "left": "13",
+            "right": "14",
+            "value": 1
+          },
+          {
+            "left": "03",
+            "right": "15",
+            "value": 1
+          },
+          {
+            "left": "04",
+            "right": "16",
+            "value": -1
+          },
+          {
+            "left": "01",
+            "right": "06",
+            "value": 1
+          }
+        ]
+      }
+    },
+    {
+      "program_key": "program:bmstu:38.03.01:ИБМ5:38.03.01/05:source:2-1",
+      "code": "38.03.01/05",
+      "rank": 1,
+      "score": 63.775117753524455,
+      "iteration": 25,
+      "answers": {
+        "interests": [
+          "13",
+          "05"
+        ],
+        "activity": "__no_activity_preference__",
+        "avoid": [
+          "16",
+          "03",
+          "11"
+        ],
+        "comparisons": [
+          {
+            "left": "03",
+            "right": "13",
+            "value": -2
+          },
+          {
+            "left": "04",
+            "right": "14",
+            "value": -2
+          }
+        ]
+      }
+    },
+    {
+      "program_key": "program:bmstu:38.03.02:ИБМ4:38.03.02/04:source:1-1",
+      "code": "38.03.02/04",
+      "rank": 1,
+      "score": 69.98298659484495,
+      "iteration": 13,
+      "answers": {
+        "interests": [
+          "13"
+        ],
+        "activity": "lecture_hours",
+        "avoid": [
+          "10",
+          "14"
+        ],
+        "comparisons": [
+          {
+            "left": "03",
+            "right": "13",
+            "value": 0
+          },
+          {
+            "left": "04",
+            "right": "14",
+            "value": -1
+          }
+        ]
+      }
+    },
+    {
+      "program_key": "program:bmstu:38.03.02:ИБМ7:38.03.02/07:source:2-1",
+      "code": "38.03.02/07",
+      "rank": 1,
+      "score": 40.27607859580064,
+      "iteration": 4820,
+      "answers": {
+        "interests": [
+          "06"
+        ],
+        "activity": "practice_hours",
+        "avoid": [
+          "11",
+          "02"
+        ],
+        "comparisons": [
+          {
+            "left": "03",
+            "right": "14",
+            "value": -2
+          },
+          {
+            "left": "15",
+            "right": "16",
+            "value": 2
+          },
+          {
+            "left": "06",
+            "right": "13",
+            "value": -2
+          },
+          {
+            "left": "04",
+            "right": "09",
+            "value": 2
+          }
+        ]
+      }
+    },
+    {
+      "program_key": "program:bmstu:38.03.05:ИБМ3:38.03.05/02:source:1-1",
+      "code": "38.03.05/02",
+      "rank": 1,
+      "score": 38.38203713358136,
+      "iteration": 98,
+      "answers": {
+        "interests": [
+          "07",
+          "13",
+          "02",
+          "08",
+          "03"
+        ],
+        "activity": "lab_hours",
+        "avoid": [
+          "15",
+          "09"
+        ],
+        "comparisons": [
+          {
+            "left": "07",
+            "right": "08",
+            "value": 0
+          },
+          {
+            "left": "03",
+            "right": "14",
+            "value": 2
+          },
+          {
+            "left": "04",
+            "right": "16",
+            "value": 2
+          },
+          {
+            "left": "02",
+            "right": "13",
+            "value": -2
+          }
+        ]
+      }
+    },
+    {
+      "program_key": "program:bmstu:38.03.05:ИБМ6:38.03.05/01:source:2-1",
+      "code": "38.03.05/01",
+      "rank": 1,
+      "score": 54.1765710002366,
+      "iteration": 77,
+      "answers": {
+        "interests": [
+          "09",
+          "04"
+        ],
+        "activity": "__no_activity_preference__",
+        "avoid": [
+          "08",
+          "01",
+          "02"
+        ],
+        "comparisons": [
+          {
+            "left": "03",
+            "right": "09",
+            "value": 2
+          },
+          {
+            "left": "02",
+            "right": "13",
+            "value": -2
+          },
+          {
+            "left": "04",
+            "right": "05",
+            "value": 0
+          },
+          {
+            "left": "11",
+            "right": "14",
+            "value": -2
+          }
+        ]
+      }
+    },
+    {
+      "program_key": "program:bmstu:40.05.03/40.05.01:ЮР:40.05.03/Д1:source:1-1",
+      "code": "40.05.03/Д1",
+      "rank": 1,
+      "score": 65.7960108933367,
+      "iteration": 55,
+      "answers": {
+        "interests": [
+          "03",
+          "11",
+          "15"
+        ],
+        "activity": "__no_activity_preference__",
+        "avoid": [
+          "10",
+          "08"
+        ],
+        "comparisons": [
+          {
+            "left": "03",
+            "right": "15",
+            "value": -2
+          },
+          {
+            "left": "02",
+            "right": "16",
+            "value": 1
+          }
+        ]
+      }
+    },
+    {
+      "program_key": "program:bmstu:45.03.02:Л4:45.03.02/01:source:1-1",
+      "code": "45.03.02/01",
+      "rank": 1,
+      "score": 48.66037840767951,
+      "iteration": 30,
+      "answers": {
+        "interests": [
+          "10",
+          "14"
+        ],
+        "activity": "lab_hours",
+        "avoid": [
+          "01",
+          "13",
+          "06"
+        ],
+        "comparisons": [
+          {
+            "left": "10",
+            "right": "14",
+            "value": -1
+          },
+          {
+            "left": "03",
+            "right": "12",
+            "value": 0
+          },
+          {
+            "left": "07",
+            "right": "16",
+            "value": 1
+          }
+        ]
+      }
+    },
+    {
+      "program_key": "program:bmstu:45.03.03:Л4:45.03.03/01:source:1-1",
+      "code": "45.03.03/01",
+      "rank": 1,
+      "score": 45.07039272624854,
+      "iteration": 75,
+      "answers": {
+        "interests": [
+          "03",
+          "14"
+        ],
+        "activity": "practice_hours",
+        "avoid": [
+          "02"
+        ],
+        "comparisons": [
+          {
+            "left": "03",
+            "right": "14",
+            "value": 0
+          },
+          {
+            "left": "04",
+            "right": "13",
+            "value": -1
+          },
+          {
+            "left": "01",
+            "right": "05",
+            "value": 2
+          },
+          {
+            "left": "10",
+            "right": "16",
+            "value": -2
+          }
+        ]
+      }
+    },
+    {
+      "program_key": "program:bmstu:54.03.01:МТ9:54.03.01/01:source:1-1",
+      "code": "54.03.01/01",
+      "rank": 1,
+      "score": 36.00980792343388,
+      "iteration": 12,
+      "answers": {
+        "interests": [
+          "12"
+        ],
+        "activity": "__no_activity_preference__",
+        "avoid": [
+          "09",
+          "04"
+        ],
+        "comparisons": [
+          {
+            "left": "12",
+            "right": "16",
+            "value": 0
+          },
+          {
+            "left": "03",
+            "right": "15",
+            "value": 2
+          },
+          {
+            "left": "04",
+            "right": "13",
+            "value": -2
+          },
+          {
+            "left": "05",
+            "right": "14",
+            "value": -1
+          }
+        ]
+      }
+    }
+  ],
+  "cautions": [
+    "Sampled coverage is a lower bound, not an exhaustive reachability proof. Missing top-k observations do not prove a program unreachable.",
+    "All verified profiles are included in every full ranking; this does not guarantee that the browser UI exposes every ranked entry.",
+    "The academic snapshot supplies profiles only. Synthetic program/plan identity records mirror calibration tests; live catalog/release/plan-selection verification is outside this audit.",
+    "Category order is ascending snapshot category code, matching numeric taxonomy order; names and descriptions do not affect model scoring.",
+    "No ranking, expected result, academic source, or UI has been changed by this script.",
+    "This model audit does not replace keyboard, screen-reader, viewport, browser, or end-to-end tests."
+  ]
+}

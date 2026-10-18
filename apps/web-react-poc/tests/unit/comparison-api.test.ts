@@ -4,7 +4,7 @@ import { AcademicReleaseMismatchError } from "@/shared/api/client";
 import type { ProgramDto } from "@/features/catalog/model";
 import type { StudyPlanDto, CurriculumItemDto, SubjectTaxonomyDto } from "@/features/comparison/model";
 import type { ProgramAdmissionData } from "@/features/catalog/admission-model";
-import { loadProgramComparison } from "@/features/comparison/api";
+import { clearComparisonReadCache, loadProgramComparison } from "@/features/comparison/api";
 
 const { api } = vi.hoisted(() => {
   class AcademicReleaseMismatchError extends Error {
@@ -147,11 +147,74 @@ function installSuccessfulReads(): void {
 }
 
 beforeEach(() => {
+  clearComparisonReadCache();
   vi.clearAllMocks();
   installSuccessfulReads();
 });
 
 describe("loadProgramComparison orchestration", () => {
+  it("reuses completed curriculum reads while checking the active release on every navigation", async () => {
+    const first = await loadProgramComparison([PROGRAM_KEY]);
+    const second = await loadProgramComparison([PROGRAM_KEY]);
+    expect(second.curriculum).toEqual(first.curriculum);
+    expect(api.getStudyPlans).toHaveBeenCalledTimes(1);
+    expect(api.getStudyPlanItems).toHaveBeenCalledTimes(1);
+    expect(api.getTaxonomy).toHaveBeenCalledTimes(1);
+    expect(api.loadCatalog).toHaveBeenCalledTimes(2);
+    expect(api.getActiveRelease).toHaveBeenCalledTimes(2);
+  });
+
+  it("still rejects release activation changes when curriculum reads are cached", async () => {
+    await loadProgramComparison([PROGRAM_KEY]);
+    api.getActiveRelease.mockResolvedValue({ release_key: RELEASE_B });
+    await expect(loadProgramComparison([PROGRAM_KEY])).rejects.toBeInstanceOf(AcademicReleaseMismatchError);
+  });
+
+  it("does not cache incomplete curriculum pages and recovers on retry", async () => {
+    api.getStudyPlanItems.mockResolvedValueOnce(collection([]));
+    const first = await loadProgramComparison([PROGRAM_KEY]);
+    expect(first.curriculum.programs[0]?.itemsStatus).toBe("unavailable");
+    const second = await loadProgramComparison([PROGRAM_KEY]);
+    expect(api.getStudyPlanItems).toHaveBeenCalledTimes(2);
+    expect(second.curriculum.programs[0]?.items).toHaveLength(1);
+  });
+
+  it("publishes checked admission data while a slow curriculum is still pending", async () => {
+    const planRead = deferred<AcademicCollection<StudyPlanDto>>();
+    const overviewRead = deferred<void>();
+    api.getStudyPlans.mockReturnValue(planRead.promise);
+    const onOverview = vi.fn(() => overviewRead.resolve());
+    const comparison = loadProgramComparison([PROGRAM_KEY], undefined, onOverview);
+    await overviewRead.promise;
+    expect(onOverview).toHaveBeenCalledWith(expect.objectContaining({ releaseKey: RELEASE_A, admission: expect.any(Map) }));
+    expect(api.getStudyPlanItems).not.toHaveBeenCalled();
+    expect(api.getActiveRelease).toHaveBeenCalledTimes(1);
+    planRead.resolve(collection([verifiedPlan]));
+    await comparison;
+    expect(api.getActiveRelease).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not publish admission preview from an activated different release", async () => {
+    api.getActiveRelease.mockResolvedValue({ release_key: RELEASE_B });
+    const onOverview = vi.fn();
+    await expect(loadProgramComparison([PROGRAM_KEY], undefined, onOverview)).rejects.toBeInstanceOf(AcademicReleaseMismatchError);
+    expect(onOverview).not.toHaveBeenCalled();
+  });
+
+  it("does not publish a preview after the navigation is aborted", async () => {
+    const activeRead = deferred<{ release_key: string }>();
+    const activeStarted = deferred<void>();
+    api.getActiveRelease.mockImplementation(() => { activeStarted.resolve(); return activeRead.promise; });
+    const controller = new AbortController();
+    const onOverview = vi.fn();
+    const comparison = loadProgramComparison([PROGRAM_KEY], controller.signal, onOverview);
+    await activeStarted.promise;
+    controller.abort();
+    activeRead.resolve({ release_key: RELEASE_A });
+    await expect(comparison).rejects.toMatchObject({ name: "AbortError" });
+    expect(onOverview).not.toHaveBeenCalled();
+  });
+
   it("starts admission reads alongside selected study-plan reads after catalog selection", async () => {
     const catalogRead = deferred<CatalogSnapshot>();
     const planRead = deferred<AcademicCollection<StudyPlanDto>>();
@@ -162,12 +225,14 @@ describe("loadProgramComparison orchestration", () => {
       return planRead.promise;
     });
 
-    const comparison = loadProgramComparison([PROGRAM_KEY]);
+    const onSelection = vi.fn();
+    const comparison = loadProgramComparison([PROGRAM_KEY], undefined, undefined, onSelection);
     expect(api.getStudyPlans).not.toHaveBeenCalled();
     expect(api.getProgramAdmission).not.toHaveBeenCalled();
 
     catalogRead.resolve(catalogSnapshot);
     await planReadStarted.promise;
+    expect(onSelection).toHaveBeenCalledWith(expect.objectContaining({ releaseKey: RELEASE_A, programs: [expect.objectContaining({ external_key: PROGRAM_KEY })] }));
     const admissionStartedWhilePlanReadWasPending = api.getProgramAdmission.mock.calls.length > 0;
 
     planRead.resolve(collection([verifiedPlan]));
