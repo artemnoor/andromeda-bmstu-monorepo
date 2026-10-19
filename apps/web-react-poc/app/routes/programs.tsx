@@ -89,14 +89,20 @@ export default function ProgramsRoute({ loaderData }: Route.ComponentProps) {
       <main className={styles.main}>
         <section className={styles.hero} aria-labelledby="catalog-title">
           <div className={styles.heroCopy}>
-            <p className={styles.eyebrow}><span className={styles.heroIndex} aria-hidden="true">01</span> МГТУ имени Баумана · набор 2026</p>
             <h1 className={styles.heroTitle} id="catalog-title" aria-label="Каталог программ">Каталог<br /><em>программ</em></h1>
             <p className={styles.heroDescription}>Бакалавриат и специалитет — все образовательные программы университета в одном месте.</p>
           </div>
           <div className={styles.heroStats} aria-label="Состав каталога">
             <div className={styles.primaryStat}>
               <div><span className={styles.statLabel}>В каталоге</span><strong>{loaderData.programs.length}</strong><span className={styles.statUnit}>{russianPlural(loaderData.programs.length, ["программа", "программы", "программ"])}</span></div>
-              <svg className={styles.orbit} viewBox="0 0 160 160" aria-hidden="true"><ellipse cx="80" cy="80" rx="65" ry="27" transform="rotate(-34 80 80)" /><ellipse cx="80" cy="80" rx="65" ry="27" transform="rotate(34 80 80)" /><circle cx="80" cy="80" r="5" /><circle cx="132" cy="48" r="3" /></svg>
+              <svg className={styles.orbit} viewBox="0 0 160 160" aria-hidden="true">
+                <g className={styles.orbitSystem}>
+                  <ellipse cx="80" cy="80" rx="65" ry="27" transform="rotate(-34 80 80)" />
+                  <ellipse cx="80" cy="80" rx="65" ry="27" transform="rotate(34 80 80)" />
+                  <circle cx="132" cy="48" r="3" />
+                </g>
+                <circle className={styles.orbitCore} cx="80" cy="80" r="5" />
+              </svg>
             </div>
             <div className={styles.secondaryStats}>
               <div><strong>{options.directions.length}</strong><span>{russianPlural(options.directions.length, ["направление", "направления", "направлений"])}</span></div>

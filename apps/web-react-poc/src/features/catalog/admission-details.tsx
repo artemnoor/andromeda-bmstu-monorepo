@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import type { CatalogProgram } from "./model";
 import { getProgramAdmission } from "./admission-api";
 import { buildAdmissionSummary, type AdmissionSummary } from "./admission-model";
-import { AdmissionExams, AdmissionScoreTable } from "./admission-facts";
+import { AdmissionEnrollmentTable, AdmissionExams, AdmissionScoreTable, ProgramEducationTable } from "./admission-facts";
 import styles from "./programs.module.css";
 
 type LoadState =
@@ -55,9 +55,11 @@ function Details({
   );
 
   const { summary } = state;
-  const columns = [{ key: program.external_key, label: program.code, summary }];
+  const columns = [{ key: program.external_key, label: program.code, summary, program }];
   return (
     <div className={styles.admissionPanel}>
+      <ProgramEducationTable columns={columns} showDescription={false} />
+      {summary.year !== null ? <AdmissionEnrollmentTable columns={columns} year={summary.year} /> : null}
       {summary.year !== null ? <AdmissionScoreTable columns={columns} year={summary.year} /> : null}
       <section className={styles.admissionSection} aria-labelledby={`admission-requirements-${program.external_key}`}>
         <h3 id={`admission-requirements-${program.external_key}`}>Необходимые экзамены{summary.year !== null ? ` · ${summary.year}` : ""}</h3>

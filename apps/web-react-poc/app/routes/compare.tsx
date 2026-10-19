@@ -7,7 +7,7 @@ import { comparisonSelection } from "@/shared/browser-state/hooks";
 import { loadProgramComparison, type ComparisonOverview, type ComparisonSelection, type LoadedProgramComparison } from "@/features/comparison/api";
 import { buildDonutSegments } from "@/features/comparison/chart-data";
 import type { CategoryWorkload, ComparisonCurriculumItem, NullableMetric, ProgramComparisonModel } from "@/features/comparison/model";
-import { AdmissionExams, AdmissionScoreTable } from "@/features/catalog/admission-facts";
+import { AdmissionEnrollmentTable, AdmissionExams, AdmissionScoreTable, ProgramEducationTable } from "@/features/catalog/admission-facts";
 import admissionStyles from "@/features/catalog/admission-facts.module.css";
 import { AcademicReleaseMismatchError } from "@/shared/api/client";
 import styles from "@/features/comparison/comparison.module.css";
@@ -131,12 +131,15 @@ function AdmissionComparison({ data }: { data: ComparisonOverview }) {
   const columns = data.programs.map((program) => ({
     key: program.external_key,
     label: program.code || program.name,
+    program,
     summary: data.admission.get(program.external_key),
   }));
   return (
     <section className={`${styles.section} ${admissionStyles.stack}`} id="admission" aria-labelledby="admission-title"
       data-qa="admission-summary" data-unavailable-count={data.admissionUnavailable.size}>
       <div className={styles.sectionHeading}><div><h2 id="admission-title">Поступление</h2></div></div>
+      <ProgramEducationTable columns={columns} />
+      {years.map((year) => <AdmissionEnrollmentTable key={`enrollment:${year}`} columns={columns} year={year} />)}
       {years.map((year) => <AdmissionScoreTable key={year} columns={columns} year={year} />)}
       {!years.length ? <p className={styles.warning}>Не удалось загрузить результаты приёма. Повторите загрузку.</p> : null}
       <div className={styles.sectionHeading}><div><h2>Необходимые экзамены</h2></div></div>

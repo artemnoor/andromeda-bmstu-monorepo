@@ -29,7 +29,7 @@
   margin-top: 52px;
   padding: clamp(30px, 5.2vw, 68px);
   overflow: hidden;
-  border: 1px solid var(--accent-line);
+  border: 0;
   border-radius: 28px;
   color: var(--text);
   background: var(--accent-soft);
@@ -48,7 +48,7 @@
 .heroCopy, .heroStats { position: relative; z-index: 1; min-width: 0; }
 .eyebrow { display: flex; align-items: center; gap: 10px; margin: 0; color: var(--accent); font-size: 10px; font-weight: 650; line-height: 1.4; letter-spacing: .12em; text-transform: uppercase; }
 .heroIndex { display: inline-grid; width: 27px; height: 27px; place-items: center; border: 1px solid rgb(190 215 249 / 30%); border-radius: 50%; color: var(--text); font-size: 9px; letter-spacing: 0; }
-.heroTitle { max-width: 760px; margin: 29px 0 0; color: var(--text); font-size: clamp(58px, 7.5vw, 104px); font-weight: 500; line-height: .88; letter-spacing: -.085em; text-wrap: balance; }
+.heroTitle { max-width: 760px; margin: 0; color: var(--text); font-size: clamp(58px, 7.5vw, 104px); font-weight: 500; line-height: .88; letter-spacing: -.085em; text-wrap: balance; }
 .heroTitle em { color: var(--accent); font-style: normal; }
 .heroDescription { max-width: 470px; margin: 23px 0 0; color: var(--text-muted); font-size: clamp(13px, 1.25vw, 16px); line-height: 1.55; }
 
@@ -58,8 +58,14 @@
 .statLabel { grid-column: 1 / -1; margin-bottom: 3px; color: var(--text-muted); font-size: 10px; font-weight: 600; letter-spacing: .09em; text-transform: uppercase; }
 .primaryStat strong { color: var(--text); font-size: clamp(54px, 6vw, 76px); font-weight: 500; line-height: .95; letter-spacing: -.08em; font-variant-numeric: tabular-nums; }
 .statUnit { color: var(--text-muted); font-size: 13px; }
-.orbit { position: absolute; top: 50%; right: 3px; width: 130px; height: 130px; transform: translateY(-50%); overflow: visible; fill: var(--accent); opacity: .58; }
-.orbit ellipse { fill: none; stroke: var(--accent); stroke-width: 1; opacity: .6; }
+.orbit { position: absolute; top: 50%; right: 3px; width: 130px; height: 130px; transform: translateY(-50%); overflow: visible; color: #fff; fill: currentColor; opacity: .76; }
+.orbit ellipse { fill: none; stroke: currentColor; stroke-width: 1; stroke-dasharray: 3 6; stroke-linecap: round; opacity: .7; animation: orbitDash 20s linear infinite; }
+.orbit ellipse:nth-child(2) { animation-direction: reverse; }
+.orbitSystem { transform-origin: 80px 80px; animation: orbitRotation 36s linear infinite; }
+.orbitCore { transform-origin: 80px 80px; animation: orbitPulse 5s ease-in-out infinite; }
+@keyframes orbitRotation { to { transform: rotate(360deg); } }
+@keyframes orbitDash { to { stroke-dashoffset: -108; } }
+@keyframes orbitPulse { 0%, 100% { opacity: .75; transform: scale(.9); } 50% { opacity: 1; transform: scale(1.12); } }
 .secondaryStats { display: grid; grid-template-columns: 1fr 1fr; }
 .secondaryStats > div { display: grid; min-height: 83px; align-content: center; gap: 5px; padding: 14px 24px; }
 .secondaryStats > div + div { border-left: 1px solid rgb(213 227 247 / 13%); }
@@ -107,7 +113,7 @@
 .programSummary { display: grid; justify-items: start; gap: 13px; padding: 24px 0 21px; }
 .programTitle { display: block; max-width: 650px; margin: 0; color: var(--accent); font-size: clamp(22px, 2.4vw, 30px); font-weight: 550; line-height: 1.1; letter-spacing: -.052em; text-wrap: pretty; }
 .programDescription { display: -webkit-box; overflow: hidden; margin: 0; color: var(--text-muted); font-size: 11px; line-height: 1.6; -webkit-box-orient: vertical; -webkit-line-clamp: 3; }
-.programDetails[open] .programDescription { display: block; overflow: visible; }
+.programCard[data-expanded="true"] .programDescription { display: block; overflow: visible; }
 .programFacts { display: grid; gap: 8px; padding-top: 2px; color: var(--text-muted); font-size: 11px; line-height: 1.4; }
 .programFact { display: flex; gap: 9px; min-width: 0; align-items: baseline; }
 .factLabel { flex: 0 0 79px; color: var(--muted); font-size: 8px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; }
@@ -169,7 +175,7 @@
 .loadingCards span { min-height: 220px; border: 1px solid var(--line); border-radius: 20px; background: linear-gradient(110deg, var(--surface-raised), var(--surface-raised)); }
 
 /* Catalog shares the home page's charcoal surfaces and fine cyan rims. */
-.hero { margin-top: 32px; background: var(--surface); border-color: var(--accent-line); box-shadow: inset 0 1px 0 rgb(255 255 255 / 4%); }
+.hero { margin-top: 32px; background: var(--surface); box-shadow: none; }
 .hero::before { opacity: .35; }
 .heroDescription { color: var(--text-muted); }
 .heroStats { background: var(--surface-raised); }
@@ -269,5 +275,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .orbitSystem, .orbitCore, .orbit ellipse { animation: none; }
   .programCard, .cardAction, .toolbarReset, .searchInput, .filterControl { transition-duration: .01ms; }
 }

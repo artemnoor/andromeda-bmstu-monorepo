@@ -9,6 +9,47 @@ export const SCORE_ROWS = [
 ] as const;
 
 type ScoreRow = typeof SCORE_ROWS[number];
+export interface EnrollmentCell {
+  readonly value: string;
+  readonly note: string | null;
+  readonly sourceUrls: readonly string[];
+}
+
+export function enrollmentCell(summary: AdmissionSummary | undefined, year: number): EnrollmentCell {
+  const unavailable = { value: summary ? "Не опубликовано" : "Не удалось загрузить", note: null, sourceUrls: [] };
+  if (!summary) return unavailable;
+  const records = (summary.year === year ? summary.campaignResults : summary.historicalResults).filter((result) => (
+    result.year === year && (result.funding === "budget" || result.funding === "paid")
+  ));
+  const bestScope = Math.max(-1, ...records.map(specificity));
+  const scoped = records.filter((result) => specificity(result) === bestScope);
+  if (!scoped.length) return unavailable;
+  const groups = new Map<string, AdmissionCampaignResult[]>();
+  for (const result of scoped) {
+    // Counts describe the whole competition group, including numeric and BVI
+    // observations. Repeated score observations must never multiply enrollment.
+    const key = `${result.funding}:${result.competitionType}:${result.stage ?? "unknown"}`;
+    groups.set(key, [...(groups.get(key) ?? []), result]);
+  }
+  let count = 0;
+  const notes = new Set<string>();
+  const sources = new Set<string>();
+  for (const group of groups.values()) {
+    const latestDate = group.map((result) => result.snapshotDate ?? "").sort().at(-1) ?? "";
+    const latest = group.filter((result) => (result.snapshotDate ?? "") === latestDate);
+    const counts = new Set(latest.flatMap((result) => result.admittedCount !== null
+      && Number.isSafeInteger(result.admittedCount) && result.admittedCount >= 0 ? [result.admittedCount] : []));
+    // Conflicting counts cannot be reconciled from aggregate API records.
+    if (counts.size !== 1) return unavailable;
+    count += [...counts][0]!;
+    latest.forEach((result) => {
+      if (result.scopeNote) notes.add(result.scopeNote);
+      if (result.sourceUrl) sources.add(result.sourceUrl);
+    });
+  }
+  return { value: new Intl.NumberFormat("ru-RU").format(count), note: [...notes].join("; ") || null, sourceUrls: [...sources] };
+}
+
 export interface ScoreCell {
   readonly value: string;
   readonly note: string | null;

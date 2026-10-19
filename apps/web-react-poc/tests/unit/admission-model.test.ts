@@ -75,6 +75,27 @@ function data(overrides: Partial<ProgramAdmissionData> = {}): ProgramAdmissionDa
 }
 
 describe("buildAdmissionSummary", () => {
+  it("shows the current annual price with its source and excludes other years, profiles and campuses", () => {
+    const price: ApiSchemas["TuitionRecord"] = {
+      external_key: "tuition:current", direction_code: program.directionCode, academic_year: "2026/2027",
+      amount: "699000", currency: "RUB", ingested_at: "2026-10-01T00:00:00Z",
+      sources: [{ source_artifact_key: "artifact:price", source_url: "https://isot.bmstu.ru/edu/cost" }],
+    };
+    const summary = buildAdmissionSummary(program, data({ tuition: [price,
+      { ...price, external_key: "tuition:old", academic_year: "2025/2026" },
+      { ...price, external_key: "tuition:other-profile", program_key: "program:another" },
+      { ...price, external_key: "tuition:branch", campus_scope: "branch_kaluga" },
+    ] }));
+    expect(summary.tuitionFacts).toHaveLength(1);
+    expect(summary.tuitionFacts?.[0]).toMatchObject({
+      value: `${new Intl.NumberFormat("ru-RU").format(699000)} ₽ / год`,
+      sourceUrl: "https://isot.bmstu.ru/edu/cost",
+    });
+    expect(summary.tuitionFacts?.[0]?.note).toContain("2026/2027");
+    const zero = buildAdmissionSummary(program, data({ tuition: [{ ...price, amount: "0" }] }));
+    expect(zero.tuitionFacts?.[0]?.value).toBe("0 ₽ / год");
+  });
+
   it("keeps one shared intake pool shared instead of duplicating its seats", () => {
     const summary = buildAdmissionSummary(program, data({
       offerings: [offering({ program_key: null, program_link_status: "manual_review", shared_program_keys: [program.external_key, "program:other"], campus_scope: "head_moscow" })],

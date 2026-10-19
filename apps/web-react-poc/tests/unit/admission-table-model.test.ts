@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { AdmissionCampaignResult, AdmissionSummary } from "@/features/catalog/admission-model";
-import { SCORE_ROWS, scoreCell } from "@/features/catalog/admission-table-model";
+import { SCORE_ROWS, enrollmentCell, scoreCell } from "@/features/catalog/admission-table-model";
 
 function result(overrides: Partial<AdmissionCampaignResult> = {}): AdmissionCampaignResult {
   return {
@@ -21,6 +21,33 @@ function summary(overrides: Partial<AdmissionSummary> = {}): AdmissionSummary {
 }
 
 describe("admission score table", () => {
+  it("totals enrollment across funding and quotas without multiplying shared BVI/numeric counts", () => {
+    const data = summary({ campaignResults: [
+      result({ admittedCount: 12 }),
+      result({ admittedCount: 3, competitionType: "bvi", status: "bvi", stage: "first", score: null }),
+      result({ admittedCount: 7, competitionType: "special_quota", stage: "first" }),
+      result({ admittedCount: 7, competitionType: "special_quota", status: "bvi", stage: "first", score: null }),
+      result({ admittedCount: 5, funding: "paid" }),
+      result({ admittedCount: 500, year: 2025 }),
+    ] });
+    expect(enrollmentCell(data, 2026).value).toBe("27");
+    expect(enrollmentCell(data, 2026).note).toBe("по направлению 27.03.05");
+  });
+
+  it("does not sum a profile count with direction totals, and preserves zero", () => {
+    const data = summary({ campaignResults: [result({ admittedCount: 100 }), result({ admittedCount: 0, scopeType: "program", scopeNote: "по программе" })] });
+    expect(enrollmentCell(data, 2026)).toMatchObject({ value: "0", note: "по программе" });
+    expect(enrollmentCell(summary(), 2026).value).toBe("Не опубликовано");
+  });
+
+  it("uses the latest count per competition and rejects contradictory or incomplete groups", () => {
+    const initial = result({ admittedCount: 20, snapshotDate: "2026-08-10" });
+    const latest = result({ admittedCount: 18, snapshotDate: "2026-08-11" });
+    expect(enrollmentCell(summary({ campaignResults: [initial, latest] }), 2026).value).toBe("18");
+    expect(enrollmentCell(summary({ campaignResults: [latest, { ...latest, admittedCount: 19 }] }), 2026).value).toBe("Не опубликовано");
+    expect(enrollmentCell(summary({ campaignResults: [latest, result({ funding: "paid", admittedCount: null })] }), 2026).value).toBe("Не опубликовано");
+  });
+
   it("uses the EGE result when the same scope also has BVI, without an extra BVI row or count", () => {
     const value = scoreCell(summary({ campaignResults: [result(), result({ status: "bvi", competitionType: "bvi", stage: "first", score: null, admittedCount: 30 })] }), 2026, SCORE_ROWS[0]);
     expect(value.value).toBe("280 баллов");

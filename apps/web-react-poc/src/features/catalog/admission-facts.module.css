@@ -14,6 +14,7 @@
 .result[data-kind="unavailable"] strong { color: var(--text-muted); font-size: 13px; font-weight: 400; }
 .result span, .note { color: var(--text-muted); font-size: 12px; line-height: 1.55; }
 .note { margin: 0; }
+.programDescription { margin: 0; color: var(--text-muted); font-size: 14px; line-height: 1.65; white-space: pre-line; }
 .source { width: fit-content; color: var(--text-muted); font-size: 11px; line-height: 1.5; text-decoration: underline; text-underline-offset: 3px; }
 .source:hover { color: var(--text); }
 .source:focus-visible { outline: 2px solid var(--text); outline-offset: 4px; }

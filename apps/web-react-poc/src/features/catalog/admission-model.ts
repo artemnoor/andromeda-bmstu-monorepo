@@ -106,6 +106,7 @@ export interface AdmissionSummary {
   readonly requirementsNote: string | null;
   readonly offers: readonly string[];
   readonly tuition: readonly string[];
+  readonly tuitionFacts?: readonly AdmissionMetric[];
   readonly dates: readonly { label: string; date: string; sourceUrl: string | null }[];
 }
 
@@ -555,16 +556,22 @@ export function buildAdmissionSummary(program: CatalogProgram, data: ProgramAdmi
     offering.places_total != null ? `Мест по предложению: ${numberText(offering.places_total)}` : "",
   ]).filter(Boolean))];
 
-  const tuition = data.tuition
+  const tuitionFacts = data.tuition
+    .filter((item) => year === null || Number(item.academic_year?.match(/(?:19|20)\d{2}/u)?.[0]) === year)
+    .filter((item) => !item.campus_scope || item.campus_scope === "not_separately_stated_in_official_price_table"
+      || (program.campus_status === "verified" && item.campus_scope === program.campus_scope))
     .filter((item) => (
       item.program_key === program.external_key
-      || (program.directionCode !== null && item.direction_code === program.directionCode)
+      || (!item.program_key && program.directionCode !== null && item.direction_code === program.directionCode)
     ))
     .map((item) => {
       const scope = item.program_key === program.external_key ? "по программе" : `по направлению ${program.directionCode ?? ""}`;
-      const amount = item.amount == null ? "стоимость не указана" : `${item.amount} ${item.currency || "валюта не указана"}`;
-      return `${item.academic_year || "Год не указан"} · ${scope}: ${amount}`;
+      const numeric = toNumber(item.amount);
+      const amount = numeric === null ? "Стоимость не опубликована" : `${numberText(numeric)} ${item.currency === "RUB" ? "₽" : item.currency || "(валюта не указана)"} / год`;
+      const campusNote = item.campus_scope === "not_separately_stated_in_official_price_table" ? " · без разделения по кампусам в источнике" : "";
+      return { label: "Стоимость обучения", value: amount, note: `${item.academic_year || "Год не указан"} · ${scope}${campusNote}`, sourceUrl: sourceUrl(item) };
     });
+  const tuition = tuitionFacts.map((item) => `${item.note}: ${item.value}`);
 
   const dates = campaign
     ? data.calendar.filter((event) => event.campaign_key === campaign.external_key).map((event) => ({
@@ -710,6 +717,7 @@ export function buildAdmissionSummary(program: CatalogProgram, data: ProgramAdmi
       : null,
     offers,
     tuition: [...new Set(tuition)],
+    tuitionFacts,
     dates,
   };
 }

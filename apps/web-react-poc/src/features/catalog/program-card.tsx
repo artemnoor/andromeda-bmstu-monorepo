@@ -52,7 +52,7 @@ export function ProgramCard({ program, expectedReleaseKey, onSelectionLimit }: {
   }
 
   return (
-    <article className={styles.programCard} data-program-code={program.code} data-program-key={program.external_key}>
+    <article className={styles.programCard} data-program-code={program.code} data-program-key={program.external_key} data-expanded={detailsOpen}>
       <div className={styles.cardTop}>
         <span className={styles.programCode} title={program.code}>{program.code || "Код не указан"}</span>
         <div className={styles.cardActions}>

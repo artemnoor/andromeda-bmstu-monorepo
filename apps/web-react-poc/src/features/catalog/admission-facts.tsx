@@ -1,6 +1,7 @@
 import type { ApiSchemas } from "@/shared/api/client";
+import type { CatalogProgram } from "./model";
 import { subjectLabel, type AdmissionSummary } from "./admission-model";
-import { SCORE_ROWS, scoreCell } from "./admission-table-model";
+import { SCORE_ROWS, enrollmentCell, scoreCell } from "./admission-table-model";
 import styles from "./admission-facts.module.css";
 
 export interface AdmissionColumn {
@@ -11,6 +12,53 @@ export interface AdmissionColumn {
 
 function Source({ href }: { href: string }) {
   return <a className={styles.source} href={href} target="_blank" rel="noopener noreferrer">Источник ↗</a>;
+}
+
+export function AdmissionEnrollmentTable({ columns, year }: { columns: readonly AdmissionColumn[]; year: number }) {
+  return <section className={styles.section}>
+    <h3>Всего зачислено · {year}</h3>
+    <div className={styles.tableWrap}>
+      <table className={styles.table}>
+        <caption className={styles.srOnly}>Всего зачислено по опубликованным приказам за {year} год</caption>
+        <thead><tr><th scope="col">Показатель</th>{columns.map((column) => <th scope="col" key={column.key}>{column.label}</th>)}</tr></thead>
+        <tbody><tr>
+          <th scope="row">Всего зачислено</th>
+          {columns.map((column) => {
+            const result = enrollmentCell(column.summary, year);
+            return <td key={column.key} data-program-label={column.label}><div className={styles.result}>
+              <strong>{result.value}</strong>
+              {result.note ? <span>{result.note}</span> : null}
+              {result.sourceUrls.map((href) => <Source key={href} href={href} />)}
+            </div></td>;
+          })}
+        </tr></tbody>
+      </table>
+    </div>
+    <p className={styles.note}>Зачисленные по опубликованным приказам. Число по направлению относится ко всем его профилям.</p>
+  </section>;
+}
+
+interface EducationColumn extends AdmissionColumn {
+  readonly program: CatalogProgram;
+}
+
+export function ProgramEducationTable({ columns, showDescription = true }: { columns: readonly EducationColumn[]; showDescription?: boolean }) {
+  return <section className={styles.section}>
+    <h3>Об обучении</h3>
+    <div className={styles.tableWrap}>
+      <table className={styles.table}>
+        <thead><tr><th scope="col">Программа</th>{columns.map((column) => <th scope="col" key={column.key}>{column.label}</th>)}</tr></thead>
+        <tbody>
+          {showDescription ? <tr><th scope="row">Описание</th>{columns.map((column) => <td key={column.key} data-program-label={column.label}><p className={styles.programDescription}>{column.program.description?.trim() || "Описание не опубликовано"}</p></td>)}</tr> : null}
+          <tr><th scope="row">Стоимость обучения</th>{columns.map((column) => <td key={column.key} data-program-label={column.label}><div className={styles.result}>
+            {column.summary?.tuitionFacts?.length ? column.summary.tuitionFacts.map((fact, index) => <div className={styles.result} key={`${fact.note}:${index}`}>
+              <strong>{fact.value}</strong><span>{fact.note}</span>{fact.sourceUrl ? <Source href={fact.sourceUrl} /> : null}
+            </div>) : <span>{column.summary ? "Стоимость не опубликована в доступных данных" : "Не удалось загрузить стоимость"}</span>}
+          </div></td>)}</tr>
+        </tbody>
+      </table>
+    </div>
+  </section>;
 }
 
 export function AdmissionScoreTable({ columns, year }: { columns: readonly AdmissionColumn[]; year: number }) {
