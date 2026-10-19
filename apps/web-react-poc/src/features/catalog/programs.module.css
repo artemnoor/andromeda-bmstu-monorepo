@@ -32,17 +32,7 @@
   border: 0;
   border-radius: 28px;
   color: var(--text);
-  background: var(--accent-soft);
-}
-
-.hero::before {
-  position: absolute;
-  z-index: -1;
-  inset: 0;
-  background-image: linear-gradient(rgb(208 224 245 / 3.5%) 1px, transparent 1px), linear-gradient(90deg, rgb(208 224 245 / 3.5%) 1px, transparent 1px);
-  background-size: 38px 38px;
-  content: "";
-  mask-image: linear-gradient(100deg, #000 0%, rgb(0 0 0 / 80%) 56%, transparent 100%);
+  background: transparent;
 }
 
 .heroCopy, .heroStats { position: relative; z-index: 1; min-width: 0; }
@@ -52,7 +42,7 @@
 .heroTitle em { color: var(--accent); font-style: normal; }
 .heroDescription { max-width: 470px; margin: 23px 0 0; color: var(--text-muted); font-size: clamp(13px, 1.25vw, 16px); line-height: 1.55; }
 
-.heroStats { overflow: hidden; border: 1px solid rgb(213 227 247 / 14%); border-radius: 19px; background: var(--accent-soft); }
+.heroStats { overflow: hidden; border: 1px solid rgb(213 227 247 / 14%); border-radius: 19px; background: transparent; }
 .primaryStat { position: relative; display: flex; min-height: 148px; align-items: center; justify-content: space-between; gap: 12px; padding: 20px 24px; border-bottom: 1px solid rgb(213 227 247 / 13%); }
 .primaryStat > div { position: relative; z-index: 1; display: grid; grid-template-columns: auto auto; align-items: baseline; column-gap: 9px; }
 .statLabel { grid-column: 1 / -1; margin-bottom: 3px; color: var(--text-muted); font-size: 10px; font-weight: 600; letter-spacing: .09em; text-transform: uppercase; }
@@ -61,9 +51,7 @@
 .orbit { position: absolute; top: 50%; right: 3px; width: 130px; height: 130px; transform: translateY(-50%); overflow: visible; color: #fff; fill: currentColor; opacity: .76; }
 .orbit ellipse { fill: none; stroke: currentColor; stroke-width: 1; stroke-dasharray: 3 6; stroke-linecap: round; opacity: .7; animation: orbitDash 20s linear infinite; }
 .orbit ellipse:nth-child(2) { animation-direction: reverse; }
-.orbitSystem { transform-origin: 80px 80px; animation: orbitRotation 36s linear infinite; }
 .orbitCore { transform-origin: 80px 80px; animation: orbitPulse 5s ease-in-out infinite; }
-@keyframes orbitRotation { to { transform: rotate(360deg); } }
 @keyframes orbitDash { to { stroke-dashoffset: -108; } }
 @keyframes orbitPulse { 0%, 100% { opacity: .75; transform: scale(.9); } 50% { opacity: 1; transform: scale(1.12); } }
 .secondaryStats { display: grid; grid-template-columns: 1fr 1fr; }
@@ -175,10 +163,8 @@
 .loadingCards span { min-height: 220px; border: 1px solid var(--line); border-radius: 20px; background: linear-gradient(110deg, var(--surface-raised), var(--surface-raised)); }
 
 /* Catalog shares the home page's charcoal surfaces and fine cyan rims. */
-.hero { margin-top: 32px; background: var(--surface); box-shadow: none; }
-.hero::before { opacity: .35; }
+.hero { margin-top: 32px; box-shadow: none; }
 .heroDescription { color: var(--text-muted); }
-.heroStats { background: var(--surface-raised); }
 .statLabel, .statUnit, .secondaryStats span { color: var(--text-muted); }
 .resultCount { color: var(--accent); background: var(--accent-soft); }
 .toolbar { border-color: var(--accent-line); background: var(--surface); box-shadow: none; }
@@ -275,6 +261,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .orbitSystem, .orbitCore, .orbit ellipse { animation: none; }
+  .orbitCore, .orbit ellipse { animation: none; }
   .programCard, .cardAction, .toolbarReset, .searchInput, .filterControl { transition-duration: .01ms; }
 }

@@ -96,11 +96,8 @@ export default function ProgramsRoute({ loaderData }: Route.ComponentProps) {
             <div className={styles.primaryStat}>
               <div><span className={styles.statLabel}>В каталоге</span><strong>{loaderData.programs.length}</strong><span className={styles.statUnit}>{russianPlural(loaderData.programs.length, ["программа", "программы", "программ"])}</span></div>
               <svg className={styles.orbit} viewBox="0 0 160 160" aria-hidden="true">
-                <g className={styles.orbitSystem}>
-                  <ellipse cx="80" cy="80" rx="65" ry="27" transform="rotate(-34 80 80)" />
-                  <ellipse cx="80" cy="80" rx="65" ry="27" transform="rotate(34 80 80)" />
-                  <circle cx="132" cy="48" r="3" />
-                </g>
+                <ellipse cx="80" cy="80" rx="65" ry="27" transform="rotate(-34 80 80)" />
+                <ellipse cx="80" cy="80" rx="65" ry="27" transform="rotate(34 80 80)" />
                 <circle className={styles.orbitCore} cx="80" cy="80" r="5" />
               </svg>
             </div>
