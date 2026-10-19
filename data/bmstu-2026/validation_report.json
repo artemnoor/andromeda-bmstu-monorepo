@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at_utc": "2026-10-06T15:17:55Z",
+  "generated_at_utc": "2026-10-19T10:17:34Z",
   "scope": {
     "university": "МГТУ им. Н. Э. Баумана",
     "campus": "головной кампус, Москва",
@@ -15,7 +15,7 @@
       "MANUAL_REVIEW_KEYS_NOT_CANONICAL_RECORDS"
     ],
     "jsonl_datasets": 28,
-    "normalized_records": 21911,
+    "normalized_records": 21918,
     "source_artifacts": 498,
     "source_keys_unique": true,
     "saved_raw_files_in_public_bundle": 0,
@@ -36,6 +36,7 @@
     "Raw source documents and PostgreSQL data files are intentionally absent.",
     "167 nested references are unresolved in the normalized payload and are listed in manual_review.csv.",
     "One existing validator warning: 22 manual-review rows refer to noncanonical source/schema identifiers.",
-    "The validator was run against the sanitized bundle; no unit test suite or parser run was performed for repository publication."
+    "The validator was run against the sanitized bundle; no unit test suite or parser run was performed for repository publication.",
+    "Official 2026 Moscow enrollment orders were reprocessed on 2026-10-19. The 318 current admission aggregates include admitted_count; raw applicant records and PDFs were not retained."
   ]
 }

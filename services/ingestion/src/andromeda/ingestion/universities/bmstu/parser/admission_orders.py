@@ -7,7 +7,7 @@ import logging
 import re
 from collections import OrderedDict
 from collections.abc import Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from decimal import Decimal
 
 from pypdf.errors import PdfReadError
@@ -41,6 +41,7 @@ class BmstuAdmissionOrderObservation:
     source_url: str
     page: int
     row: int
+    admitted_count: int = 0
 
 
 @dataclass(frozen=True, slots=True)
@@ -177,9 +178,7 @@ def _parse_pages(
             bvi_rows += 1
         if score is None and not is_bvi:
             warnings.append(f"row_without_score_or_bvi:page={current_row_page};row={current_row_no}")
-            current_row_no = None
-            current_row_lines = []
-            return
+            status = "count_only"
         if score is not None and is_bvi:
             warnings.append(f"row_contains_numeric_and_bvi:page={current_row_page};row={current_row_no}")
             status = "numeric"
@@ -257,7 +256,26 @@ def _parse_pages(
                 current_direction = _direction_code(" ".join(current_header)) or current_direction
 
     flush_row()
-    return tuple(buckets.values()), section_count, numeric_rows, bvi_rows
+    counts: dict[tuple[str, str, BmstuOrderCompetition], int] = {}
+    for observation in seen_rows.values():
+        group = (
+            observation.direction_code,
+            observation.funding_type,
+            observation.competition_type,
+        )
+        counts[group] = counts.get(group, 0) + 1
+    observations = tuple(
+        replace(
+            observation,
+            admitted_count=counts.get(
+                (observation.direction_code, observation.funding_type,
+                 observation.competition_type),
+                0,
+            ),
+        )
+        for observation in buckets.values()
+    )
+    return observations, section_count, numeric_rows, bvi_rows
 
 
 def _direction_code(text: str) -> str | None:

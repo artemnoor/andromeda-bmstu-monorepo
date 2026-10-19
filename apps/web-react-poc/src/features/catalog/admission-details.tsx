@@ -19,9 +19,10 @@ function CampaignResult({ result }: { result: AdmissionCampaignResult }) {
   const funding = result.funding === "budget" ? "Бюджет" : result.funding === "paid" ? "Платное" : "Основа не указана";
   const stage = result.stage === "main" ? "основной этап" : result.stage === "first" ? "приоритетный этап" : "этап не указан";
   const numeric = result.status === "numeric" && result.score !== null;
+  const hasScoreResult = numeric || result.status === "bvi";
   return <li>
     <strong>{funding} · {COMPETITION_LABELS[result.competitionType ?? ""] ?? "Вид конкурса не указан"}</strong>
-    <span className={styles.campaignScore}>{admissionResultValue(result)}</span>
+    {hasScoreResult ? <span className={styles.campaignScore}>{admissionResultValue(result)}</span> : null}
     <span>{result.year} · {stage} · {result.scopeNote}</span>
     {numeric ? <span>Минимум в опубликованном списке зачисленных, не гарантия поступления.</span> : null}
     <SourceLink href={result.sourceUrl} />
@@ -73,19 +74,40 @@ function Details({
   );
 
   const { summary } = state;
+  const seenCountKeys = new Set<string>();
+  const enrollmentCounts = summary.campaignResults.flatMap((result) => {
+    const countKey = `${result.funding}:${result.stage}:${result.competitionType}`;
+    if (result.admittedCount === null || seenCountKeys.has(countKey)) return [];
+    seenCountKeys.add(countKey);
+    return [{ result, countKey }];
+  });
+  const scoreResults = summary.campaignResults.filter((result) => result.status !== "count_only");
   return (
     <div className={styles.admissionPanel}>
+      <section className={styles.admissionSection} aria-labelledby={`admission-enrolled-${program.external_key}`}>
+        <h3 id={`admission-enrolled-${program.external_key}`}>Зачислено по приказам · {summary.year ?? "год не указан"}</h3>
+        <p className={styles.admissionNote}>Фактическое число строк в официальных списках. Оно показано по направлению, этапу и виду конкурса; приказы разных этапов не складываются.</p>
+        {enrollmentCounts.length ? <div className={styles.admissionMetrics}>
+          {enrollmentCounts.map(({ result, countKey }) => (
+            <article className={styles.admissionMetric} key={countKey}>
+              <span>{result.funding === "budget" ? "Бюджет" : result.funding === "paid" ? "Платное" : "Основа не указана"} · {COMPETITION_LABELS[result.competitionType ?? ""] ?? "Вид конкурса не указан"}</span>
+              <strong>Зачислено: {new Intl.NumberFormat("ru-RU").format(result.admittedCount ?? 0)}</strong>
+              <span>{result.stage === "main" ? "Основной этап" : result.stage === "first" ? "Приоритетный этап" : "Этап не указан"} · {result.scopeNote}</span>
+              <SourceLink href={result.sourceUrl} />
+            </article>
+          ))}
+        </div> : <p className={styles.admissionMuted}>Число зачисленных не опубликовано в доступных приказах.</p>}
+      </section>
+
       <section className={styles.admissionSection} aria-labelledby={`admission-seats-${program.external_key}`}>
-        <h3 id={`admission-seats-${program.external_key}`}>Места и условия поступления · {summary.year ?? "год не указан"}</h3>
-        <p className={styles.admissionNote}>{summary.seatScope}. Бюджет — всего по приёмному плану, включая квоты; квоты повторно к нему не прибавляются.</p>
+        <h3 id={`admission-seats-${program.external_key}`}>План приёма и квоты · {summary.year ?? "год не указан"}</h3>
+        <p className={styles.admissionNote}>{summary.seatScope}. Эти значения относятся к плану приёма. Фактическое число зачисленных показано отдельно по опубликованным приказам.</p>
         <div className={styles.admissionMetrics}>
           {summary.seats.map((metric) => (
             <article className={styles.admissionMetric} key={metric.label}>
               <span>{metric.label}</span>
               <strong>{metric.value === "—"
-                ? summary.relatedSeatFacts.some((fact) => fact.fundingType === (metric.label.startsWith("Бюджет") ? "budget" : "paid"))
-                  ? "Иное название в приёмном плане"
-                  : "Нет строки приёма для этого профиля"
+                ? "Нет подтверждённых данных"
                 : metric.value}</strong>
               {metric.note ? <span>{metric.note}</span> : null}
               <SourceLink href={metric.sourceUrl} />
@@ -93,17 +115,8 @@ function Details({
           ))}
         </div>
         {summary.seatNote ? <p className={styles.admissionMuted}>{summary.seatNote}</p> : null}
-        {summary.relatedSeatFacts.length ? <div className={styles.relatedFacts}>
-          <p>Для этой кафедры приёмный план использует другие названия. Ниже — предложения именно из документа, а не места выбранного профиля.</p>
-          <ul className={styles.admissionList}>{summary.relatedSeatFacts.map((fact) => <li key={fact.key}>
-            <strong>{fact.fundingType === "budget" ? "Бюджет" : "Платное"} · {fact.value}</strong>
-            <span>Предложение из источника: {fact.sourceProgramName}{fact.departmentCode ? ` · кафедра ${fact.departmentCode}` : ""}</span>
-            {fact.note ? <span>{fact.note}</span> : null}
-            <SourceLink href={fact.sourceUrl} />
-          </li>)}</ul>
-        </div> : null}
         {summary.quotas.length ? (
-          <ul className={styles.admissionList} aria-label="Места по квотам">
+          <ul className={styles.admissionList} aria-label="Плановые квоты">
             {summary.quotas.map((quota, index) => (
               <li key={`${quota.label}:${quota.scope}:${index}`}>
                 <strong>{quota.label}: {quota.value}</strong>
@@ -122,11 +135,18 @@ function Details({
       </section>
 
       <section className={styles.admissionSection} aria-labelledby={`admission-results-${program.external_key}`}>
-        <h3 id={`admission-results-${program.external_key}`}>Проходные баллы · приём {summary.year ?? "год не указан"}</h3>
-        <p className={styles.admissionNote}>Общий конкурс и квоты показаны отдельно. У каждого результата указан уровень данных.</p>
-        {summary.campaignResults.length ? <ul className={styles.admissionList}>
-          {summary.campaignResults.map((result, index) => <CampaignResult key={`${result.funding}:${result.competitionType}:${result.stage}:${result.snapshotDate}:${index}`} result={result} />)}
-        </ul> : <p className={styles.admissionMuted}>Результаты текущего приёма не найдены в доступных источниках. История прошлых лет показана ниже.</p>}
+        <h3 id={`admission-results-${program.external_key}`}>Проходные баллы и зачисление · приём {summary.year ?? "год не указан"}</h3>
+        <p className={styles.admissionNote}>Общий конкурс и квоты показаны раздельно. У каждого результата указан уровень данных.</p>
+        {scoreResults.length ? <ul className={styles.admissionList}>
+          {scoreResults.map((result, index) => (
+            <CampaignResult
+              key={`${result.funding}:${result.competitionType}:${result.stage}:${result.status}:${result.snapshotDate}:${index}`}
+              result={result}
+            />
+          ))}
+        </ul> : <p className={styles.admissionMuted}>{enrollmentCounts.length
+          ? "Число зачисленных опубликовано выше, но баллы для этих записей в приказе не распознаны."
+          : "Результаты текущего приёма не найдены в доступных источниках. История прошлых лет показана ниже."}</p>}
       </section>
 
       <section className={styles.admissionSection} aria-labelledby={`admission-history-${program.external_key}`}>
@@ -157,16 +177,6 @@ function Details({
         ) : <p className={styles.admissionMuted}>Требования для этого направления не указаны в активном выпуске.</p>}
       </section>
 
-      <section className={styles.admissionSection} aria-labelledby={`admission-offer-${program.external_key}`}>
-        <h3 id={`admission-offer-${program.external_key}`}>Форма обучения и сроки</h3>
-        {summary.offers.length || summary.dates.length || summary.tuition.length ? (
-          <ul className={styles.admissionList}>
-            {summary.offers.map((item) => <li key={item}><span>{item}</span></li>)}
-            {summary.dates.map((item, index) => <li key={`${item.label}:${index}`}><strong>{item.label}</strong><span>{item.date}</span><SourceLink href={item.sourceUrl} /></li>)}
-            {summary.tuition.map((item) => <li key={item}><span>{item}</span></li>)}
-          </ul>
-        ) : <p className={styles.admissionMuted}>Точные предложения для этой программы в активном выпуске не найдены.</p>}
-      </section>
       <p className={styles.releaseNote}>Академический выпуск: <code>{state.releaseKey}</code></p>
     </div>
   );

@@ -1255,6 +1255,7 @@ class AcademicDataQueries:
             funding_type=row["funding_type_code"],
             study_form=row["study_form"],
             score=row["score"],
+            admitted_count=row["admitted_count"],
             snapshot_date=row["snapshot_date"],
             **self._temporal(row),
             **self._sourced("admission_statistics", row),

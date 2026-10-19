@@ -12,6 +12,8 @@ type RequirementNode = ApiSchemas["RequirementLeaf"] | ApiSchemas["RequirementOp
 type StatisticDto = ApiSchemas["OfficialAdmissionStatisticRecord"];
 type TuitionDto = ApiSchemas["TuitionRecord"];
 
+const OFFICIAL_ORDER_LIST_URL = "https://priem.bmstu.ru/list/orders";
+
 export interface ProgramAdmissionData {
   readonly releaseKey: string;
   readonly campaigns: readonly CampaignDto[];
@@ -68,6 +70,7 @@ export interface AdmissionCampaignResult {
   readonly status: string | null;
   readonly funding: string | null;
   readonly score: number | null;
+  readonly admittedCount: number | null;
   readonly snapshotDate: string | null;
   readonly scopeType: string | null;
   readonly scopeLabel: string | null;
@@ -417,7 +420,7 @@ function statisticScopeNote(statistic: StatisticDto, program: CatalogProgram): s
     return "по программе " + (programLabel || scopeLabel);
   }
   const directionCode = statistic.direction_code ?? program.directionCode;
-  if (scopeType === "direction") {
+  if (scopeType === "direction" || !scopeType) {
     return "по направлению " + (directionCode ?? "не указано") + (scopeLabel ? " · " + scopeLabel : "");
   }
   return "по направлению " + (directionCode ?? "не указано") + "; область источника не уточнена";
@@ -466,7 +469,7 @@ export function buildAdmissionSummary(program: CatalogProgram, data: ProgramAdmi
   const selectedPools = selectRelatedPools(program, campaignPools, data.offerings);
   const seats = ([
     ["budget", "Бюджет · по приёмному плану"],
-    ["paid", "Платные места"],
+    ["paid", "Платное · по приёмному плану"],
   ] as const).map(([funding, label]) => {
     const rows = selectedPools.rows.filter((pool) => pool.funding_type === funding);
     const metric = metricValue(rows);
@@ -633,11 +636,15 @@ export function buildAdmissionSummary(program: CatalogProgram, data: ProgramAdmi
         status: statistic.status ?? null,
         funding: statistic.funding_type ?? null,
         score: toNumber(statistic.score ?? statistic.minimum_score),
+        admittedCount: toNumber(statistic.admitted_count),
         snapshotDate: statistic.snapshot_date ?? null,
         scopeType: statistic.scope_type ?? null,
         scopeLabel: statistic.scope_label ?? null,
         scopeNote: statisticScopeNote(statistic, program),
-        sourceUrl: sourceUrl(statistic),
+        sourceUrl: sourceUrl(statistic)
+          ?? (statistic.year === year && statistic.admission_stage && toNumber(statistic.admitted_count) !== null
+            ? OFFICIAL_ORDER_LIST_URL
+            : null),
       })),
     requirements,
     offers,

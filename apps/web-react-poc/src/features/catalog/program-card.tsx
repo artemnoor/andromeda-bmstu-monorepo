@@ -70,7 +70,17 @@ export function ProgramCard({ program, expectedReleaseKey, onSelectionLimit }: {
             aria-pressed={isCompared}
             onClick={toggleComparison}
           >
-            {isCompared ? "✓ В сравнении" : "+ Сравнить"}
+            {isCompared ? "✓ В сравнении" : "Добавить в сравнение"}
+          </button>
+          <button
+            className={styles.favoriteAction}
+            type="button"
+            aria-label={isFavorite ? "Убрать из избранного" : "Добавить в избранное"}
+            title={isFavorite ? "Убрать из избранного" : "Добавить в избранное"}
+            aria-pressed={isFavorite}
+            onClick={toggleFavorite}
+          >
+            {isFavorite ? "Убрать из избранного" : "Добавить в избранное"}
           </button>
         </div>
       </div>
@@ -85,16 +95,11 @@ export function ProgramCard({ program, expectedReleaseKey, onSelectionLimit }: {
               {department ? <span className={styles.programFact}><span className={styles.factLabel}>Кафедра</span><span className={styles.factValue}>{department}</span></span> : null}
             </span>
           ) : null}
-          <span className={styles.expandHint}>Открыть места, баллы и условия поступления</span>
+          <span className={styles.expandHint}>{detailsOpen ? "Скрыть" : "Подробнее"}</span>
         </summary>
         {detailsOpen ? (
           <>
             <AdmissionDetails program={program} expectedReleaseKey={expectedReleaseKey} />
-            <div className={styles.favoriteTools}>
-              <button className={styles.favoriteAction} type="button" aria-pressed={isFavorite} onClick={toggleFavorite}>
-                {isFavorite ? "♥ Убрать из избранного" : "♡ Добавить в избранное"}
-              </button>
-            </div>
           </>
         ) : null}
       </details>
