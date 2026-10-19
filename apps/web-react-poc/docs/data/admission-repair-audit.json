@@ -1,0 +1,580 @@
+{
+  "date": "2026-10-19",
+  "scope": "local isolated PostgreSQL 16; remote baseline read-only",
+  "repair": {
+    "changed_files": [
+      "data/admission_plan_source_rows.jsonl",
+      "data/admission_statistics.jsonl",
+      "data/competition_pools.jsonl",
+      "data/program_offerings.jsonl",
+      "data/relationships.jsonl",
+      "manual_review.csv"
+    ],
+    "corrected_explicit_code_rows": [
+      "offering:bmstu:2026:app8.1:p6:t1:r7"
+    ],
+    "covered_catalog_programs": 118,
+    "input_file_sha256": {
+      "README.md": "87368ffaef02809bc9a2a41eeebc953cd5d6d098d83df206b7cf98856dad103b",
+      "admission_plan_source_comparison.json": "e38a0938e11b003c02f50602e446900e381069d796c45f634c03d4b26687dfbc",
+      "data/admission_campaigns.jsonl": "27d3332913b51f5aed2743a29c2ea56d05772ae8ac8f04abb4ee136779f70ebb",
+      "data/admission_document_pages.jsonl": "673852af149c15855d261ecb06b2d976bf59240d049aafb81f81b77feb11b98b",
+      "data/admission_documents.jsonl": "c213398b659c6df9322d4bf4dbd45c8ca5edd92f6095267d904faa541fafddef",
+      "data/admission_exam_requirements.jsonl": "9666fc33c670104ee391dc306aa757446ec93c42555b0649ec990c90bb7e58d6",
+      "data/admission_exam_source_rows.jsonl": "ddb1c71ba0723f3d38e6a99883a33658cb7e1ff911e35e0d8c9df53d2ffb27c4",
+      "data/admission_information_page_facts.jsonl": "532cc96c0402faac3ac99eda30c6e1c3e92b6f49e7dfca8dfc9f4bdcfc675bc0",
+      "data/admission_information_source_tables.jsonl": "72c8ed071736bf3136f1c666f3d2169e0aa9e23af981a613c5e43401dbb06c94",
+      "data/admission_plan_source_rows.jsonl": "420f0934fa73f691cd86f584b7c9a31d4981b9adf0a224db7bd95bc1394d70ce",
+      "data/admission_result_sources.jsonl": "332331e9902a002ef5d35096adde89e42badd1027aecb1df6980820c8a4687d5",
+      "data/admission_statistics.jsonl": "7dfbe49fe97db2c84c50eb3b04902428b1e3153f0781f84bb9b055974b9fbca2",
+      "data/campaign_dates.jsonl": "90622ef0424273d4dde2d5d917c8af4edc62fa324cc0a407dad77de4a0995047",
+      "data/competition_pools.jsonl": "00339c84cb7c2af1db70d67c0b0b92ce7011c2dd59af0469608d18a131b5f899",
+      "data/courses.jsonl": "4f03ff2d36cc679f19524dfa7e29bb1fc6e66cd5cb601608db31a592d2b34dab",
+      "data/curriculum_items.jsonl": "b0623544a046eca06b0c1d374258f5f0d886c201ecb63c11cc1be0d2dc965649",
+      "data/departments.jsonl": "a17dd4ac8b3869c58b5560610f2393b355b6b8764a0bad178ebf711bdf3e80a6",
+      "data/directions.jsonl": "29c3205771bec279f5e52768d0b875c1902b868daaf4eb291fb589edeebd4a6e",
+      "data/educational_programs.jsonl": "3b065c92ffd0b638a16b38b102195584d93a34d1fff595a859ab38a064d3f150",
+      "data/exams.jsonl": "8fd611dba9ef7c8c769df66829c8c5526ade584559eedc469218da4af378d640",
+      "data/funding_types.jsonl": "c72c56c90f04268d2fbd85965a41b8f3c8bb99af9c0fd218ac2392ce37dfcde7",
+      "data/historical_admission_statistics.jsonl": "7d77e47a143f39207fced57213001aa501e5ba7424a2dcd21a92455b4d496e44",
+      "data/individual_achievement_policies.jsonl": "055f96c42b61abdc1c221449ee1c64cc37c377769469e00808e0515dbe02be2a",
+      "data/program_offerings.jsonl": "51708f4ae1cad253caa13657140ce34f072377a6542a539d737d4e2a80b84bf2",
+      "data/quota_types.jsonl": "a2e8d210420316b4e14384a70bf7308a73543b13837f309165f8541f5c6630ab",
+      "data/relationships.jsonl": "569541ae0bea357dd949c76c11c83f62d12ca3feec51f11a153dd01a0eda590c",
+      "data/study_plans.jsonl": "bd5ba551726417fdd1646f37269b9d66ef57d9c7e05434d5e5bd3927ac24f21f",
+      "data/tuition.jsonl": "5cbc20cc31d56ac07ba153514469a0c0fb6ca8d6ea13005bf8301e8ad6d8f949",
+      "data/tuition_source_tables.jsonl": "ef61596ef189e10729c7a1c975a258dca9b02737a30339177f13181ade3cb9ab",
+      "data/universities.jsonl": "62fad525dd8298c4c9926835f6e04789fcb38d3721f579b1ddf0ddc55f007324",
+      "manual_review.csv": "8b857036764397c3bf8ff76a16057e38ba9f52c1ddf88953dcae0779a9403db1",
+      "report.md": "f2400713e8184f25fa3134c9f9b9ec113575564134da8de3094f092bd832d972",
+      "source_artifacts.jsonl": "e2f35c9b78648d11043bd7a27a3f83e225223c34bfee01a8871e0a1ddf20810a",
+      "user_confirmed_study_plan_links.json": "1880151db931d3854cade9d2af39d259166e6ecb3e5198936ed78fb1aa113854",
+      "validation_report.json": "5826e8df24b8908a72a6c70fe47b38ed04e16c2e5144906dd50a009f5c845f18"
+    },
+    "main_order_statistics_reclassified": 46,
+    "offering_count": 127,
+    "offering_link_statuses": {
+      "exact_explicit_profile_group": 3,
+      "exact_official_codes_and_profile_name": 108,
+      "unresolved": 16
+    },
+    "offering_pool_count": 508,
+    "operation": "deterministic_admission_repair_unpublished_bundle",
+    "output_file_sha256": {
+      "README.md": "87368ffaef02809bc9a2a41eeebc953cd5d6d098d83df206b7cf98856dad103b",
+      "admission_plan_source_comparison.json": "e38a0938e11b003c02f50602e446900e381069d796c45f634c03d4b26687dfbc",
+      "data/admission_campaigns.jsonl": "27d3332913b51f5aed2743a29c2ea56d05772ae8ac8f04abb4ee136779f70ebb",
+      "data/admission_document_pages.jsonl": "673852af149c15855d261ecb06b2d976bf59240d049aafb81f81b77feb11b98b",
+      "data/admission_documents.jsonl": "c213398b659c6df9322d4bf4dbd45c8ca5edd92f6095267d904faa541fafddef",
+      "data/admission_exam_requirements.jsonl": "9666fc33c670104ee391dc306aa757446ec93c42555b0649ec990c90bb7e58d6",
+      "data/admission_exam_source_rows.jsonl": "ddb1c71ba0723f3d38e6a99883a33658cb7e1ff911e35e0d8c9df53d2ffb27c4",
+      "data/admission_information_page_facts.jsonl": "532cc96c0402faac3ac99eda30c6e1c3e92b6f49e7dfca8dfc9f4bdcfc675bc0",
+      "data/admission_information_source_tables.jsonl": "72c8ed071736bf3136f1c666f3d2169e0aa9e23af981a613c5e43401dbb06c94",
+      "data/admission_plan_source_rows.jsonl": "5e6286fcabfd4d756321c21da4ba16e82c0e56799e99d25eba715c2fe4428f12",
+      "data/admission_result_sources.jsonl": "332331e9902a002ef5d35096adde89e42badd1027aecb1df6980820c8a4687d5",
+      "data/admission_statistics.jsonl": "23af0eda2bd4272a52561de7bcd182955cfc98ea5caf5d8ba627904ea7fa0e7a",
+      "data/campaign_dates.jsonl": "90622ef0424273d4dde2d5d917c8af4edc62fa324cc0a407dad77de4a0995047",
+      "data/competition_pools.jsonl": "f087d31e95bd167b1903d3599df63d06d9d93da1cbfdc046aba8cacedb0cbfd2",
+      "data/courses.jsonl": "4f03ff2d36cc679f19524dfa7e29bb1fc6e66cd5cb601608db31a592d2b34dab",
+      "data/curriculum_items.jsonl": "b0623544a046eca06b0c1d374258f5f0d886c201ecb63c11cc1be0d2dc965649",
+      "data/departments.jsonl": "a17dd4ac8b3869c58b5560610f2393b355b6b8764a0bad178ebf711bdf3e80a6",
+      "data/directions.jsonl": "29c3205771bec279f5e52768d0b875c1902b868daaf4eb291fb589edeebd4a6e",
+      "data/educational_programs.jsonl": "3b065c92ffd0b638a16b38b102195584d93a34d1fff595a859ab38a064d3f150",
+      "data/exams.jsonl": "8fd611dba9ef7c8c769df66829c8c5526ade584559eedc469218da4af378d640",
+      "data/funding_types.jsonl": "c72c56c90f04268d2fbd85965a41b8f3c8bb99af9c0fd218ac2392ce37dfcde7",
+      "data/historical_admission_statistics.jsonl": "7d77e47a143f39207fced57213001aa501e5ba7424a2dcd21a92455b4d496e44",
+      "data/individual_achievement_policies.jsonl": "055f96c42b61abdc1c221449ee1c64cc37c377769469e00808e0515dbe02be2a",
+      "data/program_offerings.jsonl": "38015671012d9e7822d456705ca4ac08ae1484aeca58efc79913b10e976cfbbf",
+      "data/quota_types.jsonl": "a2e8d210420316b4e14384a70bf7308a73543b13837f309165f8541f5c6630ab",
+      "data/relationships.jsonl": "27ca70c299b94a1f54d02b94bab47b6ec4fee26632be0f30e666647a679c57e6",
+      "data/study_plans.jsonl": "bd5ba551726417fdd1646f37269b9d66ef57d9c7e05434d5e5bd3927ac24f21f",
+      "data/tuition.jsonl": "5cbc20cc31d56ac07ba153514469a0c0fb6ca8d6ea13005bf8301e8ad6d8f949",
+      "data/tuition_source_tables.jsonl": "ef61596ef189e10729c7a1c975a258dca9b02737a30339177f13181ade3cb9ab",
+      "data/universities.jsonl": "62fad525dd8298c4c9926835f6e04789fcb38d3721f579b1ddf0ddc55f007324",
+      "manual_review.csv": "a658a34ed2830766ce0b8d3d81c438167b52171ed4d88124f95d3acd3f7a24fa",
+      "report.md": "f2400713e8184f25fa3134c9f9b9ec113575564134da8de3094f092bd832d972",
+      "source_artifacts.jsonl": "e2f35c9b78648d11043bd7a27a3f83e225223c34bfee01a8871e0a1ddf20810a",
+      "user_confirmed_study_plan_links.json": "1880151db931d3854cade9d2af39d259166e6ecb3e5198936ed78fb1aa113854",
+      "validation_report.json": "5826e8df24b8908a72a6c70fe47b38ed04e16c2e5144906dd50a009f5c845f18"
+    },
+    "preserved_targeted_pools": 582,
+    "primary_source_artifact_key": "source_artifact:url-sha256:d96b5b6cd42b954dabbd96cc87248e85425120528a837090886495289081c474",
+    "primary_source_sha256": "553f0c31af6038441770aabdf86acd79c77000cbe5fcb193991f6cf4054597d0",
+    "raw_applicant_data_saved": false,
+    "reviews_removed": 86,
+    "schema_version": 1,
+    "shared_program_links": 10,
+    "uncovered_catalog_programs": [
+      {
+        "department_code": "ФН3",
+        "direction_code": "01.03.03",
+        "program_key": "program:bmstu:01.03.03:ФН3:01.03.03-02:source:1-1",
+        "program_name": "Моделирование, анализ и оптимизация в механике, астродинамике и гидродинамике",
+        "reason": "source_profile_name_differs_or_is_not_explicitly_listed",
+        "related_source_offering_keys": [
+          "offering:bmstu:2026:app8.1:p1:t1:r3"
+        ]
+      },
+      {
+        "department_code": "ИУ5",
+        "direction_code": "09.03.01",
+        "program_key": "program:bmstu:09.03.01:ИУ5:09.03.01-02:source:1-1",
+        "program_name": "Интеллектуальные системы обработки информации и управления",
+        "reason": "source_profile_name_differs_or_is_not_explicitly_listed",
+        "related_source_offering_keys": [
+          "offering:bmstu:2026:app8.1:p1:t1:r10",
+          "offering:bmstu:2026:app8.1:p1:t1:r11",
+          "offering:bmstu:2026:app8.1:p2:t1:r1",
+          "offering:bmstu:2026:app8.1:p2:t1:r2",
+          "offering:bmstu:2026:app8.1:p2:t1:r3"
+        ]
+      },
+      {
+        "department_code": "ИУ6",
+        "direction_code": "09.03.01",
+        "program_key": "program:bmstu:09.03.01:ИУ6:09.03.01-03:source:2-1",
+        "program_name": "Программные и аппаратные средства систем искусственного интеллекта",
+        "reason": "source_profile_name_differs_or_is_not_explicitly_listed",
+        "related_source_offering_keys": [
+          "offering:bmstu:2026:app8.1:p1:t1:r12",
+          "offering:bmstu:2026:app8.1:p1:t1:r13",
+          "offering:bmstu:2026:app8.1:p2:t1:r4"
+        ]
+      },
+      {
+        "department_code": "ИУ6",
+        "direction_code": "09.03.01",
+        "program_key": "program:bmstu:09.03.01:ИУ6:09.03.01-53:source:2-3",
+        "program_name": "Киберфизические системы и технологии искусственного интеллекта (адаптационный план № 2)",
+        "reason": "source_profile_name_differs_or_is_not_explicitly_listed",
+        "related_source_offering_keys": [
+          "offering:bmstu:2026:app8.1:p1:t1:r12",
+          "offering:bmstu:2026:app8.1:p1:t1:r13",
+          "offering:bmstu:2026:app8.1:p2:t1:r4"
+        ]
+      },
+      {
+        "department_code": "ИБМ3",
+        "direction_code": "09.03.03",
+        "program_key": "program:bmstu:09.03.03:ИБМ3:09.03.03/10:source:1-1",
+        "program_name": "Технологии разработки корпоративных информационных систем",
+        "reason": "no_intake_row_for_exact_direction_and_department",
+        "related_source_offering_keys": []
+      },
+      {
+        "department_code": "ИУ8",
+        "direction_code": "10.05.03",
+        "program_key": "program:bmstu:10.05.03:ИУ8:10.05.03/01:source:1-3",
+        "program_name": "Безопасность автоматизированных систем критически важных объектов",
+        "reason": "source_profile_name_differs_or_is_not_explicitly_listed",
+        "related_source_offering_keys": [
+          "offering:bmstu:2026:app8.1:p2:t1:r12",
+          "offering:bmstu:2026:app8.1:p2:t1:r14"
+        ]
+      },
+      {
+        "department_code": "ИУ8",
+        "direction_code": "10.05.03",
+        "program_key": "program:bmstu:10.05.03:ИУ8:10.05.03/03:source:1-4",
+        "program_name": "Разработка автоматизированных систем в защищенном исполнении",
+        "reason": "source_profile_name_differs_or_is_not_explicitly_listed",
+        "related_source_offering_keys": [
+          "offering:bmstu:2026:app8.1:p2:t1:r12",
+          "offering:bmstu:2026:app8.1:p2:t1:r14"
+        ]
+      },
+      {
+        "department_code": "ИУ10",
+        "direction_code": "10.05.03",
+        "program_key": "program:bmstu:10.05.03:ИУ10:10.05.03/05:source:2-2",
+        "program_name": "Безопасность значимых объектов критической информационной инфраструктуры",
+        "reason": "source_profile_name_differs_or_is_not_explicitly_listed",
+        "related_source_offering_keys": [
+          "offering:bmstu:2026:app8.1:p2:t1:r13"
+        ]
+      },
+      {
+        "department_code": "БМТ1",
+        "direction_code": "12.03.04",
+        "program_key": "program:bmstu:12.03.04:БМТ1:12.03.04:source:1-1",
+        "program_name": "Биомедицинская электроника и биомехатроника",
+        "reason": "source_profile_name_differs_or_is_not_explicitly_listed",
+        "related_source_offering_keys": [
+          "offering:bmstu:2026:app8.1:p2:t1:r24"
+        ]
+      },
+      {
+        "department_code": "БМТ1",
+        "direction_code": "12.03.04",
+        "program_key": "program:bmstu:12.03.04:БМТ1:12.03.04:source:1-2",
+        "program_name": "Биофотоника",
+        "reason": "source_profile_name_differs_or_is_not_explicitly_listed",
+        "related_source_offering_keys": [
+          "offering:bmstu:2026:app8.1:p2:t1:r24"
+        ]
+      },
+      {
+        "department_code": "БМТ1",
+        "direction_code": "12.03.04",
+        "program_key": "program:bmstu:12.03.04:БМТ1:12.03.04:source:1-3",
+        "program_name": "Интеллектуальные биомедицинские системы",
+        "reason": "source_profile_name_differs_or_is_not_explicitly_listed",
+        "related_source_offering_keys": [
+          "offering:bmstu:2026:app8.1:p2:t1:r24"
+        ]
+      },
+      {
+        "department_code": "БМТ1",
+        "direction_code": "12.03.04",
+        "program_key": "program:bmstu:12.03.04:БМТ1:12.03.04:source:1-4",
+        "program_name": "Тканевая инженерия и мягкая материя",
+        "reason": "source_profile_name_differs_or_is_not_explicitly_listed",
+        "related_source_offering_keys": [
+          "offering:bmstu:2026:app8.1:p2:t1:r24"
+        ]
+      },
+      {
+        "department_code": "БМТ2",
+        "direction_code": "12.03.04",
+        "program_key": "program:bmstu:12.03.04:БМТ2:12.03.04:source:2-1",
+        "program_name": "Неинвазивные биомедицинские системы",
+        "reason": "source_profile_name_differs_or_is_not_explicitly_listed",
+        "related_source_offering_keys": [
+          "offering:bmstu:2026:app8.1:p2:t1:r24"
+        ]
+      },
+      {
+        "department_code": "БМТ2",
+        "direction_code": "12.03.04",
+        "program_key": "program:bmstu:12.03.04:БМТ2:12.03.04:source:2-2",
+        "program_name": "Нейроинфобионика",
+        "reason": "source_profile_name_differs_or_is_not_explicitly_listed",
+        "related_source_offering_keys": [
+          "offering:bmstu:2026:app8.1:p2:t1:r24"
+        ]
+      },
+      {
+        "department_code": "БМТ2",
+        "direction_code": "12.03.04",
+        "program_key": "program:bmstu:12.03.04:БМТ2:12.03.04:source:2-3",
+        "program_name": "Биомедицинская инженерия в приборостроительной индустрии",
+        "reason": "source_profile_name_differs_or_is_not_explicitly_listed",
+        "related_source_offering_keys": [
+          "offering:bmstu:2026:app8.1:p2:t1:r24"
+        ]
+      },
+      {
+        "department_code": "БМТ3",
+        "direction_code": "12.03.04",
+        "program_key": "program:bmstu:12.03.04:БМТ3:12.03.04:source:3-1",
+        "program_name": "Биоинженерия живых систем",
+        "reason": "source_profile_name_differs_or_is_not_explicitly_listed",
+        "related_source_offering_keys": [
+          "offering:bmstu:2026:app8.1:p2:t1:r24"
+        ]
+      },
+      {
+        "department_code": "БМТ3",
+        "direction_code": "12.03.04",
+        "program_key": "program:bmstu:12.03.04:БМТ3:12.03.04:source:3-2",
+        "program_name": "Здоровьесберегающие технологии",
+        "reason": "source_profile_name_differs_or_is_not_explicitly_listed",
+        "related_source_offering_keys": [
+          "offering:bmstu:2026:app8.1:p2:t1:r24"
+        ]
+      },
+      {
+        "department_code": "БМТ3",
+        "direction_code": "12.03.04",
+        "program_key": "program:bmstu:12.03.04:БМТ3:12.03.04:source:3-3",
+        "program_name": "Управление в биомедицинской сфере",
+        "reason": "source_profile_name_differs_or_is_not_explicitly_listed",
+        "related_source_offering_keys": [
+          "offering:bmstu:2026:app8.1:p2:t1:r24"
+        ]
+      },
+      {
+        "department_code": "БМТ5",
+        "direction_code": "12.03.04",
+        "program_key": "program:bmstu:12.03.04:БМТ5:12.03.04:source:4-1",
+        "program_name": "Управление продуктом в биомедицинской индустрии",
+        "reason": "no_intake_row_for_exact_direction_and_department",
+        "related_source_offering_keys": []
+      },
+      {
+        "department_code": "Э4",
+        "direction_code": "13.03.02",
+        "program_key": "program:bmstu:13.03.02:Э4:13.03.02-01:source:2-1",
+        "program_name": "Водородные установки и возобновляемые источники энергии",
+        "reason": "source_profile_name_differs_or_is_not_explicitly_listed",
+        "related_source_offering_keys": [
+          "offering:bmstu:2026:app8.1:p3:t1:r4"
+        ]
+      },
+      {
+        "department_code": "Э5",
+        "direction_code": "15.03.02",
+        "program_key": "program:bmstu:15.03.02:Э5:15.03.02-01:source:1-1",
+        "program_name": "Компрессорное оборудование, нефтегазовые и газотранспортные системы",
+        "reason": "source_profile_name_differs_or_is_not_explicitly_listed",
+        "related_source_offering_keys": [
+          "offering:bmstu:2026:app8.1:p3:t1:r10"
+        ]
+      },
+      {
+        "department_code": "МТ12",
+        "direction_code": "15.05.01",
+        "program_key": "program:bmstu:15.05.01:МТ12:15.05.01-04:source:8-2",
+        "program_name": "Инновационные технологии и оборудование аддитивных производств",
+        "reason": "source_profile_name_differs_or_is_not_explicitly_listed",
+        "related_source_offering_keys": [
+          "offering:bmstu:2026:app8.1:p4:t1:r1"
+        ]
+      },
+      {
+        "department_code": "Э5",
+        "direction_code": "15.05.01",
+        "program_key": "program:bmstu:15.05.01:Э5:15.05.01-09:source:9-1",
+        "program_name": "Системная инженерия вакуумных и пневматических систем и агрегатов",
+        "reason": "source_profile_name_differs_or_is_not_explicitly_listed",
+        "related_source_offering_keys": [
+          "offering:bmstu:2026:app8.1:p4:t1:r2"
+        ]
+      },
+      {
+        "department_code": "СМ2",
+        "direction_code": "24.05.01",
+        "program_key": "program:bmstu:24.05.01:СМ2:24.05.01(АК1):source:2-1",
+        "program_name": "Пилотируемые и автоматические космические аппараты и системы (отраслевая)",
+        "reason": "source_profile_name_differs_or_is_not_explicitly_listed",
+        "related_source_offering_keys": [
+          "offering:bmstu:2026:app8.1:p4:t1:r23",
+          "offering:bmstu:2026:app8.1:p4:t1:r27"
+        ]
+      },
+      {
+        "department_code": "СМ2",
+        "direction_code": "24.05.01",
+        "program_key": "program:bmstu:24.05.01:СМ2:24.05.01(АК1):source:2-2",
+        "program_name": "Моделирование и информационные технологии проектирования ракетно-космических систем (отраслевая)",
+        "reason": "source_profile_name_differs_or_is_not_explicitly_listed",
+        "related_source_offering_keys": [
+          "offering:bmstu:2026:app8.1:p4:t1:r23",
+          "offering:bmstu:2026:app8.1:p4:t1:r27"
+        ]
+      },
+      {
+        "department_code": "СМ2",
+        "direction_code": "24.05.01",
+        "program_key": "program:bmstu:24.05.01:СМ2:24.05.01(АК2):source:2-3",
+        "program_name": "Крылатые ракет (отраслевая)",
+        "reason": "source_profile_name_differs_or_is_not_explicitly_listed",
+        "related_source_offering_keys": [
+          "offering:bmstu:2026:app8.1:p4:t1:r23",
+          "offering:bmstu:2026:app8.1:p4:t1:r27"
+        ]
+      },
+      {
+        "department_code": "ИУ1",
+        "direction_code": "24.05.06",
+        "program_key": "program:bmstu:24.05.06:ИУ1:24.05.06-21(ПС2):source:1-3",
+        "program_name": "Программные и аппаратные комплексы систем управления космических аппаратов (отраслевая)",
+        "reason": "source_profile_name_differs_or_is_not_explicitly_listed",
+        "related_source_offering_keys": [
+          "offering:bmstu:2026:app8.1:p5:t1:r10",
+          "offering:bmstu:2026:app8.1:p5:t1:r12",
+          "offering:bmstu:2026:app8.1:p5:t1:r13",
+          "offering:bmstu:2026:app8.1:p5:t1:r15",
+          "offering:bmstu:2026:app8.1:p5:t1:r16"
+        ]
+      },
+      {
+        "department_code": "ИУ1",
+        "direction_code": "24.05.06",
+        "program_key": "program:bmstu:24.05.06:ИУ1:24.05.06-22(АК4):source:1-4",
+        "program_name": "Системы управления летательных и космических аппаратов (отраслевая)",
+        "reason": "source_profile_name_differs_or_is_not_explicitly_listed",
+        "related_source_offering_keys": [
+          "offering:bmstu:2026:app8.1:p5:t1:r10",
+          "offering:bmstu:2026:app8.1:p5:t1:r12",
+          "offering:bmstu:2026:app8.1:p5:t1:r13",
+          "offering:bmstu:2026:app8.1:p5:t1:r15",
+          "offering:bmstu:2026:app8.1:p5:t1:r16"
+        ]
+      },
+      {
+        "department_code": "ИУ11",
+        "direction_code": "24.05.06",
+        "program_key": "program:bmstu:24.05.06:ИУ11:24.05.06-20(ПС4):source:3-1",
+        "program_name": "Проектирование систем управления ракетно-космическими комплексами (отраслевая)",
+        "reason": "source_profile_name_differs_or_is_not_explicitly_listed",
+        "related_source_offering_keys": [
+          "offering:bmstu:2026:app8.1:p5:t1:r14"
+        ]
+      },
+      {
+        "department_code": "ИБМ3",
+        "direction_code": "27.03.05",
+        "program_key": "program:bmstu:27.03.05:ИБМ3:27.03.05/09:source:2-2",
+        "program_name": "Технологическое продюсирование в креативных индустриях",
+        "reason": "source_profile_name_differs_or_is_not_explicitly_listed",
+        "related_source_offering_keys": [
+          "offering:bmstu:2026:app8.1:p5:t1:r21",
+          "offering:bmstu:2026:app8.1:p5:t1:r26"
+        ]
+      },
+      {
+        "department_code": "ИБМ1",
+        "direction_code": "38.03.01",
+        "program_key": "program:bmstu:38.03.01:ИБМ1:38.03.01/01:source:1-1",
+        "program_name": "Экономика малого и среднего бизнеса",
+        "reason": "source_profile_name_differs_or_is_not_explicitly_listed",
+        "related_source_offering_keys": [
+          "offering:bmstu:2026:app8.1:p6:t1:r1"
+        ]
+      },
+      {
+        "department_code": "ИБМ5",
+        "direction_code": "38.03.01",
+        "program_key": "program:bmstu:38.03.01:ИБМ5:38.03.01/05:source:2-1",
+        "program_name": "Экономика и финансы",
+        "reason": "source_profile_name_differs_or_is_not_explicitly_listed",
+        "related_source_offering_keys": [
+          "offering:bmstu:2026:app8.1:p6:t1:r1"
+        ]
+      },
+      {
+        "department_code": "ИБМ4",
+        "direction_code": "38.03.02",
+        "program_key": "program:bmstu:38.03.02:ИБМ4:38.03.02/04:source:1-1",
+        "program_name": "Менеджмент корпораций",
+        "reason": "source_profile_name_differs_or_is_not_explicitly_listed",
+        "related_source_offering_keys": [
+          "offering:bmstu:2026:app8.1:p6:t1:r3"
+        ]
+      },
+      {
+        "department_code": "ИБМ7",
+        "direction_code": "38.03.02",
+        "program_key": "program:bmstu:38.03.02:ИБМ7:38.03.02/07:source:2-1",
+        "program_name": "Цифровая трансформация бизнеса",
+        "reason": "source_profile_name_differs_or_is_not_explicitly_listed",
+        "related_source_offering_keys": [
+          "offering:bmstu:2026:app8.1:p6:t1:r3"
+        ]
+      }
+    ],
+    "unresolved_reasons": {
+      "authoritative_offering_department_codes_composite": 2,
+      "offering_to_catalog_profile_unresolved": 16
+    },
+    "verified_main_order_sha256": "bba340a47c433e4d54fa2d1223ecdcde1ed535089a85c6e003d680a6ac29aa6b"
+  },
+  "publication": {
+    "base": {
+      "schema_version": 1,
+      "base_release_id": "160f0e1d-869f-5003-b2bc-a5834138cd0d",
+      "base_source_bundle_sha256": "42616ee9348ee009fa1b297f7ef697862134835e562c7840f413643ce71d2130"
+    },
+    "candidate_digest": "5869df2bb3776eff25751c608027eac3b529cee5c368adb1fcaf8431ccf1b615"
+  },
+  "api_verification": {
+    "release_key": "bmstu-2026:5869df2bb3776eff25751c608027eac3b529cee5c368adb1fcaf8431ccf1b615:bmstu-2026-bundle-v5",
+    "programs": 152,
+    "offers": 127,
+    "covered_programs": 118,
+    "shared_offers": [
+      {
+        "key": "offering:bmstu:2026:app8.1:p2:t1:r9",
+        "members": [
+          "program:bmstu:09.03.04:ИУ7:09.03.04/01:source:1-1",
+          "program:bmstu:09.03.04:ИУ7:09.03.04/02:source:1-2",
+          "program:bmstu:09.03.04:ИУ7:09.03.04/03:source:1-3"
+        ]
+      },
+      {
+        "key": "offering:bmstu:2026:app8.1:p5:t1:r10",
+        "members": [
+          "program:bmstu:24.05.06:ИУ1:24.05.06-02:source:1-1",
+          "program:bmstu:24.05.06:ИУ1:24.05.06-03:source:1-2"
+        ]
+      },
+      {
+        "key": "offering:bmstu:2026:app8.1:p5:t1:r21",
+        "members": [
+          "program:bmstu:27.03.05:ИБМ2:27.03.05/02:source:1-1",
+          "program:bmstu:27.03.05:ИБМ3:27.03.05/03:source:2-1",
+          "program:bmstu:27.03.05:ИБМ4:27.03.05/04:source:3-1",
+          "program:bmstu:27.03.05:ИБМ5:27.03.05/05:source:4-1",
+          "program:bmstu:27.03.05:ИБМ7:27.03.05/07:source:5-1"
+        ]
+      }
+    ],
+    "pools": 1090,
+    "offering_quotas_with_numeric_places": 254,
+    "targeted_pools": 582,
+    "target_campuses": {
+      "МГТУ им. Н.Э. Баумана": 542,
+      "КФ МГТУ им. Н.Э. Баумана": 25,
+      "МФ МГТУ им. Н.Э. Баумана": 15
+    },
+    "statistics": 311,
+    "bvi": 86,
+    "general_budget_main_numeric": 46,
+    "unchanged_numeric_and_bvi_values": true
+  },
+  "classification_restoration": {
+    "status": "imported",
+    "release_key": "bmstu-2026:5869df2bb3776eff25751c608027eac3b529cee5c368adb1fcaf8431ccf1b615:bmstu-2026-bundle-v5",
+    "run_key": "classification:bmstu-subject-domain-16:v1:69ad22deba7518f4024d11a3489f7228fba6bf7c6061d213a154e1efcd537eb7",
+    "classified_count": 14915,
+    "result_sha256": "69ad22deba7518f4024d11a3489f7228fba6bf7c6061d213a154e1efcd537eb7",
+    "catalog_course_count": 750,
+    "curriculum_item_count": 14165,
+    "needs_review_count": 4378,
+    "category_counts": {
+      "01": 1154,
+      "02": 973,
+      "03": 1343,
+      "04": 602,
+      "05": 295,
+      "06": 248,
+      "07": 805,
+      "08": 1094,
+      "09": 834,
+      "10": 672,
+      "11": 1104,
+      "12": 247,
+      "13": 690,
+      "14": 2076,
+      "15": 741,
+      "16": 2037
+    }
+  },
+  "unchanged_classifier_inputs": {
+    "original_source_release_digest": "42616ee9348ee009fa1b297f7ef697862134835e562c7840f413643ce71d2130",
+    "reason": "Admission-only repair; all classifier inputs and curriculum ownership are unchanged.",
+    "unchanged_files_sha256": {
+      "data\\courses.jsonl": "4f03ff2d36cc679f19524dfa7e29bb1fc6e66cd5cb601608db31a592d2b34dab",
+      "data\\curriculum_items.jsonl": "b0623544a046eca06b0c1d374258f5f0d886c201ecb63c11cc1be0d2dc965649",
+      "data\\departments.jsonl": "a17dd4ac8b3869c58b5560610f2393b355b6b8764a0bad178ebf711bdf3e80a6",
+      "data\\directions.jsonl": "29c3205771bec279f5e52768d0b875c1902b868daaf4eb291fb589edeebd4a6e",
+      "data\\educational_programs.jsonl": "3b065c92ffd0b638a16b38b102195584d93a34d1fff595a859ab38a064d3f150",
+      "data\\study_plans.jsonl": "bd5ba551726417fdd1646f37269b9d66ef57d9c7e05434d5e5bd3927ac24f21f"
+    },
+    "exact_validated_subject_inputs": 14915
+  },
+  "original_bundle_still_unchanged": true,
+  "runtime_role_verification": {
+    "role": "andromeda_api_runtime",
+    "transaction_read_only": "on",
+    "offers": 127,
+    "verified_shared_groups": [
+      "offering:bmstu:2026:app8.1:p2:t1:r9",
+      "offering:bmstu:2026:app8.1:p5:t1:r10",
+      "offering:bmstu:2026:app8.1:p5:t1:r21"
+    ],
+    "may_update_educational_programs": false
+  },
+  "runtime_schema_head": "c7e2b4a91d63"
+}

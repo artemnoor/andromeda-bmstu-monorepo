@@ -31,8 +31,10 @@ tables, then dropping that temporary database:
 .\infra\database\restore-check.ps1 -Target test -BackupPath .\artifacts\local\academic-data-test.dump
 ```
 
-The restore check does not restore over the source database. It needs local
-PostgreSQL client tools (`psql`, `pg_dump`, `pg_restore`, `createdb`, and
+The restore check does not restore over the source database. Use PostgreSQL 16
+client tools for backups that will be restored into PostgreSQL 16: a dump from
+client 17 can contain unsupported settings such as `transaction_timeout`.
+It needs local tools (`psql`, `pg_dump`, `pg_restore`, `createdb`, and
 `dropdb`) on `PATH`, plus permission to create and drop a temporary database.
 Passwords are supplied to client tools through the process environment; they
 are not command-line arguments or script output. If validation or cleanup

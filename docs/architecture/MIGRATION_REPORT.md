@@ -128,4 +128,21 @@ The preceding frontend/migration readiness statements are historical checkpoints
 
 This follow-up adds Alembic revision `b62d4e91a8c3` as an additive child of `7c2a16df09b4`, bringing the history to fourteen revisions. It preserves nullable targeted-quota organization, tax identifier, region and campus fields from the checked-in source bundle through PostgreSQL export and typed API projection. Tax identifiers remain text. The prior thirteen revision files and existing immutable release rows remain unchanged. The new revision also updates the current migration-head expectation used by backup/restore checks.
 
+## Shared admission relationship read permission — 2026-10-19
+
+Revision `c7e2b4a91d63`, child of `b62d4e91a8c3`, grants only SELECT on
+`public.source_relationships` to `andromeda_api_readonly`. Actual reads under
+`andromeda_api_runtime` reproduced SQLSTATE `42501` without this permission;
+owner-only API tests had concealed the missing grant. The table contains
+normalized source links and is already represented in the Directus read model.
+The API validates the relationship type, evidence, source locator, release,
+program identity, campus and direction before exposing a group of profiles.
+
+This fifteenth revision changes ACLs, not academic table definitions, release
+contents, row ownership or publication rules. DML and raw `source_observations`
+access remain forbidden. Downgrade revokes this one SELECT grant. Deploy this
+migration before the new API; for rollback, restore the earlier API before
+revoking its new read permission. A dedicated PostgreSQL test compares owner
+and runtime offering DTOs and checks denied DML/raw-observation access.
+
 The QA branch adds the Playwright browser harness and live PostgreSQL 16-backed browser path, regression cases for release coherence and academic unknown-value semantics, and an unconditional browser integration job for pull requests. Repository-wide Ruff and frontend unit/build checks run in CI. Directus remains read-only on academic tables. Docker Compose validates, but Docker Desktop could not start locally, so a local Directus HTTP container smoke is not claimed. Local verification reports 118 Python passed/1 skipped, 23 Node passed, a successful build and Ruff, and 229 full Playwright Chromium/Firefox/WebKit cases passed with 41 scoped skips. GitHub Actions run [37942996532](https://github.com/artemnoor/andromeda-bmstu-monorepo/actions/runs/37942996532) also passed: Python 118 passed/1 skipped, live Playwright 232 passed/38 scoped skips, Node 23 passed, build, Ruff, PostgreSQL lifecycle/backup-restore, API contracts, and Directus permission checks. The focused 39-case requirement/chart run and workflow edge cases pass across all three engines. An earlier Firefox teardown error did not recur in the final combined browser run. The [QA report](../testing/COMPREHENSIVE_QA_REPORT.md) records exact local and CI test counts, PR, run, and remaining limits.
