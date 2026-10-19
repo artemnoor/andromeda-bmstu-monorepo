@@ -1,7 +1,7 @@
 import type { ApiSchemas } from "@/shared/api/client";
 import type { CatalogProgram } from "./model";
 import { subjectLabel, type AdmissionSummary } from "./admission-model";
-import { SCORE_ROWS, enrollmentCell, scoreCell } from "./admission-table-model";
+import { ENROLLMENT_ROWS, SCORE_ROWS, enrollmentCell, scoreCell } from "./admission-table-model";
 import styles from "./admission-facts.module.css";
 
 export interface AdmissionColumn {
@@ -16,25 +16,25 @@ function Source({ href }: { href: string }) {
 
 export function AdmissionEnrollmentTable({ columns, year }: { columns: readonly AdmissionColumn[]; year: number }) {
   return <section className={styles.section}>
-    <h3>Всего зачислено · {year}</h3>
+    <h3>Зачислено на направление подготовки · {year}</h3>
     <div className={styles.tableWrap}>
       <table className={styles.table}>
-        <caption className={styles.srOnly}>Всего зачислено по опубликованным приказам за {year} год</caption>
+        <caption className={styles.srOnly}>Зачислено на всё направление подготовки по видам финансирования и квотам за {year} год</caption>
         <thead><tr><th scope="col">Показатель</th>{columns.map((column) => <th scope="col" key={column.key}>{column.label}</th>)}</tr></thead>
-        <tbody><tr>
-          <th scope="row">Всего зачислено</th>
+        <tbody>{ENROLLMENT_ROWS.map((row) => <tr key={row.key}>
+          <th scope="row">{row.label}</th>
           {columns.map((column) => {
-            const result = enrollmentCell(column.summary, year);
+            const result = enrollmentCell(column.summary, year, row);
             return <td key={column.key} data-program-label={column.label}><div className={styles.result}>
               <strong>{result.value}</strong>
               {result.note ? <span>{result.note}</span> : null}
               {result.sourceUrls.map((href) => <Source key={href} href={href} />)}
             </div></td>;
           })}
-        </tr></tbody>
+        </tr>)}</tbody>
       </table>
     </div>
-    <p className={styles.note}>Зачисленные по опубликованным приказам. Число по направлению относится ко всем его профилям.</p>
+    <p className={styles.note}>Зачислено на всё направление подготовки, включая все его профили, по опубликованным приказам. Квоты входят в бюджетный итог и показаны отдельно как его часть.</p>
   </section>;
 }
 

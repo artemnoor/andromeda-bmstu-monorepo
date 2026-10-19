@@ -9,17 +9,28 @@ export const SCORE_ROWS = [
 ] as const;
 
 type ScoreRow = typeof SCORE_ROWS[number];
+export const ENROLLMENT_ROWS = [
+  { key: "budget", label: "Бюджет · всего", funding: "budget", competition: null },
+  { key: "paid", label: "Платное обучение", funding: "paid", competition: null },
+  { key: "targeted", label: "В том числе · целевая квота", funding: "budget", competition: "targeted" },
+  { key: "special", label: "В том числе · особая квота", funding: "budget", competition: "special_quota" },
+  { key: "separate", label: "В том числе · отдельная квота", funding: "budget", competition: "separate_quota" },
+] as const;
+
 export interface EnrollmentCell {
   readonly value: string;
   readonly note: string | null;
   readonly sourceUrls: readonly string[];
 }
 
-export function enrollmentCell(summary: AdmissionSummary | undefined, year: number): EnrollmentCell {
+export function enrollmentCell(summary: AdmissionSummary | undefined, year: number, row?: typeof ENROLLMENT_ROWS[number]): EnrollmentCell {
   const unavailable = { value: summary ? "Не опубликовано" : "Не удалось загрузить", note: null, sourceUrls: [] };
   if (!summary) return unavailable;
   const records = (summary.year === year ? summary.campaignResults : summary.historicalResults).filter((result) => (
     result.year === year && (result.funding === "budget" || result.funding === "paid")
+    && (!row || (result.funding === row.funding
+      && (row.competition === null || result.competitionType === row.competition)
+      && (!result.scopeType || result.scopeType === "direction")))
   ));
   const bestScope = Math.max(-1, ...records.map(specificity));
   const scoped = records.filter((result) => specificity(result) === bestScope);
@@ -47,7 +58,11 @@ export function enrollmentCell(summary: AdmissionSummary | undefined, year: numb
       if (result.sourceUrl) sources.add(result.sourceUrl);
     });
   }
-  return { value: new Intl.NumberFormat("ru-RU").format(count), note: [...notes].join("; ") || null, sourceUrls: [...sources] };
+  return {
+    value: new Intl.NumberFormat("ru-RU").format(count),
+    note: row ? `Всё направление подготовки ${summary.directionCode ?? ""} · все профили` : [...notes].join("; ") || null,
+    sourceUrls: [...sources],
+  };
 }
 
 export interface ScoreCell {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { AdmissionCampaignResult, AdmissionSummary } from "@/features/catalog/admission-model";
-import { SCORE_ROWS, enrollmentCell, scoreCell } from "@/features/catalog/admission-table-model";
+import { ENROLLMENT_ROWS, SCORE_ROWS, enrollmentCell, scoreCell } from "@/features/catalog/admission-table-model";
 
 function result(overrides: Partial<AdmissionCampaignResult> = {}): AdmissionCampaignResult {
   return {
@@ -21,6 +21,22 @@ function summary(overrides: Partial<AdmissionSummary> = {}): AdmissionSummary {
 }
 
 describe("admission score table", () => {
+  it("separates direction budget and paid enrollment and shows quotas as part of the budget", () => {
+    const data = summary({ campaignResults: [
+      result({ admittedCount: 12 }),
+      result({ admittedCount: 3, competitionType: "bvi", status: "bvi", stage: "first", score: null }),
+      result({ admittedCount: 7, competitionType: "special_quota", stage: "first" }),
+      result({ admittedCount: 7, competitionType: "special_quota", status: "bvi", stage: "first", score: null }),
+      result({ admittedCount: 5, funding: "paid" }),
+      result({ admittedCount: 999, scopeType: "program", scopeNote: "по программе" }),
+    ] });
+    expect(enrollmentCell(data, 2026, ENROLLMENT_ROWS[0])).toMatchObject({ value: "22", note: "Всё направление подготовки 27.03.05 · все профили" });
+    expect(enrollmentCell(data, 2026, ENROLLMENT_ROWS[1]).value).toBe("5");
+    expect(enrollmentCell(data, 2026, ENROLLMENT_ROWS[3]).value).toBe("7");
+    expect(enrollmentCell(data, 2026, ENROLLMENT_ROWS[2]).value).toBe("Не опубликовано");
+    expect(enrollmentCell(summary({ campaignResults: [result({ admittedCount: 8, scopeType: "program" })] }), 2026, ENROLLMENT_ROWS[0]).value).toBe("Не опубликовано");
+  });
+
   it("totals enrollment across funding and quotas without multiplying shared BVI/numeric counts", () => {
     const data = summary({ campaignResults: [
       result({ admittedCount: 12 }),
