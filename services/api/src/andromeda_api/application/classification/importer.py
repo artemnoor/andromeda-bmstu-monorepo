@@ -6,6 +6,7 @@ import argparse
 import hashlib
 import json
 import sys
+import tempfile
 from collections import Counter
 from datetime import datetime
 from decimal import Decimal
@@ -46,6 +47,24 @@ class ClassificationImportError(RuntimeError):
     """A classification package or target release failed import checks."""
 
 
+def _load_package_subjects(bundle_path: Path) -> tuple[list[dict[str, Any]], str]:
+    if bundle_path.is_dir():
+        return _load_subjects(bundle_path)
+    # Published releases can retain their exact source ZIP. Read only validated
+    # normalized classifier inputs, without extracting arbitrary ZIP members.
+    with BundleReader(bundle_path) as bundle, tempfile.TemporaryDirectory(
+        prefix="andromeda-classification-"
+    ) as directory:
+        target = Path(directory)
+        (target / "data").mkdir()
+        for name in (
+            "educational_programs", "departments", "directions", "courses", "curriculum_items"
+        ):
+            relative = f"data/{name}.jsonl"
+            (target / relative).write_bytes(bundle.read_bytes(relative))
+        return _load_subjects(target)
+
+
 def _read_manifest(path: Path) -> dict[str, Any]:
     try:
         document = json.loads(path.read_text(encoding="utf-8"))
@@ -80,7 +99,7 @@ def _validate_package(
         raise ClassificationImportError(
             "the Jev model version changed during the classification run"
         )
-    subjects, bundle_digest = _load_subjects(bundle_path)
+    subjects, bundle_digest = _load_package_subjects(bundle_path)
     if bundle_digest != manifest.get("source_input_sha256"):
         raise ClassificationImportError("source bundle contents changed after classification")
     if len(subjects) != manifest.get("expected_records"):

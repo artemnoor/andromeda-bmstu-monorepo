@@ -1,4 +1,5 @@
 import json
+import zipfile
 from pathlib import Path
 
 import pytest
@@ -113,3 +114,19 @@ def test_revalidation_never_overwrites_existing_manifest(package):
     with pytest.raises(FileExistsError):
         revalidate(package)
     assert package[1].read_text(encoding="utf-8") == "existing"
+
+
+def test_zip_subject_inputs_equal_directory_inputs(tmp_path, monkeypatch):
+    names = ["educational_programs", "departments", "directions", "courses", "curriculum_items"]
+    expected = {f"data/{name}.jsonl": b"{}\n" for name in names}
+    archive_path = tmp_path / "bundle.zip"
+    with zipfile.ZipFile(archive_path, "w") as archive:
+        for name, body in expected.items():
+            archive.writestr("bundle/" + name, body)
+
+    def load(directory):
+        assert {name: (directory / name).read_bytes() for name in expected} == expected
+        return [{"subject_external_key": "item:1"}], "unchanged-inputs"
+
+    monkeypatch.setattr(importer, "_load_subjects", load)
+    assert importer._load_package_subjects(archive_path) == ([{"subject_external_key": "item:1"}], "unchanged-inputs")
