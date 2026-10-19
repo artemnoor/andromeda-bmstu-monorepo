@@ -2949,7 +2949,7 @@
             "type": "string"
           },
           "evidence_key": {
-            "maxLength": 256,
+            "maxLength": 512,
             "minLength": 1,
             "title": "Evidence Key",
             "type": "string"

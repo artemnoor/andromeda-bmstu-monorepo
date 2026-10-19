@@ -114,7 +114,10 @@ class SourceReference(ContractModel):
 
 
 class SourceEvidenceReference(ContractModel):
-    evidence_key: ExternalKey
+    # Evidence keys include dataset, subject identity and source hash. The
+    # persisted evidence identifier has a 512-character bound; program keys
+    # and other public identifiers retain their existing narrower contract.
+    evidence_key: Annotated[str, Field(min_length=1, max_length=512)]
     source_artifact_key: ExternalKey
     claim_path: str
     locator: dict[str, Any] | str | None = None

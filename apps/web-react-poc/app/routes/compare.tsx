@@ -52,6 +52,18 @@ function formatMetric(metric: NullableMetric, unit: string): string {
 
 function planStatusMessage(program: ProgramComparisonModel): string {
   if (program.itemsStatus === "unavailable") return "Состав подтверждённого плана не удалось полностью загрузить.";
+  if (program.planSelection.status !== "ready") {
+    const gaps = program.planSelection.currentPlan?.data_gaps ?? [];
+    if (gaps.some((gap) => gap.field_path === "study_plan_source_placeholder")) {
+      return "В официальном источнике пока заглушка: «Учебный план появится позже».";
+    }
+    if (gaps.some((gap) => gap.field_path === "study_plan_profile_mismatch")) {
+      return "Ссылка в каталоге ведёт на учебный план другого профиля. Его дисциплины не используются для этой программы.";
+    }
+    if (gaps.some((gap) => gap.field_path === "study_plan_no_downloadable_document")) {
+      return "В папке по официальной ссылке пока нет файла учебного плана.";
+    }
+  }
   switch (program.planSelection.status) {
     case "ready": return program.items.length ? "Используется последняя однозначно подтверждённая версия." : "В доступной версии плана нет позиций.";
     case "missing": return "Учебный план не опубликован для этой программы.";

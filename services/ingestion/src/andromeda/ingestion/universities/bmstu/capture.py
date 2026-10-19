@@ -198,26 +198,16 @@ class BmstuSource:
             self._capture_gaps.append(source_fetch_gap("bmstu_curriculum_metadata", public_url, metadata.error_code or "source_unavailable"))
             return ()
         payload = _json_object(metadata.body)
-        embedded = _object(payload.get("_embedded"))
-        items = _list(embedded.get("items")) if embedded else []
-        direct_urls: list[str] = []
-        top_level_file = _text(payload.get("file"))
-        if top_level_file:
-            direct_urls.append(top_level_file)
-        for item in items:
-            item_object = _object(item)
-            if item_object is None:
-                continue
-            direct_url = _text(item_object.get("file"))
-            if direct_url:
-                direct_urls.append(direct_url)
         metadata_snapshot = self._snapshot("bmstu_curriculum_metadata", public_url, metadata)
+        metadata_snapshots = [metadata_snapshot]
+        direct_urls = self._public_document_urls(resolved_url, payload, public_url, metadata_snapshots)
         if not direct_urls:
             selection_logger.warning("study_plan_document_unavailable plan_url=%s resource_type=%s", public_url, payload.get("type"))
             self._capture_gaps.append(source_fetch_gap("bmstu_curriculum_document", public_url, "document_missing"))
             return (metadata_snapshot,)
-        snapshots = [metadata_snapshot]
+        snapshots = metadata_snapshots
         unique_direct_urls = list(dict.fromkeys(direct_urls))
+        max_documents = max_documents if max_documents is not None else 64
         if max_documents is not None and len(unique_direct_urls) > max_documents:
             self._capture_gaps.append(
                 source_fetch_gap(
@@ -239,6 +229,74 @@ class BmstuSource:
                 continue
             snapshots.append(self._snapshot("bmstu_curriculum_document", public_url, resource))
         return tuple(snapshots)
+
+    def _public_document_urls(
+        self, resolved_url: str, payload: JsonObject, public_url: str,
+        snapshots: list[RawSourceSnapshot],
+    ) -> list[str]:
+        """Read bounded folder pages, including nested folders and download links.
+
+        An empty first page, API error or missing `file` attribute does not
+        establish that a public document does not exist.
+        """
+        urls: list[str] = []
+        pending: list[tuple[JsonObject, int]] = [(payload, 0)]
+        visited: set[tuple[str, int]] = set()
+        requests = 0
+        while pending:
+            node, depth = pending.pop(0)
+            direct = _text(node.get("file"))
+            if direct:
+                urls.append(direct)
+            if node.get("error"):
+                self._capture_gaps.append(source_fetch_gap("bmstu_curriculum_metadata", public_url, "public_resource_api_error"))
+                continue
+            embedded = _object(node.get("_embedded")) or {}
+            children = _list(embedded.get("items"))
+            for child in children:
+                obj = _object(child)
+                if obj is not None:
+                    pending.append((obj, depth + 1))
+            path = _text(node.get("path")) or "/"
+            pages: list[tuple[str, int]] = []
+            if node.get("type") == "dir" and not embedded:
+                pages.append((path, 0))
+            total = embedded.get("total")
+            offset = embedded.get("offset", 0)
+            if isinstance(total, int) and isinstance(offset, int) and offset + len(children) < total:
+                if children:
+                    pages.append((path, offset + len(children)))
+                else:
+                    self._capture_gaps.append(source_fetch_gap("bmstu_curriculum_metadata", public_url, "public_resource_pagination_incomplete"))
+            if node.get("type") == "file" and not direct:
+                download_url = "https://cloud-api.yandex.net/v1/disk/public/resources/download?public_key=" + quote(resolved_url, safe="") + "&path=" + quote(path, safe="")
+                if requests < 64:
+                    requests += 1
+                    resource = self.fetcher.fetch_http(download_url)
+                    if not resource.error and resource.body:
+                        link = _text(_json_object(resource.body).get("href"))
+                        if link:
+                            urls.append(link)
+                else:
+                    self._capture_gaps.append(source_fetch_gap("bmstu_curriculum_metadata", public_url, "public_resource_limit_reached"))
+            for folder_path, page_offset in pages:
+                identity = (folder_path, page_offset)
+                if identity in visited:
+                    continue
+                visited.add(identity)
+                if depth > 6 or requests >= 64:
+                    self._capture_gaps.append(source_fetch_gap("bmstu_curriculum_metadata", public_url, "public_resource_limit_reached"))
+                    continue
+                requests += 1
+                url = "https://cloud-api.yandex.net/v1/disk/public/resources?public_key=" + quote(resolved_url, safe="") + "&path=" + quote(folder_path, safe="") + f"&offset={page_offset}&limit=100"
+                resource = self.fetcher.fetch_http(url)
+                if resource.error or not resource.body:
+                    self._capture_gaps.append(source_fetch_gap("bmstu_curriculum_metadata", public_url, "public_resource_page_unavailable"))
+                    continue
+                snapshots.append(self._snapshot("bmstu_curriculum_metadata", public_url, resource))
+                pending.append((_json_object(resource.body), depth))
+        selection_logger.info("[FIX:study-plan-resolution] metadata_requests=%d documents=%d", requests + 1, len(urls))
+        return urls
 
     def _fetch_snapshot(self, kind: str, url: str) -> RawSourceSnapshot:
         fetch_http = getattr(self.fetcher, "fetch_http", None)
