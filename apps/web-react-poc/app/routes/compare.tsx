@@ -244,7 +244,7 @@ function AdmissionComparison({ data }: { data: ComparisonOverview }) {
     {
       label: "Минимальные баллы ЕГЭ",
       value: (_key, summary) => summary?.requirements.length
-        ? <OverviewValue value={summary.requirements.map((item) => `${item.category}: ${item.text}`).join("; ")} note={`Требования указаны для направления ${summary.directionCode ?? "не указано"}.`} sourceUrl={summary.requirements.find((item) => item.sourceUrl)?.sourceUrl ?? null} />
+        ? <OverviewValue value={summary.requirements.map((item) => `${item.category}: ${item.text}`).join("; ")} note={summary.requirementsNote ?? `Требования указаны для направления ${summary.directionCode ?? "не указано"}.`} sourceUrl={summary.requirements.flatMap((item) => item.sourceUrls)[0] ?? null} />
         : <OverviewValue value={summary ? "Нет данных" : "Не удалось загрузить"} note="Минимальные баллы не найдены в архиве." />,
     },
     {

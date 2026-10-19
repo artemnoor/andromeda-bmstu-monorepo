@@ -10,9 +10,9 @@ type LoadState =
   | { readonly kind: "error"; readonly message: string }
   | { readonly kind: "ready"; readonly summary: AdmissionSummary; readonly releaseKey: string };
 
-function SourceLink({ href }: { href: string | null }) {
+function SourceLink({ href, label = "Источник ↗" }: { href: string | null; label?: string }) {
   if (!href) return null;
-  return <a className={styles.sourceLink} href={href} target="_blank" rel="noopener noreferrer">Источник ↗</a>;
+  return <a className={styles.sourceLink} href={href} target="_blank" rel="noopener noreferrer">{label}</a>;
 }
 
 function CampaignResult({ result }: { result: AdmissionCampaignResult }) {
@@ -99,41 +99,6 @@ function Details({
         </div> : <p className={styles.admissionMuted}>Число зачисленных не опубликовано в доступных приказах.</p>}
       </section>
 
-      <section className={styles.admissionSection} aria-labelledby={`admission-seats-${program.external_key}`}>
-        <h3 id={`admission-seats-${program.external_key}`}>План приёма и квоты · {summary.year ?? "год не указан"}</h3>
-        <p className={styles.admissionNote}>{summary.seatScope}. Эти значения относятся к плану приёма. Фактическое число зачисленных показано отдельно по опубликованным приказам.</p>
-        <div className={styles.admissionMetrics}>
-          {summary.seats.map((metric) => (
-            <article className={styles.admissionMetric} key={metric.label}>
-              <span>{metric.label}</span>
-              <strong>{metric.value === "—"
-                ? "Нет подтверждённых данных"
-                : metric.value}</strong>
-              {metric.note ? <span>{metric.note}</span> : null}
-              <SourceLink href={metric.sourceUrl} />
-            </article>
-          ))}
-        </div>
-        {summary.seatNote ? <p className={styles.admissionMuted}>{summary.seatNote}</p> : null}
-        {summary.quotas.length ? (
-          <ul className={styles.admissionList} aria-label="Плановые квоты">
-            {summary.quotas.map((quota, index) => (
-              <li key={`${quota.label}:${quota.scope}:${index}`}>
-                <strong>{quota.label}: {quota.value}</strong>
-                <span>Уровень данных: {quota.scope}</span>
-                <SourceLink href={quota.sourceUrl} />
-              </li>
-            ))}
-          </ul>
-        ) : <p className={styles.admissionMuted}>Не найдены квоты с подтверждённой связью с этой программой. Данные более широкого уровня без точной идентичности предложения не приписываются программе.</p>}
-        {summary.quotaNote ? <p className={styles.admissionMuted}>{summary.quotaNote}</p> : null}
-        {summary.directionQuotas.length ? <details className={styles.relatedFacts}>
-          <summary>Целевые заказчики по направлению · {summary.directionQuotas.length}</summary>
-          <p>Места опубликованы для направления и заказчика. Распределение по профилям не задано.</p>
-          <ul className={styles.admissionList}>{summary.directionQuotas.map((quota, index) => <li key={index}><strong>{quota.label} · {quota.value}</strong><span>{quota.scope}</span><SourceLink href={quota.sourceUrl} /></li>)}</ul>
-        </details> : null}
-      </section>
-
       <section className={styles.admissionSection} aria-labelledby={`admission-results-${program.external_key}`}>
         <h3 id={`admission-results-${program.external_key}`}>Проходные баллы и зачисление · приём {summary.year ?? "год не указан"}</h3>
         <p className={styles.admissionNote}>Общий конкурс и квоты показаны раздельно. У каждого результата указан уровень данных.</p>
@@ -168,10 +133,17 @@ function Details({
 
       <section className={styles.admissionSection} aria-labelledby={`admission-requirements-${program.external_key}`}>
         <h3 id={`admission-requirements-${program.external_key}`}>Вступительные требования</h3>
+        {summary.requirementsNote ? <p className={styles.admissionNote}>{summary.requirementsNote}</p> : null}
         {summary.requirements.length ? (
           <ul className={styles.admissionList}>{summary.requirements.map((item, index) => (
-            <li key={`${item.category}:${index}`}>
-              <strong>{item.category}</strong><span>{item.text}</span><SourceLink href={item.sourceUrl} />
+            <li key={`${item.category}:${item.text}:${index}`}>
+              <strong>{item.category}</strong><span>{item.text}</span>
+              {item.sourceRecordCount > 1 ? <span>Одинаковый набор найден в {item.sourceRecordCount} строках источника.</span> : null}
+              {item.sourceUrls.map((href, sourceIndex) => <SourceLink
+                key={href}
+                href={href}
+                label={item.sourceUrls.length > 1 ? `Источник ${sourceIndex + 1} ↗` : "Источник ↗"}
+              />)}
             </li>
           ))}</ul>
         ) : <p className={styles.admissionMuted}>Требования для этого направления не указаны в активном выпуске.</p>}

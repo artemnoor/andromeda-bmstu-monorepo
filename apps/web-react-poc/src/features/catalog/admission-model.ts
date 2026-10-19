@@ -81,7 +81,8 @@ export interface AdmissionCampaignResult {
 export interface AdmissionRequirement {
   readonly category: string;
   readonly text: string;
-  readonly sourceUrl: string | null;
+  readonly sourceUrls: readonly string[];
+  readonly sourceRecordCount: number;
 }
 
 export interface AdmissionSummary {
@@ -98,6 +99,7 @@ export interface AdmissionSummary {
   readonly history: readonly AdmissionHistoryRow[];
   readonly campaignResults: readonly AdmissionCampaignResult[];
   readonly requirements: readonly AdmissionRequirement[];
+  readonly requirementsNote: string | null;
   readonly offers: readonly string[];
   readonly tuition: readonly string[];
   readonly dates: readonly { label: string; date: string; sourceUrl: string | null }[];
@@ -499,13 +501,32 @@ export function buildAdmissionSummary(program: CatalogProgram, data: ProgramAdmi
     .sort((left, right) => right.year - left.year)
     .slice(0, 6);
 
-  const requirements = data.requirements
-    .filter((requirement) => requirement.direction_key === program.direction_key)
-    .map((requirement) => ({
-      category: requirementCategory(requirement.root),
-      text: requirementExpression(requirement.root),
-      sourceUrl: sourceUrl(requirement),
-    }));
+  const requirementGroups = new Map<string, {
+    category: string;
+    text: string;
+    sourceUrls: Set<string>;
+    sourceRecordCount: number;
+  }>();
+  for (const requirement of data.requirements.filter((item) => item.direction_key === program.direction_key)) {
+    const applicantCategory = requirement.applicant_category?.trim();
+    const category = `${requirementCategory(requirement.root)}${applicantCategory ? ` · ${applicantCategory}` : ""}`;
+    const text = requirementExpression(requirement.root);
+    const groupKey = `${category}\u0000${text}`;
+    const group = requirementGroups.get(groupKey) ?? {
+      category,
+      text,
+      sourceUrls: new Set<string>(),
+      sourceRecordCount: 0,
+    };
+    group.sourceRecordCount += 1;
+    const href = sourceUrl(requirement);
+    if (href) group.sourceUrls.add(href);
+    requirementGroups.set(groupKey, group);
+  }
+  const requirements = [...requirementGroups.values()].map((group) => ({
+    ...group,
+    sourceUrls: [...group.sourceUrls],
+  }));
 
   const exactOffers = linkedOfferings(program, data.offerings);
   const offers = [...new Set(exactOffers.flatMap((offering) => [
@@ -647,6 +668,9 @@ export function buildAdmissionSummary(program: CatalogProgram, data: ProgramAdmi
             : null),
       })),
     requirements,
+    requirementsNote: requirements.length
+      ? `Требования опубликованы на уровне направления ${program.directionCode ?? "без указанного кода"}; источник не связывает их с конкретным профилем. Полностью совпадающие наборы объединены, различающиеся условия показаны отдельно.`
+      : null,
     offers,
     tuition: [...new Set(tuition)],
     dates,
