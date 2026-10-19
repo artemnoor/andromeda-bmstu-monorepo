@@ -48,21 +48,19 @@ describe("home page interactions", () => {
     expect([...container.querySelectorAll("main > section[id]")].map((section) => section.id)).toEqual([
       "comparison-overview",
       "career-guidance",
-      "program-catalog",
-      "admission-and-sources",
       "final-cta",
     ]);
+    expect(screen.queryByRole("heading", { name: "Изучи содержание каждой программы" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Смотри на условия вместе с их контекстом" })).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Сравнить направление" })).toHaveAttribute("href", "/compare");
     for (const link of screen.getAllByRole("link", { name: "Пройти профтест" })) {
       expect(link).toHaveAttribute("href", "/discover");
     }
-    expect(screen.getAllByRole("link", { name: "Открыть каталог программ" })).toHaveLength(2);
+    expect(screen.getAllByRole("link", { name: "Открыть каталог программ" })).toHaveLength(1);
     for (const link of screen.getAllByRole("link", { name: "Открыть каталог программ" })) {
       expect(link).toHaveAttribute("href", "/programs");
     }
-    const admission = screen.getByRole("link", { name: "Изучить условия поступления" });
-    expect(admission).toHaveAttribute("href", "/programs");
-    expect(admission).not.toHaveAttribute("target", "_blank");
+    expect(screen.queryByRole("link", { name: "Изучить условия поступления" })).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Открыть сравнение" })).toHaveAttribute("href", "/compare");
   });
 

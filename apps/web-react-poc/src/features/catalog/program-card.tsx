@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useId, useState } from "react";
 import { Link } from "react-router";
 import { AdmissionDetails } from "./admission-details";
 import type { CatalogProgram } from "./model";
-import { comparisonSelection, favoritesSelection, useComparisonSelection, useFavorites } from "@/shared/browser-state/hooks";
+import { comparisonSelection, useComparisonSelection } from "@/shared/browser-state/hooks";
 import { MAX_COMPARE_PROGRAMS } from "@/shared/browser-state/storage";
 import styles from "./programs.module.css";
 
@@ -30,11 +30,10 @@ export function ProgramCard({ program, expectedReleaseKey, onSelectionLimit }: {
   onSelectionLimit: (message: string) => void;
 }) {
   const comparison = useComparisonSelection();
-  const favorites = useFavorites();
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const detailsId = useId();
   const key = program.external_key;
   const isCompared = comparison.includes(key);
-  const isFavorite = favorites.includes(key);
   const externalLinks = safeLinks(program);
   const direction = [program.directionCode, program.directionName].filter(Boolean).join(" · ");
   const department = program.departments.length > 0
@@ -52,13 +51,6 @@ export function ProgramCard({ program, expectedReleaseKey, onSelectionLimit }: {
       : "");
   }
 
-  function toggleFavorite() {
-    const status = favoritesSelection.toggle(key, !isFavorite);
-    onSelectionLimit(status === "unavailable"
-      ? "Браузер не сохранил избранное. Разрешите localStorage и попробуйте снова."
-      : "");
-  }
-
   return (
     <article className={styles.programCard} data-program-code={program.code} data-program-key={program.external_key}>
       <div className={styles.cardTop}>
@@ -72,21 +64,11 @@ export function ProgramCard({ program, expectedReleaseKey, onSelectionLimit }: {
           >
             {isCompared ? "✓ В сравнении" : "Добавить в сравнение"}
           </button>
-          <button
-            className={styles.favoriteAction}
-            type="button"
-            aria-label={isFavorite ? "Убрать из избранного" : "Добавить в избранное"}
-            title={isFavorite ? "Убрать из избранного" : "Добавить в избранное"}
-            aria-pressed={isFavorite}
-            onClick={toggleFavorite}
-          >
-            {isFavorite ? "Убрать из избранного" : "Добавить в избранное"}
-          </button>
         </div>
       </div>
 
-      <details className={styles.programDetails} onToggle={(event) => setDetailsOpen(event.currentTarget.open)}>
-        <summary className={styles.programSummary}>
+      <div className={styles.programDetails}>
+        <div className={styles.programSummary}>
           <h2 className={styles.programTitle}>{program.name || "Название не указано"}</h2>
           {program.description ? <p className={styles.programDescription}>{program.description}</p> : null}
           {direction || department ? (
@@ -95,14 +77,22 @@ export function ProgramCard({ program, expectedReleaseKey, onSelectionLimit }: {
               {department ? <span className={styles.programFact}><span className={styles.factLabel}>Кафедра</span><span className={styles.factValue}>{department}</span></span> : null}
             </span>
           ) : null}
-          <span className={styles.expandHint}>{detailsOpen ? "Скрыть" : "Подробнее"}</span>
-        </summary>
+          <button
+            className={styles.detailsButton}
+            type="button"
+            aria-expanded={detailsOpen}
+            aria-controls={detailsId}
+            onClick={() => setDetailsOpen((open) => !open)}
+          >
+            {detailsOpen ? "Скрыть" : "Подробнее"}
+          </button>
+        </div>
         {detailsOpen ? (
-          <>
+          <div id={detailsId}>
             <AdmissionDetails program={program} expectedReleaseKey={expectedReleaseKey} />
-          </>
+          </div>
         ) : null}
-      </details>
+      </div>
 
       <footer className={styles.cardBottom}>
         <span className={styles.campusTag}>{program.campus_status === "verified" && program.campus_scope === "head_moscow"

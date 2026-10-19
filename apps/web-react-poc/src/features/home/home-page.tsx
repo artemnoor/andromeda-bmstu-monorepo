@@ -157,51 +157,6 @@ export function HomePage() {
             <Link className={styles.sectionAction} to="/programs">Открыть каталог программ</Link>
           </section>
 
-          <section className={`${styles.contentSection} ${styles.storySection}`} id="program-catalog">
-            <header className={styles.sectionHeading}>
-              <h2 className={styles.sectionTitle}>Изучи содержание каждой программы</h2>
-              <p className={styles.sectionDescription}>Найди направление по названию или коду, открой карточку программы и изучи учебный план и сведения о поступлении.</p>
-            </header>
-            <div className={styles.storyGrid}>
-              <article className={styles.storyCard}>
-                <span className={styles.storyLabel}>Поиск</span>
-                <h3 className={styles.storyTitle}>Найди нужное направление</h3>
-                <p className={styles.storyDescription}>Ищи программы в каталоге и переходи к подробной карточке.</p>
-              </article>
-              <article className={styles.storyCard}>
-                <span className={styles.storyLabel}>Содержание</span>
-                <h3 className={styles.storyTitle}>Разберись, чему учат</h3>
-                <p className={styles.storyDescription}>Открой доступные учебные сведения и первичные документы программы.</p>
-              </article>
-            </div>
-            <Link className={styles.sectionAction} to="/programs">Открыть каталог программ</Link>
-          </section>
-
-          <section className={`${styles.contentSection} ${styles.storySection}`} id="admission-and-sources">
-            <header className={styles.sectionHeading}>
-              <h2 className={styles.sectionTitle}>Смотри на условия вместе с их контекстом</h2>
-              <p className={styles.sectionDescription}>В карточках программ собраны опубликованные сведения о приёме. Указаны год и уровень данных; ссылка на источник доступна там, где она опубликована.</p>
-            </header>
-            <div className={`${styles.storyGrid} ${styles.admissionStoryGrid}`}>
-              <article className={styles.storyCard}>
-                <span className={styles.storyLabel}>Места</span>
-                <h3 className={styles.storyTitle}>План набора и квоты</h3>
-                <p className={styles.storyDescription}>Числа сопровождаются пояснением, к какому конкурсу и уровню данных они относятся.</p>
-              </article>
-              <article className={styles.storyCard}>
-                <span className={styles.storyLabel}>Проходные баллы</span>
-                <h3 className={styles.storyTitle}>Результаты прошлых кампаний</h3>
-                <p className={styles.storyDescription}>Для опубликованных результатов видны год, этап конкурса и ссылка на источник.</p>
-              </article>
-              <article className={styles.storyCard}>
-                <span className={styles.storyLabel}>Требования</span>
-                <h3 className={styles.storyTitle}>Предметы и минимумы</h3>
-                <p className={styles.storyDescription}>Открой условия направления и проверь опубликованные требования к поступлению.</p>
-              </article>
-            </div>
-            <Link className={styles.sectionAction} to="/programs">Изучить условия поступления</Link>
-          </section>
-
           <section className={`${styles.contentSection} ${styles.finalSection}`} id="final-cta">
             <div className={styles.finalCta}>
               <div className={styles.ctaCopy}>

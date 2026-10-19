@@ -285,17 +285,14 @@ test("a live catalog choice persists into a one-program comparison after refresh
   await expect(removeProgramButton).toBeVisible();
 });
 
-test("favorite selection stays synchronized in browser storage after a refresh", async ({ page, diagnostics }) => {
+test("catalog details open through Подробнее and remain available after a refresh", async ({ page, diagnostics }) => {
   await page.goto("/programs");
   const program = await discoverLiveCurriculumProgram(page);
   const card = page.getByRole("article").filter({ hasText: program.code }).first();
-  await card.locator("summary").click();
+  await card.getByRole("button", { name: "Подробнее" }).click();
   await expect(card.getByRole("heading", { name: /Места и условия поступления/ })).toBeVisible();
-  const favorite = card.getByRole("button", { name: /Добавить в избранное/ });
-  await favorite.click();
-  await expect(card.getByRole("button", { name: /Убрать из избранного/ })).toHaveAttribute("aria-pressed", "true");
-  await expect.poll(() => page.evaluate(() => localStorage.getItem("andromeda.favorites.v1")))
-    .toBe(JSON.stringify([program.externalKey]));
+  await expect(card.getByRole("button", { name: "Скрыть" })).toHaveAttribute("aria-expanded", "true");
+  await expect(card.getByRole("button", { name: /избранное/i })).toHaveCount(0);
 
   // The expanded card loads admission facts. Let those real API reads settle
   // before exercising refresh persistence; otherwise browser navigation
@@ -303,9 +300,9 @@ test("favorite selection stays synchronized in browser storage after a refresh",
   await page.waitForLoadState("networkidle");
   await page.reload();
   const reloadedCard = page.getByRole("article").filter({ hasText: program.code }).first();
-  await reloadedCard.locator("summary").click();
+  await reloadedCard.getByRole("button", { name: "Подробнее" }).click();
   await expect(reloadedCard.getByRole("heading", { name: /Места и условия поступления/ })).toBeVisible();
-  await expect(reloadedCard.getByRole("button", { name: /Убрать из избранного/ })).toHaveAttribute("aria-pressed", "true");
+  await expect(reloadedCard.getByRole("button", { name: "Скрыть" })).toHaveAttribute("aria-expanded", "true");
   await page.waitForLoadState("networkidle");
   expectLiveApiCalls(diagnostics, catalogEndpoints);
   expectHealthyBrowser(diagnostics);

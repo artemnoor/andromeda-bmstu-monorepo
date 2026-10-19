@@ -45,12 +45,11 @@ test("open navigation menu meets WCAG 2.1 AA automated checks", async ({ page })
   await expectAccessible(page);
 });
 
-test("expanded live admission details and favorite action meet WCAG 2.1 AA checks", async ({ page }) => {
+test("expanded live admission details meet WCAG 2.1 AA checks", async ({ page }) => {
   await page.goto("/programs");
   const card = page.getByRole("article").first();
-  await card.locator("summary").click();
+  await card.getByRole("button", { name: "Подробнее" }).click();
   await expect(card.getByRole("heading", { name: /Места и условия поступления/ })).toBeVisible();
-  await expect(card.getByRole("button", { name: /Добавить в избранное/ })).toBeVisible();
   await expectAccessible(page);
 });
 

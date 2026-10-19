@@ -143,7 +143,7 @@ test("catalog does not attribute a branch target quota through a broad link to a
   }
   const card = page.getByRole("article").filter({ hasText: program.code }).first();
   await expect(card.getByRole("heading", { level: 2, name: program.name, exact: true })).toBeVisible();
-  await card.locator("summary").click();
+  await card.getByRole("button", { name: "Подробнее" }).click();
 
   const quotaList = card.getByRole("list", { name: "Места по квотам" });
   await expect(quotaList).not.toContainText(targetPool.target_organization);

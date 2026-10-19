@@ -132,14 +132,11 @@ test("unknown routes provide a working route back to the catalog", async ({ page
   await expect(page.getByRole("heading", { name: "Каталог программ", exact: true })).toBeVisible();
 });
 
-test("home admission entry points open the deployed catalog rather than a developer localhost", async ({ page }) => {
+test("home no longer contains the removed admission section", async ({ page }) => {
   await installCatalog(page);
   await page.goto("/");
-  const admission = page.getByRole("link", { name: "Изучить условия поступления", exact: true });
-  await expect(admission).toHaveAttribute("href", "/programs");
-  expect(await admission.getAttribute("target")).not.toBe("_blank");
-  await admission.click();
-  await expect(page.getByRole("heading", { name: "Каталог программ", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Смотри на условия вместе с их контекстом" })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "Открыть каталог программ" })).toHaveAttribute("href", "/programs");
 });
 
 test("home, catalog, and comparison keep their content and navigation within six viewport widths", async ({ page, diagnostics }) => {

@@ -83,15 +83,17 @@ describe("program card browser state", () => {
     expect(screen.queryByText("Не указано")).not.toBeInTheDocument();
   });
 
-  it("persists a favorite from the expanded program details", async () => {
+  it("opens and closes program details only through the Подробнее button", async () => {
     render(<CardHarness />);
 
-    fireEvent.click(screen.getByText("Прикладная математика и информатика", { selector: "summary h2" }));
-    const favorite = await screen.findByRole("button", { name: "Добавить в избранное" });
-    fireEvent.click(favorite);
+    const detailsButton = screen.getByRole("button", { name: "Подробнее" });
+    expect(detailsButton).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByRole("button", { name: /избранное/i })).not.toBeInTheDocument();
+    fireEvent.click(detailsButton);
 
-    expect(JSON.parse(localStorage.getItem(STORAGE_KEYS.favorites) ?? "null")).toEqual([program.external_key]);
-    expect(screen.getByRole("button", { name: "Убрать из избранного" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "Скрыть" })).toHaveAttribute("aria-expanded", "true");
+    fireEvent.click(screen.getByRole("button", { name: "Скрыть" }));
+    expect(screen.getByRole("button", { name: "Подробнее" })).toHaveAttribute("aria-expanded", "false");
   });
 
   it("shows a visible message when browser storage rejects a user action", () => {
