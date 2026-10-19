@@ -20,6 +20,7 @@ EXPECTED_PARENTS = {
     "71d8c4a29f30": "f4b19a7c2d61",
     "7c2a16df09b4": "71d8c4a29f30",
     "b62d4e91a8c3": "7c2a16df09b4",
+    "c7e2b4a91d63": "b62d4e91a8c3",
 }
 
 
@@ -28,7 +29,7 @@ def test_migrations_are_discoverable_from_the_source_checkout() -> None:
     script = ScriptDirectory.from_config(config)
 
     assert Path(config.get_main_option("script_location"), "env.py").is_file()
-    assert script.get_heads() == ["b62d4e91a8c3"]
+    assert script.get_heads() == ["c7e2b4a91d63"]
     revisions = {revision.revision: revision.down_revision for revision in script.walk_revisions()}
     assert revisions == EXPECTED_PARENTS
 

@@ -65,9 +65,9 @@ FROM academic_data_alembic_version
         throw "Could not read the restored migration and schema state from temporary database '$restoreDatabase'."
     }
     $validation = ($validationOutput | Out-String).Trim()
-    $expected = "b62d4e91a8c3|1|1|1|57"
+    $expected = "c7e2b4a91d63|1|1|1|57"
     if ($validation -cne $expected) {
-        throw "Restore check found an unexpected migration or schema state in temporary database '$restoreDatabase'. Expected revision b62d4e91a8c3, all three data schemas, and 57 read-model tables."
+        throw "Restore check found an unexpected migration or schema state in temporary database '$restoreDatabase'. Expected revision c7e2b4a91d63, all three data schemas, and 57 read-model tables."
     }
     Write-Host "Restore check passed for local '$Target' backup; revision and expected schemas are present."
 }

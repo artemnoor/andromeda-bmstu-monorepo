@@ -170,7 +170,10 @@ test("live comparison preserves program-scoped admission and curriculum facts", 
   await expect(page.getByRole("heading", { name: "Места и проходные баллы" })).toBeVisible();
   const admissionTable = page.getByRole("table", { name: "Сравнение мест и условий приёма в выбранные программы." });
   await expect(admissionTable).toBeVisible();
-  await expect(admissionTable.locator("tbody tr")).toHaveCount(7);
+  await expect(admissionTable.locator("tbody tr")).toHaveCount(10);
+  for (const label of ["Отдельная квота", "Особая квота", "Целевая квота", "БВИ · без вступительных испытаний"]) {
+    await expect(admissionTable.getByRole("rowheader", { name: label, exact: true })).toBeVisible();
+  }
   await expect(admissionTable).toContainText(/Количество не указано|Не указано|не указаны|не найдено|не найдены|не указана|Сведения о приёме недоступны|мест|баллов|₽/i);
   expectSuccessfulAdmissionCalls(diagnostics.apiResponses);
   await expectSeededAdmissionFacts(page, program, admissionTable);

@@ -25,7 +25,7 @@ const summary: AdmissionSummary = {
     { label: "Платное · общий конкурс", value: "—", note: null, sourceUrl: null },
   ],
   relatedSeatFacts: [{ key: "offering:unresolved", fundingType: "paid", sourceProgramName: "Название в документе", departmentCode: "ФН3", value: "37 мест", note: null, sourceUrl: "https://bmstu.example/source" }],
-  quotas: [], quotaNote: null, historyScope: "направление", history: [], requirements: [],
+  quotas: [], directionQuotas: [], quotaNote: null, historyScope: "направление", history: [], requirements: [],
   campaignResults: [{ year: 2026, stage: "main", competitionType: "general", status: "numeric", funding: "budget", score: 288, snapshotDate: null, scopeType: "direction", scopeLabel: null, scopeNote: "Направление 01.03.02", sourceUrl: "https://bmstu.example/score" }],
   offers: [], tuition: [], dates: [],
 };
@@ -64,12 +64,11 @@ describe("catalog admission reliability", () => {
     mocks.load.mockResolvedValue({ releaseKey: "release:one" });
     render(<AdmissionDetails program={program} expectedReleaseKey="release:one" />);
     expect(await screen.findByText("0 мест")).toBeVisible();
-    expect(screen.getByText("Не подтверждено")).toBeVisible();
+    expect(screen.getByText("Иное название в приёмном плане")).toBeVisible();
     expect(screen.getByText("288 баллов")).toBeVisible();
     expect(screen.getByText(/Направление 01.03.02/)).toBeVisible();
-    fireEvent.click(screen.getByText("Посмотреть сведения о местах из источника"));
     expect(screen.getByText("Платное · 37 мест")).toBeVisible();
-    expect(screen.getByText(/Связь этих предложений с выбранной программой не подтверждена/)).toBeVisible();
+    expect(screen.getByText(/предложения именно из документа, а не места выбранного профиля/)).toBeVisible();
     expect(screen.getAllByRole("link", { name: "Источник ↗" }).map((link) => link.getAttribute("href"))).toEqual([
       "https://bmstu.example/source", "https://bmstu.example/score",
     ]);

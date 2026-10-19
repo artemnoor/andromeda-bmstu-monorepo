@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import type { CatalogProgram } from "./model";
 import { getProgramAdmission } from "./admission-api";
 import { buildAdmissionSummary, type AdmissionCampaignResult, type AdmissionSummary } from "./admission-model";
+import { admissionResultValue, COMPETITION_LABELS } from "./admission-results";
 import styles from "./programs.module.css";
 
 type LoadState =
@@ -14,21 +15,13 @@ function SourceLink({ href }: { href: string | null }) {
   return <a className={styles.sourceLink} href={href} target="_blank" rel="noopener noreferrer">Источник ↗</a>;
 }
 
-const COMPETITION_LABELS: Readonly<Record<string, string>> = {
-  general: "Общий конкурс",
-  other: "Конкурс, указанный в источнике",
-  separate_quota: "Отдельная квота",
-  special_quota: "Особая квота",
-  targeted: "Целевая квота",
-};
-
 function CampaignResult({ result }: { result: AdmissionCampaignResult }) {
   const funding = result.funding === "budget" ? "Бюджет" : result.funding === "paid" ? "Платное" : "Основа не указана";
   const stage = result.stage === "main" ? "основной этап" : result.stage === "first" ? "приоритетный этап" : "этап не указан";
   const numeric = result.status === "numeric" && result.score !== null;
   return <li>
     <strong>{funding} · {COMPETITION_LABELS[result.competitionType ?? ""] ?? "Вид конкурса не указан"}</strong>
-    <span className={styles.campaignScore}>{numeric && result.score !== null ? `${new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 1 }).format(result.score)} баллов` : "Числовой балл не опубликован"}</span>
+    <span className={styles.campaignScore}>{admissionResultValue(result)}</span>
     <span>{result.year} · {stage} · {result.scopeNote}</span>
     {numeric ? <span>Минимум в опубликованном списке зачисленных, не гарантия поступления.</span> : null}
     <SourceLink href={result.sourceUrl} />
@@ -84,15 +77,15 @@ function Details({
     <div className={styles.admissionPanel}>
       <section className={styles.admissionSection} aria-labelledby={`admission-seats-${program.external_key}`}>
         <h3 id={`admission-seats-${program.external_key}`}>Места и условия поступления · {summary.year ?? "год не указан"}</h3>
-        <p className={styles.admissionNote}>Общий конкурс · сведения на уровне: {summary.seatScope}. Квоты показаны отдельно.</p>
+        <p className={styles.admissionNote}>{summary.seatScope}. Бюджет — всего по приёмному плану, включая квоты; квоты повторно к нему не прибавляются.</p>
         <div className={styles.admissionMetrics}>
           {summary.seats.map((metric) => (
             <article className={styles.admissionMetric} key={metric.label}>
               <span>{metric.label}</span>
               <strong>{metric.value === "—"
                 ? summary.relatedSeatFacts.some((fact) => fact.fundingType === (metric.label.startsWith("Бюджет") ? "budget" : "paid"))
-                  ? "Не подтверждено"
-                  : "Количество не указано"
+                  ? "Иное название в приёмном плане"
+                  : "Нет строки приёма для этого профиля"
                 : metric.value}</strong>
               {metric.note ? <span>{metric.note}</span> : null}
               <SourceLink href={metric.sourceUrl} />
@@ -100,16 +93,15 @@ function Details({
           ))}
         </div>
         {summary.seatNote ? <p className={styles.admissionMuted}>{summary.seatNote}</p> : null}
-        {summary.relatedSeatFacts.length ? <details className={styles.relatedFacts}>
-          <summary>Посмотреть сведения о местах из источника</summary>
-          <p>Связь этих предложений с выбранной программой не подтверждена. Значения показаны отдельно и не складываются с местами программы.</p>
+        {summary.relatedSeatFacts.length ? <div className={styles.relatedFacts}>
+          <p>Для этой кафедры приёмный план использует другие названия. Ниже — предложения именно из документа, а не места выбранного профиля.</p>
           <ul className={styles.admissionList}>{summary.relatedSeatFacts.map((fact) => <li key={fact.key}>
             <strong>{fact.fundingType === "budget" ? "Бюджет" : "Платное"} · {fact.value}</strong>
             <span>Предложение из источника: {fact.sourceProgramName}{fact.departmentCode ? ` · кафедра ${fact.departmentCode}` : ""}</span>
             {fact.note ? <span>{fact.note}</span> : null}
             <SourceLink href={fact.sourceUrl} />
           </li>)}</ul>
-        </details> : null}
+        </div> : null}
         {summary.quotas.length ? (
           <ul className={styles.admissionList} aria-label="Места по квотам">
             {summary.quotas.map((quota, index) => (
@@ -122,6 +114,11 @@ function Details({
           </ul>
         ) : <p className={styles.admissionMuted}>Не найдены квоты с подтверждённой связью с этой программой. Данные более широкого уровня без точной идентичности предложения не приписываются программе.</p>}
         {summary.quotaNote ? <p className={styles.admissionMuted}>{summary.quotaNote}</p> : null}
+        {summary.directionQuotas.length ? <details className={styles.relatedFacts}>
+          <summary>Целевые заказчики по направлению · {summary.directionQuotas.length}</summary>
+          <p>Места опубликованы для направления и заказчика. Распределение по профилям не задано.</p>
+          <ul className={styles.admissionList}>{summary.directionQuotas.map((quota, index) => <li key={index}><strong>{quota.label} · {quota.value}</strong><span>{quota.scope}</span><SourceLink href={quota.sourceUrl} /></li>)}</ul>
+        </details> : null}
       </section>
 
       <section className={styles.admissionSection} aria-labelledby={`admission-results-${program.external_key}`}>

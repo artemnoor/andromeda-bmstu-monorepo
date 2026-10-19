@@ -5,6 +5,23 @@
 }
 
 :global(html) {
+  color-scheme: dark;
+  --site-bg: #111;
+  --surface: #171717;
+  --surface-raised: #202020;
+  --surface-hover: #292929;
+  --text: #f4f4f4;
+  --text-muted: #b8bec7;
+  --line: rgb(255 255 255 / 14%);
+  --accent: #8dedf9;
+  --accent-line: rgb(141 237 249 / 38%);
+  --accent-soft: rgb(141 237 249 / 8%);
+  --danger: #ffb4ab;
+  --danger-bg: #291c1b;
+  --warning: #eed49b;
+  --warning-bg: #282318;
+  --success: #a5dfbb;
+  --success-bg: #19281f;
   min-width: 320px;
   min-height: 100%;
   background: #111;
@@ -30,26 +47,24 @@
 
 .noise::after {
   position: absolute;
-  top: -110%;
-  left: -100%;
-  width: 300%;
-  height: 300%;
+  inset: -10%;
   background-image: url("/assets/paper-noise.svg");
   content: "";
   animation: grain 8s steps(10) infinite;
+  will-change: transform;
 }
 
 @keyframes grain {
   0%, 100% { transform: translate(0); }
-  10% { transform: translate(-5%, -10%); }
-  20% { transform: translate(-15%, 5%); }
-  30% { transform: translate(5%, -25%); }
-  40% { transform: translate(-5%, 25%); }
-  50% { transform: translate(-15%, 10%); }
-  60% { transform: translate(15%); }
-  70% { transform: translateY(15%); }
-  80% { transform: translate(5%, 35%); }
-  90% { transform: translate(-10%, 10%); }
+  10% { transform: translate(-1%, -2%); }
+  20% { transform: translate(-3%, 1%); }
+  30% { transform: translate(1%, -5%); }
+  40% { transform: translate(-1%, 5%); }
+  50% { transform: translate(-3%, 2%); }
+  60% { transform: translate(3%); }
+  70% { transform: translateY(3%); }
+  80% { transform: translate(1%, 6%); }
+  90% { transform: translate(-2%, 2%); }
 }
 
 :global(button),
@@ -64,7 +79,7 @@
 :global(input:focus-visible),
 :global(select:focus-visible),
 :global(textarea:focus-visible) {
-  outline: 3px solid rgba(0, 108, 220, 0.7);
+  outline: 2px solid var(--accent);
   outline-offset: 3px;
 }
 
@@ -97,11 +112,11 @@
 
 .skipLink { position: fixed; z-index: 300; top: 12px; left: 16px; padding: 13px 18px; transform: translateY(-180%); border-radius: 9px; background: #111; color: #fff; text-decoration: none; }
 .skipLink:focus { transform: translateY(0); }
-.navigationStatus { position: fixed; z-index: 200; top: 0; inset-inline: 0; padding: 8px 16px; color: #fff; background: #005fbd; font-size: 13px; text-align: center; }
+.navigationStatus { position: fixed; z-index: 200; top: 0; inset-inline: 0; padding: 8px 16px; border-bottom: 1px solid var(--accent-line); color: var(--accent); background: var(--surface); font-size: 13px; text-align: center; }
 .loading { width: min(100% - 2rem, 1280px); margin: 120px auto 0; color: #c2c7ce; }
 .skeleton { height: 180px; margin-top: 24px; border-radius: 20px; background: #242424; }
 .error { margin-block-start: 120px; line-height: 1.6; }
 .error h1 { font-size: clamp(30px, 5vw, 48px); font-weight: 500; line-height: 1.1; letter-spacing: -.05em; }
 .error nav { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 24px; }
-.error a { display: inline-flex; min-height: 44px; align-items: center; color: #005fbd; }
+.error a { display: inline-flex; min-height: 44px; align-items: center; color: var(--accent); }
 :global(main:focus) { outline: none; }

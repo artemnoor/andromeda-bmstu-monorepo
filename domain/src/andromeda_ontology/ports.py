@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Protocol
+from typing import TYPE_CHECKING, Any, Protocol, TypeVar
 from uuid import UUID
+
+RelationKey = TypeVar("RelationKey", UUID, str)
 
 if TYPE_CHECKING:
     from andromeda_ontology.proposals import (
@@ -46,6 +48,8 @@ class AcademicDataReadRepository(Protocol):
 
     def get_by_ids(self, table_name: str, record_ids: list[UUID]) -> dict[UUID, dict[str, Any]]: ...
 
+    def get_by_keys(self, table_name: str, external_keys: list[str]) -> dict[str, dict[str, Any]]: ...
+
     def page(
         self,
         table_name: str,
@@ -59,7 +63,7 @@ class AcademicDataReadRepository(Protocol):
         self,
         table_name: str,
         foreign_key: str,
-        parent_id: UUID,
+        parent_id: UUID | str,
         *,
         filters: dict[str, Any] | None = None,
     ) -> list[dict[str, Any]]: ...
@@ -68,10 +72,10 @@ class AcademicDataReadRepository(Protocol):
         self,
         table_name: str,
         foreign_key: str,
-        parent_ids: list[UUID],
+        parent_ids: list[RelationKey],
         *,
         filters: dict[str, Any] | None = None,
-    ) -> dict[UUID, list[dict[str, Any]]]: ...
+    ) -> dict[RelationKey, list[dict[str, Any]]]: ...
 
     def related_count(self, table_name: str, foreign_key: str, parent_id: UUID) -> int: ...
 

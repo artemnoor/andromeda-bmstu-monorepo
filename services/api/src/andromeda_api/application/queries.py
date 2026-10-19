@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from collections.abc import Callable
 from typing import Any, Literal, TypeVar, cast
 from uuid import UUID
@@ -554,6 +555,7 @@ class AcademicDataQueries:
             if manual_reviews_for_many is not None:
                 manual_reviews_for_many([row["external_key"] for row in rows])
         elif table == "program_offerings":
+            self._prefetch_shared_offering_programs(rows)
             for linked_table, field in (
                 ("admission_campaigns", "campaign_id"),
                 ("educational_programs", "program_id"),
@@ -660,6 +662,95 @@ class AcademicDataQueries:
                 evidence_for_many(table, [row["id"] for row in rows])
             if manual_reviews_for_many is not None:
                 manual_reviews_for_many([row["external_key"] for row in rows])
+
+    def _prefetch_shared_offering_programs(self, rows: list[dict[str, Any]]) -> None:
+        """Publish only a complete, source-evidenced group from the pinned release."""
+        for row in rows:
+            row["shared_program_keys"] = []
+        shared_rows = [row for row in rows if row["program_id"] is None]
+        related_many = getattr(self.repository, "related_many", None)
+        get_by_keys = getattr(self.repository, "get_by_keys", None)
+        get_by_ids = getattr(self.repository, "get_by_ids", None)
+        if not shared_rows:
+            return
+        relationship_filters = {
+            "relation_type": "offering_includes_catalog_program",
+            "evidence_kind": "explicit_appendix_8_1_profile_group",
+        }
+        if related_many is not None:
+            relations_by_key = related_many(
+                "source_relationships", "source_key",
+                [row["external_key"] for row in shared_rows],
+                filters=relationship_filters,
+            )
+        else:
+            relations_by_key = {
+                row["external_key"]: self.repository.related(
+                    "source_relationships", "source_key", row["external_key"],
+                    filters=relationship_filters,
+                )
+                for row in shared_rows
+            }
+        target_keys = sorted({
+            relation["target_key"]
+            for relations in relations_by_key.values()
+            for relation in relations
+        })
+        if get_by_keys is not None:
+            programs = get_by_keys("educational_programs", target_keys)
+        else:
+            programs = {}
+            for key in target_keys:
+                program = self.repository.get("educational_programs", key)
+                if program is not None:
+                    programs[key] = program
+        direction_ids = list(dict.fromkeys(
+            program["direction_id"] for program in programs.values() if program.get("direction_id")
+        ))
+        if get_by_ids is not None:
+            directions = get_by_ids("directions", direction_ids)
+        else:
+            directions = {}
+            for direction_id in direction_ids:
+                direction = self.repository.get_by_id("directions", direction_id)
+                if direction is not None:
+                    directions[direction_id] = direction
+        release_id = self.repository.active_release_id
+        for row in shared_rows:
+            relations = relations_by_key.get(row["external_key"], [])
+            keys = sorted({relation["target_key"] for relation in relations})
+            direction_code = self._direction_code_signature(row.get("direction_code"))
+            if len(keys) < 2 or not direction_code or row.get("release_id") != release_id:
+                continue
+            if self._campus_status(row.get("campus_scope")) != "verified":
+                continue
+            valid = True
+            for relation in relations:
+                program = programs.get(relation["target_key"])
+                direction = directions.get(program.get("direction_id")) if program else None
+                if (
+                    relation.get("release_id") != release_id
+                    or relation.get("source_key") != row["external_key"]
+                    or relation.get("relation_type") != "offering_includes_catalog_program"
+                    or relation.get("evidence_kind") != "explicit_appendix_8_1_profile_group"
+                    or relation.get("source_artifact_id") is None
+                    or not isinstance(relation.get("source_locator"), dict)
+                    or not relation["source_locator"]
+                    or program is None or program.get("release_id") != release_id
+                    or program.get("campus_scope") != row.get("campus_scope")
+                    or direction is None or direction.get("release_id") != release_id
+                    or self._direction_code_signature(direction.get("code")) != direction_code
+                ):
+                    valid = False
+                    break
+            if valid:
+                row["shared_program_keys"] = keys
+
+    @staticmethod
+    def _direction_code_signature(value: str | None) -> tuple[str, ...]:
+        if not value or not re.fullmatch(r"\d{2}\.\d{2}\.\d{2}(?:\s*/\s*\d{2}\.\d{2}\.\d{2})*", value.strip()):
+            return ()
+        return tuple(sorted({code.strip() for code in value.split("/")}))
 
     def _required(self, table: str, key: str) -> dict[str, Any]:
         row = self.repository.get(table, key)
@@ -928,6 +1019,8 @@ class AcademicDataQueries:
         )
 
     def _offering(self, row: dict[str, Any]) -> AdmissionOfferingRecord:
+        if "shared_program_keys" not in row:
+            self._prefetch_shared_offering_programs([row])
         program = (
             self.repository.get_by_id("educational_programs", row["program_id"])
             if row["program_id"] is not None
@@ -959,6 +1052,7 @@ class AcademicDataQueries:
             direction_key=direction["external_key"] if direction else None,
             direction_code=row["direction_code"],
             program_key=program["external_key"] if program else None,
+            shared_program_keys=row["shared_program_keys"],
             program_link_status=link_status,
             program_name_in_source=row["program_name_in_document"],
             department_key=department["external_key"] if department else None,

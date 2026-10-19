@@ -30,9 +30,11 @@ export interface AdmissionMetric {
   readonly value: string;
   readonly note: string | null;
   readonly sourceUrl: string | null;
+  readonly numericValue?: number | null;
 }
 
 export interface AdmissionPlaceGroup {
+  readonly quotaType?: string | null;
   readonly label: string;
   readonly value: string;
   readonly scope: string;
@@ -87,6 +89,7 @@ export interface AdmissionSummary {
   readonly seatNote: string | null;
   readonly relatedSeatFacts: readonly RelatedAdmissionSeatFact[];
   readonly quotas: readonly AdmissionPlaceGroup[];
+  readonly directionQuotas: readonly AdmissionPlaceGroup[];
   readonly quotaNote: string | null;
   readonly historyScope: string;
   readonly history: readonly AdmissionHistoryRow[];
@@ -151,11 +154,17 @@ function quotaLabel(value: string | null | undefined): string {
     general_competition: "Общий конкурс",
     special: "Особая квота",
     separate: "Отдельная квота",
-    targeted: "Целевой приём",
+    targeted: "Целевая квота",
     special_quota: "Особая квота",
     separate_quota: "Отдельная квота",
   };
   return value ? labels[value] ?? value : "Квота не указана";
+}
+
+export function canonicalQuotaType(value: string | null | undefined): string | null {
+  if (value === "special") return "special_quota";
+  if (value === "separate") return "separate_quota";
+  return value ?? null;
 }
 
 function scopeLabel(value: string | null | undefined): string {
@@ -180,7 +189,9 @@ function verifiedDepartmentKeys(program: CatalogProgram): Set<string> {
 
 function linkedOfferings(program: CatalogProgram, offerings: readonly OfferingDto[]): OfferingDto[] {
   return offerings.filter((offering) => (
-    offering.program_link_status === "exact" && offering.program_key === program.external_key
+    (offering.program_link_status === "exact" && offering.program_key === program.external_key)
+    || (offering.shared_program_keys?.includes(program.external_key) === true
+      && offering.campus_scope === program.campus_scope)
   ));
 }
 
@@ -192,6 +203,7 @@ function relatedUnresolvedOfferings(
   if (!departments.size || program.campus_status !== "verified" || !program.campus_scope) return [];
   return offerings.filter((offering) => (
     offering.program_link_status !== "exact"
+    && !offering.shared_program_keys?.includes(program.external_key)
     && offering.program_key == null
     && offering.direction_key === program.direction_key
     && offering.direction_code === program.directionCode
@@ -212,10 +224,14 @@ function selectRelatedPools(
   const exact = general.filter((pool) => {
     const linkedKeys = new Set([...(pool.offering_keys ?? []), ...(pool.offering_key ? [pool.offering_key] : [])]);
     return [...linkedKeys].some((key) => (
-      exactOfferingKeys.has(key) && offeringByKey.get(key)?.program_key === program.external_key
+      exactOfferingKeys.has(key)
     ));
   });
-  if (exact.length) return { rows: exact, label: "предложение приёма, связанное с программой", unresolved: false };
+  if (exact.length) {
+    const shared = offerings.some((offering) => exactOfferingKeys.has(offering.external_key)
+      && (offering.shared_program_keys?.length ?? 0) > 1);
+    return { rows: exact, label: shared ? "единый приёмный план для нескольких программ" : "предложение приёма, связанное с программой", unresolved: false };
+  }
 
   const departments = verifiedDepartmentKeys(program);
   const departmentRows = general.filter((pool) => (
@@ -247,7 +263,7 @@ function selectRelatedPools(
     ));
   return {
     rows: [],
-    label: unresolved ? "связь предложения уточняется" : "источник не содержит связь с программой",
+    label: unresolved ? "в плане нет точного совпадения профиля" : "источник не содержит строку этого профиля",
     unresolved,
   };
 }
@@ -449,8 +465,8 @@ export function buildAdmissionSummary(program: CatalogProgram, data: ProgramAdmi
   const campaignPools = data.pools.filter((pool) => !campaign || pool.campaign_key === campaign.external_key);
   const selectedPools = selectRelatedPools(program, campaignPools, data.offerings);
   const seats = ([
-    ["budget", "Бюджет · общий конкурс"],
-    ["paid", "Платное · общий конкурс"],
+    ["budget", "Бюджет · по приёмному плану"],
+    ["paid", "Платные места"],
   ] as const).map(([funding, label]) => {
     const rows = selectedPools.rows.filter((pool) => pool.funding_type === funding);
     const metric = metricValue(rows);
@@ -459,6 +475,8 @@ export function buildAdmissionSummary(program: CatalogProgram, data: ProgramAdmi
       value: metric.value,
       note: metric.note,
       sourceUrl: rows.map(sourceUrl).find(Boolean) ?? null,
+      numericValue: rows.length && rows.every((row) => toNumber(row.places) !== null)
+        ? rows.reduce((sum, row) => sum + (toNumber(row.places) ?? 0), 0) : null,
     };
   });
 
@@ -522,6 +540,27 @@ export function buildAdmissionSummary(program: CatalogProgram, data: ProgramAdmi
       : pool.direction_code != null && pool.direction_code === program.directionCode)
   ));
   const relatedPoolKeys = new Set(relatedPools.map((pool) => pool.external_key));
+  const campusLabels: Readonly<Record<string, string>> = {
+    head_moscow: "мгтуимнэбаумана",
+    branch_kaluga: "кфмгтуимнэбаумана",
+    branch_mytishchi: "мфмгтуимнэбаумана",
+  };
+  // These remain direction-level facts, even when a legacy offering_keys
+  // relation happens to mention this profile. Never add them to its seats.
+  const directionQuotas = campaignPools.filter((pool) => pool.quota_type === "targeted"
+    && pool.funding_type === "budget"
+    && pool.scope_level === "direction_and_target_organization"
+    && pool.direction_code === program.directionCode
+    && program.campus_status === "verified"
+    && Boolean(campusLabels[program.campus_scope ?? ""])
+    && normalizedScopeLabel(pool.campus_label_in_document) === campusLabels[program.campus_scope ?? ""])
+    .map((pool) => ({
+      quotaType: "targeted",
+      label: pool.target_organization?.trim() || "Заказчик в источнике не указан",
+      value: metricValue([pool]).value,
+      scope: `По направлению ${pool.direction_code} · ${pool.campus_label_in_document}`,
+      sourceUrl: sourceUrl(pool),
+    }));
   const quotaRows: AdmissionPlaceGroup[] = [];
   const quotaRecordsByPool = new Map<string, QuotaDto[]>();
   for (const quota of data.quotas) {
@@ -533,6 +572,7 @@ export function buildAdmissionSummary(program: CatalogProgram, data: ProgramAdmi
     if (!pool) continue;
     for (const quota of records) {
       quotaRows.push({
+        quotaType: canonicalQuotaType(quota.quota_type),
         label: `${quotaLabel(quota.quota_type)} · ${fundingLabel(quota.funding_type)}`,
         value: placeText(toNumber(quota.places)),
         scope: [scopeLabel(quota.scope_level ?? pool.scope_level), pool.campus_label_in_document?.trim()]
@@ -546,6 +586,7 @@ export function buildAdmissionSummary(program: CatalogProgram, data: ProgramAdmi
     const places = metricValue([pool]);
     const organization = pool.target_organization?.trim();
     quotaRows.push({
+      quotaType: canonicalQuotaType(pool.quota_type),
       label: `${quotaLabel(pool.quota_type)} · ${fundingLabel(pool.funding_type)}${organization ? ` · ${organization}` : ""}`,
       value: places.value,
       scope: [scopeLabel(pool.scope_level), pool.campus_label_in_document?.trim()]
@@ -562,12 +603,15 @@ export function buildAdmissionSummary(program: CatalogProgram, data: ProgramAdmi
     seatNote: selectedPools.rows.length
       ? null
       : selectedPools.unresolved
-        ? "Связь предложения с программой проверяется. Значения других программ не используются."
+        ? "В приёмном плане нет однозначной строки этого профиля. Значения других программ не используются."
         : "Данные общего конкурса не привязаны к этой программе. Значения других программ не используются.",
     relatedSeatFacts: unresolvedSeatFacts(program, campaignPools, data.offerings),
     quotas: quotaRows,
-    quotaNote: hasUnassignedTargetQuota
-      ? "На этом направлении есть целевые квоты уровня «направление и организация», но их кампус и связь с программой не подтверждены. Эти места не приписываются программе."
+    directionQuotas,
+    quotaNote: directionQuotas.length
+      ? "Целевые места указаны по направлению и заказчику, без распределения между профилями."
+      : hasUnassignedTargetQuota
+      ? "Целевые места опубликованы для направления и заказчика, без точного распределения по этому профилю и кампусу. Эти места не приписываются программе."
       : null,
     historyScope: exactHistory.length > 0 ? "подтверждённая кафедра" : "направление",
     history: selectedHistory.map((statistic) => ({

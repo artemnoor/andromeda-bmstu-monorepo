@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import base64
 import binascii
-from typing import Any
+from typing import Any, TypeVar
 from uuid import UUID
 
 from andromeda_ontology.ports import InvalidCursorError, PageRows
@@ -29,6 +29,7 @@ _REGISTERED_MODELS = (
     _source_models,
     _subject_classification_models,
 )
+RelationKey = TypeVar("RelationKey", UUID, str)
 EVIDENCE_BRIDGES: dict[str, tuple[str, str]] = {
     "universities": ("university_evidence", "university_id"),
     "directions": ("direction_evidence", "direction_id"),
@@ -80,7 +81,7 @@ class SQLAlchemyAcademicDataReadRepository:
         self._release: dict[str, Any] | None = None
         self._last_row_count: int | None = None
         self._by_id_cache: dict[tuple[str, UUID], dict[str, Any] | None] = {}
-        self._related_cache: dict[tuple[str, str, UUID, tuple[tuple[str, Any], ...]], list[dict[str, Any]]] = {}
+        self._related_cache: dict[tuple[str, str, UUID | str, tuple[tuple[str, Any], ...]], list[dict[str, Any]]] = {}
         self._related_count_cache: dict[tuple[str, str, UUID], int] = {}
         self._evidence_cache: dict[tuple[str, UUID], list[dict[str, Any]]] = {}
         self._manual_review_cache: dict[str, list[dict[str, Any]]] = {}
@@ -173,6 +174,23 @@ class SQLAlchemyAcademicDataReadRepository:
         assert self._release is not None
         return self._release
 
+    def get_by_keys(self, table_name: str, external_keys: list[str]) -> dict[str, dict[str, Any]]:
+        """Resolve stable keys together without crossing the request's pinned release."""
+        keys = list(dict.fromkeys(external_keys))
+        if not keys:
+            return {}
+        table = self._table(table_name)
+        rows = self._connection.execute(
+            select(table).where(
+                table.c.release_id == self.active_release_id,
+                table.c.external_key.in_(keys),
+            )
+        ).mappings().all()
+        self._last_row_count = len(rows)
+        for row in rows:
+            self._by_id_cache[(table_name, row["id"])] = dict(row)
+        return {row["external_key"]: dict(row) for row in rows}
+
     def page(
         self,
         table_name: str,
@@ -208,7 +226,7 @@ class SQLAlchemyAcademicDataReadRepository:
         self,
         table_name: str,
         foreign_key: str,
-        parent_id: UUID,
+        parent_id: UUID | str,
         *,
         filters: dict[str, Any] | None = None,
     ) -> list[dict[str, Any]]:
@@ -241,10 +259,10 @@ class SQLAlchemyAcademicDataReadRepository:
         self,
         table_name: str,
         foreign_key: str,
-        parent_ids: list[UUID],
+        parent_ids: list[RelationKey],
         *,
         filters: dict[str, Any] | None = None,
-    ) -> dict[UUID, list[dict[str, Any]]]:
+    ) -> dict[RelationKey, list[dict[str, Any]]]:
         """Load related rows for many parents with one release-scoped query."""
         ids = list(dict.fromkeys(parent_ids))
         filter_key = tuple(sorted((filters or {}).items()))

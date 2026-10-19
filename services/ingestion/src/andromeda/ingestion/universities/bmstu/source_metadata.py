@@ -102,13 +102,16 @@ def classify_competition_heading(text: str) -> tuple[BmstuOrderCompetition, str 
     normalized = _normalize(text)
     if "без проведения вступительных испытаний" in normalized or "без вступительных испытаний" in normalized:
         return BmstuOrderCompetition.BVI, None
-    if "особ" in normalized and "прав" in normalized:
+    if "особ" in normalized and ("прав" in normalized or "квот" in normalized):
         return BmstuOrderCompetition.SPECIAL_QUOTA, None
     if "отдельн" in normalized and "квот" in normalized:
         return BmstuOrderCompetition.SEPARATE_QUOTA, None
     if "целев" in normalized and "квот" in normalized:
         return BmstuOrderCompetition.TARGETED, None
-    if any(anchor in normalized for anchor in ("основн", "договор", "оплатой стоимости")):
+    if any(anchor in normalized for anchor in (
+        "основн", "договор", "оплатой стоимости",
+        "на места в рамках кцп текущего года",
+    )):
         return BmstuOrderCompetition.GENERAL, None
     return BmstuOrderCompetition.OTHER, "competition_heading_unknown"
 

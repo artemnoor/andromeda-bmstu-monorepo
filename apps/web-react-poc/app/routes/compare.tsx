@@ -7,7 +7,8 @@ import { comparisonSelection } from "@/shared/browser-state/hooks";
 import { loadProgramComparison, type ComparisonOverview, type ComparisonSelection, type LoadedProgramComparison } from "@/features/comparison/api";
 import { buildDonutSegments } from "@/features/comparison/chart-data";
 import type { CategoryWorkload, ComparisonCurriculumItem, NullableMetric, ProgramComparisonModel } from "@/features/comparison/model";
-import type { AdmissionCampaignResult, AdmissionMetric, AdmissionSummary } from "@/features/catalog/admission-model";
+import type { AdmissionMetric, AdmissionSummary } from "@/features/catalog/admission-model";
+import { COMPETITION_LABELS, presentCompetition, type AdmissionCompetition } from "@/features/catalog/admission-results";
 import { AcademicReleaseMismatchError } from "@/shared/api/client";
 import styles from "@/features/comparison/comparison.module.css";
 
@@ -22,10 +23,10 @@ type ComparisonLoadState =
       readonly recovery: "retry" | "reload";
     };
 
-const SERIES_COLORS = ["#006cdc", "#26364a", "#68798e"] as const;
+const SERIES_COLORS = ["#8dedf9", "#d9b8fe", "#edcf96"] as const;
 const CATEGORY_COLORS = [
-  "#006cdc", "#497b5f", "#b77b2f", "#8165a7", "#b75b64", "#3f8190", "#65738b", "#789546",
-  "#bc6a37", "#4f68a6", "#a24f89", "#7a8b41", "#527b9f", "#b17d5c", "#77708f", "#467a70",
+  "#8dedf9", "#a5d6b2", "#edcf96", "#d9b8fe", "#e9a4b0", "#79b8ca", "#adb7cd", "#bdd58e",
+  "#e8ae83", "#93adf0", "#dda2d3", "#c9cb91", "#90bfdc", "#d2b19b", "#b5a6cf", "#8ec5b7",
 ] as const;
 
 const recordComparisonProfile: ProfilerOnRenderCallback = (
@@ -41,7 +42,7 @@ const recordComparisonProfile: ProfilerOnRenderCallback = (
 };
 
 function colorFor(index: number): string {
-  return CATEGORY_COLORS[index % CATEGORY_COLORS.length] ?? "#006cdc";
+  return CATEGORY_COLORS[index % CATEGORY_COLORS.length] ?? CATEGORY_COLORS[0];
 }
 
 function formatMetric(metric: NullableMetric, unit: string): string {
@@ -112,9 +113,8 @@ function MetricOverview({ summary, index }: { summary: AdmissionSummary | undefi
   if (metric.value === "—" && relatedFacts.length) {
     return (
       <div className={styles.overview}>
-        <OverviewValue value="Не подтверждено" note="В источнике есть места, но их связь с выбранной программой требует проверки." />
-        <details className={styles.relatedFacts}>
-          <summary>Посмотреть сведения из источника</summary>
+        <OverviewValue value="Иное название в приёмном плане" note="Для этой кафедры документ перечисляет следующие предложения приёма. Их названия отличаются от выбранной карточки каталога." />
+        <div className={styles.relatedFacts}>
           {relatedFacts.map((fact) => (
           <div className={styles.overview} key={fact.key}>
             <strong>{fact.value}</strong>
@@ -122,105 +122,44 @@ function MetricOverview({ summary, index }: { summary: AdmissionSummary | undefi
               {fact.note ? `${fact.note} ` : ""}
               Предложение из источника «{fact.sourceProgramName}»
               {fact.departmentCode ? ` · кафедра ${fact.departmentCode}` : ""}.
-              Связь с выбранной программой не подтверждена.
             </span>
             <SourceLink href={fact.sourceUrl} />
           </div>
           ))}
-        </details>
+        </div>
       </div>
     );
   }
-  return <OverviewValue value={metric.value === "—" ? "Количество не указано" : metric.value} note={metric.note ?? (metric.value === "—" ? summary.seatNote : `Уровень данных: ${summary.seatScope}`)} sourceUrl={metric.sourceUrl} />;
+  return <OverviewValue value={metric.value === "—" ? "Нет строки приёма для этого профиля" : metric.value} note={metric.note ?? (metric.value === "—" ? summary.seatNote : `${summary.seatScope}${index === 0 ? " · всего по плану, включая квоты" : ""}`)} sourceUrl={metric.sourceUrl} />;
 }
 
-function latestNumericCampaignResult(
-  summary: AdmissionSummary,
-  options: { funding: "budget" | "paid"; stage: string; competitionTypes: readonly string[] },
-): AdmissionCampaignResult | null {
-  return summary.campaignResults
-    .filter((result) => result.year === summary.year
-      && result.funding === options.funding
-      && result.stage === options.stage
-      && result.status === "numeric"
-      && options.competitionTypes.includes(result.competitionType ?? "")
-      && result.score !== null)
-    .sort((left, right) => {
-      const rank = (result: AdmissionCampaignResult) => (
-        result.scopeType === "program" ? 2 : result.scopeType === "department" ? 1 : 0
-      );
-      return rank(right) - rank(left)
-        || (right.snapshotDate ?? "").localeCompare(left.snapshotDate ?? "");
-    })[0] ?? null;
-}
-
-function scoreText(score: number): string {
-  return `${new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 1 }).format(score)} баллов`;
-}
-
-function CampaignScoreOverview({
-  summary,
-  funding,
-  competitionTypes,
-  fallbackToPaidHistory = false,
-}: {
+function CampaignScoreOverview({ summary, funding, competition = "general" }: {
   summary: AdmissionSummary | undefined;
   funding: "budget" | "paid";
-  competitionTypes: readonly string[];
-  fallbackToPaidHistory?: boolean;
+  competition?: AdmissionCompetition;
 }) {
-  if (!summary) return <OverviewValue value="Не удалось загрузить" />;
-  const result = latestNumericCampaignResult(summary, { funding, stage: "main", competitionTypes });
-  if (result?.score !== null && result?.score !== undefined) {
-    return <OverviewValue value={scoreText(result.score)} note={`${result.year} · ${result.scopeNote} · минимум в списке зачисленных`} sourceUrl={result.sourceUrl} />;
-  }
-  if (fallbackToPaidHistory) {
-    const historical = summary.history.find((item) => item.funding === "Платное" && item.minimum !== "—");
-    if (historical) {
-      return <OverviewValue value={`${historical.minimum} баллов`} note={`платное · минимум зачисленных · ${historical.year} · ${summary.historyScope}`} sourceUrl={historical.sourceUrl} />;
-    }
-  }
-  const hasBudgetQuotaScores = funding === "budget" && summary.campaignResults.some((candidate) => (
-    candidate.year === summary.year
-    && candidate.funding === "budget"
-    && candidate.stage === "first"
-    && candidate.status === "numeric"
-    && candidate.score !== null
-    && ["separate_quota", "special_quota", "targeted"].includes(candidate.competitionType ?? "")
-  ));
-  return <OverviewValue
-    value="Нет данных"
-    note={`Числовой балл ${funding === "budget" ? "бюджетного" : "платного"} конкурса не опубликован для приёма ${summary.year ?? ""}.${hasBudgetQuotaScores ? " Баллы по отдельным квотам показаны в строке ниже." : ""}`}
-  />;
+  const result = presentCompetition(summary, funding, competition);
+  return <OverviewValue value={result.value} note={result.note} sourceUrl={result.sourceUrl} />;
 }
 
-function QuotaScoreOverview({ summary }: { summary: AdmissionSummary | undefined }) {
+function QuotaOverview({ summary, competition }: {
+  summary: AdmissionSummary | undefined;
+  competition: "separate_quota" | "special_quota" | "targeted";
+}) {
   if (!summary) return <OverviewValue value="Не удалось загрузить" />;
-  const labels: Readonly<Record<string, string>> = {
-    separate_quota: "Отдельная",
-    special_quota: "Особая",
-    targeted: "Целевая",
-  };
-  const results = summary.campaignResults
-    .filter((result) => result.year === summary.year
-      && result.funding === "budget"
-      && result.stage === "first"
-      && result.status === "numeric"
-      && result.score !== null
-      && labels[result.competitionType ?? ""] !== undefined)
-    .sort((left, right) => (right.snapshotDate ?? "").localeCompare(left.snapshotDate ?? ""));
-  const byType = new Map<string, AdmissionCampaignResult>();
-  for (const result of results) {
-    if (result.competitionType && !byType.has(result.competitionType)) byType.set(result.competitionType, result);
-  }
-  if (!byType.size) {
-    return <OverviewValue value="Нет данных" note="Числовые результаты бюджетных квот не опубликованы в доступном архиве." />;
-  }
-  const entries = [...byType.entries()];
-  const value = entries.map(([type, result]) => `${labels[type]} — ${result.score}`).join(" · ") + " баллов";
-  const sourceUrl = entries.map(([, result]) => result.sourceUrl).find(Boolean) ?? null;
-  const scopes = [...new Set(entries.map(([, result]) => result.scopeNote))].join("; ");
-  return <OverviewValue value={value} note={`Списки зачисленных ${summary.year} · ${scopes} · отдельные квоты, не общий конкурс.`} sourceUrl={sourceUrl} />;
+  const places = summary.quotas.filter((quota) => quota.quotaType === competition);
+  const result = presentCompetition(summary, "budget", competition);
+  return <div className={styles.quotaOverview}>
+    {places.length ? places.map((quota, index) => <OverviewValue key={index} value={quota.value} note={quota.scope} sourceUrl={quota.sourceUrl} />)
+      : <p className={styles.quotaPlacesNote}>Места этого конкурса не выделены для программы в доступном плане.</p>}
+    <div className={styles.quotaScore}><span>Результат зачисления</span><OverviewValue value={result.value} note={result.note} sourceUrl={result.sourceUrl} /></div>
+    {competition === "targeted" && summary.quotaNote ? <p className={styles.quotaPlacesNote}>{summary.quotaNote}</p> : null}
+    {competition === "targeted" && summary.directionQuotas.length ? <details className={styles.directionQuotas}>
+      <summary>Заказчики по направлению · {summary.directionQuotas.length}</summary>
+      <p>Общие сведения направления, без выделения мест выбранному профилю.</p>
+      <ul>{summary.directionQuotas.map((quota, index) => <li key={index}><strong>{quota.value}</strong><span>{quota.label}</span><small>{quota.scope}</small><SourceLink href={quota.sourceUrl} /></li>)}</ul>
+    </details> : null}
+  </div>;
 }
 
 function SelectionCards({
@@ -284,19 +223,23 @@ function AdmissionComparison({ data }: { data: ComparisonOverview }) {
       ? `Данные приёмных кампаний ${years.join(" / ")}`
       : "Данные приёмной кампании";
   const rows: { label: string; value: (key: string, summary: AdmissionSummary | undefined) => ReactNode }[] = [
-    { label: "Бюджетные места · общий конкурс", value: (_key, summary) => <MetricOverview summary={summary} index={0} /> },
-    { label: "Платные места · общий конкурс", value: (_key, summary) => <MetricOverview summary={summary} index={1} /> },
+    { label: "Бюджетные места · по плану", value: (_key, summary) => <MetricOverview summary={summary} index={0} /> },
+    { label: "Платные места", value: (_key, summary) => <MetricOverview summary={summary} index={1} /> },
     {
       label: "Проходной балл · бюджет · основной конкурс",
-      value: (_key, summary) => <CampaignScoreOverview summary={summary} funding="budget" competitionTypes={["general", "other"]} />,
+      value: (_key, summary) => <CampaignScoreOverview summary={summary} funding="budget"  />,
     },
+    ...(["separate_quota", "special_quota", "targeted"] as const).map((competition) => ({
+      label: COMPETITION_LABELS[competition]!,
+      value: (_key: string, summary: AdmissionSummary | undefined) => <QuotaOverview summary={summary} competition={competition} />,
+    })),
     {
-      label: "Проходные баллы · бюджетные квоты",
-      value: (_key, summary) => <QuotaScoreOverview summary={summary} />,
+      label: "БВИ · без вступительных испытаний",
+      value: (_key, summary) => <CampaignScoreOverview summary={summary} funding="budget" competition="bvi" />,
     },
     {
       label: "Проходной балл · платное",
-      value: (_key, summary) => <CampaignScoreOverview summary={summary} funding="paid" competitionTypes={["general", "other"]} fallbackToPaidHistory />,
+      value: (_key, summary) => <CampaignScoreOverview summary={summary} funding="paid"   />,
     },
     {
       label: "Минимальные баллы ЕГЭ",
@@ -403,7 +346,7 @@ function WorkloadChart({ data }: { data: LoadedProgramComparison }) {
           <div className={styles.workloadChart} role="group" aria-label="Сравнение нагрузки по семестрам">
             <ResponsiveContainer width="100%" height={chartHeight}>
               <BarChart accessibilityLayer data={chartData} layout="vertical" margin={{ left: 0, right: 16, top: 8, bottom: 8 }} barGap={4} barCategoryGap="22%">
-                <YAxis dataKey="semester" type="category" tickLine={false} tickMargin={10} axisLine={false} width={132} interval={0} tick={{ fill: "#5e6570", fontSize: 11 }} />
+                <YAxis dataKey="semester" type="category" tickLine={false} tickMargin={10} axisLine={false} width={132} interval={0} tick={{ fill: "var(--text-muted)", fontSize: 11 }} />
                 <XAxis type="number" domain={[0, "dataMax"]} hide />
                 <Tooltip cursor={false} content={WorkloadTooltip} />
                 {data.programs.map((program, index) => (
@@ -521,7 +464,7 @@ function CategoryChart({
         categoryCode: null,
         hours: remainder,
         plotValue: remainder,
-        color: "#e7ebf0",
+        color: "#45484e",
         kind: "remainder",
       });
     }
@@ -532,7 +475,7 @@ function CategoryChart({
         categoryCode: null,
         hours: 0,
         plotValue: 1,
-        color: "#e7ebf0",
+        color: "#45484e",
         kind: "empty",
       }];
     }

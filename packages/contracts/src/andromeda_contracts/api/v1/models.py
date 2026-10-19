@@ -314,6 +314,7 @@ class AdmissionOfferingRecord(SourcedRecord):
     direction_key: ExternalKey | None = None
     direction_code: str | None = None
     program_key: ExternalKey | None = None
+    shared_program_keys: list[ExternalKey] = Field(default_factory=list)
     program_link_status: Literal["exact", "unresolved", "manual_review"]
     program_name_in_source: str | None = None
     department_key: ExternalKey | None = None

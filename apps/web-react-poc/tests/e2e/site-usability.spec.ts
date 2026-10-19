@@ -43,6 +43,32 @@ async function installCatalog(page: Page, options: {
 
 test.beforeEach(async ({ page }) => clearPocStorage(page));
 
+test("decorative grain stays bounded and cannot intercept navigation", async ({ page }) => {
+  await page.goto("/");
+  const grain = page.locator('body > div[aria-hidden="true"]');
+  await expect(grain).toHaveCount(1);
+  const layer = await grain.evaluate((element) => {
+    const style = getComputedStyle(element, "::after");
+    return { width: parseFloat(style.width), height: parseFloat(style.height),
+      viewportWidth: window.innerWidth, viewportHeight: window.innerHeight,
+      pointerEvents: getComputedStyle(element).pointerEvents,
+      texture: style.backgroundImage };
+  });
+  expect(layer.width / layer.viewportWidth).toBeLessThanOrEqual(1.25);
+  expect(layer.height / layer.viewportHeight).toBeLessThanOrEqual(1.25);
+  expect(layer.pointerEvents).toBe("none");
+  expect(layer.texture).toContain("paper-noise.svg");
+  const textureSize = await page.evaluate(async () => {
+    const image = new Image();
+    image.src = "/assets/paper-noise.svg";
+    await image.decode();
+    return { width: image.naturalWidth, height: image.naturalHeight };
+  });
+  expect(textureSize).toEqual({ width: 180, height: 180 });
+  await page.getByRole("button", { name: "Открыть меню" }).click();
+  await expect(page.getByRole("dialog", { name: "Основная навигация" })).toBeVisible();
+});
+
 test("keyboard skip link and route focus work without taking focus away from catalog search", async ({ page, diagnostics }) => {
   await installCatalog(page);
   await page.goto("/");

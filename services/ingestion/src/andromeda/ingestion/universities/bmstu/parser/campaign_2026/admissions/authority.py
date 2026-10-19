@@ -20,6 +20,23 @@ def _title_key(value: object) -> str:
     return re.sub(r"[^0-9a-zа-яё]+", " ", clean_text(value).casefold()).strip()
 
 
+def _direction_signature(value: object) -> str:
+    """Keep a composite source identity together, independent of code order."""
+    return "/".join(sorted(set(re.findall(r"\d{2}\.\d{2}\.\d{2}", clean_text(value)))))
+
+
+def _reviewed_title(direction: str, department: str, title: str) -> str:
+    # Appendix 8.1 p4:t1:r3 drops one Н in this exact MT7 title. This
+    # literal correction is not a general fuzzy-match or renamed-profile rule.
+    if (
+        direction == "15.05.02"
+        and department == "МТ7"
+        and title == "Специализированые робототехнические комплексы для сварки и неразрушающего контроля"
+    ):
+        return "Специализированные робототехнические комплексы для сварки и неразрушающего контроля"
+    return title
+
+
 def _official_tokens(value: str, known_codes: Iterable[str]) -> list[str]:
     found: list[str] = []
     for code in sorted({clean_text(code) for code in known_codes if clean_text(code)}, key=len, reverse=True):
@@ -60,8 +77,10 @@ def build_authoritative_intake_records(
     department_codes = set(department_by_code)
     program_signatures: dict[tuple[str, str, str], list[dict[str, Any]]] = defaultdict(list)
     for program in programs:
+        if program.get("campus_scope") in {"kaluga_branch", "mytishchi_branch"}:
+            continue
         signature = (
-            clean_text(program.get("direction_code")),
+            _direction_signature(program.get("direction_code")),
             clean_text(program.get("department_code")),
             _title_key(program.get("name")),
         )
@@ -172,18 +191,43 @@ def build_authoritative_intake_records(
             for code in _official_tokens(value, department_codes)
         ))
         direction_codes = [clean_text(code) for code in source.get("direction_codes_in_document", []) if clean_text(code)]
+        source_title = clean_text(source.get("program_name_in_document"))
+        title_parts = [part.strip() for part in source_title.split("/") if part.strip()]
+        search_directions = list(dict.fromkeys([
+            *(_direction_signature(code) for code in direction_codes),
+            _direction_signature("/".join(direction_codes)),
+        ]))
         exact_candidates: list[dict[str, Any]] = []
-        for direction_code in direction_codes:
+        matched_titles: set[str] = set()
+        matched_departments: set[str] = set()
+        ambiguous_signature = False
+        for direction_code in search_directions:
             for department_code in explicit_department_codes:
-                exact_candidates.extend(program_signatures.get((
-                    direction_code,
-                    department_code,
-                    _title_key(source.get("program_name_in_document")),
-                ), []))
+                for title in title_parts:
+                    matches = program_signatures.get((
+                        direction_code,
+                        department_code,
+                        _title_key(_reviewed_title(direction_code, department_code, title)),
+                    ), [])
+                    exact_candidates.extend(matches)
+                    if len(matches) > 1:
+                        ambiguous_signature = True
+                    # Duplicate catalog identities are not resolved by iteration
+                    # order and do not become verified members of a group.
+                    if len(matches) == 1:
+                        matched_titles.add(_title_key(title))
+                        matched_departments.add(department_code)
         # One profile can be encountered twice when source cells repeat a code;
         # dedupe by its stable external key before deciding if the link is exact.
         candidates = {item["external_key"]: item for item in exact_candidates if item.get("external_key")}
-        program = next(iter(candidates.values())) if len(candidates) == 1 else None
+        explicit_group = (
+            len(candidates) > 1
+            and not ambiguous_signature
+            and matched_titles == {_title_key(title) for title in title_parts}
+            and matched_departments == set(explicit_department_codes)
+            and (len(title_parts) > 1 or len(explicit_department_codes) > 1)
+        )
+        program = next(iter(candidates.values())) if len(candidates) == 1 and len(title_parts) == 1 and not ambiguous_signature else None
         direction_code = clean_text(program.get("direction_code")) if program else (
             direction_codes[0] if len(direction_codes) == 1 else None
         )
@@ -240,8 +284,24 @@ def build_authoritative_intake_records(
             "source_artifact_key": source_artifact_key,
             "source_retrieved_at": source_retrieved_at,
             "source_sha256": source_sha256,
-            "catalog_join_status": "exact_official_codes_and_profile_name" if program else "unresolved",
+            "catalog_join_status": "exact_explicit_profile_group" if explicit_group else "exact_official_codes_and_profile_name" if program else "unresolved",
         }
+        if explicit_group:
+            record["educational_program_keys"] = sorted(candidates)
+            record["shared_seat_scope"] = "one_offering_for_explicit_catalog_profile_group"
+            for candidate_key in sorted(candidates):
+                relationships.append({
+                    "external_key": f"relationship:bmstu:offering-program:{offering_key}:{candidate_key}",
+                    "relation_type": "offering_includes_catalog_program",
+                    "source_key": offering_key,
+                    "target_key": candidate_key,
+                    "evidence_kind": "explicit_appendix_8_1_profile_group",
+                    "source_artifact_key": source_artifact_key,
+                    "source_url": source_url,
+                    "source_locator": locator,
+                    "program_name_in_document": source_title,
+                    "department_codes_in_document": explicit_department_codes,
+                })
         offerings.append(record)
 
         if not direction_codes:
@@ -250,13 +310,13 @@ def build_authoritative_intake_records(
             review(offering_key, "authoritative_offering_direction_not_in_catalog", f"Direction {direction_code} from the primary PDF is not present in the included Moscow catalog; the printed code is retained.")
         elif len(direction_codes) > 1 and not program:
             review(offering_key, "authoritative_offering_direction_code_composite", f"The source row lists multiple direction codes {direction_codes}; no single catalog direction was selected.")
-        if len(explicit_department_codes) > 1 and not program:
+        if len(explicit_department_codes) > 1 and not program and not explicit_group:
             review(offering_key, "authoritative_offering_department_codes_composite", f"The source row names multiple catalog department codes {explicit_department_codes}; no single department was selected.")
         if not explicit_department_codes:
             review(offering_key, "authoritative_offering_department_code_unresolved", f"Could not map the source chair field {raw_department!r} to an official department code in the included catalog.")
         elif department_code and not department:
             review(offering_key, "authoritative_offering_department_not_in_catalog", f"Department {department_code} from the primary PDF is not present in the included Moscow catalog; the printed chair field is retained.")
-        if not program:
+        if not program and not explicit_group:
             review(offering_key, "offering_to_catalog_profile_unresolved", f"Exact direction code, an explicit department code in the source chair cell, and profile name yielded {len(candidates)} catalog profiles; the authoritative offer remains unlinked.")
         if len(direction_codes) > 1 and program:
             review(offering_key, "authoritative_offering_has_combined_direction_codes", f"The row prints {direction_codes}; the exact department and profile-name match identifies catalog direction {direction_code}, while the full source cell remains preserved.")
