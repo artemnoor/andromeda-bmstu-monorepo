@@ -1,4 +1,4 @@
-import { Profiler, useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type ProfilerOnRenderCallback, type ReactNode } from "react";
+import { Profiler, useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type ProfilerOnRenderCallback } from "react";
 import { Link } from "react-router";
 import { Bar, BarChart, Pie, PieChart, ResponsiveContainer, Sector, Tooltip, XAxis, YAxis, type PieSectorShapeProps, type TooltipContentProps } from "recharts";
 import { AndromedaHeader } from "@/widgets/andromeda-navigation/andromeda-header";
@@ -7,8 +7,8 @@ import { comparisonSelection } from "@/shared/browser-state/hooks";
 import { loadProgramComparison, type ComparisonOverview, type ComparisonSelection, type LoadedProgramComparison } from "@/features/comparison/api";
 import { buildDonutSegments } from "@/features/comparison/chart-data";
 import type { CategoryWorkload, ComparisonCurriculumItem, NullableMetric, ProgramComparisonModel } from "@/features/comparison/model";
-import type { AdmissionMetric, AdmissionSummary } from "@/features/catalog/admission-model";
-import { COMPETITION_LABELS, presentCompetition, type AdmissionCompetition } from "@/features/catalog/admission-results";
+import { AdmissionExams, AdmissionScoreTable } from "@/features/catalog/admission-facts";
+import admissionStyles from "@/features/catalog/admission-facts.module.css";
 import { AcademicReleaseMismatchError } from "@/shared/api/client";
 import styles from "@/features/comparison/comparison.module.css";
 
@@ -58,108 +58,6 @@ function planStatusMessage(program: ProgramComparisonModel): string {
     case "ambiguous": return "Найдено несколько версий или год версии не указан; состав плана не сопоставлен.";
     case "needs-review": return "Актуальная версия или связь учебного плана требует проверки; старую версию не подставляем.";
   }
-}
-
-function SourceLink({ href }: { href: string | null | undefined }) {
-  if (!href) return null;
-  return <a className={styles.sourceLink} href={href} target="_blank" rel="noopener noreferrer">Источник ↗</a>;
-}
-
-function OverviewValue({
-  value,
-  note,
-  sourceUrl,
-}: {
-  value: string;
-  note?: string | null;
-  sourceUrl?: string | null;
-}) {
-  return (
-    <div className={styles.overview}>
-      <strong>{value}</strong>
-      {note ? <span>{note}</span> : null}
-      <SourceLink href={sourceUrl} />
-    </div>
-  );
-}
-
-function StudyOfferOverview({ summary }: { summary: AdmissionSummary | undefined }) {
-  if (!summary) return <OverviewValue value="Не удалось загрузить" note="Повторите загрузку сравнения." />;
-  if (!summary.offers.length) {
-    return <OverviewValue value="Точное предложение не найдено" note="Связь с программой не подтверждена." />;
-  }
-
-  const valueFor = (prefix: string) => summary.offers
-    .filter((offer) => offer.startsWith(prefix))
-    .map((offer) => offer.slice(prefix.length).trim())
-    .filter(Boolean);
-  const forms = valueFor("Форма обучения:");
-  const durations = valueFor("Срок обучения:");
-
-  return (
-    <OverviewValue
-      value={forms.join(", ") || "Форма не указана"}
-      note={durations.length ? `срок обучения · ${durations.join(", ")}` : "Срок обучения не указан."}
-    />
-  );
-}
-
-function MetricOverview({ summary, index }: { summary: AdmissionSummary | undefined; index: number }) {
-  if (!summary) return <OverviewValue value="Не удалось загрузить" />;
-  const metric: AdmissionMetric | undefined = summary.seats[index];
-  if (!metric) return <OverviewValue value="Не указано" />;
-  const fundingType = index === 0 ? "budget" : "paid";
-  const relatedFacts = summary.relatedSeatFacts.filter((fact) => fact.fundingType === fundingType);
-  if (metric.value === "—" && relatedFacts.length) {
-    return (
-      <div className={styles.overview}>
-        <OverviewValue value="Иное название в приёмном плане" note="Для этой кафедры документ перечисляет следующие предложения приёма. Их названия отличаются от выбранной карточки каталога." />
-        <div className={styles.relatedFacts}>
-          {relatedFacts.map((fact) => (
-          <div className={styles.overview} key={fact.key}>
-            <strong>{fact.value}</strong>
-            <span>
-              {fact.note ? `${fact.note} ` : ""}
-              Предложение из источника «{fact.sourceProgramName}»
-              {fact.departmentCode ? ` · кафедра ${fact.departmentCode}` : ""}.
-            </span>
-            <SourceLink href={fact.sourceUrl} />
-          </div>
-          ))}
-        </div>
-      </div>
-    );
-  }
-  return <OverviewValue value={metric.value === "—" ? "Нет строки приёма для этого профиля" : metric.value} note={metric.note ?? (metric.value === "—" ? summary.seatNote : `${summary.seatScope}${index === 0 ? " · всего по плану, включая квоты" : ""}`)} sourceUrl={metric.sourceUrl} />;
-}
-
-function CampaignScoreOverview({ summary, funding, competition = "general" }: {
-  summary: AdmissionSummary | undefined;
-  funding: "budget" | "paid";
-  competition?: AdmissionCompetition;
-}) {
-  const result = presentCompetition(summary, funding, competition);
-  return <OverviewValue value={result.value} note={result.note} sourceUrl={result.sourceUrl} />;
-}
-
-function QuotaOverview({ summary, competition }: {
-  summary: AdmissionSummary | undefined;
-  competition: "separate_quota" | "special_quota" | "targeted";
-}) {
-  if (!summary) return <OverviewValue value="Не удалось загрузить" />;
-  const places = summary.quotas.filter((quota) => quota.quotaType === competition);
-  const result = presentCompetition(summary, "budget", competition);
-  return <div className={styles.quotaOverview}>
-    {places.length ? places.map((quota, index) => <OverviewValue key={index} value={quota.value} note={quota.scope} sourceUrl={quota.sourceUrl} />)
-      : <p className={styles.quotaPlacesNote}>Места этого конкурса не выделены для программы в доступном плане.</p>}
-    <div className={styles.quotaScore}><span>Результат зачисления</span><OverviewValue value={result.value} note={result.note} sourceUrl={result.sourceUrl} /></div>
-    {competition === "targeted" && summary.quotaNote ? <p className={styles.quotaPlacesNote}>{summary.quotaNote}</p> : null}
-    {competition === "targeted" && summary.directionQuotas.length ? <details className={styles.directionQuotas}>
-      <summary>Заказчики по направлению · {summary.directionQuotas.length}</summary>
-      <p>Общие сведения направления, без выделения мест выбранному профилю.</p>
-      <ul>{summary.directionQuotas.map((quota, index) => <li key={index}><strong>{quota.value}</strong><span>{quota.label}</span><small>{quota.scope}</small><SourceLink href={quota.sourceUrl} /></li>)}</ul>
-    </details> : null}
-  </div>;
 }
 
 function SelectionCards({
@@ -216,61 +114,23 @@ function SelectionCards({
 }
 
 function AdmissionComparison({ data }: { data: ComparisonOverview }) {
-  const years = [...new Set([...data.admission.values()].flatMap((summary) => summary.year === null ? [] : [summary.year]))];
-  const campaignLabel = years.length === 1
-    ? `Данные приёмной кампании ${years[0]} года`
-    : years.length
-      ? `Данные приёмных кампаний ${years.join(" / ")}`
-      : "Данные приёмной кампании";
-  const rows: { label: string; value: (key: string, summary: AdmissionSummary | undefined) => ReactNode }[] = [
-    { label: "Бюджетные места · по плану", value: (_key, summary) => <MetricOverview summary={summary} index={0} /> },
-    { label: "Платные места", value: (_key, summary) => <MetricOverview summary={summary} index={1} /> },
-    {
-      label: "Проходной балл · бюджет · основной конкурс",
-      value: (_key, summary) => <CampaignScoreOverview summary={summary} funding="budget"  />,
-    },
-    ...(["separate_quota", "special_quota", "targeted"] as const).map((competition) => ({
-      label: COMPETITION_LABELS[competition]!,
-      value: (_key: string, summary: AdmissionSummary | undefined) => <QuotaOverview summary={summary} competition={competition} />,
-    })),
-    {
-      label: "БВИ · без вступительных испытаний",
-      value: (_key, summary) => <CampaignScoreOverview summary={summary} funding="budget" competition="bvi" />,
-    },
-    {
-      label: "Проходной балл · платное",
-      value: (_key, summary) => <CampaignScoreOverview summary={summary} funding="paid"   />,
-    },
-    {
-      label: "Минимальные баллы ЕГЭ",
-      value: (_key, summary) => summary?.requirements.length
-        ? <OverviewValue value={summary.requirements.map((item) => `${item.category}: ${item.text}`).join("; ")} note={summary.requirementsNote ?? `Требования указаны для направления ${summary.directionCode ?? "не указано"}.`} sourceUrl={summary.requirements.flatMap((item) => item.sourceUrls)[0] ?? null} />
-        : <OverviewValue value={summary ? "Нет данных" : "Не удалось загрузить"} note="Минимальные баллы не найдены в архиве." />,
-    },
-    {
-      label: "Форма и срок обучения",
-      value: (_key, summary) => <StudyOfferOverview summary={summary} />,
-    },
-  ];
-
+  const currentYears = [...new Set([...data.admission.values()].flatMap((summary) => summary.year === null ? [] : [summary.year]))];
+  const years = [...new Set(currentYears.flatMap((year) => [year - 1, year]))].sort((a, b) => a - b);
+  const columns = data.programs.map((program) => ({
+    key: program.external_key,
+    label: program.code || program.name,
+    summary: data.admission.get(program.external_key),
+  }));
   return (
-    <section
-      className={styles.section}
-      id="admission"
-      aria-labelledby="admission-title"
-      data-qa="admission-summary"
-      data-unavailable-count={data.admissionUnavailable.size}
-    >
-      <div className={styles.sectionHeading}>
-        <div><p className={styles.kicker}>{campaignLabel}</p><h2 id="admission-title">Места и проходные баллы</h2><p>Сравнивай один и тот же конкурс. Баллы квот показаны отдельно; балл прошлых зачислений не гарантирует поступление.</p></div>
-      </div>
-      <div className={styles.tableWrap}>
-        <table className={`${styles.table} ${styles.comparisonTable}`}>
-          <caption className={styles.srOnly}>Сравнение мест и условий приёма в выбранные программы.</caption>
-          <thead><tr><th scope="col">Показатель</th>{data.programs.map((program) => <th scope="col" key={program.external_key}><div className={styles.programHead}><span className={styles.programCode}>{program.code}</span><h3 className={styles.programName}>{program.name}</h3></div></th>)}</tr></thead>
-          <tbody>{rows.map((row) => <tr key={row.label}><th scope="row">{row.label}</th>{data.programs.map((program, index) => <td key={program.external_key} data-program-label={program.code || program.name} style={{ "--program-color": SERIES_COLORS[index % SERIES_COLORS.length] } as CSSProperties}>{row.value(program.external_key, data.admission.get(program.external_key))}</td>)}</tr>)}</tbody>
-        </table>
-      </div>
+    <section className={`${styles.section} ${admissionStyles.stack}`} id="admission" aria-labelledby="admission-title"
+      data-qa="admission-summary" data-unavailable-count={data.admissionUnavailable.size}>
+      <div className={styles.sectionHeading}><div><h2 id="admission-title">Поступление</h2></div></div>
+      {years.map((year) => <AdmissionScoreTable key={year} columns={columns} year={year} />)}
+      {!years.length ? <p className={styles.warning}>Не удалось загрузить результаты приёма. Повторите загрузку.</p> : null}
+      <div className={styles.sectionHeading}><div><h2>Необходимые экзамены</h2></div></div>
+      <div className={admissionStyles.programExams}>{columns.map((column) => <section key={column.key}>
+        <h3>{column.label}</h3><AdmissionExams summary={column.summary} />
+      </section>)}</div>
     </section>
   );
 }

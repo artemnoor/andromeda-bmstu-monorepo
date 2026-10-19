@@ -27,7 +27,7 @@ const summary: AdmissionSummary = {
   relatedSeatFacts: [{ key: "offering:unresolved", fundingType: "paid", sourceProgramName: "Название в документе", departmentCode: "ФН3", value: "37 мест", note: null, sourceUrl: "https://bmstu.example/source" }],
   quotas: [], directionQuotas: [], quotaNote: null, historyScope: "направление", history: [], requirements: [], requirementsNote: null,
   campaignResults: [{ year: 2026, stage: "main", competitionType: "general", status: "numeric", funding: "budget", score: 288, admittedCount: null, snapshotDate: null, scopeType: "direction", scopeLabel: null, scopeNote: "Направление 01.03.02", sourceUrl: "https://bmstu.example/score" }],
-  offers: [], tuition: [], dates: [],
+  historicalResults: [], offers: [], tuition: [], dates: [],
 };
 
 describe("catalog admission reliability", () => {
@@ -60,17 +60,18 @@ describe("catalog admission reliability", () => {
     expect(second.aborted).toBe(false);
   });
 
-  it("keeps real zero seats, unconfirmed source facts, and current scores separate", async () => {
+  it("shows scores by year without plan cards, admitted counts, or averages", async () => {
     mocks.load.mockResolvedValue({ releaseKey: "release:one" });
     render(<AdmissionDetails program={program} expectedReleaseKey="release:one" />);
-    expect(await screen.findByText("0 мест")).toBeVisible();
-    expect(screen.getByText("Иное название в приёмном плане")).toBeVisible();
-    expect(screen.getByText("288 баллов")).toBeVisible();
+    expect(await screen.findByText("288 баллов")).toBeVisible();
+    expect(screen.getByRole("heading", { name: "Проходные баллы · 2025" })).toBeVisible();
+    expect(screen.getByRole("heading", { name: "Проходные баллы · 2026" })).toBeVisible();
     expect(screen.getByText(/Направление 01.03.02/)).toBeVisible();
-    expect(screen.getByText("Платное · 37 мест")).toBeVisible();
-    expect(screen.getByText(/предложения именно из документа, а не места выбранного профиля/)).toBeVisible();
+    expect(screen.queryByText("0 мест")).not.toBeInTheDocument();
+    expect(screen.queryByText("Иное название в приёмном плане")).not.toBeInTheDocument();
+    expect(screen.queryByRole("columnheader", { name: "Средний" })).not.toBeInTheDocument();
     expect(screen.getAllByRole("link", { name: "Источник ↗" }).map((link) => link.getAttribute("href"))).toEqual([
-      "https://bmstu.example/source", "https://bmstu.example/score",
+      "https://bmstu.example/score",
     ]);
   });
 

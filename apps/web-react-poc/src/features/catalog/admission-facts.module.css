@@ -1,0 +1,50 @@
+.section { display: grid; gap: 16px; min-width: 0; color: var(--text); }
+.section h3 { margin: 0; font-size: clamp(17px, 2vw, 22px); font-weight: 600; letter-spacing: -.025em; }
+.tableWrap { min-width: 0; overflow-x: auto; border: 1px solid var(--line); border-radius: 12px; }
+.stack { display: grid; gap: 32px; min-width: 0; }
+.table { width: 100%; table-layout: fixed; border-collapse: collapse; text-align: left; background: transparent; font-size: 14px; }
+.table th, .table td { padding: 16px; vertical-align: top; overflow-wrap: anywhere; }
+.table thead th { color: var(--text-muted); background: rgba(255,255,255,.035); font-weight: 500; font-size: 12px; }
+.table thead th:first-child { width: 24%; }
+.table tbody th { width: 24%; font-weight: 500; }
+.table tbody tr + tr { border-top: 1px solid var(--line); }
+.table td + td { border-inline-start: 1px solid var(--line); }
+.result { display: grid; gap: 6px; min-width: 0; }
+.result strong { color: var(--text); font-size: 18px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.result[data-kind="unavailable"] strong { color: var(--text-muted); font-size: 13px; font-weight: 400; }
+.result span, .note { color: var(--text-muted); font-size: 12px; line-height: 1.55; }
+.note { margin: 0; }
+.source { width: fit-content; color: var(--text-muted); font-size: 11px; line-height: 1.5; text-decoration: underline; text-underline-offset: 3px; }
+.source:hover { color: var(--text); }
+.source:focus-visible { outline: 2px solid var(--text); outline-offset: 4px; }
+.exams { display: grid; gap: 16px; min-width: 0; }
+.variants { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr)); gap: 20px; }
+.variant { min-width: 0; display: grid; align-content: start; gap: 12px; }
+.variant h4 { margin: 0; color: var(--text); font-size: 13px; font-weight: 600; }
+.condition { display: grid; gap: 10px; }
+.conditionLabel { margin: 0; color: var(--text-muted); font-size: 12px; line-height: 1.5; }
+.condition ul { display: grid; gap: 0; list-style: none; margin: 0; padding: 0; }
+.condition li + li { border-top: 1px solid var(--line); }
+.condition li > .condition { padding-block: 12px; padding-inline-start: 12px; border-inline-start: 2px solid rgba(255,255,255,.25); }
+.exam { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding-block: 11px; font-size: 14px; line-height: 1.45; }
+.exam span { min-width: 0; overflow-wrap: anywhere; color: var(--text); }
+.exam strong { flex-shrink: 0; max-width: 45%; color: var(--text); font-size: 13px; font-weight: 600; text-align: end; font-variant-numeric: tabular-nums; }
+.sources { display: flex; flex-wrap: wrap; gap: 12px; }
+.programExams { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 28px; }
+.programExams > section { display: grid; align-content: start; gap: 18px; min-width: 0; }
+.programExams h3 { margin: 0; font-size: 15px; font-weight: 600; color: var(--text); }
+.programExams .variants { grid-template-columns: 1fr; }
+.srOnly { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; }
+@media (max-width: 600px) {
+  .table th, .table td { padding: 12px 10px; }
+  .table tbody th { width: 38%; font-size: 12px; }
+  .table thead th:first-child { width: 38%; }
+  .result strong { font-size: 16px; }
+  .table:has(thead th:nth-child(3)) thead { display: none; }
+  .table:has(thead th:nth-child(3)), .table:has(thead th:nth-child(3)) tbody { display: block; }
+  .table:has(thead th:nth-child(3)) tr { display: grid; grid-template-columns: 1fr; }
+  .table:has(thead th:nth-child(3)) tbody th { display: block; width: auto; background: rgba(255,255,255,.035); }
+  .table:has(thead th:nth-child(3)) td { display: grid; grid-template-columns: minmax(70px, .7fr) minmax(0, 1fr); gap: 12px; border: 0; }
+  .table:has(thead th:nth-child(3)) td::before { content: attr(data-program-label); color: var(--text-muted); font-size: 12px; }
+  .table:has(thead th:nth-child(3)) td + td { border-top: 1px solid var(--line); }
+}

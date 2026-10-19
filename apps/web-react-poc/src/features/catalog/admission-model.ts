@@ -81,6 +81,8 @@ export interface AdmissionCampaignResult {
 export interface AdmissionRequirement {
   readonly category: string;
   readonly text: string;
+  readonly root: RequirementNode;
+  readonly applicantCategory: string | null;
   readonly sourceUrls: readonly string[];
   readonly sourceRecordCount: number;
 }
@@ -98,6 +100,7 @@ export interface AdmissionSummary {
   readonly historyScope: string;
   readonly history: readonly AdmissionHistoryRow[];
   readonly campaignResults: readonly AdmissionCampaignResult[];
+  readonly historicalResults: readonly AdmissionCampaignResult[];
   readonly requirements: readonly AdmissionRequirement[];
   readonly requirementsNote: string | null;
   readonly offers: readonly string[];
@@ -150,7 +153,7 @@ const SUBJECT_LABELS: Readonly<Record<string, string>> = {
   foreign_language: "Иностранный язык",
 };
 
-function subjectLabel(value: string): string {
+export function subjectLabel(value: string): string {
   return SUBJECT_LABELS[value.trim().toLocaleLowerCase("en-US")] ?? value;
 }
 
@@ -305,6 +308,16 @@ function requirementCategory(node: RequirementNode): string {
     return "Тип условия не указан";
   }
   return node.operator === "AND" ? "Все условия" : node.operator === "OR" ? "Альтернативные условия" : "Выбор по условию";
+}
+
+function requirementApplicantCategory(value: string | null | undefined): string | null {
+  const text = value?.trim().replace(/\s+/gu, " ");
+  if (!text) return null;
+  // Legacy extraction captured the PDF page/table context here, including
+  // unrelated directions. It is provenance, not an applicant category.
+  if (/\d{2}\.\d{2}\.\d{2}/u.test(text)
+    || /приложение\s*\d|минимально\s*необходимые\s*баллы|код\s*нп/iu.test(text)) return null;
+  return text;
 }
 
 function statisticDepartmentMatch(statistic: StatisticDto, departmentCode: string | null): boolean {
@@ -504,17 +517,21 @@ export function buildAdmissionSummary(program: CatalogProgram, data: ProgramAdmi
   const requirementGroups = new Map<string, {
     category: string;
     text: string;
+    root: RequirementNode;
+    applicantCategory: string | null;
     sourceUrls: Set<string>;
     sourceRecordCount: number;
   }>();
   for (const requirement of data.requirements.filter((item) => item.direction_key === program.direction_key)) {
-    const applicantCategory = requirement.applicant_category?.trim();
+    const applicantCategory = requirementApplicantCategory(requirement.applicant_category);
     const category = `${requirementCategory(requirement.root)}${applicantCategory ? ` · ${applicantCategory}` : ""}`;
     const text = requirementExpression(requirement.root);
     const groupKey = `${category}\u0000${text}`;
     const group = requirementGroups.get(groupKey) ?? {
       category,
       text,
+      root: requirement.root,
+      applicantCategory: applicantCategory || null,
       sourceUrls: new Set<string>(),
       sourceRecordCount: 0,
     };
@@ -666,6 +683,24 @@ export function buildAdmissionSummary(program: CatalogProgram, data: ProgramAdmi
           ?? (statistic.year === year && statistic.admission_stage && toNumber(statistic.admitted_count) !== null
             ? OFFICIAL_ORDER_LIST_URL
             : null),
+      })),
+    historicalResults: data.history
+      .filter((statistic) => statistic.year < (year ?? Number.POSITIVE_INFINITY)
+        && campaignStatisticMatchesProgram(statistic, program))
+      .map((statistic) => ({
+        year: statistic.year,
+        stage: statistic.admission_stage ?? null,
+        competitionType: statistic.competition_type
+          ?? (statistic.statistic_kind === "paid_admission_published_aggregate" && statistic.funding_type === "paid" ? "general" : null),
+        status: statistic.status ?? (toNumber(statistic.minimum_score ?? statistic.score) !== null ? "numeric" : null),
+        funding: statistic.funding_type ?? null,
+        score: toNumber(statistic.minimum_score ?? statistic.score),
+        admittedCount: toNumber(statistic.admitted_count),
+        snapshotDate: statistic.snapshot_date ?? null,
+        scopeType: statistic.scope_type ?? null,
+        scopeLabel: statistic.scope_label ?? null,
+        scopeNote: statisticScopeNote(statistic, program),
+        sourceUrl: sourceUrl(statistic),
       })),
     requirements,
     requirementsNote: requirements.length

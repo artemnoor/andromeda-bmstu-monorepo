@@ -27,6 +27,6 @@ it("shows an explicit BVI result as admission without exams, rather than an unpu
   };
   loadAdmission.mockResolvedValue(data);
   render(<AdmissionDetails program={program} expectedReleaseKey="release:bvi" />);
-  expect(await screen.findByText("БВИ — без вступительных испытаний")).toBeVisible();
+  expect(await screen.findByText("БВИ", { exact: true })).toBeVisible();
   expect(screen.queryByText("Числовой балл не опубликован")).not.toBeInTheDocument();
 });

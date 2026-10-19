@@ -332,6 +332,23 @@ describe("buildAdmissionSummary", () => {
     expect(summary.requirements[0]?.text).toBe("не менее 2 из: Математика от 45; (Физика или Информатика)");
   });
 
+  it("does not display PDF table fragments as applicant categories or duplicate identical exam sets", () => {
+    const base = {
+      campaign_key: campaign.external_key, direction_key: program.direction_key,
+      ingested_at: "2026-01-01T00:00:00Z",
+    };
+    const root = { kind: "leaf" as const, node_key: "math", subject_name: "mathematics", minimum_score: "46" };
+    const summary = buildAdmissionSummary(program, data({ requirements: [
+      { ...base, external_key: "r:1", applicant_category: "Мехатроника 15.03.06 46 46 46", root },
+      { ...base, external_key: "r:2", applicant_category: "Минимальнонеобходимыебаллы КодНП(С) 09.03.01", root },
+      { ...base, external_key: "r:4", applicant_category: "Приложение 1 к Правилам приёма в МГТУ. Председатель приёмной комиссии", root },
+      { ...base, external_key: "r:3", root: { ...root, minimum_score: "40" } },
+    ] }));
+    expect(summary.requirements).toHaveLength(2);
+    expect(summary.requirements[0]).toMatchObject({ applicantCategory: null, sourceRecordCount: 3, text: "Математика от 46" });
+    expect(summary.requirements[1]?.text).toBe("Математика от 40");
+  });
+
   it("groups nested boolean requirements so the published condition keeps its meaning", () => {
     const root: ApiSchemas["RequirementTreeRecord"]["root"] = {
       kind: "operator",
