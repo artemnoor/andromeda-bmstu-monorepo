@@ -183,7 +183,15 @@ def repair_bundle(source: Path, destination: Path, *, capture=None):
                 if len(matches) == 1
                 else "multiple_matching_documents"
                 if matches
+                else "parsing_failed"
+                if any(
+                    _code(p.get("header_profile_code")) == _code(program["code"])
+                    for p, _ in parsed_documents
+                )
                 else "profile_mismatch"
+                if parsed_documents
+                and all(p.get("header_profile_code") for p, _ in parsed_documents)
+                else "profile_identity_unresolved"
                 if parsed_documents
                 else "source_placeholder"
                 if notices

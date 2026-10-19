@@ -204,7 +204,7 @@ class BmstuSource:
         if not direct_urls:
             selection_logger.warning("study_plan_document_unavailable plan_url=%s resource_type=%s", public_url, payload.get("type"))
             self._capture_gaps.append(source_fetch_gap("bmstu_curriculum_document", public_url, "document_missing"))
-            return (metadata_snapshot,)
+            return tuple(metadata_snapshots)
         snapshots = metadata_snapshots
         unique_direct_urls = list(dict.fromkeys(direct_urls))
         max_documents = max_documents if max_documents is not None else 64

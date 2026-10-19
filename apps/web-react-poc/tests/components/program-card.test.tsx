@@ -57,7 +57,7 @@ describe("program card browser state", () => {
   it("persists comparison using stable external identity", () => {
     render(<CardHarness />);
 
-    fireEvent.click(screen.getByRole("button", { name: /Сравнить/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Добавить в сравнение" }));
 
     expect(JSON.parse(localStorage.getItem(STORAGE_KEYS.compare) ?? "null")).toEqual([program.external_key]);
     expect(screen.getByRole("button", { name: /В сравнении/ })).toHaveAttribute("aria-pressed", "true");
@@ -87,11 +87,11 @@ describe("program card browser state", () => {
     render(<CardHarness />);
 
     fireEvent.click(screen.getByText("Прикладная математика и информатика", { selector: "summary h2" }));
-    const favorite = await screen.findByRole("button", { name: "♡ Добавить в избранное" });
+    const favorite = await screen.findByRole("button", { name: "Добавить в избранное" });
     fireEvent.click(favorite);
 
     expect(JSON.parse(localStorage.getItem(STORAGE_KEYS.favorites) ?? "null")).toEqual([program.external_key]);
-    expect(screen.getByRole("button", { name: "♥ Убрать из избранного" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "Убрать из избранного" })).toHaveAttribute("aria-pressed", "true");
   });
 
   it("shows a visible message when browser storage rejects a user action", () => {
@@ -100,7 +100,7 @@ describe("program card browser state", () => {
     });
     render(<CardHarness />);
 
-    fireEvent.click(screen.getByRole("button", { name: /Сравнить/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Добавить в сравнение" }));
 
     expect(screen.getByRole("status")).toHaveTextContent("Браузер не сохранил сравнение");
   });
@@ -110,10 +110,10 @@ describe("program card browser state", () => {
     localStorage.setItem(STORAGE_KEYS.compare, JSON.stringify(existing));
     render(<CardHarness />);
 
-    fireEvent.click(screen.getByRole("button", { name: /Сравнить/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Добавить в сравнение" }));
 
     expect(screen.getByRole("status")).toHaveTextContent("Можно сравнить не более трёх программ");
     expect(JSON.parse(localStorage.getItem(STORAGE_KEYS.compare) ?? "null")).toEqual(existing);
-    expect(screen.getByRole("button", { name: /Сравнить/ })).toHaveAttribute("aria-pressed", "false");
+    expect(screen.getByRole("button", { name: "Добавить в сравнение" })).toHaveAttribute("aria-pressed", "false");
   });
 });

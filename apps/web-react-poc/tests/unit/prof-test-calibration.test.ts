@@ -102,11 +102,18 @@ describe("live academic snapshot relevance calibration", () => {
   });
 
   it("keeps every verified curriculum item assigned to a category", () => {
-    expect(snapshot.total_curriculum_rows).toBe(14_165);
+    // Live API audit: recovered 01.03.04-05 adds 113 rows to the 14,165 prior rows.
+    expect(snapshot.total_curriculum_rows).toBe(14_165 + 113);
     expect(snapshot.assigned_rows).toBe(snapshot.total_curriculum_rows);
     expect(snapshot.classified_rows + snapshot.review_rows).toBe(snapshot.total_curriculum_rows);
-    expect(snapshot.review_rows).toBe(4_165);
-    expect(profiles).toHaveLength(127);
+    expect(snapshot.review_rows).toBe(4_165 + 31);
+    expect(profiles).toHaveLength(127 + 1);
+    const recovered = snapshot.profiles.find((profile) => profile.program_key === "program:bmstu:01.03.04:ФН2:01.03.04-05:source:2-1");
+    expect(recovered?.assigned_rows).toBe(113);
+    expect(recovered?.review_rows).toBe(30);
+    // One prior ФН12 row also gains a cross-profile category conflict review flag.
+    const prior = snapshot.profiles.find((profile) => profile.program_key === "program:bmstu:01.03.04:ФН12:01.03.04-04:source:3-1");
+    expect(prior?.review_rows).toBe(26);
   });
 
   it("ranks IBM programs for matching technology and business interests", () => {
