@@ -349,6 +349,29 @@ describe("buildAdmissionSummary", () => {
     expect(summary.requirements[1]?.text).toBe("Математика от 40");
   });
 
+  it("uses Moscow minima without mixing in Kaluga and GUIMC rows from the same PDF", () => {
+    const base = {
+      campaign_key: campaign.external_key, direction_key: program.direction_key,
+      ingested_at: "2026-01-01T00:00:00Z",
+    };
+    const root = { kind: "leaf" as const, node_key: "math", subject_name: "mathematics", minimum_score: "46" };
+    const source = (page: number, table: number) => [{
+      source_artifact_key: "appendix:1",
+      sha256: "0d1820ede1e3ceaaab7109f3cb32ac723c9b5e3634d68100d74c87e514ed1afd",
+      locator: { page, table, row: 28 },
+    }];
+    const requirements = [
+      { ...base, external_key: "r:moscow", sources: source(2, 1), root },
+      { ...base, external_key: "r:kaluga", sources: source(3, 1), root: { ...root, minimum_score: "40" } },
+      { ...base, external_key: "r:guimc", sources: source(3, 2), root },
+    ];
+    const summary = buildAdmissionSummary(program, data({ requirements }));
+    expect(summary.requirements).toHaveLength(1);
+    expect(summary.requirements[0]).toMatchObject({ sourceRecordCount: 1, text: "Математика от 46" });
+    const unknownCampus = buildAdmissionSummary({ ...program, campus_status: "not_stated" }, data({ requirements }));
+    expect(unknownCampus.requirements).toHaveLength(0);
+  });
+
   it("groups nested boolean requirements so the published condition keeps its meaning", () => {
     const root: ApiSchemas["RequirementTreeRecord"]["root"] = {
       kind: "operator",

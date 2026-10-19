@@ -64,12 +64,15 @@ function ExamCondition({ node }: { node: RequirementNode }) {
 export function AdmissionExams({ summary }: { summary: AdmissionSummary | undefined }) {
   if (!summary) return <p className={styles.note}>Не удалось загрузить экзамены. Повторите загрузку.</p>;
   if (!summary.requirements.length) return <p className={styles.note}>Экзамены не опубликованы в доступных данных.</p>;
-  const multiple = summary.requirements.length > 1;
+  if (summary.requirements.length > 1) return <div className={styles.exams}>
+    <p className={styles.note}>Минимальные баллы для выбранной программы требуют уточнения по правилам приёма.</p>
+    <div className={styles.sources}>{[...new Set(summary.requirements.flatMap((item) => item.sourceUrls))].map((href) => <Source key={href} href={href} />)}</div>
+  </div>;
   return <div className={styles.exams}>
-    <p className={styles.note}>По направлению {summary.directionCode ?? "без указанного кода"}.{multiple ? " В источнике несколько вариантов минимумов; привязка к профилям не указана." : ""}</p>
+    <p className={styles.note}>Минимальные баллы для допуска к конкурсу · {summary.year ?? "год не указан"}</p>
     <div className={styles.variants}>
-      {summary.requirements.map((requirement, index) => <section className={styles.variant} key={`${requirement.category}:${requirement.text}`}>
-        {multiple || requirement.applicantCategory ? <h4>{requirement.applicantCategory || `Вариант условий ${index + 1}`}</h4> : null}
+      {summary.requirements.map((requirement) => <section className={styles.variant} key={`${requirement.category}:${requirement.text}`}>
+        {requirement.applicantCategory ? <h4>{requirement.applicantCategory}</h4> : null}
         <ExamCondition node={requirement.root} />
         <div className={styles.sources}>{requirement.sourceUrls.map((href) => <Source key={href} href={href} />)}</div>
       </section>)}

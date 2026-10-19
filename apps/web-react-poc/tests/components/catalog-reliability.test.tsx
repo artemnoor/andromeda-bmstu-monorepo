@@ -64,7 +64,7 @@ describe("catalog admission reliability", () => {
     mocks.load.mockResolvedValue({ releaseKey: "release:one" });
     render(<AdmissionDetails program={program} expectedReleaseKey="release:one" />);
     expect(await screen.findByText("288 баллов")).toBeVisible();
-    expect(screen.getByRole("heading", { name: "Проходные баллы · 2025" })).toBeVisible();
+    expect(screen.queryByRole("heading", { name: "Проходные баллы · 2025" })).not.toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Проходные баллы · 2026" })).toBeVisible();
     expect(screen.getByText(/Направление 01.03.02/)).toBeVisible();
     expect(screen.queryByText("0 мест")).not.toBeInTheDocument();

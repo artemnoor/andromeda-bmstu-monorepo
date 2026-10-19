@@ -115,7 +115,7 @@ function SelectionCards({
 
 function AdmissionComparison({ data }: { data: ComparisonOverview }) {
   const currentYears = [...new Set([...data.admission.values()].flatMap((summary) => summary.year === null ? [] : [summary.year]))];
-  const years = [...new Set(currentYears.flatMap((year) => [year - 1, year]))].sort((a, b) => a - b);
+  const years = currentYears.sort((a, b) => a - b);
   const columns = data.programs.map((program) => ({
     key: program.external_key,
     label: program.code || program.name,

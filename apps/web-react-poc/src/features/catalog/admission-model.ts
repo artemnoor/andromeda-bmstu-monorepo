@@ -1,6 +1,7 @@
 import type { ApiSchemas } from "@/shared/api/client";
 import type { CatalogProgram } from "./model";
 import { safeExternalUrl } from "./model";
+import { requirementMatchesProgramScope } from "./admission-requirement-scope";
 
 type CampaignDto = ApiSchemas["AdmissionCampaignRecord"];
 type OfferingDto = ApiSchemas["AdmissionOfferingRecord"];
@@ -522,7 +523,8 @@ export function buildAdmissionSummary(program: CatalogProgram, data: ProgramAdmi
     sourceUrls: Set<string>;
     sourceRecordCount: number;
   }>();
-  for (const requirement of data.requirements.filter((item) => item.direction_key === program.direction_key)) {
+  for (const requirement of data.requirements.filter((item) => item.direction_key === program.direction_key
+    && requirementMatchesProgramScope(item, program))) {
     const applicantCategory = requirementApplicantCategory(requirement.applicant_category);
     const category = `${requirementCategory(requirement.root)}${applicantCategory ? ` · ${applicantCategory}` : ""}`;
     const text = requirementExpression(requirement.root);

@@ -56,10 +56,8 @@ function Details({
 
   const { summary } = state;
   const columns = [{ key: program.external_key, label: program.code, summary }];
-  const previousYear = summary.year === null ? null : summary.year - 1;
   return (
     <div className={styles.admissionPanel}>
-      {previousYear !== null ? <AdmissionScoreTable columns={columns} year={previousYear} /> : null}
       {summary.year !== null ? <AdmissionScoreTable columns={columns} year={summary.year} /> : null}
       <section className={styles.admissionSection} aria-labelledby={`admission-requirements-${program.external_key}`}>
         <h3 id={`admission-requirements-${program.external_key}`}>Необходимые экзамены{summary.year !== null ? ` · ${summary.year}` : ""}</h3>
