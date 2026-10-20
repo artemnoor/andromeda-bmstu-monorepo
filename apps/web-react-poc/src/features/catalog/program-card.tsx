@@ -1,9 +1,9 @@
-import { useState } from "react";
+import { memo, useId, useState } from "react";
 import { Link } from "react-router";
 import { AdmissionDetails } from "./admission-details";
 import type { CatalogProgram } from "./model";
-import { comparisonSelection, favoritesSelection, useComparisonSelection, useFavorites } from "@/shared/browser-state/hooks";
-import { MAX_COMPARE_PROGRAMS } from "@/shared/browser-state/storage";
+import { comparisonSelection, useIsCompared } from "@/shared/browser-state/hooks";
+import { getComparisonSnapshot, MAX_COMPARE_PROGRAMS } from "@/shared/browser-state/storage";
 import styles from "./programs.module.css";
 
 function safeLinks(program: CatalogProgram): readonly { href: string; label: string }[] {
@@ -24,17 +24,15 @@ function safeUrl(value: string): string | null {
   }
 }
 
-export function ProgramCard({ program, expectedReleaseKey, onSelectionLimit }: {
+export const ProgramCard = memo(function ProgramCard({ program, expectedReleaseKey, onSelectionLimit }: {
   program: CatalogProgram;
   expectedReleaseKey: string;
   onSelectionLimit: (message: string) => void;
 }) {
-  const comparison = useComparisonSelection();
-  const favorites = useFavorites();
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const detailsId = useId();
   const key = program.external_key;
-  const isCompared = comparison.includes(key);
-  const isFavorite = favorites.includes(key);
+  const isCompared = useIsCompared(key);
   const externalLinks = safeLinks(program);
   const direction = [program.directionCode, program.directionName].filter(Boolean).join(" · ");
   const department = program.departments.length > 0
@@ -42,25 +40,20 @@ export function ProgramCard({ program, expectedReleaseKey, onSelectionLimit }: {
     : program.departmentStatus === "unresolved" ? "Связь не подтверждена" : "";
 
   function toggleComparison() {
-    if (!isCompared && comparison.length >= MAX_COMPARE_PROGRAMS) {
+    const comparison = getComparisonSnapshot();
+    const selected = comparison.includes(key);
+    if (!selected && comparison.length >= MAX_COMPARE_PROGRAMS) {
       onSelectionLimit("Можно сравнить не более трёх программ. Удалите одну из выбранных или очистите список сравнения.");
       return;
     }
-    const status = comparisonSelection.toggle(key, !isCompared);
+    const status = comparisonSelection.toggle(key, !selected);
     onSelectionLimit(status === "unavailable"
       ? "Браузер не сохранил сравнение. Разрешите localStorage и попробуйте снова."
       : "");
   }
 
-  function toggleFavorite() {
-    const status = favoritesSelection.toggle(key, !isFavorite);
-    onSelectionLimit(status === "unavailable"
-      ? "Браузер не сохранил избранное. Разрешите localStorage и попробуйте снова."
-      : "");
-  }
-
   return (
-    <article className={styles.programCard} data-program-code={program.code} data-program-key={program.external_key}>
+    <article className={styles.programCard} data-program-code={program.code} data-program-key={program.external_key} data-expanded={detailsOpen}>
       <div className={styles.cardTop}>
         <span className={styles.programCode} title={program.code}>{program.code || "Код не указан"}</span>
         <div className={styles.cardActions}>
@@ -70,13 +63,13 @@ export function ProgramCard({ program, expectedReleaseKey, onSelectionLimit }: {
             aria-pressed={isCompared}
             onClick={toggleComparison}
           >
-            {isCompared ? "✓ В сравнении" : "+ Сравнить"}
+            {isCompared ? "✓ В сравнении" : "Добавить в сравнение"}
           </button>
         </div>
       </div>
 
-      <details className={styles.programDetails} onToggle={(event) => setDetailsOpen(event.currentTarget.open)}>
-        <summary className={styles.programSummary}>
+      <div className={styles.programDetails}>
+        <div className={styles.programSummary}>
           <h2 className={styles.programTitle}>{program.name || "Название не указано"}</h2>
           {program.description ? <p className={styles.programDescription}>{program.description}</p> : null}
           {direction || department ? (
@@ -85,22 +78,29 @@ export function ProgramCard({ program, expectedReleaseKey, onSelectionLimit }: {
               {department ? <span className={styles.programFact}><span className={styles.factLabel}>Кафедра</span><span className={styles.factValue}>{department}</span></span> : null}
             </span>
           ) : null}
-          <span className={styles.expandHint}>Открыть места, баллы и условия поступления</span>
-        </summary>
+          <button
+            className={styles.detailsButton}
+            type="button"
+            aria-expanded={detailsOpen}
+            aria-controls={detailsId}
+            onClick={() => setDetailsOpen((open) => !open)}
+          >
+            {detailsOpen ? "Скрыть" : "Подробнее"}
+          </button>
+        </div>
         {detailsOpen ? (
-          <>
+          <div id={detailsId}>
             <AdmissionDetails program={program} expectedReleaseKey={expectedReleaseKey} />
-            <div className={styles.favoriteTools}>
-              <button className={styles.favoriteAction} type="button" aria-pressed={isFavorite} onClick={toggleFavorite}>
-                {isFavorite ? "♥ Убрать из избранного" : "♡ Добавить в избранное"}
-              </button>
-            </div>
-          </>
+          </div>
         ) : null}
-      </details>
+      </div>
 
       <footer className={styles.cardBottom}>
-        <span className={styles.campusTag}>МГТУ · Москва</span>
+        <span className={styles.campusTag}>{program.campus_status === "verified" && program.campus_scope === "head_moscow"
+          ? "МГТУ · Москва"
+          : program.campus_status === "verified" && program.campus_scope === "other"
+            ? "МГТУ · другой кампус"
+            : "МГТУ · кампус не подтверждён"}</span>
         <div className={styles.cardLinks}>
           {externalLinks.length ? externalLinks.map((externalLink) => (
             <a key={`${externalLink.label}:${externalLink.href}`} className={styles.programLink} href={externalLink.href} target="_blank" rel="noopener noreferrer">
@@ -112,4 +112,4 @@ export function ProgramCard({ program, expectedReleaseKey, onSelectionLimit }: {
       </footer>
     </article>
   );
-}
+});

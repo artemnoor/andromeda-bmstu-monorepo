@@ -57,6 +57,8 @@ Alembic revision `71d8c4a29f30` is additive after `f4b19a7c2d61`. The original 1
 
 Alembic revision `7c2a16df09b4` grants the read-only API role SELECT access to `subject_taxonomies`. Revision `b62d4e91a8c3` adds nullable targeted-quota organization, tax-identifier, region, and campus fields; identifiers are stored as strings so leading zeros remain intact. Both revisions are additive. Existing release rows are not rewritten; newly imported releases preserve these source-backed fields.
 
+Revision `c7e2b4a91d63` grants the API read-only role SELECT on existing `source_relationships`, needed to verify explicit multi-profile admission offers. It grants no DML or access to raw source observations and changes no academic table structure. This ACL migration must precede deployment of the shared-offering query. Every relationship and linked program remains scoped to the request's pinned release and validated against source evidence, campus and exact direction identity.
+
 The API runtime role can update proposal aggregates and insert proposal history. API read-only and Directus roles have no proposal write privileges. Directus still reads the allowlisted projection, has no academic DML/DDL privileges, and can write only its scoped metadata schema through the configured metadata path.
 
 ## API and frontend boundary

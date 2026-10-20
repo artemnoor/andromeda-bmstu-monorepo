@@ -18,11 +18,7 @@
       width: 100%;
       min-height: 100%;
       overflow-x: clip;
-      background-color: #fafafa;
-      background-image: url("assets/paper-noise.svg");
-      background-repeat: repeat;
-      background-size: 180px 180px;
-      background-blend-mode: multiply;
+      background-color: #111;
     }
 
     body {
@@ -31,29 +27,9 @@
       width: 100%;
       min-height: 100%;
       font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
-      background-color: #fafafa;
-      background-image: url("assets/paper-noise.svg");
-      background-repeat: repeat;
-      background-size: 180px 180px;
-      background-blend-mode: multiply;
-      background-attachment: fixed;
-      background-position: 0 0;
-      animation: paper-grain 8s steps(10) infinite;
-      color: #111;
+      background-color: #111;
+      color: #f4f4f4;
       overflow-x: hidden;
-    }
-
-    @keyframes paper-grain {
-      0%, 100% { background-position: 0 0; }
-      10% { background-position: -8px -18px; }
-      20% { background-position: -27px 9px; }
-      30% { background-position: 9px -45px; }
-      40% { background-position: -9px 45px; }
-      50% { background-position: -27px 18px; }
-      60% { background-position: 27px 0; }
-      70% { background-position: 0 27px; }
-      80% { background-position: 9px 63px; }
-      90% { background-position: -18px 18px; }
     }
 
     .page {
@@ -118,17 +94,6 @@
     .action-card:focus-visible {
       outline: 3px solid rgba(0, 108, 220, 0.55);
       outline-offset: 4px;
-    }
-
-    .action-card::after {
-      position: absolute;
-      z-index: 0;
-      inset: 0;
-      background-image: radial-gradient(circle, rgba(0, 0, 0, 0.22) 0, rgba(0, 0, 0, 0.22) 0.7px, transparent 0.8px);
-      background-size: 4px 4px;
-      content: "";
-      opacity: 0.09;
-      pointer-events: none;
     }
 
     .feature-number {
@@ -738,11 +703,7 @@
     z-index: 90;
     inset: 0 0 auto;
     height: clamp(92px, 10vh, 124px);
-    background-color: #fafafa;
-    background-image: url("assets/paper-noise.svg");
-    background-repeat: repeat;
-    background-size: 180px 180px;
-    background-blend-mode: multiply;
+    background-color: #111;
     box-shadow: 0 8px 20px rgba(0, 0, 0, .04);
     transform: translateY(-100%);
     visibility: hidden;
@@ -755,7 +716,7 @@
     inset-inline: clamp(18px, 4vw, 56px);
     inset-block-end: 0;
     height: 2px;
-    background: #fff;
+    background: rgba(255, 255, 255, .18);
     box-shadow: 0 1px 2px rgba(0, 0, 0, .16);
     content: "";
   }
@@ -1255,10 +1216,39 @@
 
   }
 
+  .logo img { filter: invert(1); }
+  .page { color: #f4f4f4; }
+  .stats-label { color: #e3e3e3; }
+  .section-description { color: rgba(255, 255, 255, .68); }
+  .step-card { color: #111; }
+  .step-card .step-description { color: rgba(17,17,17,.64); }
+  .menu-button { background: #f4f4f4; }
+  .menu-button span { background: #111; }
+  body.menu-open .menu-button { background: transparent; }
+  body.menu-open .menu-button span { background: #fff; }
+  .noise { position: fixed; z-index: 999; inset: 0; opacity: .05; overflow: hidden; pointer-events: none; }
+  .noise::after {
+    position: absolute; top: -110%; left: -100%; width: 300%; height: 300%;
+    background-image: url("assets/paper-noise.svg"); content: "";
+    animation: grain 8s steps(10) infinite;
+  }
+  @keyframes grain {
+    0%, 100% { transform: translate(0); }
+    10% { transform: translate(-5%, -10%); }
+    20% { transform: translate(-15%, 5%); }
+    30% { transform: translate(5%, -25%); }
+    40% { transform: translate(-5%, 25%); }
+    50% { transform: translate(-15%, 10%); }
+    60% { transform: translate(15%); }
+    70% { transform: translateY(15%); }
+    80% { transform: translate(5%, 35%); }
+    90% { transform: translate(-10%, 10%); }
+  }
 </style>
 </head>
 
 <body>
+  <div class="noise" aria-hidden="true"></div>
 
   <header class="site-header" aria-hidden="true"></header>
 

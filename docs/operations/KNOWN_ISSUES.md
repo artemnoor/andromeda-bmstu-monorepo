@@ -25,10 +25,12 @@
   the read-only `/api/v1` contracts through the Node same-origin proxy. The
   earlier “before frontend integration” section below is a historical
   snapshot and has been superseded.
-- The current additive Alembic head is `b62d4e91a8c3`. It preserves six
-  targeted-quota metadata fields from the checked-in source bundle through
-  PostgreSQL and the typed API. Tax identifiers remain strings. Existing
-  immutable release rows are not rewritten.
+- The current Alembic head is `c7e2b4a91d63`: it grants the API read-only role
+  SELECT on normalized source relationships for verified shared admission
+  offers. Apply it before deploying the shared-offering query. Its parent
+  `b62d4e91a8c3` preserves six targeted-quota metadata fields through PostgreSQL
+  and the typed API. Tax identifiers remain strings; published release rows
+  are not rewritten. No write permissions are added.
 - An isolated local PostgreSQL 16.15 database at loopback, seeded with bundle
   digest `42616ee9348ee009fa1b297f7ef697862134835e562c7840f413643ce71d2130`,
   was used for the API-backed browser suite. The source has 21,911 records and

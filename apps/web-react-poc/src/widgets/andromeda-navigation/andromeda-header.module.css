@@ -1,5 +1,6 @@
 .headerRoot {
-  color: #111;
+  --site-header-height: clamp(92px, 10vh, 124px);
+  color: #f4f4f4;
   font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
 }
 
@@ -7,37 +8,50 @@
   position: fixed;
   z-index: 90;
   inset: 0 0 auto;
-  height: clamp(92px, 10vh, 124px);
-  background-color: #fafafa;
-  background-image: url("/assets/paper-noise.svg");
-  background-repeat: repeat;
-  background-size: 180px 180px;
-  background-blend-mode: multiply;
-  box-shadow: 0 8px 20px rgb(0 0 0 / 4%);
+  height: var(--site-header-height);
+  background-color: transparent;
+  box-shadow: none;
   pointer-events: none;
+  transition: background-color .3s ease, box-shadow .3s ease;
+}
+
+.headerScrolled .siteHeader,
+.menuOpen .siteHeader {
+  background-color: #111;
+  box-shadow: 0 8px 20px rgb(0 0 0 / 4%);
 }
 
 .siteHeader::after {
   position: absolute;
   inset: auto clamp(18px, 4vw, 56px) 0;
   height: 2px;
-  background: #fff;
+  background: rgb(255 255 255 / 18%);
   box-shadow: 0 1px 2px rgb(0 0 0 / 16%);
+  opacity: 0;
   content: "";
+  transition: opacity .3s ease;
 }
 
-.logo {
+.headerScrolled .siteHeader::after,
+.menuOpen .siteHeader::after { opacity: 1; }
+
+.brandLockup {
   position: fixed;
   z-index: 91;
-  inset-block-start: clamp(18px, 3.2vw, 42px);
-  inset-inline-start: clamp(18px, 4vw, 56px);
-  display: block;
-  width: clamp(78px, 7vw, 108px);
+  inset-block-start: 49px;
+  inset-inline-start: clamp(12px, 3.4vw, 48px);
+  display: flex;
+  align-items: center;
+  gap: clamp(5px, .65vw, 9px);
+  transform: translateY(-50%);
   line-height: 0;
+  text-decoration: none;
 }
 
-.logo img { display: block; width: 100%; height: auto; }
-.logo:focus-visible { outline: 3px solid rgb(0 108 220 / 55%); outline-offset: 4px; }
+.andromedaMark { display: block; width: clamp(78px, 7vw, 108px); height: auto; filter: invert(1); }
+.bmstuMark { display: block; width: clamp(42px, 4vw, 54px); height: auto; filter: brightness(0) invert(1); }
+.brandSeparator { color: #fff; font-size: clamp(17px, 1.6vw, 23px); font-weight: 400; line-height: 1; transform: translateX(clamp(-5px, -0.3vw, -3.5px)); }
+.brandLockup:focus-visible { outline: 2px solid rgb(255 255 255 / 65%); outline-offset: 5px; }
 
 .backdrop {
   position: fixed;
@@ -67,7 +81,7 @@
 .menuPanel {
   position: absolute;
   inset: 0;
-  overflow: auto;
+  overflow: hidden;
   border-radius: 56px;
   background: #303030;
   color: #f4f1ea;
@@ -94,49 +108,42 @@
 .menuButton {
   position: fixed;
   z-index: 500;
-  inset-block-start: 31px;
-  inset-inline-end: 31px;
+  inset-block-start: 22px;
+  inset-inline-end: 22px;
   display: grid;
-  width: 58px;
-  height: 58px;
+  width: 54px;
+  height: 54px;
   place-items: center;
   border: 0;
   border-radius: 50%;
-  background: #111;
+  background: #f4f4f4;
   cursor: pointer;
   transition: transform .45s cubic-bezier(.16, 1, .3, 1), background .55s ease;
 }
 
 .menuButton:hover { transform: scale(1.07); }
 .menuButton:focus-visible { outline: 3px solid rgb(0 108 220 / 70%); outline-offset: 4px; }
-.menuButton span { position: absolute; width: 22px; height: 2px; background: #fff; transition: transform .55s cubic-bezier(.16, 1, .3, 1), top .55s cubic-bezier(.16, 1, .3, 1), background .4s ease; }
-.menuButton span:first-child { top: 24px; }
-.menuButton span:last-child { top: 32px; }
-.menuOpen .menuButton { background: #fff; }
-.menuOpen .menuButton span { top: 28px; background: #111; }
+.menuButton span { position: absolute; width: 22px; height: 2px; background: #111; transition: transform .55s cubic-bezier(.16, 1, .3, 1), top .55s cubic-bezier(.16, 1, .3, 1), background .4s ease; }
+.menuButton span:first-child { top: 22px; }
+.menuButton span:last-child { top: 30px; }
+.menuOpen .menuButton { background: transparent; }
+.menuOpen .menuButton span { top: 26px; background: #fff; }
 .menuOpen .menuButton span:first-child { transform: rotate(45deg); }
 .menuOpen .menuButton span:last-child { transform: rotate(-45deg); }
 
 .menuList { display: grid; grid-template-columns: minmax(0, 1fr); margin: 0; padding: 0; list-style: none; }
 .menuItem { overflow: hidden; border-bottom: 1px solid rgb(255 255 255 / 14%); }
 .menuItem:first-child { border-top: 1px solid rgb(255 255 255 / 14%); }
-.menuLink { display: grid; grid-template-columns: 32px minmax(0, 1fr); align-items: center; column-gap: 24px; padding: 12px 0 14px; color: inherit; text-decoration: none; opacity: 0; transform: translateY(55px) scale(.98); filter: blur(9px); transition: transform .75s cubic-bezier(.16, 1, .3, 1), opacity .55s ease, filter .65s ease; }
+.menuLink { display: grid; grid-template-columns: minmax(0, 1fr); align-items: center; padding: 12px 0 14px; color: inherit; text-decoration: none; opacity: 0; transform: translateY(55px) scale(.98); filter: blur(9px); transition: transform .75s cubic-bezier(.16, 1, .3, 1), opacity .55s ease, filter .65s ease; }
 .menuOpen .menuLink { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
 .menuItem:nth-child(1) .menuLink { transition-delay: .38s; }
 .menuItem:nth-child(2) .menuLink { transition-delay: .45s; }
 .menuItem:nth-child(3) .menuLink { transition-delay: .52s; }
 .menuItem:nth-child(4) .menuLink { transition-delay: .59s; }
-.menuNumber { width: 32px; font-size: 11px; opacity: .38; }
 .menuLabel { font-size: clamp(32px, 4.4vw, 68px); line-height: .95; letter-spacing: -.065em; transition: transform .45s cubic-bezier(.16, 1, .3, 1), opacity .35s ease; }
 .menuLink:hover .menuLabel { transform: translateX(18px); opacity: .66; }
-.menuLink[aria-current="page"] .menuNumber { color: #73b5ff; opacity: 1; }
-.menuFooter { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 30px; padding-top: 28px; opacity: 0; transform: translateY(22px); transition: opacity .6s ease, transform .75s cubic-bezier(.16, 1, .3, 1); }
-.menuOpen .menuFooter { opacity: 1; transform: translateY(0); transition-delay: .67s; }
-.menuFooter span { color: #fff; font-size: 12px; line-height: 1.5; opacity: .48; }
-.menuFooter span:last-child { text-align: right; }
 
 @media (max-width: 800px) {
-  .logo { inset-block-start: 25px; inset-inline-start: 22px; }
   .menuShell { inset: 10px; width: auto; }
   .menuPanel { border-radius: 40px; clip-path: inset(0 0 calc(100% - 58px) calc(100% - 58px) round 29px); }
   .menuOpen .menuPanel { clip-path: inset(0 round 40px); }
@@ -146,10 +153,17 @@
   .menuOpen .menuButton span { top: 26px; }
   .menuContent { padding: 96px 26px 28px; }
   .menuLabel { font-size: clamp(24px, 6vw, 48px); }
-  .menuNumber { width: 26px; }
+  .menuPanel { overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }
 }
 
-@media (max-width: 520px) {
+@media (max-width: 600px) {
+  .brandLockup {
+    inset-block-start: max(40px, calc(env(safe-area-inset-top) + 24px));
+    inset-inline-start: max(12px, env(safe-area-inset-left));
+  }
+  .andromedaMark { width: clamp(72px, 19vw, 92px); }
+  .bmstuMark { width: clamp(40px, 10vw, 48px); }
+  .brandSeparator { transform: translateX(clamp(-5px, -1vw, -4px)); }
   .menuShell { inset: max(8px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left)); }
   .menuPanel, .menuOpen .menuPanel { border-radius: 32px; }
   .menuPanel { clip-path: inset(0 0 calc(100% - 54px) calc(100% - 54px) round 27px); }
@@ -160,15 +174,44 @@
   .menuOpen .menuButton span { top: 23px; }
   .menuContent { padding: 84px clamp(20px, 6vw, 34px) 24px; }
   .menuLabel { font-size: clamp(32px, 10.5vw, 58px); }
-  .menuFooter { grid-template-columns: 1fr; gap: 8px; padding-top: 24px; }
-  .menuFooter span:last-child { text-align: left; }
 }
 
 @media (max-width: 360px) {
-  .menuNumber { width: 22px; }
   .menuContent { padding-inline: 18px; }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .backdrop, .menuPanel, .menuButton, .menuButton span, .menuLink, .menuLabel, .menuFooter { transition-duration: .01ms; }
+@media (max-height: 540px) and (orientation: landscape) {
+  .menuContent { padding-top: 84px; padding-bottom: 20px; }
+  .menuLink { padding-block: 10px 12px; }
 }
+
+@media (min-width: 1101px) {
+  .headerRoot { --site-header-height: clamp(70px, 7.5vh, 86px); }
+  .brandLockup {
+    inset-block-start: 36px;
+    inset-inline-start: clamp(12px, 3vw, 42px);
+    transform: translateY(-50%);
+  }
+  .andromedaMark { width: clamp(64px, 5vw, 82px); }
+  .bmstuMark { width: clamp(40px, 3vw, 48px); }
+  .menuButton {
+    inset-block-start: 14px;
+    inset-inline-end: 22px;
+    width: 44px;
+    height: 44px;
+  }
+  .menuButton span { width: 18px; }
+  .menuButton span:first-child { top: 18px; }
+  .menuButton span:last-child { top: 26px; }
+  .menuOpen .menuButton span { top: 22px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .backdrop, .menuPanel, .menuButton, .menuButton span, .menuLink, .menuLabel { transition-duration: .01ms; }
+}
+
+/* Menu links respond immediately; the panel keeps a short reveal. */
+.menuPanel { transition-duration: .24s, .24s, .15s; }
+.menuLink, .menuItem .menuLink { transition-duration: .2s; transition-delay: 0s; filter: none; }
+.menuContent { overflow-y: auto; }
+.backdrop { transition-duration: .2s; }

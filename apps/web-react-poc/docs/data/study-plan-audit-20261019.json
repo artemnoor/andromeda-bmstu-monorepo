@@ -1,0 +1,241 @@
+{
+  "schema_version": 1,
+  "checked_programs": 25,
+  "unique_sources": 7,
+  "statuses": {
+    "recovered": 1,
+    "no_downloadable_document": 4,
+    "source_placeholder": 14,
+    "profile_mismatch": 6
+  },
+  "programs": [
+    {
+      "program_key": "program:bmstu:01.03.04:ФН2:01.03.04-05:source:2-1",
+      "program_code": "01.03.04-05",
+      "source_url": "https://clck.su/VXcfD",
+      "status": "recovered",
+      "document_profiles": [
+        "01.03.04-05"
+      ],
+      "downloaded_documents": 1,
+      "item_count": 113,
+      "source_sha256": "aced0ae4b5031550013f3f27ab062c65d5718ef385742e4417597e05b8c917f0"
+    },
+    {
+      "program_key": "program:bmstu:09.03.01:ИУ5:09.03.01-62:source:1-4",
+      "program_code": "09.03.01-62",
+      "source_url": "https://disk.yandex.ru/d/fYQkwnCYA-gx0w",
+      "status": "no_downloadable_document",
+      "document_profiles": [],
+      "downloaded_documents": 0
+    },
+    {
+      "program_key": "program:bmstu:10.05.03:ИУ8:10.05.03-62:source:1-2",
+      "program_code": "10.05.03-62",
+      "source_url": "https://disk.yandex.ru/d/O4YJexbhS90-XQ",
+      "status": "no_downloadable_document",
+      "document_profiles": [],
+      "downloaded_documents": 0
+    },
+    {
+      "program_key": "program:bmstu:12.03.04:БМТ1:12.03.04:source:1-1",
+      "program_code": "12.03.04",
+      "source_url": "https://clck.ru/3UDDJU",
+      "status": "source_placeholder",
+      "document_profiles": [],
+      "downloaded_documents": 1
+    },
+    {
+      "program_key": "program:bmstu:12.03.04:БМТ1:12.03.04:source:1-2",
+      "program_code": "12.03.04",
+      "source_url": "https://clck.ru/3UDDJU",
+      "status": "source_placeholder",
+      "document_profiles": [],
+      "downloaded_documents": 1
+    },
+    {
+      "program_key": "program:bmstu:12.03.04:БМТ1:12.03.04:source:1-3",
+      "program_code": "12.03.04",
+      "source_url": "https://clck.ru/3UDDJU",
+      "status": "source_placeholder",
+      "document_profiles": [],
+      "downloaded_documents": 1
+    },
+    {
+      "program_key": "program:bmstu:12.03.04:БМТ1:12.03.04:source:1-4",
+      "program_code": "12.03.04",
+      "source_url": "https://clck.ru/3UDDJU",
+      "status": "source_placeholder",
+      "document_profiles": [],
+      "downloaded_documents": 1
+    },
+    {
+      "program_key": "program:bmstu:12.03.04:БМТ2:12.03.04:source:2-1",
+      "program_code": "12.03.04",
+      "source_url": "https://clck.ru/3UDDJU",
+      "status": "source_placeholder",
+      "document_profiles": [],
+      "downloaded_documents": 1
+    },
+    {
+      "program_key": "program:bmstu:12.03.04:БМТ2:12.03.04:source:2-2",
+      "program_code": "12.03.04",
+      "source_url": "https://clck.ru/3UDDJU",
+      "status": "source_placeholder",
+      "document_profiles": [],
+      "downloaded_documents": 1
+    },
+    {
+      "program_key": "program:bmstu:12.03.04:БМТ2:12.03.04:source:2-3",
+      "program_code": "12.03.04",
+      "source_url": "https://clck.ru/3UDDJU",
+      "status": "source_placeholder",
+      "document_profiles": [],
+      "downloaded_documents": 1
+    },
+    {
+      "program_key": "program:bmstu:12.03.04:БМТ3:12.03.04:source:3-1",
+      "program_code": "12.03.04",
+      "source_url": "https://clck.ru/3UDDJU",
+      "status": "source_placeholder",
+      "document_profiles": [],
+      "downloaded_documents": 1
+    },
+    {
+      "program_key": "program:bmstu:12.03.04:БМТ3:12.03.04:source:3-2",
+      "program_code": "12.03.04",
+      "source_url": "https://clck.ru/3UDDJU",
+      "status": "source_placeholder",
+      "document_profiles": [],
+      "downloaded_documents": 1
+    },
+    {
+      "program_key": "program:bmstu:12.03.04:БМТ3:12.03.04:source:3-3",
+      "program_code": "12.03.04",
+      "source_url": "https://clck.ru/3UDDJU",
+      "status": "source_placeholder",
+      "document_profiles": [],
+      "downloaded_documents": 1
+    },
+    {
+      "program_key": "program:bmstu:12.03.04:БМТ5:12.03.04:source:4-1",
+      "program_code": "12.03.04",
+      "source_url": "https://clck.ru/3UDDJU",
+      "status": "source_placeholder",
+      "document_profiles": [],
+      "downloaded_documents": 1
+    },
+    {
+      "program_key": "program:bmstu:15.03.04:РК9:15.03.04-61:source:2-2",
+      "program_code": "15.03.04-61",
+      "source_url": "https://disk.yandex.ru/d/EoQ_-Lm37DZVmQ",
+      "status": "no_downloadable_document",
+      "document_profiles": [],
+      "downloaded_documents": 0
+    },
+    {
+      "program_key": "program:bmstu:22.03.01:МТ8:22.03.01-61:source:1-2",
+      "program_code": "22.03.01-61",
+      "source_url": "https://disk.yandex.ru/d/B-bxYkHEr5ZTKA",
+      "status": "no_downloadable_document",
+      "document_profiles": [],
+      "downloaded_documents": 0
+    },
+    {
+      "program_key": "program:bmstu:24.05.01:СМ2:24.05.01(АК1):source:2-1",
+      "program_code": "24.05.01(АК1)",
+      "source_url": "https://clck.ru/3UDDJU",
+      "status": "source_placeholder",
+      "document_profiles": [],
+      "downloaded_documents": 1
+    },
+    {
+      "program_key": "program:bmstu:24.05.01:СМ2:24.05.01(АК1):source:2-2",
+      "program_code": "24.05.01(АК1)",
+      "source_url": "https://clck.ru/3UDDJU",
+      "status": "source_placeholder",
+      "document_profiles": [],
+      "downloaded_documents": 1
+    },
+    {
+      "program_key": "program:bmstu:24.05.01:СМ2:24.05.01(АК2):source:2-3",
+      "program_code": "24.05.01(АК2)",
+      "source_url": "https://clck.ru/3UDDJU",
+      "status": "source_placeholder",
+      "document_profiles": [],
+      "downloaded_documents": 1
+    },
+    {
+      "program_key": "program:bmstu:27.03.05:ИБМ2:27.03.05/02:source:1-1",
+      "program_code": "27.03.05/02",
+      "source_url": "https://clck.su/ltLsG",
+      "status": "profile_mismatch",
+      "document_profiles": [
+        "27.03.05-10"
+      ],
+      "downloaded_documents": 1
+    },
+    {
+      "program_key": "program:bmstu:27.03.05:ИБМ3:27.03.05/03:source:2-1",
+      "program_code": "27.03.05/03",
+      "source_url": "https://clck.su/ltLsG",
+      "status": "profile_mismatch",
+      "document_profiles": [
+        "27.03.05-10"
+      ],
+      "downloaded_documents": 1
+    },
+    {
+      "program_key": "program:bmstu:27.03.05:ИБМ3:27.03.05/09:source:2-2",
+      "program_code": "27.03.05/09",
+      "source_url": "https://clck.su/ltLsG",
+      "status": "profile_mismatch",
+      "document_profiles": [
+        "27.03.05-10"
+      ],
+      "downloaded_documents": 1
+    },
+    {
+      "program_key": "program:bmstu:27.03.05:ИБМ4:27.03.05/04:source:3-1",
+      "program_code": "27.03.05/04",
+      "source_url": "https://clck.su/ltLsG",
+      "status": "profile_mismatch",
+      "document_profiles": [
+        "27.03.05-10"
+      ],
+      "downloaded_documents": 1
+    },
+    {
+      "program_key": "program:bmstu:27.03.05:ИБМ5:27.03.05/05:source:4-1",
+      "program_code": "27.03.05/05",
+      "source_url": "https://clck.su/ltLsG",
+      "status": "profile_mismatch",
+      "document_profiles": [
+        "27.03.05-10"
+      ],
+      "downloaded_documents": 1
+    },
+    {
+      "program_key": "program:bmstu:27.03.05:ИБМ7:27.03.05/07:source:5-1",
+      "program_code": "27.03.05/07",
+      "source_url": "https://clck.su/ltLsG",
+      "status": "profile_mismatch",
+      "document_profiles": [
+        "27.03.05-10"
+      ],
+      "downloaded_documents": 1
+    }
+  ],
+  "base_release_key": "bmstu-2026:99e2f5a284abaf51303e5640e2661de8230e27d54fa3bc2492daef88526d5ff5:bmstu-2026-bundle-v5",
+  "candidate_release_key": "bmstu-2026:a6fd1db98f75bd2426db4e11ddcc2bdf2234f6a4ec80c0b3a524168e7912428f:bmstu-2026-bundle-v5",
+  "classifications": {
+    "total": 15028,
+    "reused_unchanged": 14915,
+    "new": 113,
+    "model": [
+      "jev-1.13.0"
+    ],
+    "cost_rub_new": 2.40842838,
+    "result_sha256": "85f6bcf05f2f5b45515bcb05725036f4874d455cc06e4a4f10f9b9a475965c3c"
+  }
+}

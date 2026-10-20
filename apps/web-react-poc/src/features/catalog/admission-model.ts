@@ -1,6 +1,7 @@
 import type { ApiSchemas } from "@/shared/api/client";
 import type { CatalogProgram } from "./model";
 import { safeExternalUrl } from "./model";
+import { requirementMatchesProgramScope } from "./admission-requirement-scope";
 
 type CampaignDto = ApiSchemas["AdmissionCampaignRecord"];
 type OfferingDto = ApiSchemas["AdmissionOfferingRecord"];
@@ -11,6 +12,8 @@ type RequirementDto = ApiSchemas["RequirementTreeRecord"];
 type RequirementNode = ApiSchemas["RequirementLeaf"] | ApiSchemas["RequirementOperatorNode"];
 type StatisticDto = ApiSchemas["OfficialAdmissionStatisticRecord"];
 type TuitionDto = ApiSchemas["TuitionRecord"];
+
+const OFFICIAL_ORDER_LIST_URL = "https://priem.bmstu.ru/list/orders";
 
 export interface ProgramAdmissionData {
   readonly releaseKey: string;
@@ -30,12 +33,24 @@ export interface AdmissionMetric {
   readonly value: string;
   readonly note: string | null;
   readonly sourceUrl: string | null;
+  readonly numericValue?: number | null;
 }
 
 export interface AdmissionPlaceGroup {
+  readonly quotaType?: string | null;
   readonly label: string;
   readonly value: string;
   readonly scope: string;
+  readonly sourceUrl: string | null;
+}
+
+export interface RelatedAdmissionSeatFact {
+  readonly key: string;
+  readonly fundingType: "budget" | "paid";
+  readonly sourceProgramName: string;
+  readonly departmentCode: string | null;
+  readonly value: string;
+  readonly note: string | null;
   readonly sourceUrl: string | null;
 }
 
@@ -56,6 +71,7 @@ export interface AdmissionCampaignResult {
   readonly status: string | null;
   readonly funding: string | null;
   readonly score: number | null;
+  readonly admittedCount: number | null;
   readonly snapshotDate: string | null;
   readonly scopeType: string | null;
   readonly scopeLabel: string | null;
@@ -66,7 +82,10 @@ export interface AdmissionCampaignResult {
 export interface AdmissionRequirement {
   readonly category: string;
   readonly text: string;
-  readonly sourceUrl: string | null;
+  readonly root: RequirementNode;
+  readonly applicantCategory: string | null;
+  readonly sourceUrls: readonly string[];
+  readonly sourceRecordCount: number;
 }
 
 export interface AdmissionSummary {
@@ -75,14 +94,19 @@ export interface AdmissionSummary {
   readonly seats: readonly AdmissionMetric[];
   readonly seatScope: string;
   readonly seatNote: string | null;
+  readonly relatedSeatFacts: readonly RelatedAdmissionSeatFact[];
   readonly quotas: readonly AdmissionPlaceGroup[];
+  readonly directionQuotas: readonly AdmissionPlaceGroup[];
   readonly quotaNote: string | null;
   readonly historyScope: string;
   readonly history: readonly AdmissionHistoryRow[];
   readonly campaignResults: readonly AdmissionCampaignResult[];
+  readonly historicalResults: readonly AdmissionCampaignResult[];
   readonly requirements: readonly AdmissionRequirement[];
+  readonly requirementsNote: string | null;
   readonly offers: readonly string[];
   readonly tuition: readonly string[];
+  readonly tuitionFacts?: readonly AdmissionMetric[];
   readonly dates: readonly { label: string; date: string; sourceUrl: string | null }[];
 }
 
@@ -122,6 +146,7 @@ const SUBJECT_LABELS: Readonly<Record<string, string>> = {
   mathematics: "Математика",
   physics: "Физика",
   informatics: "Информатика",
+  informatics_and_ict: "Информатика и ИКТ",
   computer_science: "Информатика",
   chemistry: "Химия",
   biology: "Биология",
@@ -130,7 +155,7 @@ const SUBJECT_LABELS: Readonly<Record<string, string>> = {
   foreign_language: "Иностранный язык",
 };
 
-function subjectLabel(value: string): string {
+export function subjectLabel(value: string): string {
   return SUBJECT_LABELS[value.trim().toLocaleLowerCase("en-US")] ?? value;
 }
 
@@ -139,11 +164,17 @@ function quotaLabel(value: string | null | undefined): string {
     general_competition: "Общий конкурс",
     special: "Особая квота",
     separate: "Отдельная квота",
-    targeted: "Целевой приём",
+    targeted: "Целевая квота",
     special_quota: "Особая квота",
     separate_quota: "Отдельная квота",
   };
   return value ? labels[value] ?? value : "Квота не указана";
+}
+
+export function canonicalQuotaType(value: string | null | undefined): string | null {
+  if (value === "special") return "special_quota";
+  if (value === "separate") return "separate_quota";
+  return value ?? null;
 }
 
 function scopeLabel(value: string | null | undefined): string {
@@ -168,7 +199,27 @@ function verifiedDepartmentKeys(program: CatalogProgram): Set<string> {
 
 function linkedOfferings(program: CatalogProgram, offerings: readonly OfferingDto[]): OfferingDto[] {
   return offerings.filter((offering) => (
-    offering.program_link_status === "exact" && offering.program_key === program.external_key
+    (offering.program_link_status === "exact" && offering.program_key === program.external_key)
+    || (offering.shared_program_keys?.includes(program.external_key) === true
+      && offering.campus_scope === program.campus_scope)
+  ));
+}
+
+function relatedUnresolvedOfferings(
+  program: CatalogProgram,
+  offerings: readonly OfferingDto[],
+): OfferingDto[] {
+  const departments = verifiedDepartmentKeys(program);
+  if (!departments.size || program.campus_status !== "verified" || !program.campus_scope) return [];
+  return offerings.filter((offering) => (
+    offering.program_link_status !== "exact"
+    && !offering.shared_program_keys?.includes(program.external_key)
+    && offering.program_key == null
+    && offering.direction_key === program.direction_key
+    && offering.direction_code === program.directionCode
+    && offering.department_key != null
+    && departments.has(offering.department_key)
+    && offering.campus_scope === program.campus_scope
   ));
 }
 
@@ -183,10 +234,14 @@ function selectRelatedPools(
   const exact = general.filter((pool) => {
     const linkedKeys = new Set([...(pool.offering_keys ?? []), ...(pool.offering_key ? [pool.offering_key] : [])]);
     return [...linkedKeys].some((key) => (
-      exactOfferingKeys.has(key) && offeringByKey.get(key)?.program_key === program.external_key
+      exactOfferingKeys.has(key)
     ));
   });
-  if (exact.length) return { rows: exact, label: "предложение приёма, связанное с программой", unresolved: false };
+  if (exact.length) {
+    const shared = offerings.some((offering) => exactOfferingKeys.has(offering.external_key)
+      && (offering.shared_program_keys?.length ?? 0) > 1);
+    return { rows: exact, label: shared ? "единый приёмный план для нескольких программ" : "предложение приёма, связанное с программой", unresolved: false };
+  }
 
   const departments = verifiedDepartmentKeys(program);
   const departmentRows = general.filter((pool) => (
@@ -204,20 +259,21 @@ function selectRelatedPools(
   ));
   if (directionRows.length) return { rows: directionRows, label: "направление", unresolved: false };
 
-  const relatedDepartmentCodes = new Set([program.departmentCode].filter((value): value is string => Boolean(value)));
-  const unresolved = offerings.some((offering) => (
-    offering.program_link_status !== "exact"
-    && offering.program_key === program.external_key
-  )) || general.some((pool) => (
-    pool.scope_level === "offering"
-    && pool.department_code != null
-    && relatedDepartmentCodes.has(pool.department_code)
-    && [...(pool.offering_keys ?? []), ...(pool.offering_key ? [pool.offering_key] : [])]
-      .some((key) => offeringByKey.get(key)?.program_link_status === "manual_review")
-  ));
+  const unresolved = relatedUnresolvedOfferings(program, offerings).length > 0
+    || offerings.some((offering) => offering.program_key === program.external_key && offering.program_link_status !== "exact")
+    || general.some((pool) => (
+      pool.scope_level === "offering"
+      && pool.department_code != null
+      && pool.department_code === program.departmentCode
+      && [...(pool.offering_keys ?? []), ...(pool.offering_key ? [pool.offering_key] : [])]
+        .some((key) => {
+          const offering = offeringByKey.get(key);
+          return offering != null && offering.program_link_status !== "exact";
+        })
+    ));
   return {
     rows: [],
-    label: unresolved ? "связь предложения уточняется" : "источник не содержит связь с программой",
+    label: unresolved ? "в плане нет точного совпадения профиля" : "источник не содержит строку этого профиля",
     unresolved,
   };
 }
@@ -256,11 +312,60 @@ function requirementCategory(node: RequirementNode): string {
   return node.operator === "AND" ? "Все условия" : node.operator === "OR" ? "Альтернативные условия" : "Выбор по условию";
 }
 
+function requirementApplicantCategory(value: string | null | undefined): string | null {
+  const text = value?.trim().replace(/\s+/gu, " ");
+  if (!text) return null;
+  // Legacy extraction captured the PDF page/table context here, including
+  // unrelated directions. It is provenance, not an applicant category.
+  if (/\d{2}\.\d{2}\.\d{2}/u.test(text)
+    || /приложение\s*\d|минимально\s*необходимые\s*баллы|код\s*нп/iu.test(text)) return null;
+  return text;
+}
+
 function statisticDepartmentMatch(statistic: StatisticDto, departmentCode: string | null): boolean {
   if (!departmentCode) return false;
   if (statistic.direction_code == null) return false;
-  const label = statistic.scope_label?.toLocaleLowerCase("ru-RU") ?? "";
-  return label.split(/[^0-9a-zа-я]+/iu).includes(departmentCode.toLocaleLowerCase("ru-RU"));
+  const label = statistic.scope_label?.normalize("NFKC").toLocaleLowerCase("ru-RU") ?? "";
+  const identifier = normalizedScopeLabel(departmentCode);
+  if (!label || !identifier) return false;
+  const pattern = identifier
+    .split("")
+    .map((character) => character.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+    .join("[\\s\\p{P}\\p{S}]*");
+  return new RegExp(`(?<![\\p{L}\\p{N}])${pattern}(?![\\p{L}\\p{N}])`, "iu").test(label);
+}
+
+function unresolvedSeatFacts(
+  program: CatalogProgram,
+  pools: readonly PoolDto[],
+  offerings: readonly OfferingDto[],
+): RelatedAdmissionSeatFact[] {
+  const relatedOffers = relatedUnresolvedOfferings(program, offerings);
+  const facts: RelatedAdmissionSeatFact[] = [];
+  for (const offering of relatedOffers) {
+    const offeringPools = pools.filter((pool) => (
+      pool.scope_level === "offering"
+      && pool.quota_type === "general_competition"
+      && pool.direction_key === program.direction_key
+      && pool.direction_code === program.directionCode
+      && [...(pool.offering_keys ?? []), ...(pool.offering_key ? [pool.offering_key] : [])]
+        .includes(offering.external_key)
+    ));
+    for (const pool of offeringPools) {
+      if (pool.funding_type !== "budget" && pool.funding_type !== "paid") continue;
+      const metric = metricValue([pool]);
+      facts.push({
+        key: `${offering.external_key}\u0000${pool.external_key}`,
+        fundingType: pool.funding_type,
+        sourceProgramName: offering.program_name_in_source?.trim() || "Название предложения не указано",
+        departmentCode: offering.department_code?.trim() || null,
+        value: metric.value,
+        note: metric.note,
+        sourceUrl: sourceUrl(pool) ?? sourceUrl(offering),
+      });
+    }
+  }
+  return facts;
 }
 
 function metricValue(pools: readonly PoolDto[]): { value: string; note: string | null } {
@@ -320,10 +425,19 @@ function normalizedScopeLabel(value: string | null | undefined): string {
 function statisticScopeNote(statistic: StatisticDto, program: CatalogProgram): string {
   const scopeType = statistic.scope_type?.trim().toLocaleLowerCase("en-US") ?? "";
   const scopeLabel = statistic.scope_label?.trim();
-  if (scopeType === "department" && scopeLabel) return "по кафедре " + scopeLabel;
-  if (scopeType === "program" && scopeLabel) return "по программе " + scopeLabel;
+  if (scopeType === "department" && scopeLabel) {
+    const departmentLabel = scopeLabel.replace(/^кафедра(?:\s+|$)/iu, "").trim();
+    return "по кафедре " + (departmentLabel || scopeLabel);
+  }
+  if (scopeType === "program" && scopeLabel) {
+    const programLabel = scopeLabel.replace(
+      /^(?:(?:образовательная|учебная)\s+)?программа(?:\s+|[:—-]\s*)/iu,
+      "",
+    ).trim();
+    return "по программе " + (programLabel || scopeLabel);
+  }
   const directionCode = statistic.direction_code ?? program.directionCode;
-  if (scopeType === "direction") {
+  if (scopeType === "direction" || !scopeType) {
     return "по направлению " + (directionCode ?? "не указано") + (scopeLabel ? " · " + scopeLabel : "");
   }
   return "по направлению " + (directionCode ?? "не указано") + "; область источника не уточнена";
@@ -332,22 +446,30 @@ function statisticScopeNote(statistic: StatisticDto, program: CatalogProgram): s
 function campaignStatisticMatchesProgram(statistic: StatisticDto, program: CatalogProgram): boolean {
   if (!program.directionCode || statistic.direction_code !== program.directionCode) return false;
   const scopeType = statistic.scope_type?.trim().toLocaleLowerCase("en-US") ?? "";
-  const scopeLabel = normalizedScopeLabel(statistic.scope_label);
+  const scopeLabelRaw = statistic.scope_label?.trim() ?? "";
+  const scopeLabel = normalizedScopeLabel(scopeLabelRaw);
   if (scopeType === "direction" || !scopeType) return true;
 
   const programLabels = new Set([
     normalizedScopeLabel(program.code),
     normalizedScopeLabel(program.external_key),
+    normalizedScopeLabel(program.name),
   ].filter(Boolean));
-  if (scopeType === "program") return Boolean(scopeLabel && programLabels.has(scopeLabel));
+  if (scopeType === "program") {
+    const withoutPrefix = normalizedScopeLabel(scopeLabelRaw.replace(
+      /^(?:(?:образовательная|учебная)\s+)?программа(?:\s+|[:—-]\s*)/iu,
+      "",
+    ));
+    return Boolean(scopeLabel && (programLabels.has(scopeLabel) || programLabels.has(withoutPrefix)));
+  }
 
   if (scopeType === "department" && scopeLabel) {
     const departmentLabels = [
       program.departmentCode,
       program.departmentName,
       ...program.departments.flatMap((department) => [department.code, department.name]),
-    ].map(normalizedScopeLabel).filter(Boolean);
-    return departmentLabels.includes(scopeLabel);
+    ].filter((value): value is string => Boolean(value));
+    return departmentLabels.some((department) => statisticDepartmentMatch(statistic, department));
   }
 
   // A subgroup or unknown scope has no stable key in this API contract. Do not
@@ -363,8 +485,8 @@ export function buildAdmissionSummary(program: CatalogProgram, data: ProgramAdmi
   const campaignPools = data.pools.filter((pool) => !campaign || pool.campaign_key === campaign.external_key);
   const selectedPools = selectRelatedPools(program, campaignPools, data.offerings);
   const seats = ([
-    ["budget", "Бюджет · общий конкурс"],
-    ["paid", "Платное · общий конкурс"],
+    ["budget", "Бюджет · по приёмному плану"],
+    ["paid", "Платное · по приёмному плану"],
   ] as const).map(([funding, label]) => {
     const rows = selectedPools.rows.filter((pool) => pool.funding_type === funding);
     const metric = metricValue(rows);
@@ -373,6 +495,8 @@ export function buildAdmissionSummary(program: CatalogProgram, data: ProgramAdmi
       value: metric.value,
       note: metric.note,
       sourceUrl: rows.map(sourceUrl).find(Boolean) ?? null,
+      numericValue: rows.length && rows.every((row) => toNumber(row.places) !== null)
+        ? rows.reduce((sum, row) => sum + (toNumber(row.places) ?? 0), 0) : null,
     };
   });
 
@@ -392,13 +516,37 @@ export function buildAdmissionSummary(program: CatalogProgram, data: ProgramAdmi
     .sort((left, right) => right.year - left.year)
     .slice(0, 6);
 
-  const requirements = data.requirements
-    .filter((requirement) => requirement.direction_key === program.direction_key)
-    .map((requirement) => ({
-      category: requirementCategory(requirement.root),
-      text: requirementExpression(requirement.root),
-      sourceUrl: sourceUrl(requirement),
-    }));
+  const requirementGroups = new Map<string, {
+    category: string;
+    text: string;
+    root: RequirementNode;
+    applicantCategory: string | null;
+    sourceUrls: Set<string>;
+    sourceRecordCount: number;
+  }>();
+  for (const requirement of data.requirements.filter((item) => item.direction_key === program.direction_key
+    && requirementMatchesProgramScope(item, program))) {
+    const applicantCategory = requirementApplicantCategory(requirement.applicant_category);
+    const category = `${requirementCategory(requirement.root)}${applicantCategory ? ` · ${applicantCategory}` : ""}`;
+    const text = requirementExpression(requirement.root);
+    const groupKey = `${category}\u0000${text}`;
+    const group = requirementGroups.get(groupKey) ?? {
+      category,
+      text,
+      root: requirement.root,
+      applicantCategory: applicantCategory || null,
+      sourceUrls: new Set<string>(),
+      sourceRecordCount: 0,
+    };
+    group.sourceRecordCount += 1;
+    const href = sourceUrl(requirement);
+    if (href) group.sourceUrls.add(href);
+    requirementGroups.set(groupKey, group);
+  }
+  const requirements = [...requirementGroups.values()].map((group) => ({
+    ...group,
+    sourceUrls: [...group.sourceUrls],
+  }));
 
   const exactOffers = linkedOfferings(program, data.offerings);
   const offers = [...new Set(exactOffers.flatMap((offering) => [
@@ -408,16 +556,22 @@ export function buildAdmissionSummary(program: CatalogProgram, data: ProgramAdmi
     offering.places_total != null ? `Мест по предложению: ${numberText(offering.places_total)}` : "",
   ]).filter(Boolean))];
 
-  const tuition = data.tuition
+  const tuitionFacts = data.tuition
+    .filter((item) => year === null || Number(item.academic_year?.match(/(?:19|20)\d{2}/u)?.[0]) === year)
+    .filter((item) => !item.campus_scope || item.campus_scope === "not_separately_stated_in_official_price_table"
+      || (program.campus_status === "verified" && item.campus_scope === program.campus_scope))
     .filter((item) => (
       item.program_key === program.external_key
-      || (program.directionCode !== null && item.direction_code === program.directionCode)
+      || (!item.program_key && program.directionCode !== null && item.direction_code === program.directionCode)
     ))
     .map((item) => {
       const scope = item.program_key === program.external_key ? "по программе" : `по направлению ${program.directionCode ?? ""}`;
-      const amount = item.amount == null ? "стоимость не указана" : `${item.amount} ${item.currency || "валюта не указана"}`;
-      return `${item.academic_year || "Год не указан"} · ${scope}: ${amount}`;
+      const numeric = toNumber(item.amount);
+      const amount = numeric === null ? "Стоимость не опубликована" : `${numberText(numeric)} ${item.currency === "RUB" ? "₽" : item.currency || "(валюта не указана)"} / год`;
+      const campusNote = item.campus_scope === "not_separately_stated_in_official_price_table" ? " · без разделения по кампусам в источнике" : "";
+      return { label: "Стоимость обучения", value: amount, note: `${item.academic_year || "Год не указан"} · ${scope}${campusNote}`, sourceUrl: sourceUrl(item) };
     });
+  const tuition = tuitionFacts.map((item) => `${item.note}: ${item.value}`);
 
   const dates = campaign
     ? data.calendar.filter((event) => event.campaign_key === campaign.external_key).map((event) => ({
@@ -436,6 +590,27 @@ export function buildAdmissionSummary(program: CatalogProgram, data: ProgramAdmi
       : pool.direction_code != null && pool.direction_code === program.directionCode)
   ));
   const relatedPoolKeys = new Set(relatedPools.map((pool) => pool.external_key));
+  const campusLabels: Readonly<Record<string, string>> = {
+    head_moscow: "мгтуимнэбаумана",
+    branch_kaluga: "кфмгтуимнэбаумана",
+    branch_mytishchi: "мфмгтуимнэбаумана",
+  };
+  // These remain direction-level facts, even when a legacy offering_keys
+  // relation happens to mention this profile. Never add them to its seats.
+  const directionQuotas = campaignPools.filter((pool) => pool.quota_type === "targeted"
+    && pool.funding_type === "budget"
+    && pool.scope_level === "direction_and_target_organization"
+    && pool.direction_code === program.directionCode
+    && program.campus_status === "verified"
+    && Boolean(campusLabels[program.campus_scope ?? ""])
+    && normalizedScopeLabel(pool.campus_label_in_document) === campusLabels[program.campus_scope ?? ""])
+    .map((pool) => ({
+      quotaType: "targeted",
+      label: pool.target_organization?.trim() || "Заказчик в источнике не указан",
+      value: metricValue([pool]).value,
+      scope: `По направлению ${pool.direction_code} · ${pool.campus_label_in_document}`,
+      sourceUrl: sourceUrl(pool),
+    }));
   const quotaRows: AdmissionPlaceGroup[] = [];
   const quotaRecordsByPool = new Map<string, QuotaDto[]>();
   for (const quota of data.quotas) {
@@ -447,6 +622,7 @@ export function buildAdmissionSummary(program: CatalogProgram, data: ProgramAdmi
     if (!pool) continue;
     for (const quota of records) {
       quotaRows.push({
+        quotaType: canonicalQuotaType(quota.quota_type),
         label: `${quotaLabel(quota.quota_type)} · ${fundingLabel(quota.funding_type)}`,
         value: placeText(toNumber(quota.places)),
         scope: [scopeLabel(quota.scope_level ?? pool.scope_level), pool.campus_label_in_document?.trim()]
@@ -460,6 +636,7 @@ export function buildAdmissionSummary(program: CatalogProgram, data: ProgramAdmi
     const places = metricValue([pool]);
     const organization = pool.target_organization?.trim();
     quotaRows.push({
+      quotaType: canonicalQuotaType(pool.quota_type),
       label: `${quotaLabel(pool.quota_type)} · ${fundingLabel(pool.funding_type)}${organization ? ` · ${organization}` : ""}`,
       value: places.value,
       scope: [scopeLabel(pool.scope_level), pool.campus_label_in_document?.trim()]
@@ -476,11 +653,15 @@ export function buildAdmissionSummary(program: CatalogProgram, data: ProgramAdmi
     seatNote: selectedPools.rows.length
       ? null
       : selectedPools.unresolved
-        ? "Связь предложения с программой проверяется. Значения других программ не используются."
+        ? "В приёмном плане нет однозначной строки этого профиля. Значения других программ не используются."
         : "Данные общего конкурса не привязаны к этой программе. Значения других программ не используются.",
+    relatedSeatFacts: unresolvedSeatFacts(program, campaignPools, data.offerings),
     quotas: quotaRows,
-    quotaNote: hasUnassignedTargetQuota
-      ? "На этом направлении есть целевые квоты уровня «направление и организация», но их кампус и связь с программой не подтверждены. Эти места не приписываются программе."
+    directionQuotas,
+    quotaNote: directionQuotas.length
+      ? "Целевые места указаны по направлению и заказчику, без распределения между профилями."
+      : hasUnassignedTargetQuota
+      ? "Целевые места опубликованы для направления и заказчика, без точного распределения по этому профилю и кампусу. Эти места не приписываются программе."
       : null,
     historyScope: exactHistory.length > 0 ? "подтверждённая кафедра" : "направление",
     history: selectedHistory.map((statistic) => ({
@@ -502,6 +683,28 @@ export function buildAdmissionSummary(program: CatalogProgram, data: ProgramAdmi
         status: statistic.status ?? null,
         funding: statistic.funding_type ?? null,
         score: toNumber(statistic.score ?? statistic.minimum_score),
+        admittedCount: toNumber(statistic.admitted_count),
+        snapshotDate: statistic.snapshot_date ?? null,
+        scopeType: statistic.scope_type ?? null,
+        scopeLabel: statistic.scope_label ?? null,
+        scopeNote: statisticScopeNote(statistic, program),
+        sourceUrl: sourceUrl(statistic)
+          ?? (statistic.year === year && statistic.admission_stage && toNumber(statistic.admitted_count) !== null
+            ? OFFICIAL_ORDER_LIST_URL
+            : null),
+      })),
+    historicalResults: data.history
+      .filter((statistic) => statistic.year < (year ?? Number.POSITIVE_INFINITY)
+        && campaignStatisticMatchesProgram(statistic, program))
+      .map((statistic) => ({
+        year: statistic.year,
+        stage: statistic.admission_stage ?? null,
+        competitionType: statistic.competition_type
+          ?? (statistic.statistic_kind === "paid_admission_published_aggregate" && statistic.funding_type === "paid" ? "general" : null),
+        status: statistic.status ?? (toNumber(statistic.minimum_score ?? statistic.score) !== null ? "numeric" : null),
+        funding: statistic.funding_type ?? null,
+        score: toNumber(statistic.minimum_score ?? statistic.score),
+        admittedCount: toNumber(statistic.admitted_count),
         snapshotDate: statistic.snapshot_date ?? null,
         scopeType: statistic.scope_type ?? null,
         scopeLabel: statistic.scope_label ?? null,
@@ -509,8 +712,12 @@ export function buildAdmissionSummary(program: CatalogProgram, data: ProgramAdmi
         sourceUrl: sourceUrl(statistic),
       })),
     requirements,
+    requirementsNote: requirements.length
+      ? `Требования опубликованы на уровне направления ${program.directionCode ?? "без указанного кода"}; источник не связывает их с конкретным профилем. Полностью совпадающие наборы объединены, различающиеся условия показаны отдельно.`
+      : null,
     offers,
     tuition: [...new Set(tuition)],
+    tuitionFacts,
     dates,
   };
 }

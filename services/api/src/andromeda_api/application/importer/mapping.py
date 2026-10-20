@@ -991,6 +991,7 @@ class _Projection:
                     "competition_type": _as_text(record.get("competition_type")),
                     "funding_type_code": funding_code,
                     "score": _as_decimal(record.get("score"), "score"),
+                    "admitted_count": _as_int(record.get("admitted_count"), "admitted_count"),
                     "status": _as_text(record.get("status")),
                     "study_form": _as_text(record.get("study_form")),
                     "snapshot_date": _as_date(record.get("snapshot_date"), "snapshot_date"),

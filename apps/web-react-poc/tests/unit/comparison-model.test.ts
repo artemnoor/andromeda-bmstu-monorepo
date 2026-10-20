@@ -225,8 +225,13 @@ describe("comparison domain model", () => {
     ]);
   });
 
-  it("requires a matching verified taxonomy category and preserves every other course as unclassified", () => {
-    const matchingTaxonomy = taxonomy();
+  it("uses the most likely Jev category even when review is requested and preserves invalid taxonomy rows as unclassified", () => {
+    const matchingTaxonomy = taxonomy({
+      categories: [
+        { category_code: "03", name: "Mathematics", definition: "", ordinal: 3 },
+        { category_code: "04", name: "Computer Science", definition: "", ordinal: 4 },
+      ],
+    });
     const result = buildCurriculumComparison({
       programKeys: ["program:a"],
       plans: [plan()],
@@ -234,7 +239,10 @@ describe("comparison domain model", () => {
         "plan:a:2025",
         [
           classifiedItem("item:verified", "plan:a:2025"),
-          classifiedItem("item:review", "plan:a:2025", { review_status: "needs_review" }),
+          classifiedItem("item:review", "plan:a:2025", {
+            review_status: "needs_review",
+            probabilities: { "03": 0.2, "04": 0.8 },
+          }),
           classifiedItem("item:wrong-taxonomy", "plan:a:2025", { taxonomy_key: "other-taxonomy" }),
           classifiedItem("item:unknown-category", "plan:a:2025", { category_code: "99" }),
         ],
@@ -244,11 +252,12 @@ describe("comparison domain model", () => {
 
     const program = result.programs[0];
     expect(program?.items.map((row) => row.classification?.categoryName ?? null)).toEqual([
-      "Mathematics", null, null, null,
+      "Mathematics", "Computer Science", null, null,
     ]);
     expect(program?.categories.map(({ key, name, items }) => [key, name, items.length])).toEqual([
       ["code:03", "Mathematics", 1],
-      ["__unclassified__", "Категория не указана", 3],
+      ["code:04", "Computer Science", 1],
+      ["__unclassified__", "Категория не указана", 2],
     ]);
     expect(result.taxonomyCategories).toEqual(matchingTaxonomy.categories);
   });

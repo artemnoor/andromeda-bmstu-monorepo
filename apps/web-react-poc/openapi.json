@@ -298,6 +298,15 @@
             ],
             "title": "Program Name In Source"
           },
+          "shared_program_keys": {
+            "items": {
+              "maxLength": 256,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Shared Program Keys",
+            "type": "array"
+          },
           "sources": {
             "items": {
               "$ref": "#/components/schemas/SourceReference"
@@ -2940,7 +2949,7 @@
             "type": "string"
           },
           "evidence_key": {
-            "maxLength": 256,
+            "maxLength": 512,
             "minLength": 1,
             "title": "Evidence Key",
             "type": "string"

@@ -1,0 +1,34 @@
+{
+  "capturedAt": "2026-10-20T06:46:08.165Z",
+  "cpuSlowdown": 4,
+  "results": [
+    {
+      "query": "мат",
+      "count": 109,
+      "firstCommitMs": 247,
+      "firstCount": 12,
+      "fullCommitMs": 832
+    },
+    {
+      "query": "информ",
+      "count": 52,
+      "firstCommitMs": 114,
+      "firstCount": 12,
+      "fullCommitMs": 333.69999998807907
+    },
+    {
+      "query": "биз",
+      "count": 5,
+      "firstCommitMs": 82.20000004768372,
+      "firstCount": 5,
+      "fullCommitMs": 82.20000004768372
+    },
+    {
+      "query": "",
+      "count": 152,
+      "firstCommitMs": 58.90000003576279,
+      "firstCount": 12,
+      "fullCommitMs": 934.5
+    }
+  ]
+}

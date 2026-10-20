@@ -548,6 +548,8 @@ export interface components {
             program_link_status: "exact" | "unresolved" | "manual_review";
             /** Program Name In Source */
             program_name_in_source?: string | null;
+            /** Shared Program Keys */
+            shared_program_keys?: string[];
             /** Sources */
             sources?: components["schemas"]["SourceReference"][];
             /** Study Duration Label */

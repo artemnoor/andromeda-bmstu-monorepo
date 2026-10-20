@@ -414,7 +414,10 @@ jobs:
       - name: Migrate and seed the isolated PostgreSQL database
         run: |
           uv run academic-data db upgrade
-          uv run academic-data bundle import --input data/bmstu-2026 --commit
+          uv run python -m andromeda_parser.repair_admission_bundle \
+            data/bmstu-2026 output/ci-admission-bundle --verify-main-orders
+          uv run academic-data bundle validate --input output/ci-admission-bundle
+          uv run academic-data bundle import --input output/ci-admission-bundle --commit
       - name: Capture seeded PostgreSQL read profile
         env:
           ANDROMEDA_PROFILE_OUTPUT: ${{ runner.temp }}/andromeda-backend-read-profile.json
@@ -526,6 +529,15 @@ jobs:
         with:
           name: andromeda-postgres-read-profile-${{ github.run_id }}
           path: ${{ runner.temp }}/andromeda-backend-read-profile.json
+          if-no-files-found: ignore
+          retention-days: 90
+
+      - name: Retain verified admission fixture provenance
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: andromeda-admission-repair-${{ github.run_id }}
+          path: output/ci-admission-bundle-repair-report.json
           if-no-files-found: ignore
           retention-days: 90
 

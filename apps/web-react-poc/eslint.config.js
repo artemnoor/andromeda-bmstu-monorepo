@@ -9,6 +9,7 @@ export default tseslint.config(
       ".react-router/**",
       "build/**",
       "build-profile/**",
+      "artifacts/**",
       "coverage/**",
       "dist/**",
       "node_modules/**",

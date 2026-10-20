@@ -1,12 +1,12 @@
-import { useMemo, useState } from "react";
-import { Link, useSearchParams } from "react-router";
+import { useDeferredValue, useMemo, useState } from "react";
+import { Link, useRevalidator, useRouteError, useSearchParams } from "react-router";
 import type { ShouldRevalidateFunctionArgs } from "react-router";
 import type { Route } from "./+types/programs";
 import { AndromedaHeader } from "@/widgets/andromeda-navigation/andromeda-header";
 import { useComparisonSelection } from "@/shared/browser-state/hooks";
-import { loadCatalog } from "@/shared/api/client";
-import { buildCatalogSearchIndex, filterPrograms, getCatalogOptions, normalizeCatalogProgram, russianPlural, type CatalogProgram } from "@/features/catalog/model";
-import { ProgramCard } from "@/features/catalog/program-card";
+import { AcademicReleaseMismatchError, loadCatalog } from "@/shared/api/client";
+import { buildCatalogSearchIndex, filterPrograms, getCatalogOptions, normalizeCatalogProgram, russianPlural } from "@/features/catalog/model";
+import { ProgramList } from "@/features/catalog/program-list";
 import styles from "@/features/catalog/programs.module.css";
 import feedbackStyles from "@/features/catalog/feedback.module.css";
 
@@ -67,18 +67,19 @@ export default function ProgramsRoute({ loaderData }: Route.ComponentProps) {
     directionCode,
     departmentCode,
   }, searchIndex), [loaderData.programs, searchIndex, query, directionCode, departmentCode]);
+  const displayedPrograms = useDeferredValue(filteredPrograms);
 
   function setFilter(name: string, value: string) {
     const next = new URLSearchParams(searchParams);
     if (value) next.set(name, value);
     else next.delete(name);
     if (name === "q") next.delete("code");
-    setSearchParams(next, { replace: true });
+    setSearchParams(next, { replace: true, preventScrollReset: true });
     setFeedback("");
   }
 
   function resetFilters() {
-    setSearchParams(new URLSearchParams(), { replace: true });
+    setSearchParams(new URLSearchParams(), { replace: true, preventScrollReset: true });
     setFeedback("");
     document.getElementById("program-search")?.focus();
   }
@@ -89,14 +90,17 @@ export default function ProgramsRoute({ loaderData }: Route.ComponentProps) {
       <main className={styles.main}>
         <section className={styles.hero} aria-labelledby="catalog-title">
           <div className={styles.heroCopy}>
-            <p className={styles.eyebrow}><span className={styles.heroIndex} aria-hidden="true">01</span> МГТУ имени Баумана · набор 2026</p>
             <h1 className={styles.heroTitle} id="catalog-title" aria-label="Каталог программ">Каталог<br /><em>программ</em></h1>
             <p className={styles.heroDescription}>Бакалавриат и специалитет — все образовательные программы университета в одном месте.</p>
           </div>
           <div className={styles.heroStats} aria-label="Состав каталога">
             <div className={styles.primaryStat}>
               <div><span className={styles.statLabel}>В каталоге</span><strong>{loaderData.programs.length}</strong><span className={styles.statUnit}>{russianPlural(loaderData.programs.length, ["программа", "программы", "программ"])}</span></div>
-              <svg className={styles.orbit} viewBox="0 0 160 160" aria-hidden="true"><ellipse cx="80" cy="80" rx="65" ry="27" transform="rotate(-34 80 80)" /><ellipse cx="80" cy="80" rx="65" ry="27" transform="rotate(34 80 80)" /><circle cx="80" cy="80" r="5" /><circle cx="132" cy="48" r="3" /></svg>
+              <svg className={styles.orbit} viewBox="0 0 160 160" aria-hidden="true">
+                <ellipse cx="80" cy="80" rx="65" ry="27" transform="rotate(-34 80 80)" />
+                <ellipse cx="80" cy="80" rx="65" ry="27" transform="rotate(34 80 80)" />
+                <circle className={styles.orbitCore} cx="80" cy="80" r="5" />
+              </svg>
             </div>
             <div className={styles.secondaryStats}>
               <div><strong>{options.directions.length}</strong><span>{russianPlural(options.directions.length, ["направление", "направления", "направлений"])}</span></div>
@@ -144,21 +148,7 @@ export default function ProgramsRoute({ loaderData }: Route.ComponentProps) {
             </div>
           ) : null}
 
-          <div className={styles.grid} aria-busy="false">
-            {filteredPrograms.length === 0 ? (
-              <div className={styles.state}>
-                <h2>Ничего не нашлось</h2>
-                <p>Измените поисковый запрос или сбросьте фильтры, чтобы увидеть другие программы.</p>
-              </div>
-            ) : filteredPrograms.map((program: CatalogProgram) => (
-              <ProgramCard
-                key={program.external_key}
-                program={program}
-                expectedReleaseKey={loaderData.release.release_key}
-                onSelectionLimit={setFeedback}
-              />
-            ))}
-          </div>
+          <ProgramList programs={displayedPrograms} expectedReleaseKey={loaderData.release.release_key} onSelectionLimit={setFeedback} />
 
           <footer className={styles.footnote}>
             <span>Изучай программы и сверяй детали с учебными планами и документами университета.</span>
@@ -171,11 +161,28 @@ export default function ProgramsRoute({ loaderData }: Route.ComponentProps) {
 }
 
 export function ErrorBoundary() {
+  const error = useRouteError();
+  const revalidator = useRevalidator();
+  const releaseChanged = error instanceof AcademicReleaseMismatchError;
+  const pending = revalidator.state === "loading";
   return (
-    <main className={styles.state} role="alert">
-      <h1>Каталог временно недоступен</h1>
-      <p>Не удалось получить программы из FastAPI или подтвердить единый академический выпуск. Обновите страницу и попробуйте ещё раз.</p>
-      <Link to="/programs">Повторить загрузку</Link>
-    </main>
+    <div className={styles.page}>
+      <AndromedaHeader />
+      <main className={styles.main}>
+        <section className={styles.state} role="alert">
+          <h1>{releaseChanged ? "Каталог обновился" : "Каталог временно недоступен"}</h1>
+          <p>{releaseChanged
+            ? "Опубликован новый академический выпуск. Обновите страницу, чтобы получить согласованные данные. Сохранённый выбор программ останется."
+            : "Не получилось загрузить программы. Проверьте соединение и повторите попытку."}</p>
+          <div className={styles.stateActions}>
+            <button className={styles.retryAdmission} type="button" disabled={pending} onClick={() => {
+              if (releaseChanged) window.location.reload();
+              else void revalidator.revalidate();
+            }}>{pending ? "Загружаем…" : releaseChanged ? "Обновить страницу" : "Повторить загрузку"}</button>
+            <Link className={styles.programLink} to="/">На главную</Link>
+          </div>
+        </section>
+      </main>
+    </div>
   );
 }

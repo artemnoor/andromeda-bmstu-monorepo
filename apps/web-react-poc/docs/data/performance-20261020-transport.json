@@ -1,0 +1,44 @@
+{
+  "capturedAt": "2026-10-20T06:42:08.360Z",
+  "results": [
+    {
+      "path": "/api/v1/programs?limit=100",
+      "identityBytes": 454558,
+      "gzipBytes": 67390,
+      "sha256": "64ca9fe99c7b290c8230157c0483550200074b3615c156ab50cc89e82832cb08",
+      "equal": true,
+      "contentEncoding": "gzip",
+      "vary": "Accept-Encoding"
+    },
+    {
+      "path": "/assets/compare-CAay69WH.js",
+      "identityBytes": 422824,
+      "gzipBytes": 127629,
+      "sha256": "6d7937674fb17510667e8967fcba9311beb99d3d6ccf4b1baac29e8d829da51f",
+      "equal": true,
+      "contentEncoding": "gzip",
+      "vary": "Accept-Encoding",
+      "cacheControl": "max-age=604800, public, immutable"
+    },
+    {
+      "path": "/assets/programs-UP3b-U8I.css",
+      "identityBytes": 23063,
+      "gzipBytes": 5287,
+      "sha256": "4f55d9cae11d7c72f600ea338eff253e012584136812c9dda9c267adab65f4d4",
+      "equal": true,
+      "contentEncoding": "gzip",
+      "vary": "Accept-Encoding",
+      "cacheControl": "max-age=604800, public, immutable"
+    },
+    {
+      "path": "/data/prof-test-profile-snapshot.json",
+      "identityBytes": 74899,
+      "gzipBytes": 15615,
+      "sha256": "4f27147a5b2a148966ae239381f800cce0fc68d0a4b192cdaa49344ea1e12b5a",
+      "equal": true,
+      "contentEncoding": "gzip",
+      "vary": "Accept-Encoding",
+      "cacheControl": "no-cache"
+    }
+  ]
+}

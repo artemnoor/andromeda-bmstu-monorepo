@@ -23,7 +23,7 @@ New-Item -ItemType Directory -Force .\artifacts\local | Out-Null
 ```
 
 Check that it restores by creating a unique temporary local database, running
-`pg_restore`, checking migration revision `b62d4e91a8c3`, the `academic_read`,
+`pg_restore`, checking migration revision `c7e2b4a91d63`, the `academic_read`,
 `directus_read`, and `directus_meta` schemas, and all 57 Directus read-model
 tables, then dropping that temporary database:
 
@@ -31,8 +31,10 @@ tables, then dropping that temporary database:
 .\infra\database\restore-check.ps1 -Target test -BackupPath .\artifacts\local\academic-data-test.dump
 ```
 
-The restore check does not restore over the source database. It needs local
-PostgreSQL client tools (`psql`, `pg_dump`, `pg_restore`, `createdb`, and
+The restore check does not restore over the source database. Use PostgreSQL 16
+client tools for backups that will be restored into PostgreSQL 16: a dump from
+client 17 can contain unsupported settings such as `transaction_timeout`.
+It needs local tools (`psql`, `pg_dump`, `pg_restore`, `createdb`, and
 `dropdb`) on `PATH`, plus permission to create and drop a temporary database.
 Passwords are supplied to client tools through the process environment; they
 are not command-line arguments or script output. If validation or cleanup

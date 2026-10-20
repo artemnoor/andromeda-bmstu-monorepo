@@ -1,0 +1,543 @@
+{
+  "baseURL": "http://127.0.0.1:4182",
+  "chromium": "156.0.8078.4",
+  "measuredAt": "2026-10-11T09:16:18.336Z",
+  "keys": [
+    "program:bmstu:01.03.02:ИУ9:01.03.02-01:source:1-1",
+    "program:bmstu:01.03.03:ФН11:01.03.03-03:source:2-1",
+    "program:bmstu:01.03.03:ФН3:01.03.03-02:source:1-1"
+  ],
+  "conditions": "Production SPA; 1440x900; cold browser context per run; discarded server warmup; same-session return via catalog",
+  "samples": [
+    {
+      "run": 0,
+      "cold": {
+        "firstUsefulMs": 3759,
+        "readyMs": 3759,
+        "apiRequests": 32,
+        "apiBytes": 2156129,
+        "jsBytes": 144130,
+        "stages": [
+          {
+            "name": "andromeda:comparison:stage:catalog",
+            "duration": 1653.7999999523163
+          },
+          {
+            "name": "andromeda:comparison:stage:total",
+            "duration": 3609.399999856949
+          },
+          {
+            "name": "andromeda:comparison:stage:selection",
+            "duration": 0.9000000953674316
+          },
+          {
+            "name": "andromeda:comparison:stage:admission",
+            "duration": 1073.8999998569489
+          },
+          {
+            "name": "andromeda:comparison:stage:plans",
+            "duration": 246.90000009536743
+          },
+          {
+            "name": "andromeda:comparison:stage:items",
+            "duration": 1347.7000000476837
+          },
+          {
+            "name": "andromeda:comparison:stage:taxonomy",
+            "duration": 152.90000009536743
+          },
+          {
+            "name": "andromeda:comparison:stage:curriculum-model",
+            "duration": 4.700000047683716
+          },
+          {
+            "name": "andromeda:comparison:stage:final-release-check",
+            "duration": 202.09999990463257
+          }
+        ]
+      },
+      "returning": {
+        "readyMs": 4705.700000047684,
+        "apiRequests": 13,
+        "apiBytes": 800737
+      }
+    },
+    {
+      "run": 1,
+      "cold": {
+        "firstUsefulMs": 9992.600000143051,
+        "readyMs": 9992.600000143051,
+        "apiRequests": 32,
+        "apiBytes": 2156129,
+        "jsBytes": 144130,
+        "stages": [
+          {
+            "name": "andromeda:comparison:stage:total",
+            "duration": 9846.200000047684
+          },
+          {
+            "name": "andromeda:comparison:stage:catalog",
+            "duration": 1732.2999999523163
+          },
+          {
+            "name": "andromeda:comparison:stage:selection",
+            "duration": 0.7000000476837158
+          },
+          {
+            "name": "andromeda:comparison:stage:admission",
+            "duration": 6891.299999952316
+          },
+          {
+            "name": "andromeda:comparison:stage:plans",
+            "duration": 204.70000004768372
+          },
+          {
+            "name": "andromeda:comparison:stage:items",
+            "duration": 7521.299999952316
+          },
+          {
+            "name": "andromeda:comparison:stage:taxonomy",
+            "duration": 193.60000014305115
+          },
+          {
+            "name": "andromeda:comparison:stage:curriculum-model",
+            "duration": 5.700000047683716
+          },
+          {
+            "name": "andromeda:comparison:stage:final-release-check",
+            "duration": 187
+          }
+        ]
+      },
+      "returning": {
+        "readyMs": 6685.799999952316,
+        "apiRequests": 13,
+        "apiBytes": 800737
+      }
+    },
+    {
+      "run": 2,
+      "cold": {
+        "firstUsefulMs": 18603.199999809265,
+        "readyMs": 18603.199999809265,
+        "apiRequests": 32,
+        "apiBytes": 2156129,
+        "jsBytes": 144130,
+        "stages": [
+          {
+            "name": "andromeda:comparison:stage:catalog",
+            "duration": 7730.399999856949
+          },
+          {
+            "name": "andromeda:comparison:stage:total",
+            "duration": 18455.599999904633
+          },
+          {
+            "name": "andromeda:comparison:stage:selection",
+            "duration": 0.9000000953674316
+          },
+          {
+            "name": "andromeda:comparison:stage:admission",
+            "duration": 6481.599999904633
+          },
+          {
+            "name": "andromeda:comparison:stage:plans",
+            "duration": 3213.7999999523163
+          },
+          {
+            "name": "andromeda:comparison:stage:items",
+            "duration": 7118.299999952316
+          },
+          {
+            "name": "andromeda:comparison:stage:taxonomy",
+            "duration": 186.79999995231628
+          },
+          {
+            "name": "andromeda:comparison:stage:curriculum-model",
+            "duration": 4.299999952316284
+          },
+          {
+            "name": "andromeda:comparison:stage:final-release-check",
+            "duration": 200.59999990463257
+          }
+        ]
+      },
+      "returning": {
+        "readyMs": 9371.900000095367,
+        "apiRequests": 13,
+        "apiBytes": 800737
+      }
+    },
+    {
+      "run": 3,
+      "cold": {
+        "firstUsefulMs": 11981.800000190735,
+        "readyMs": 11981.800000190735,
+        "apiRequests": 32,
+        "apiBytes": 2156129,
+        "jsBytes": 144130,
+        "stages": [
+          {
+            "name": "andromeda:comparison:stage:catalog",
+            "duration": 3833.2999999523163
+          },
+          {
+            "name": "andromeda:comparison:stage:total",
+            "duration": 11835.599999904633
+          },
+          {
+            "name": "andromeda:comparison:stage:selection",
+            "duration": 0.7999999523162842
+          },
+          {
+            "name": "andromeda:comparison:stage:admission",
+            "duration": 6593.5
+          },
+          {
+            "name": "andromeda:comparison:stage:plans",
+            "duration": 3220.5
+          },
+          {
+            "name": "andromeda:comparison:stage:items",
+            "duration": 4443.300000190735
+          },
+          {
+            "name": "andromeda:comparison:stage:taxonomy",
+            "duration": 152.19999980926514
+          },
+          {
+            "name": "andromeda:comparison:stage:curriculum-model",
+            "duration": 4.200000047683716
+          },
+          {
+            "name": "andromeda:comparison:stage:final-release-check",
+            "duration": 180.70000004768372
+          }
+        ]
+      },
+      "returning": {
+        "readyMs": 3540.399999856949,
+        "apiRequests": 13,
+        "apiBytes": 800737
+      }
+    },
+    {
+      "run": 4,
+      "cold": {
+        "firstUsefulMs": 3610.800000190735,
+        "readyMs": 3610.9000000953674,
+        "apiRequests": 32,
+        "apiBytes": 2156129,
+        "jsBytes": 144130,
+        "stages": [
+          {
+            "name": "andromeda:comparison:stage:total",
+            "duration": 3496.699999809265
+          },
+          {
+            "name": "andromeda:comparison:stage:catalog",
+            "duration": 1597
+          },
+          {
+            "name": "andromeda:comparison:stage:selection",
+            "duration": 0.8000001907348633
+          },
+          {
+            "name": "andromeda:comparison:stage:admission",
+            "duration": 1054
+          },
+          {
+            "name": "andromeda:comparison:stage:plans",
+            "duration": 247.79999995231628
+          },
+          {
+            "name": "andromeda:comparison:stage:items",
+            "duration": 1294
+          },
+          {
+            "name": "andromeda:comparison:stage:taxonomy",
+            "duration": 151.70000004768372
+          },
+          {
+            "name": "andromeda:comparison:stage:curriculum-model",
+            "duration": 4.1000001430511475
+          },
+          {
+            "name": "andromeda:comparison:stage:final-release-check",
+            "duration": 200.59999990463257
+          }
+        ]
+      },
+      "returning": {
+        "readyMs": 12624.800000190735,
+        "apiRequests": 13,
+        "apiBytes": 800737
+      }
+    },
+    {
+      "run": 5,
+      "cold": {
+        "firstUsefulMs": 23779.700000047684,
+        "readyMs": 23779.800000190735,
+        "apiRequests": 32,
+        "apiBytes": 2156129,
+        "jsBytes": 144130,
+        "stages": [
+          {
+            "name": "andromeda:comparison:stage:total",
+            "duration": 23622.5
+          },
+          {
+            "name": "andromeda:comparison:stage:catalog",
+            "duration": 10503
+          },
+          {
+            "name": "andromeda:comparison:stage:selection",
+            "duration": 0.7999999523162842
+          },
+          {
+            "name": "andromeda:comparison:stage:admission",
+            "duration": 4655.099999904633
+          },
+          {
+            "name": "andromeda:comparison:stage:plans",
+            "duration": 217.59999990463257
+          },
+          {
+            "name": "andromeda:comparison:stage:items",
+            "duration": 6503.600000143051
+          },
+          {
+            "name": "andromeda:comparison:stage:taxonomy",
+            "duration": 3200.399999856949
+          },
+          {
+            "name": "andromeda:comparison:stage:curriculum-model",
+            "duration": 4.299999952316284
+          },
+          {
+            "name": "andromeda:comparison:stage:final-release-check",
+            "duration": 3192
+          }
+        ]
+      },
+      "returning": {
+        "readyMs": 6490.400000095367,
+        "apiRequests": 13,
+        "apiBytes": 800737
+      }
+    },
+    {
+      "run": 6,
+      "cold": {
+        "firstUsefulMs": 18615,
+        "readyMs": 18615.099999904633,
+        "apiRequests": 32,
+        "apiBytes": 2156129,
+        "jsBytes": 144130,
+        "stages": [
+          {
+            "name": "andromeda:comparison:stage:catalog",
+            "duration": 7461
+          },
+          {
+            "name": "andromeda:comparison:stage:total",
+            "duration": 18502.5
+          },
+          {
+            "name": "andromeda:comparison:stage:selection",
+            "duration": 0.9000000953674316
+          },
+          {
+            "name": "andromeda:comparison:stage:admission",
+            "duration": 6685.200000047684
+          },
+          {
+            "name": "andromeda:comparison:stage:plans",
+            "duration": 3233.399999856949
+          },
+          {
+            "name": "andromeda:comparison:stage:items",
+            "duration": 1464.2999999523163
+          },
+          {
+            "name": "andromeda:comparison:stage:taxonomy",
+            "duration": 3178.4000000953674
+          },
+          {
+            "name": "andromeda:comparison:stage:curriculum-model",
+            "duration": 5.099999904632568
+          },
+          {
+            "name": "andromeda:comparison:stage:final-release-check",
+            "duration": 3158.899999856949
+          }
+        ]
+      },
+      "returning": {
+        "readyMs": 6649.799999952316,
+        "apiRequests": 13,
+        "apiBytes": 800737
+      }
+    },
+    {
+      "run": 7,
+      "cold": {
+        "firstUsefulMs": 12399.599999904633,
+        "readyMs": 12399.599999904633,
+        "apiRequests": 32,
+        "apiBytes": 2156129,
+        "jsBytes": 144130,
+        "stages": [
+          {
+            "name": "andromeda:comparison:stage:catalog",
+            "duration": 7560.200000047684
+          },
+          {
+            "name": "andromeda:comparison:stage:total",
+            "duration": 12228.800000190735
+          },
+          {
+            "name": "andromeda:comparison:stage:selection",
+            "duration": 0.9000000953674316
+          },
+          {
+            "name": "andromeda:comparison:stage:admission",
+            "duration": 3658.600000143051
+          },
+          {
+            "name": "andromeda:comparison:stage:plans",
+            "duration": 3211.4000000953674
+          },
+          {
+            "name": "andromeda:comparison:stage:items",
+            "duration": 1146.6000001430511
+          },
+          {
+            "name": "andromeda:comparison:stage:taxonomy",
+            "duration": 152.20000004768372
+          },
+          {
+            "name": "andromeda:comparison:stage:curriculum-model",
+            "duration": 5.5
+          },
+          {
+            "name": "andromeda:comparison:stage:final-release-check",
+            "duration": 151.5
+          }
+        ]
+      },
+      "returning": {
+        "readyMs": 3635.399999856949,
+        "apiRequests": 13,
+        "apiBytes": 800737
+      }
+    },
+    {
+      "run": 8,
+      "cold": {
+        "firstUsefulMs": 12068.099999904633,
+        "readyMs": 12068.099999904633,
+        "apiRequests": 32,
+        "apiBytes": 2156129,
+        "jsBytes": 144130,
+        "stages": [
+          {
+            "name": "andromeda:comparison:stage:total",
+            "duration": 11918.099999904633
+          },
+          {
+            "name": "andromeda:comparison:stage:catalog",
+            "duration": 1702.4000000953674
+          },
+          {
+            "name": "andromeda:comparison:stage:selection",
+            "duration": 0.8999998569488525
+          },
+          {
+            "name": "andromeda:comparison:stage:admission",
+            "duration": 7029.900000095367
+          },
+          {
+            "name": "andromeda:comparison:stage:plans",
+            "duration": 215.5
+          },
+          {
+            "name": "andromeda:comparison:stage:items",
+            "duration": 4385.5
+          },
+          {
+            "name": "andromeda:comparison:stage:taxonomy",
+            "duration": 190.5
+          },
+          {
+            "name": "andromeda:comparison:stage:curriculum-model",
+            "duration": 8.299999952316284
+          },
+          {
+            "name": "andromeda:comparison:stage:final-release-check",
+            "duration": 3184.5999999046326
+          }
+        ]
+      },
+      "returning": {
+        "readyMs": 12491.700000047684,
+        "apiRequests": 13,
+        "apiBytes": 800737
+      }
+    },
+    {
+      "run": 9,
+      "cold": {
+        "firstUsefulMs": 18575,
+        "readyMs": 18575.099999904633,
+        "apiRequests": 32,
+        "apiBytes": 2156129,
+        "jsBytes": 144130,
+        "stages": [
+          {
+            "name": "andromeda:comparison:stage:catalog",
+            "duration": 7426.900000095367
+          },
+          {
+            "name": "andromeda:comparison:stage:total",
+            "duration": 18456.700000047684
+          },
+          {
+            "name": "andromeda:comparison:stage:selection",
+            "duration": 0.7000000476837158
+          },
+          {
+            "name": "andromeda:comparison:stage:admission",
+            "duration": 3754.5
+          },
+          {
+            "name": "andromeda:comparison:stage:plans",
+            "duration": 195.40000009536743
+          },
+          {
+            "name": "andromeda:comparison:stage:items",
+            "duration": 4537
+          },
+          {
+            "name": "andromeda:comparison:stage:taxonomy",
+            "duration": 3154.2000000476837
+          },
+          {
+            "name": "andromeda:comparison:stage:curriculum-model",
+            "duration": 4.5
+          },
+          {
+            "name": "andromeda:comparison:stage:final-release-check",
+            "duration": 3137.2000000476837
+          }
+        ]
+      },
+      "returning": {
+        "readyMs": 12597.700000047684,
+        "apiRequests": 13,
+        "apiBytes": 800737
+      }
+    }
+  ]
+}

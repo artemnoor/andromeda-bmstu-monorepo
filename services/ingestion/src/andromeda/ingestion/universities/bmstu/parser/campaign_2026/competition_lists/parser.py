@@ -66,8 +66,13 @@ def parse_order_sources(manifest_body: bytes, manifest_url: str, pdf_loader: Any
             continue
         parsed = parse_admission_order_document(body, metadata)
         for observation in parsed.observations:
+            score_identity = (
+                str(observation.score)
+                if observation.score is not None
+                else "bvi" if observation.status == "bvi" else observation.status
+            )
             statistics.append({
-                "external_key": f"admission_statistic:bmstu:{observation.admission_year}:{observation.direction_code}:{observation.funding_type}:{metadata.stage.value}:{observation.competition_type.value}:{observation.status}:{observation.score if observation.score is not None else 'bvi'}",
+                "external_key": f"admission_statistic:bmstu:{observation.admission_year}:{observation.direction_code}:{observation.funding_type}:{metadata.stage.value}:{observation.competition_type.value}:{observation.status}:{score_identity}",
                 "direction_code": observation.direction_code,
                 "admission_year": observation.admission_year,
                 "study_form": observation.study_form,
@@ -76,6 +81,7 @@ def parse_order_sources(manifest_body: bytes, manifest_url: str, pdf_loader: Any
                 "competition_type": observation.competition_type.value,
                 "status": observation.status,
                 "score": int(observation.score) if observation.score is not None else None,
+                "admitted_count": observation.admitted_count,
                 "snapshot_date": None,
                 "source_url": observation.source_url,
                 "source_locator": {"page": observation.page, "row": observation.row},

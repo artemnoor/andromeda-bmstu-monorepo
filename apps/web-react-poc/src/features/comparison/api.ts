@@ -6,6 +6,7 @@ import {
   getStudyPlans,
   getTaxonomy,
   loadCatalog,
+  type AcademicCollection,
 } from "@/shared/api/client";
 import type { SubjectTaxonomyDto, StudyPlanDto, CurriculumItemDto } from "./model";
 import { buildCurriculumComparison, selectLatestVerifiedPlans } from "./model";
@@ -47,9 +48,37 @@ export interface LoadedProgramComparison {
   readonly taxonomyUnavailable: boolean;
 }
 
+export type ComparisonOverview = Pick<LoadedProgramComparison,
+  "releaseKey" | "programs" | "invalidSelectionKeys" | "admission" | "admissionUnavailable">;
+export type ComparisonSelection = Pick<ComparisonOverview, "releaseKey" | "programs" | "invalidSelectionKeys">;
+
+// Only completed, release-checked reads are retained. Pending transports remain
+// owned by the requesting route, so cancelling one navigation cannot poison another.
+const planCache = new Map<string, AcademicCollection<StudyPlanDto>>();
+const itemCache = new Map<string, AcademicCollection<CurriculumItemDto>>();
+const taxonomyCache = new Map<string, SubjectTaxonomyDto>();
+
+function remember<T>(cache: Map<string, T>, key: string, value: T, limit = 8): void {
+  cache.delete(key);
+  cache.set(key, value);
+  while (cache.size > limit) {
+    const oldest = cache.keys().next().value;
+    if (oldest === undefined) break;
+    cache.delete(oldest);
+  }
+}
+
+export function clearComparisonReadCache(): void {
+  planCache.clear();
+  itemCache.clear();
+  taxonomyCache.clear();
+}
+
 export async function loadProgramComparison(
   selectedKeys: readonly string[],
   signal?: AbortSignal,
+  onOverview?: (overview: ComparisonOverview) => void,
+  onSelection?: (selection: ComparisonSelection) => void,
 ): Promise<LoadedProgramComparison> {
   markComparisonStage("total", "start");
   markComparisonStage("catalog", "start");
@@ -82,6 +111,8 @@ export async function loadProgramComparison(
   }
   markComparisonStage("selection", "end");
   measureComparisonStage("selection");
+  signal?.throwIfAborted();
+  onSelection?.({ releaseKey: catalog.release.release_key, programs: selectedPrograms, invalidSelectionKeys });
 
   markComparisonStage("admission", "start");
   const admissionPromise = Promise.allSettled(selectedPrograms.map(async (program) => {
@@ -100,10 +131,43 @@ export async function loadProgramComparison(
     return results;
   });
 
+  const admission = new Map<string, AdmissionSummary>();
+  const admissionUnavailable = new Set<string>();
+  const overviewPromise = admissionPromise.then(async (results) => {
+    results.forEach((result, index) => {
+      const program = selectedPrograms[index];
+      if (!program) return;
+      if (result.status === "fulfilled") {
+        assertSingleRelease(catalog.release.release_key, {
+          releaseKey: result.value.releaseKey,
+          label: `admission data for ${result.value.programKey}`,
+        });
+        admission.set(result.value.programKey, result.value.summary);
+      } else if (result.reason instanceof AcademicReleaseMismatchError) throw result.reason;
+      else admissionUnavailable.add(program.external_key);
+    });
+    if (onOverview) {
+      signal?.throwIfAborted();
+      const active = await getActiveRelease(signal);
+      assertSingleRelease(catalog.release.release_key, { releaseKey: active.release_key, label: "active release before admission preview" });
+      signal?.throwIfAborted();
+      onOverview({ releaseKey: catalog.release.release_key, programs: selectedPrograms, invalidSelectionKeys, admission, admissionUnavailable });
+    }
+  });
+  // A parallel branch may fail before the curriculum branch is awaited.
+  // Attach a rejection handler immediately; the final await still propagates it.
+  void overviewPromise.catch(() => undefined);
+
   markComparisonStage("plans", "start");
-  const planCollections = await Promise.all(selectedPrograms.map((program) => (
-    getStudyPlans(program.external_key, signal)
-  )));
+  const planCollections = await Promise.all(selectedPrograms.map(async (program) => {
+    signal?.throwIfAborted();
+    const key = `${catalog.release.release_key}\u0000${program.external_key}`;
+    const collection = planCache.get(key) ?? await getStudyPlans(program.external_key, signal);
+    assertSingleRelease(catalog.release.release_key, collection);
+    signal?.throwIfAborted();
+    remember(planCache, key, collection);
+    return collection;
+  }));
   markComparisonStage("plans", "end");
   measureComparisonStage("plans");
   assertSingleRelease(catalog.release.release_key, ...planCollections);
@@ -115,12 +179,16 @@ export async function loadProgramComparison(
     selection.selectedPlan ? [selection.selectedPlan] : []
   )).map(async (plan) => {
     try {
-      const collection = await getStudyPlanItems(plan.external_key, signal);
+      signal?.throwIfAborted();
+      const key = `${catalog.release.release_key}\u0000${plan.external_key}`;
+      const collection = itemCache.get(key) ?? await getStudyPlanItems(plan.external_key, signal);
       assertSingleRelease(catalog.release.release_key, collection);
       const itemCount = plan.item_count;
       if (itemCount != null && collection.items.length !== itemCount) {
         return { planKey: plan.external_key, collection: null };
       }
+      signal?.throwIfAborted();
+      remember(itemCache, key, collection);
       return { planKey: plan.external_key, collection };
     } catch (error) {
       if (error instanceof AcademicReleaseMismatchError || signal?.aborted) throw error;
@@ -159,7 +227,11 @@ export async function loadProgramComparison(
       : { key: "bmstu-subject-domain-16", version: "v1" };
     if (identity) {
       try {
-        taxonomy = await getTaxonomy(identity.key, identity.version, signal);
+        signal?.throwIfAborted();
+        const key = `${catalog.release.release_key}\u0000${identity.key}\u0000${identity.version}`;
+        taxonomy = taxonomyCache.get(key) ?? await getTaxonomy(identity.key, identity.version, signal);
+        signal?.throwIfAborted();
+        remember(taxonomyCache, key, taxonomy, 2);
       } catch (error) {
         if (error instanceof AcademicReleaseMismatchError || signal?.aborted) throw error;
         taxonomyUnavailable = true;
@@ -184,21 +256,7 @@ export async function loadProgramComparison(
   markComparisonStage("curriculum-model", "end");
   measureComparisonStage("curriculum-model");
 
-  const admissionSettled = await admissionPromise;
-  const admission = new Map<string, AdmissionSummary>();
-  const admissionUnavailable = new Set<string>();
-  admissionSettled.forEach((result, index) => {
-    const program = selectedPrograms[index];
-    if (!program) return;
-    if (result.status === "fulfilled") {
-      assertSingleRelease(catalog.release.release_key, {
-        releaseKey: result.value.releaseKey,
-        label: `admission data for ${result.value.programKey}`,
-      });
-      admission.set(result.value.programKey, result.value.summary);
-    } else if (result.reason instanceof AcademicReleaseMismatchError) throw result.reason;
-    else admissionUnavailable.add(program.external_key);
-  });
+  await overviewPromise;
 
   markComparisonStage("final-release-check", "start");
   assertSingleRelease(catalog.release.release_key, ...planCollections, ...itemCollections);
@@ -211,6 +269,7 @@ export async function loadProgramComparison(
   measureComparisonStage("final-release-check");
   markComparisonStage("total", "end");
   measureComparisonStage("total");
+  signal?.throwIfAborted();
 
   return {
     releaseKey: catalog.release.release_key,

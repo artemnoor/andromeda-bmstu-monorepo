@@ -567,6 +567,9 @@ class AdmissionStatisticModel(ReleaseScopedMixin, TemporalAssertionMixin, Base):
         CheckConstraint("admission_year BETWEEN 1900 AND 2200", name="valid_admission_year"),
         CheckConstraint("score IS NULL OR score >= 0", name="nonnegative_score"),
         CheckConstraint(
+            "admitted_count IS NULL OR admitted_count >= 0", name="nonnegative_admitted_count"
+        ),
+        CheckConstraint(
             "valid_from IS NULL OR valid_to IS NULL OR valid_from <= valid_to",
             name="valid_validity_period",
         ),
@@ -581,6 +584,7 @@ class AdmissionStatisticModel(ReleaseScopedMixin, TemporalAssertionMixin, Base):
     competition_type: Mapped[str | None] = mapped_column(String(100))
     funding_type_code: Mapped[str | None] = mapped_column(String(100))
     score: Mapped[Decimal | None] = mapped_column(Numeric(8, 2))
+    admitted_count: Mapped[int | None] = mapped_column(Integer)
     status: Mapped[str | None] = mapped_column(String(40))
     study_form: Mapped[str | None] = mapped_column(String(80))
     snapshot_date: Mapped[date | None] = mapped_column(Date)

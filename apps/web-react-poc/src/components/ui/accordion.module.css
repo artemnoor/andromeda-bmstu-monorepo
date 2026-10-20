@@ -1,0 +1,148 @@
+.root {
+  width: 100%;
+  max-width: none;
+}
+
+.item {
+  border-top: 1px solid #3a3d42;
+}
+
+.item:first-child {
+  border-top: 0;
+}
+
+.item:last-child {
+  border-bottom: 1px solid #3a3d42;
+}
+
+.header {
+  display: flex;
+  margin: 0;
+}
+
+.trigger {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: space-between;
+  gap: 30px;
+  padding: 46px 0 50px;
+  border: 0;
+  color: #f4f4f4;
+  background: transparent;
+  font: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+  line-height: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.trigger:focus-visible {
+  outline: 2px solid #8dedf9;
+  outline-offset: 4px;
+}
+
+.indicator {
+  position: relative;
+  flex: none;
+  width: 44px;
+  height: 44px;
+  margin-left: 20px;
+}
+
+.indicator::before,
+.indicator::after {
+  position: absolute;
+  top: 21px;
+  left: 10px;
+  width: 24px;
+  height: 2px;
+  background: #fff;
+  content: "";
+  transition: transform 400ms cubic-bezier(.6, 0, .4, 1), background-color 300ms ease;
+}
+
+.indicator::after {
+  transform: rotate(90deg);
+}
+
+.trigger:hover .indicator::before,
+.trigger:hover .indicator::after {
+  background: #b8b1ff;
+}
+
+.trigger[data-state="open"] .indicator::after {
+  transform: rotate(0deg);
+}
+
+/* Keep the plus sign legible when the pointer is not over the trigger. */
+.trigger[data-state="open"] .indicator::after {
+  opacity: 0;
+}
+
+.trigger:focus-visible .indicator::before,
+.trigger:focus-visible .indicator::after {
+  background: #b8b1ff;
+}
+
+.indicator svg {
+  stroke: #8dedf9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.5;
+}
+
+.content {
+  overflow: hidden;
+  color: rgb(255 255 255 / 72%);
+  font-size: 15px;
+  line-height: 1.55;
+}
+
+.content[data-state="open"] {
+  animation: expand 180ms ease-out;
+}
+
+.content[data-state="closed"] {
+  animation: collapse 180ms ease-out;
+}
+
+.contentBody {
+  padding: 12px 0 40px 64px;
+}
+
+@keyframes expand {
+  from { height: 0; }
+  to { height: var(--radix-accordion-content-height); }
+}
+
+@keyframes collapse {
+  from { height: var(--radix-accordion-content-height); }
+  to { height: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .indicator,
+  .indicator::before,
+  .indicator::after,
+  .content[data-state="open"],
+  .content[data-state="closed"] {
+    animation: none;
+    transition: none;
+  }
+}
+
+@media (max-width: 1023px) {
+  .trigger { gap: 12px; padding: 34px 0 38px; }
+  .indicator { margin: 0; }
+  .contentBody { padding-left: 48px; }
+}
+
+@media (max-width: 640px) {
+  .trigger { gap: 8px; padding: 30px 0 34px; }
+  .indicator { width: 30px; height: 30px; }
+  .indicator::before,
+  .indicator::after { top: 14px; left: 5px; width: 20px; }
+  .contentBody { padding: 8px 4px 30px 38px; }
+}

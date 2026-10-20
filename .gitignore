@@ -12,6 +12,9 @@ dist/
 *.egg-info/
 artifacts/
 .playwright-cli/
+**/tmp/
+tmp/
+**/output/
 postgres-data/
 raw/
 *.pdf

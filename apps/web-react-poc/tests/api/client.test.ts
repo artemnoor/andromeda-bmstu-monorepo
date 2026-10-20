@@ -60,6 +60,14 @@ afterEach(() => {
 });
 
 describe("typed OpenAPI client contract", () => {
+  it("does not start transport for an already cancelled navigation", async () => {
+    const controller = new AbortController();
+    controller.abort();
+
+    await expect(api.getActiveRelease(controller.signal)).rejects.toMatchObject({ name: "AbortError" });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it("loads all campaigns from the pinned active release when no calendar year is supplied", async () => {
     installFetch((url) => {
       if (url.pathname === "/api/v1/release") return jsonResponse({ release_key: RELEASE_KEY });
@@ -182,6 +190,22 @@ describe("typed OpenAPI client contract", () => {
     expect(programRequests[0]?.searchParams.get("limit")).toBe("100");
     expect(programRequests[0]?.searchParams.has("cursor")).toBe(false);
     expect(programRequests[1]?.searchParams.get("cursor")).toBe("cursor-2");
+  });
+
+  it("lists study plans across the pinned release without sending a program filter", async () => {
+    installFetch((url) => {
+      if (url.pathname === "/api/v1/release") return jsonResponse({ release_key: RELEASE_KEY });
+      return jsonResponse(page([{ external_key: "plan-1", program_key: "program-1" }]));
+    });
+
+    const collection = await api.listStudyPlans();
+    expect(collection.items).toEqual([{ external_key: "plan-1", program_key: "program-1" }]);
+    expect(collection.releaseKey).toBe(RELEASE_KEY);
+    const request = fetchMock.mock.calls
+      .map(([input]) => requestUrl(input as RequestInfo | URL))
+      .find((url) => url.pathname === "/api/v1/study-plans");
+    expect(request).toBeDefined();
+    expect(Object.fromEntries(request?.searchParams ?? [])).toEqual({ limit: "100" });
   });
 
   it("fails closed when the API repeats a pagination cursor", async () => {

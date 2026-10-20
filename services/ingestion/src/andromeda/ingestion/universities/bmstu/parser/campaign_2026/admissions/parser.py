@@ -156,7 +156,7 @@ def _direction_code_by_table_row(
         word for word in page.extract_words(x_tolerance=1, y_tolerance=1)
         if code_x0 - 1 <= float(word["x0"])
         and float(word["x1"]) <= code_x1 + 1
-        and re.fullmatch(r"\d{2}\.\d{2}\.\d{2}", str(word["text"]))
+        and re.fullmatch(r"\d{2}\.\d{2}\.\d{2}(?:\s*/\s*\d{2}\.\d{2}\.\d{2})*", str(word["text"]))
     ]
     direction_for_row: dict[int, str] = {}
     current_direction = carried_direction_text
@@ -165,7 +165,11 @@ def _direction_code_by_table_row(
             word for word in code_words
             if top - 1 <= (float(word["top"]) + float(word["bottom"])) / 2 <= bottom + 1
         ]
-        codes = list(dict.fromkeys(str(word["text"]) for word in sorted(words, key=lambda word: float(word["top"]))))
+        codes = list(dict.fromkeys(
+            code
+            for word in sorted(words, key=lambda word: float(word["top"]))
+            for code in re.findall(r"\d{2}\.\d{2}\.\d{2}", str(word["text"]))
+        ))
         if codes:
             current_direction = " / ".join(codes)
         for row_no, row in enumerate(table.rows, start=1):

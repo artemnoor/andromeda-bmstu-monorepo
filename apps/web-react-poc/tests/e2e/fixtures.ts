@@ -23,10 +23,11 @@ export const test = base.extend<{ diagnostics: BrowserDiagnostics }>({
     });
     page.on("requestfailed", (request) => {
       const errorText = request.failure()?.errorText ?? "request failed";
-      // Browser engines cancel superseded asset requests during navigation.
+      // Browser engines cancel superseded asset/API requests during navigation.
+      // WebKit spells the same intentional abort "Load request cancelled".
       // These are not network failures; essential images are checked directly
       // by the browser scenarios and paired visual suite.
-      if (/^(?:NS_BINDING_ABORTED|net::ERR_ABORTED|ERR_ABORTED)$/i.test(errorText)) return;
+      if (/^(?:NS_BINDING_ABORTED|net::ERR_ABORTED|ERR_ABORTED|Load request cancelled)$/i.test(errorText)) return;
       diagnostics.failedRequests.push(
         `${request.method()} ${request.url()}: ${errorText}`,
       );
@@ -282,6 +283,7 @@ export async function discoverLiveCurriculumPrograms(
         ? { key: "bmstu-subject-domain-16", version: "v1" }
         : null;
     const taxonomyCodes = new Set<string>();
+    const taxonomyOrdinals = new Map<string, number>();
     if (taxonomyIdentity) {
       const taxonomyResponse = await page.request.get(
         `/api/v1/subject-taxonomies/${encodeURIComponent(taxonomyIdentity.key)}/${encodeURIComponent(taxonomyIdentity.version)}`,
@@ -293,21 +295,38 @@ export async function discoverLiveCurriculumPrograms(
         && taxonomyBody.taxonomy_version === taxonomyIdentity.version
         && Array.isArray(taxonomyBody.categories)) {
         for (const category of taxonomyBody.categories) {
-          if (isRecord(category) && typeof category.category_code === "string") taxonomyCodes.add(category.category_code);
+          if (isRecord(category) && typeof category.category_code === "string") {
+            taxonomyCodes.add(category.category_code);
+            if (typeof category.ordinal === "number") taxonomyOrdinals.set(category.category_code, category.ordinal);
+          }
         }
       }
     }
     const expectedCategoryHoursByCode = new Map<string, { hours: number; count: number }>();
     for (const item of items) {
       const classification = isRecord(item.subject_classification) ? item.subject_classification : null;
+      const probabilities = isRecord(classification?.probabilities) ? classification.probabilities : null;
+      const probabilityCodes = probabilities ? Object.keys(probabilities) : [];
+      const hasValidProbabilityVector = taxonomyCodes.size > 0
+        && probabilityCodes.length === taxonomyCodes.size
+        && [...taxonomyCodes].every((code) => {
+          const probability = probabilities?.[code];
+          return typeof probability === "number" && Number.isFinite(probability) && probability >= 0 && probability <= 1;
+        })
+        && Math.abs([...taxonomyCodes].reduce((total, code) => total + (probabilities?.[code] as number), 0) - 1) <= 0.015;
+      const mostLikelyCategoryCode = hasValidProbabilityVector && probabilities
+        ? [...taxonomyCodes].sort((left, right) => (
+          (probabilities[right] as number) - (probabilities[left] as number)
+          || (taxonomyOrdinals.get(left) ?? Number.MAX_SAFE_INTEGER) - (taxonomyOrdinals.get(right) ?? Number.MAX_SAFE_INTEGER)
+        ))[0]
+        : classification?.category_code;
       const categoryCode = taxonomyIdentities.size > 1 || !taxonomyIdentity || !classification
-        || classification.review_status !== "classified"
         || classification.taxonomy_key !== taxonomyIdentity.key
         || classification.taxonomy_version !== taxonomyIdentity.version
-        || typeof classification.category_code !== "string"
-        || !taxonomyCodes.has(classification.category_code)
+        || typeof mostLikelyCategoryCode !== "string"
+        || !taxonomyCodes.has(mostLikelyCategoryCode)
         ? "unclassified"
-        : classification.category_code;
+        : mostLikelyCategoryCode;
       const hours = finiteNumber(item.total_hours ?? item.hours);
       if (hours === null) continue;
       const aggregate = expectedCategoryHoursByCode.get(categoryCode) ?? { hours: 0, count: 0 };

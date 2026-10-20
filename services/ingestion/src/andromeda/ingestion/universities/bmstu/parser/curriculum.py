@@ -142,8 +142,21 @@ def _plan_header_value(line: str) -> str | None:
 
 
 def _plan_header(lines: list[str]) -> dict[str, Any]:
+    # Poppler preserves line breaks in long profile names. The profile code
+    # can be on the continuation line, before the next labelled header field.
+    # Never search the whole document: another table/profile is not evidence.
+    header_lines = lines[:35]
+    profile_index = next((index for index, line in enumerate(header_lines) if re.search(r"\bПрофиль\b", line)), None)
     direction_line = next((line for line in lines[:35] if "Направление подготовки" in line), "")
-    profile_line = next((line for line in lines[:35] if re.search(r"\bПрофиль\b", line)), "")
+    profile_line = ""
+    if profile_index is not None:
+        profile_parts = [header_lines[profile_index]]
+        for continuation in header_lines[profile_index + 1:]:
+            if re.search(r"Квалификация|Срок обучения|Форма обучения|Факультет|Кафедра|ПЛАН УЧЕБНОГО|Направление подготовки|Профиль", continuation):
+                break
+            if continuation.strip():
+                profile_parts.append(continuation.strip())
+        profile_line = " ".join(profile_parts)
     qualification_line = next((line for line in lines[:35] if "Квалификация" in line), "")
     duration_line = next((line for line in lines[:35] if "Срок обучения" in line), "")
     form_line = next((line for line in lines[:35] if "Форма обучения" in line), "")
@@ -159,7 +172,7 @@ def _plan_header(lines: list[str]) -> dict[str, Any]:
     profile_value = _plan_header_value(profile_line) or ""
     profile_match = _PLAN_PROFILE_CODE_RE.search(profile_value)
     profile_code = _canonical_plan_code(profile_match.group(0)) if profile_match else None
-    profile_name = _PLAN_PROFILE_CODE_RE.sub("", profile_value).strip(" ,—–-") or None
+    profile_name = re.sub(r"\(\s*\)", "", _PLAN_PROFILE_CODE_RE.sub("", profile_value)).strip(" ,—–-") or None
 
     duration_value = _plan_header_value(duration_line) or ""
     year_match = re.search(r"Год начала обучения\s*[—–-]\s*(20\d{2})", duration_line)

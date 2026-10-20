@@ -1,10 +1,10 @@
 .feedback {
   margin: 12px 0;
   padding: 12px 15px;
-  border: 1px solid #e6c5a4;
+  border: 1px solid var(--warning);
   border-radius: 10px;
-  color: #764819;
-  background: #fff8ef;
+  color: var(--warning);
+  background: var(--surface-raised);
   font-size: 13px;
   line-height: 1.5;
 }

@@ -1,0 +1,67 @@
+{
+  "capturedAt": "2026-10-20T06:44:57.557Z",
+  "smoke": [
+    {
+      "engine": "chromium",
+      "cards": 152,
+      "selection": 3,
+      "limit": true,
+      "persistence": true
+    },
+    {
+      "engine": "firefox",
+      "cards": 152,
+      "selection": 3,
+      "limit": true,
+      "persistence": true
+    },
+    {
+      "engine": "webkit",
+      "cards": 152,
+      "selection": 3,
+      "limit": true,
+      "persistence": true
+    }
+  ],
+  "cpuSlowdown": 4,
+  "filtering": [
+    {
+      "query": "мат",
+      "count": 109,
+      "fullCommitMs": 832.1000000238419
+    },
+    {
+      "query": "информ",
+      "count": 52,
+      "fullCommitMs": 356.69999998807907
+    },
+    {
+      "query": "биз",
+      "count": 5,
+      "fullCommitMs": 122.20000004768372
+    },
+    {
+      "query": "",
+      "count": 152,
+      "fullCommitMs": 944.6000000238419
+    }
+  ],
+  "longTasks": [
+    {
+      "start": 3473.900000035763,
+      "duration": 58
+    },
+    {
+      "start": 3972.800000011921,
+      "duration": 55
+    },
+    {
+      "start": 4045.199999988079,
+      "duration": 56
+    },
+    {
+      "start": 5265.5,
+      "duration": 54
+    }
+  ]
+}

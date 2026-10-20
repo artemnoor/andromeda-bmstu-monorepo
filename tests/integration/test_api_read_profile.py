@@ -47,6 +47,7 @@ PROFILED_TABLES = (
     "subject_taxonomy_categories",
 )
 BATCH_METHODS = {
+    "get_by_keys",
     "get_by_ids",
     "related_many",
     "related_count",

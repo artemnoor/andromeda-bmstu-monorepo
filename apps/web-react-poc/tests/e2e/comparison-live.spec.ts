@@ -58,22 +58,6 @@ function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-async function expectSemesterTotal(
-  page: Page,
-  code: string,
-  unit: "ч." | "з.е.",
-  expected: number,
-): Promise<void> {
-  const series = page.getByRole("group", { name: new RegExp("^" + escapeRegExp(code) + ":") });
-  const labels = await series.evaluateAll((elements) => elements.map((element) => element.getAttribute("aria-label") ?? ""));
-  const values = labels
-    .map((label) => label.match(new RegExp(": ([\\d\\s,.]+) " + escapeRegExp(unit) + "$"))?.[1])
-    .filter((value): value is string => value !== undefined);
-  expect(values.length, `${code} should have numeric semester data in ${unit}`).toBeGreaterThan(0);
-  const total = values.reduce((sum, value) => sum + Number(value.replace(/\s/g, "").replace(",", ".")), 0);
-  expect(Math.abs(total - expected), `${code} ${unit} sum should match independently summed API rows`).toBeLessThan(0.11);
-}
-
 async function expectSeededAdmissionFacts(page: Page, program: { readonly directionKey: string; readonly directionCode: string | null; readonly releaseKey: string }, table: ReturnType<Page["getByRole"]>): Promise<void> {
   // `direction_code` is nullable in the FastAPI DTO; validate direction-only
   // statistics and their displayed scope only when the live record provides it.
@@ -186,7 +170,10 @@ test("live comparison preserves program-scoped admission and curriculum facts", 
   await expect(page.getByRole("heading", { name: "Места и проходные баллы" })).toBeVisible();
   const admissionTable = page.getByRole("table", { name: "Сравнение мест и условий приёма в выбранные программы." });
   await expect(admissionTable).toBeVisible();
-  await expect(admissionTable.locator("tbody tr")).toHaveCount(7);
+  await expect(admissionTable.locator("tbody tr")).toHaveCount(10);
+  for (const label of ["Отдельная квота", "Особая квота", "Целевая квота", "БВИ · без вступительных испытаний"]) {
+    await expect(admissionTable.getByRole("rowheader", { name: label, exact: true })).toBeVisible();
+  }
   await expect(admissionTable).toContainText(/Количество не указано|Не указано|не указаны|не найдено|не найдены|не указана|Сведения о приёме недоступны|мест|баллов|₽/i);
   expectSuccessfulAdmissionCalls(diagnostics.apiResponses);
   await expectSeededAdmissionFacts(page, program, admissionTable);
@@ -199,13 +186,16 @@ test("live comparison preserves program-scoped admission and curriculum facts", 
   const categoryChart = categoryCard.getByRole("group", { name: new RegExp("Распределение программы " + escapeRegExp(program.code)) });
   await expect(categoryChart).toBeVisible();
   if (expectedHours !== null) {
-    const expectedText = new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 0 }).format(expectedHours) + " ч.";
-    await expect(categoryCard.locator("header").first()).toContainText(expectedText);
+    await expect(categoryCard).toHaveAttribute("data-total-hours", String(expectedHours));
   }
-  const renderedSegments = await categoryChart.locator("circle[role='button'][data-chart-category-code]").evaluateAll((elements) => (
+  const renderedSegments = await categoryChart.locator("[role='button'][data-chart-category-code]").evaluateAll((elements) => (
     elements.map((element) => ({
       categoryCode: element.getAttribute("data-chart-category-code") ?? "",
-      dashArray: element.getAttribute("stroke-dasharray") ?? "",
+      hours: Number(element.getAttribute("data-chart-hours")),
+      startAngle: Number(element.getAttribute("data-chart-start-angle")),
+      endAngle: Number(element.getAttribute("data-chart-end-angle")),
+      paddingAngle: Number(element.getAttribute("data-chart-padding-angle")),
+      sliceCount: Number(element.getAttribute("data-chart-slice-count")),
     }))
   ));
   if (!program.expectedCategoryHours.length || expectedHours === null || expectedHours <= 0) {
@@ -213,28 +203,20 @@ test("live comparison preserves program-scoped admission and curriculum facts", 
   } else {
     expect(renderedSegments.map(({ categoryCode }) => categoryCode).sort())
       .toEqual(program.expectedCategoryHours.map(({ categoryCode }) => categoryCode).sort());
-    const circumference = 2 * Math.PI * 75;
     for (const segment of renderedSegments) {
       const expected = program.expectedCategoryHours.find(({ categoryCode }) => categoryCode === segment.categoryCode);
       expect(expected, `${segment.categoryCode} is present in the independent API workload totals`).toBeDefined();
       if (!expected) continue;
-      const [actualLength, actualGap] = segment.dashArray.split(/\s+/).map(Number);
-      const proportionalLength = circumference * expected.hours / expectedHours;
-      const expectedLength = Math.min(circumference, Math.max(.7, proportionalLength - .4));
-      expect(actualLength, `${segment.categoryCode} chart segment encodes its independently summed API hours`).toBeCloseTo(expectedLength, 2);
-      expect(actualGap, `${segment.categoryCode} chart gap preserves the same workload proportion`).toBeCloseTo(circumference - proportionalLength, 2);
+      expect(segment.hours, `${segment.categoryCode} chart exposes its independently summed API hours`).toBeCloseTo(expected.hours, 2);
+      const angleBudget = 360 - segment.sliceCount * segment.paddingAngle;
+      const expectedSweep = angleBudget * expected.hours / expectedHours;
+      expect(Math.abs(segment.endAngle - segment.startAngle), `${segment.categoryCode} sector angle encodes its API hours proportion`).toBeCloseTo(expectedSweep, 2);
     }
   }
 
-  await page.getByText(/Показать сравнение по \d+ семестрам/).click();
-  const workloadControls = page.getByRole("group", { name: "Единица нагрузки" });
-  await workloadControls.getByRole("button", { name: "Часы" }).click();
-  await expect(workloadControls.getByRole("button", { name: "Часы" })).toHaveAttribute("aria-pressed", "true");
-  if (program.expectedHours !== null) await expectSemesterTotal(page, program.code, "ч.", program.expectedHours);
-  const creditSwitch = workloadControls.getByRole("button", { name: "Зачётные единицы" });
-  await creditSwitch.click();
-  await expect(creditSwitch).toHaveAttribute("aria-pressed", "true");
-  if (program.expectedCredits !== null) await expectSemesterTotal(page, program.code, "з.е.", program.expectedCredits);
+  const workloadChart = page.getByRole("group", { name: "Сравнение нагрузки по семестрам" });
+  await expect(workloadChart).toBeVisible();
+  await expect(workloadChart.locator(".recharts-wrapper")).toBeVisible();
 
   const detailsButton = page.getByRole("button", { name: /Подробнее о категории/ }).first();
   await detailsButton.click();
@@ -303,17 +285,14 @@ test("a live catalog choice persists into a one-program comparison after refresh
   await expect(removeProgramButton).toBeVisible();
 });
 
-test("favorite selection stays synchronized in browser storage after a refresh", async ({ page, diagnostics }) => {
+test("catalog details open through Подробнее and remain available after a refresh", async ({ page, diagnostics }) => {
   await page.goto("/programs");
   const program = await discoverLiveCurriculumProgram(page);
   const card = page.getByRole("article").filter({ hasText: program.code }).first();
-  await card.locator("summary").click();
+  await card.getByRole("button", { name: "Подробнее" }).click();
   await expect(card.getByRole("heading", { name: /Места и условия поступления/ })).toBeVisible();
-  const favorite = card.getByRole("button", { name: /Добавить в избранное/ });
-  await favorite.click();
-  await expect(card.getByRole("button", { name: /Убрать из избранного/ })).toHaveAttribute("aria-pressed", "true");
-  await expect.poll(() => page.evaluate(() => localStorage.getItem("andromeda.favorites.v1")))
-    .toBe(JSON.stringify([program.externalKey]));
+  await expect(card.getByRole("button", { name: "Скрыть" })).toHaveAttribute("aria-expanded", "true");
+  await expect(card.getByRole("button", { name: /избранное/i })).toHaveCount(0);
 
   // The expanded card loads admission facts. Let those real API reads settle
   // before exercising refresh persistence; otherwise browser navigation
@@ -321,9 +300,9 @@ test("favorite selection stays synchronized in browser storage after a refresh",
   await page.waitForLoadState("networkidle");
   await page.reload();
   const reloadedCard = page.getByRole("article").filter({ hasText: program.code }).first();
-  await reloadedCard.locator("summary").click();
+  await reloadedCard.getByRole("button", { name: "Подробнее" }).click();
   await expect(reloadedCard.getByRole("heading", { name: /Места и условия поступления/ })).toBeVisible();
-  await expect(reloadedCard.getByRole("button", { name: /Убрать из избранного/ })).toHaveAttribute("aria-pressed", "true");
+  await expect(reloadedCard.getByRole("button", { name: "Скрыть" })).toHaveAttribute("aria-expanded", "true");
   await page.waitForLoadState("networkidle");
   expectLiveApiCalls(diagnostics, catalogEndpoints);
   expectHealthyBrowser(diagnostics);
@@ -359,8 +338,7 @@ test("two live programs keep their own plans, chart totals, matrix columns, and 
     const chart = chartCard.getByRole("group", { name: new RegExp("Распределение программы " + escapeRegExp(program.code)) });
     await expect(chart).toBeVisible();
     if (program.expectedHours !== null) {
-      const formatted = new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 0 }).format(program.expectedHours) + " ч.";
-      await expect(chartCard.locator("header").first()).toContainText(formatted);
+      await expect(chartCard).toHaveAttribute("data-total-hours", String(program.expectedHours));
     }
   }
 

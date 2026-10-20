@@ -1,0 +1,29 @@
+{
+  "status": "imported",
+  "release_key": "bmstu-2026:99e2f5a284abaf51303e5640e2661de8230e27d54fa3bc2492daef88526d5ff5:bmstu-2026-bundle-v5",
+  "run_key": "classification:bmstu-subject-domain-16:v1:69ad22deba7518f4024d11a3489f7228fba6bf7c6061d213a154e1efcd537eb7",
+  "classified_count": 14915,
+  "result_sha256": "69ad22deba7518f4024d11a3489f7228fba6bf7c6061d213a154e1efcd537eb7",
+  "catalog_course_count": 750,
+  "curriculum_item_count": 14165,
+  "needs_review_count": 4378,
+  "category_counts": {
+    "01": 1154,
+    "02": 973,
+    "03": 1343,
+    "04": 602,
+    "05": 295,
+    "06": 248,
+    "07": 805,
+    "08": 1094,
+    "09": 834,
+    "10": 672,
+    "11": 1104,
+    "12": 247,
+    "13": 690,
+    "14": 2076,
+    "15": 741,
+    "16": 2037
+  },
+  "cost_rub": 289.7108881800001
+}

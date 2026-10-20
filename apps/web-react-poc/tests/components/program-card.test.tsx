@@ -1,5 +1,5 @@
 import "@testing-library/jest-dom/vitest";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { useState } from "react";
 import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -57,10 +57,25 @@ describe("program card browser state", () => {
   it("persists comparison using stable external identity", () => {
     render(<CardHarness />);
 
-    fireEvent.click(screen.getByRole("button", { name: /Сравнить/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Добавить в сравнение" }));
 
     expect(JSON.parse(localStorage.getItem(STORAGE_KEYS.compare) ?? "null")).toEqual([program.external_key]);
     expect(screen.getByRole("button", { name: /В сравнении/ })).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("keeps each card's membership independent when selections change", () => {
+    const second = { ...program, external_key: "program:second", name: "Другая программа" };
+    render(<MemoryRouter>
+      <ProgramCard program={program} expectedReleaseKey="release:test" onSelectionLimit={() => undefined} />
+      <ProgramCard program={second} expectedReleaseKey="release:test" onSelectionLimit={() => undefined} />
+    </MemoryRouter>);
+    const [firstCard, secondCard] = screen.getAllByRole("article");
+    fireEvent.click(within(firstCard!).getByRole("button", { name: "Добавить в сравнение" }));
+    expect(within(secondCard!).getByRole("button", { name: "Добавить в сравнение" })).toHaveAttribute("aria-pressed", "false");
+    fireEvent.click(within(secondCard!).getByRole("button", { name: "Добавить в сравнение" }));
+    fireEvent.click(within(firstCard!).getByRole("button", { name: /В сравнении/ }));
+    expect(JSON.parse(localStorage.getItem(STORAGE_KEYS.compare) ?? "null")).toEqual([second.external_key]);
+    expect(within(secondCard!).getByRole("button", { name: /В сравнении/ })).toHaveAttribute("aria-pressed", "true");
   });
 
   it("omits direction and department facts when the API does not state them", () => {
@@ -83,15 +98,17 @@ describe("program card browser state", () => {
     expect(screen.queryByText("Не указано")).not.toBeInTheDocument();
   });
 
-  it("persists a favorite from the expanded program details", async () => {
+  it("opens and closes program details only through the Подробнее button", async () => {
     render(<CardHarness />);
 
-    fireEvent.click(screen.getByText("Прикладная математика и информатика", { selector: "summary h2" }));
-    const favorite = await screen.findByRole("button", { name: "♡ Добавить в избранное" });
-    fireEvent.click(favorite);
+    const detailsButton = screen.getByRole("button", { name: "Подробнее" });
+    expect(detailsButton).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByRole("button", { name: /избранное/i })).not.toBeInTheDocument();
+    fireEvent.click(detailsButton);
 
-    expect(JSON.parse(localStorage.getItem(STORAGE_KEYS.favorites) ?? "null")).toEqual([program.external_key]);
-    expect(screen.getByRole("button", { name: "♥ Убрать из избранного" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "Скрыть" })).toHaveAttribute("aria-expanded", "true");
+    fireEvent.click(screen.getByRole("button", { name: "Скрыть" }));
+    expect(screen.getByRole("button", { name: "Подробнее" })).toHaveAttribute("aria-expanded", "false");
   });
 
   it("shows a visible message when browser storage rejects a user action", () => {
@@ -100,7 +117,7 @@ describe("program card browser state", () => {
     });
     render(<CardHarness />);
 
-    fireEvent.click(screen.getByRole("button", { name: /Сравнить/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Добавить в сравнение" }));
 
     expect(screen.getByRole("status")).toHaveTextContent("Браузер не сохранил сравнение");
   });
@@ -110,10 +127,10 @@ describe("program card browser state", () => {
     localStorage.setItem(STORAGE_KEYS.compare, JSON.stringify(existing));
     render(<CardHarness />);
 
-    fireEvent.click(screen.getByRole("button", { name: /Сравнить/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Добавить в сравнение" }));
 
     expect(screen.getByRole("status")).toHaveTextContent("Можно сравнить не более трёх программ");
     expect(JSON.parse(localStorage.getItem(STORAGE_KEYS.compare) ?? "null")).toEqual(existing);
-    expect(screen.getByRole("button", { name: /Сравнить/ })).toHaveAttribute("aria-pressed", "false");
+    expect(screen.getByRole("button", { name: "Добавить в сравнение" })).toHaveAttribute("aria-pressed", "false");
   });
 });

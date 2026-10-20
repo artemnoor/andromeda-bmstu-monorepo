@@ -6,6 +6,7 @@ import argparse
 import hashlib
 import json
 import sys
+import tempfile
 from collections import Counter
 from datetime import datetime
 from decimal import Decimal
@@ -38,11 +39,30 @@ from andromeda_api.application.classification.taxonomy import (
     TAXONOMY_VERSION,
     prompt_sha256,
 )
+from andromeda_api.application.importer.bundle import BundleReader
 from andromeda_api.application.settings import load_settings
 
 
 class ClassificationImportError(RuntimeError):
     """A classification package or target release failed import checks."""
+
+
+def _load_package_subjects(bundle_path: Path) -> tuple[list[dict[str, Any]], str]:
+    if bundle_path.is_dir():
+        return _load_subjects(bundle_path)
+    # Published releases can retain their exact source ZIP. Read only validated
+    # normalized classifier inputs, without extracting arbitrary ZIP members.
+    with BundleReader(bundle_path) as bundle, tempfile.TemporaryDirectory(
+        prefix="andromeda-classification-"
+    ) as directory:
+        target = Path(directory)
+        (target / "data").mkdir()
+        for name in (
+            "educational_programs", "departments", "directions", "courses", "curriculum_items"
+        ):
+            relative = f"data/{name}.jsonl"
+            (target / relative).write_bytes(bundle.read_bytes(relative))
+        return _load_subjects(target)
 
 
 def _read_manifest(path: Path) -> dict[str, Any]:
@@ -79,7 +99,7 @@ def _validate_package(
         raise ClassificationImportError(
             "the Jev model version changed during the classification run"
         )
-    subjects, bundle_digest = _load_subjects(bundle_path)
+    subjects, bundle_digest = _load_package_subjects(bundle_path)
     if bundle_digest != manifest.get("source_input_sha256"):
         raise ClassificationImportError("source bundle contents changed after classification")
     if len(subjects) != manifest.get("expected_records"):
@@ -276,11 +296,50 @@ def import_classifications(
     }
 
 
+def revalidate_manifest_for_active_release(
+    engine: Engine,
+    bundle_path: Path,
+    result_path: Path,
+    manifest_path: Path,
+    output_path: Path,
+    expected_release_key: str,
+) -> Path:
+    """Retain an unchanged Jev answer only after checking the exact active inputs.
+
+    Publication creates new release-scoped subject IDs. A prior model run can
+    be attached to them only when every typed input, owner/context digest,
+    answer and probability passes the normal package validator again.
+    """
+    manifest, subjects, _ = _validate_package(bundle_path, result_path, manifest_path)
+    state = load_active_classification_subjects(engine)
+    release = state["release"]
+    if release["release_key"] != expected_release_key:
+        raise ClassificationImportError("active release differs from the expected revalidation target")
+    with BundleReader(bundle_path) as bundle:
+        if bundle.input_digest != release["source_bundle_sha256"]:
+            raise ClassificationImportError("revalidation bundle is not the exact active release bundle")
+    revalidated = dict(manifest)
+    revalidated["source_release_digest"] = release["source_bundle_sha256"]
+    revalidated["revalidation"] = {
+        "original_source_release_digest": manifest["source_release_digest"],
+        "original_manifest_sha256": hashlib.sha256(manifest_path.read_bytes()).hexdigest(),
+        "target_release_key": expected_release_key,
+        "source_input_sha256": manifest["source_input_sha256"],
+        "exact_validated_subject_inputs": len(subjects),
+        "reason": "All typed classification inputs and model answers revalidated unchanged.",
+    }
+    with output_path.open("x", encoding="utf-8") as output:
+        json.dump(revalidated, output, ensure_ascii=False, indent=2)
+    return output_path
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--bundle", type=Path, required=True)
     parser.add_argument("--results", type=Path, required=True)
     parser.add_argument("--manifest", type=Path, required=True)
+    parser.add_argument("--revalidate-manifest", type=Path)
+    parser.add_argument("--expected-release-key")
     arguments = parser.parse_args(argv)
     engine = None
     try:
@@ -290,9 +349,15 @@ def main(argv: list[str] | None = None) -> int:
             identity = verify_server_identity(connection, settings)
             if identity["database_name"] != "academic_data_2026":
                 raise ClassificationImportError("refusing to import outside academic_data_2026")
-        report = import_classifications(
-            engine, arguments.bundle, arguments.results, arguments.manifest
-        )
+        manifest_path = arguments.manifest
+        if arguments.revalidate_manifest:
+            if not arguments.expected_release_key:
+                raise ClassificationImportError("revalidation requires --expected-release-key")
+            manifest_path = revalidate_manifest_for_active_release(
+                engine, arguments.bundle, arguments.results, manifest_path,
+                arguments.revalidate_manifest, arguments.expected_release_key,
+            )
+        report = import_classifications(engine, arguments.bundle, arguments.results, manifest_path)
     except (ClassificationImportError, JevClassificationError, ValueError, OSError) as error:
         print(f"classification import failed: {error}", file=sys.stderr)
         return 2
