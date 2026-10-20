@@ -1,12 +1,12 @@
-import { useMemo, useState } from "react";
+import { useDeferredValue, useMemo, useState } from "react";
 import { Link, useRevalidator, useRouteError, useSearchParams } from "react-router";
 import type { ShouldRevalidateFunctionArgs } from "react-router";
 import type { Route } from "./+types/programs";
 import { AndromedaHeader } from "@/widgets/andromeda-navigation/andromeda-header";
 import { useComparisonSelection } from "@/shared/browser-state/hooks";
 import { AcademicReleaseMismatchError, loadCatalog } from "@/shared/api/client";
-import { buildCatalogSearchIndex, filterPrograms, getCatalogOptions, normalizeCatalogProgram, russianPlural, type CatalogProgram } from "@/features/catalog/model";
-import { ProgramCard } from "@/features/catalog/program-card";
+import { buildCatalogSearchIndex, filterPrograms, getCatalogOptions, normalizeCatalogProgram, russianPlural } from "@/features/catalog/model";
+import { ProgramList } from "@/features/catalog/program-list";
 import styles from "@/features/catalog/programs.module.css";
 import feedbackStyles from "@/features/catalog/feedback.module.css";
 
@@ -67,6 +67,7 @@ export default function ProgramsRoute({ loaderData }: Route.ComponentProps) {
     directionCode,
     departmentCode,
   }, searchIndex), [loaderData.programs, searchIndex, query, directionCode, departmentCode]);
+  const displayedPrograms = useDeferredValue(filteredPrograms);
 
   function setFilter(name: string, value: string) {
     const next = new URLSearchParams(searchParams);
@@ -147,21 +148,7 @@ export default function ProgramsRoute({ loaderData }: Route.ComponentProps) {
             </div>
           ) : null}
 
-          <div className={styles.grid} aria-busy="false">
-            {filteredPrograms.length === 0 ? (
-              <div className={styles.state}>
-                <h2>Ничего не нашлось</h2>
-                <p>Измените поисковый запрос или сбросьте фильтры, чтобы увидеть другие программы.</p>
-              </div>
-            ) : filteredPrograms.map((program: CatalogProgram) => (
-              <ProgramCard
-                key={program.external_key}
-                program={program}
-                expectedReleaseKey={loaderData.release.release_key}
-                onSelectionLimit={setFeedback}
-              />
-            ))}
-          </div>
+          <ProgramList programs={displayedPrograms} expectedReleaseKey={loaderData.release.release_key} onSelectionLimit={setFeedback} />
 
           <footer className={styles.footnote}>
             <span>Изучай программы и сверяй детали с учебными планами и документами университета.</span>

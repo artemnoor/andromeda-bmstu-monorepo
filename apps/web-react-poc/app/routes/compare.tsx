@@ -104,6 +104,9 @@ function SelectionCards({
       </div>
       {storageUnavailable ? <p className={styles.warning} role="alert">Не удалось сохранить выбор в хранилище браузера. Список не изменён.</p> : null}
       <div className={styles.selectionList}>
+        {data === null ? selectedKeys.map((key) => <article className={`${styles.selectionCard} ${styles.selectionPlaceholder}`} key={`loading:${key}`} aria-hidden="true">
+          <div><span /><span /><span /></div>
+        </article>) : null}
         {found.map((program, index) => (
           <article className={styles.selectionCard} key={program.external_key} style={{ "--program-color": SERIES_COLORS[index % SERIES_COLORS.length] } as CSSProperties}>
             <div className={styles.selectionCopy}>
@@ -121,6 +124,7 @@ function SelectionCards({
         ))}
         {!selectedKeys.length ? <p className={styles.selectionEmpty}>Добавьте программы в каталоге, чтобы сравнить поступление и подтверждённые учебные планы.</p> : null}
       </div>
+      {data === null && selectedKeys.length ? <p className={styles.srOnly} role="status">Загружаем выбранные программы…</p> : null}
     </section>
   );
 }

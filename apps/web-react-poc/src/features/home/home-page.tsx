@@ -41,7 +41,8 @@ export function HomePage() {
                 <picture className={styles.campusPicture}>
                   <source
                     media="(max-width: 700px)"
-                    srcSet="/assets/bmstu-campus-mobile.webp"
+                    srcSet="/assets/bmstu-campus-mobile-480.webp 480w, /assets/bmstu-campus-mobile-800.webp 800w, /assets/bmstu-campus-mobile-1122.webp 1122w"
+                    sizes="max(100vw, 80svh)"
                   />
                   <img
                     className={styles.campusImage}

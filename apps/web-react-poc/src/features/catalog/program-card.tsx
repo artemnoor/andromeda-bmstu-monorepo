@@ -1,9 +1,9 @@
-import { useId, useState } from "react";
+import { memo, useId, useState } from "react";
 import { Link } from "react-router";
 import { AdmissionDetails } from "./admission-details";
 import type { CatalogProgram } from "./model";
-import { comparisonSelection, useComparisonSelection } from "@/shared/browser-state/hooks";
-import { MAX_COMPARE_PROGRAMS } from "@/shared/browser-state/storage";
+import { comparisonSelection, useIsCompared } from "@/shared/browser-state/hooks";
+import { getComparisonSnapshot, MAX_COMPARE_PROGRAMS } from "@/shared/browser-state/storage";
 import styles from "./programs.module.css";
 
 function safeLinks(program: CatalogProgram): readonly { href: string; label: string }[] {
@@ -24,16 +24,15 @@ function safeUrl(value: string): string | null {
   }
 }
 
-export function ProgramCard({ program, expectedReleaseKey, onSelectionLimit }: {
+export const ProgramCard = memo(function ProgramCard({ program, expectedReleaseKey, onSelectionLimit }: {
   program: CatalogProgram;
   expectedReleaseKey: string;
   onSelectionLimit: (message: string) => void;
 }) {
-  const comparison = useComparisonSelection();
   const [detailsOpen, setDetailsOpen] = useState(false);
   const detailsId = useId();
   const key = program.external_key;
-  const isCompared = comparison.includes(key);
+  const isCompared = useIsCompared(key);
   const externalLinks = safeLinks(program);
   const direction = [program.directionCode, program.directionName].filter(Boolean).join(" · ");
   const department = program.departments.length > 0
@@ -41,11 +40,13 @@ export function ProgramCard({ program, expectedReleaseKey, onSelectionLimit }: {
     : program.departmentStatus === "unresolved" ? "Связь не подтверждена" : "";
 
   function toggleComparison() {
-    if (!isCompared && comparison.length >= MAX_COMPARE_PROGRAMS) {
+    const comparison = getComparisonSnapshot();
+    const selected = comparison.includes(key);
+    if (!selected && comparison.length >= MAX_COMPARE_PROGRAMS) {
       onSelectionLimit("Можно сравнить не более трёх программ. Удалите одну из выбранных или очистите список сравнения.");
       return;
     }
-    const status = comparisonSelection.toggle(key, !isCompared);
+    const status = comparisonSelection.toggle(key, !selected);
     onSelectionLimit(status === "unavailable"
       ? "Браузер не сохранил сравнение. Разрешите localStorage и попробуйте снова."
       : "");
@@ -111,4 +112,4 @@ export function ProgramCard({ program, expectedReleaseKey, onSelectionLimit }: {
       </footer>
     </article>
   );
-}
+});

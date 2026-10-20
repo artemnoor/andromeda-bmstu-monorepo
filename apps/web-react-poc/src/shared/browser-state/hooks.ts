@@ -11,6 +11,11 @@ export function useComparisonSelection(): readonly string[] {
   return useSyncExternalStore(subscribe, getComparisonSnapshot, () => []);
 }
 
+/** Cards only redraw when their own membership changes. */
+export function useIsCompared(programKey: string): boolean {
+  return useSyncExternalStore(subscribe, () => getComparisonSnapshot().includes(programKey), () => false);
+}
+
 export function useFavorites(): readonly string[] {
   return useSyncExternalStore(subscribe, getFavoritesSnapshot, () => []);
 }

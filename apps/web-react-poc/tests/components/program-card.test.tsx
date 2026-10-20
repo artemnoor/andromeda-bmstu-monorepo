@@ -1,5 +1,5 @@
 import "@testing-library/jest-dom/vitest";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { useState } from "react";
 import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -61,6 +61,21 @@ describe("program card browser state", () => {
 
     expect(JSON.parse(localStorage.getItem(STORAGE_KEYS.compare) ?? "null")).toEqual([program.external_key]);
     expect(screen.getByRole("button", { name: /В сравнении/ })).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("keeps each card's membership independent when selections change", () => {
+    const second = { ...program, external_key: "program:second", name: "Другая программа" };
+    render(<MemoryRouter>
+      <ProgramCard program={program} expectedReleaseKey="release:test" onSelectionLimit={() => undefined} />
+      <ProgramCard program={second} expectedReleaseKey="release:test" onSelectionLimit={() => undefined} />
+    </MemoryRouter>);
+    const [firstCard, secondCard] = screen.getAllByRole("article");
+    fireEvent.click(within(firstCard!).getByRole("button", { name: "Добавить в сравнение" }));
+    expect(within(secondCard!).getByRole("button", { name: "Добавить в сравнение" })).toHaveAttribute("aria-pressed", "false");
+    fireEvent.click(within(secondCard!).getByRole("button", { name: "Добавить в сравнение" }));
+    fireEvent.click(within(firstCard!).getByRole("button", { name: /В сравнении/ }));
+    expect(JSON.parse(localStorage.getItem(STORAGE_KEYS.compare) ?? "null")).toEqual([second.external_key]);
+    expect(within(secondCard!).getByRole("button", { name: /В сравнении/ })).toHaveAttribute("aria-pressed", "true");
   });
 
   it("omits direction and department facts when the API does not state them", () => {

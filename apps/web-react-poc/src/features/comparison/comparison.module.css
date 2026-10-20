@@ -274,7 +274,10 @@
 .selection, .categoryBoard, .workloadPanel, .matrixDetails { border-radius: 22px; }
 .intro { padding-block: 20px 36px; }
 .selection { padding: 24px; }
-.selectionCard { border: 1px solid var(--line); border-top: 2px solid var(--program-color); border-radius: 12px; padding: 18px; }
+.selectionCard { min-height: 124px; border: 1px solid var(--line); border-top: 2px solid var(--program-color); border-radius: 12px; padding: 18px; }
+.selectionPlaceholder span { display: block; height: 12px; margin-bottom: 12px; border-radius: 3px; background: var(--line); }
+.selectionPlaceholder span:first-child { width: 45%; }
+.selectionPlaceholder span:last-child { width: 70%; }
 .selectionCopy strong { font-weight: 500; }
 .button, .removeButton, .categoryDialogClose { transition: background-color .18s ease, border-color .18s ease, color .18s ease; }
 .button { border-radius: 10px; }

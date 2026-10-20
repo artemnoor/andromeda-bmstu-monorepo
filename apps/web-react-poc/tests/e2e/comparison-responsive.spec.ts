@@ -24,7 +24,13 @@ for (const count of [3, 2]) {
       const admission = page.locator('[data-qa="admission-summary"]');
       expect(await admission.evaluate((element) => element.scrollWidth), "admission content fits its container").toBeLessThanOrEqual(await admission.evaluate((element) => element.clientWidth));
       for (const program of programs.slice(0, count)) {
-        await expect(admission.locator(`td[data-program-label="${program.code}"]`)).toHaveCount(10);
+        // Check each current contract independently: education facts, enrollment
+        // by funding/quota, and scores. A single legacy cell total hid which
+        // section was missing after enrollment was split into five rows.
+        const programCells = `td[data-program-label="${program.code}"]`;
+        await expect(admission.locator("table").filter({ has: page.getByRole("rowheader", { name: "Стоимость обучения", exact: true }) }).locator(programCells)).toHaveCount(2);
+        await expect(admission.getByRole("table", { name: /Зачислено на всё направление подготовки/ }).locator(programCells)).toHaveCount(5);
+        await expect(admission.getByRole("table", { name: /Минимальные баллы зачисленных/ }).locator(programCells)).toHaveCount(5);
         const card = page.locator('[data-qa="category-chart-card"]').filter({ has: page.locator(`[data-qa="category-program-code"]`, { hasText: program.code }) });
         await expect(card).toHaveAttribute("data-item-count", String(program.expectedItemCount));
         if (program.expectedHours !== null) await expect(card).toHaveAttribute("data-total-hours", String(program.expectedHours));

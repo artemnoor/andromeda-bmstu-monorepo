@@ -101,6 +101,7 @@
 }
 
 .root {
+  display: flow-root;
   min-height: 100vh;
 }
 
