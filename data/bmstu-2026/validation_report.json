@@ -1,42 +1,42 @@
 {
-  "schema_version": 1,
   "generated_at_utc": "2026-10-19T10:17:34Z",
-  "scope": {
-    "university": "МГТУ им. Н. Э. Баумана",
-    "campus": "головной кампус, Москва",
-    "admission_year": 2026
-  },
-  "validation": {
-    "validator": "academic-data bundle validator (contract v1)",
-    "valid": true,
-    "errors": 0,
-    "warnings": 1,
-    "warning_codes": [
-      "MANUAL_REVIEW_KEYS_NOT_CANONICAL_RECORDS"
-    ],
-    "jsonl_datasets": 28,
-    "normalized_records": 21918,
-    "source_artifacts": 498,
-    "source_keys_unique": true,
-    "saved_raw_files_in_public_bundle": 0,
-    "explicit_relationships": 3478,
-    "source_artifact_reference_errors": 0,
-    "unresolved_nested_references": 167,
-    "unresolved_references_marked_for_review": 167,
-    "requirement_trees": 81,
-    "requirement_operators": {
-      "AND": 81,
-      "AT_LEAST": 0,
-      "OR": 40
-    },
-    "personal_applicant_fields_found": false,
-    "olympiad_data_found": false
-  },
   "notes": [
     "Raw source documents and PostgreSQL data files are intentionally absent.",
     "167 nested references are unresolved in the normalized payload and are listed in manual_review.csv.",
     "One existing validator warning: 22 manual-review rows refer to noncanonical source/schema identifiers.",
     "The validator was run against the sanitized bundle; no unit test suite or parser run was performed for repository publication.",
     "Official 2026 Moscow enrollment orders were reprocessed on 2026-10-19. The 318 current admission aggregates include admitted_count; raw applicant records and PDFs were not retained."
-  ]
+  ],
+  "schema_version": 1,
+  "scope": {
+    "admission_year": 2026,
+    "campus": "головной кампус, Москва",
+    "university": "МГТУ им. Н. Э. Баумана"
+  },
+  "validation": {
+    "errors": 0,
+    "explicit_relationships": 3478,
+    "jsonl_datasets": 28,
+    "normalized_records": 21918,
+    "olympiad_data_found": false,
+    "personal_applicant_fields_found": false,
+    "requirement_operators": {
+      "AND": 81,
+      "AT_LEAST": 0,
+      "OR": 40
+    },
+    "requirement_trees": 81,
+    "saved_raw_files_in_public_bundle": 0,
+    "source_artifact_reference_errors": 0,
+    "source_artifacts": 498,
+    "source_keys_unique": true,
+    "unresolved_nested_references": 167,
+    "unresolved_references_marked_for_review": 167,
+    "valid": true,
+    "validator": "academic-data bundle validator (contract v1)",
+    "warning_codes": [
+      "MANUAL_REVIEW_KEYS_NOT_CANONICAL_RECORDS"
+    ],
+    "warnings": 1
+  }
 }

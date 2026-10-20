@@ -27,6 +27,7 @@ const summary: AdmissionSummary = {
   relatedSeatFacts: [{ key: "offering:unresolved", fundingType: "paid", sourceProgramName: "Название в документе", departmentCode: "ФН3", value: "37 мест", note: null, sourceUrl: "https://bmstu.example/source" }],
   quotas: [], directionQuotas: [], quotaNote: null, historyScope: "направление", history: [], requirements: [], requirementsNote: null,
   campaignResults: [{ year: 2026, stage: "main", competitionType: "general", status: "numeric", funding: "budget", score: 288, admittedCount: null, snapshotDate: null, scopeType: "direction", scopeLabel: null, scopeNote: "Направление 01.03.02", sourceUrl: "https://bmstu.example/score" }],
+  officialPassingScores: [{ year: 2026, funding: "budget", score: 288, scopeNote: "Направление 01.03.02", sourceUrl: "https://api.www.bmstu.ru/majors/card" }],
   historicalResults: [], offers: [], tuition: [], dates: [],
 };
 
@@ -71,7 +72,7 @@ describe("catalog admission reliability", () => {
     expect(screen.queryByText("Иное название в приёмном плане")).not.toBeInTheDocument();
     expect(screen.queryByRole("columnheader", { name: "Средний" })).not.toBeInTheDocument();
     expect(screen.getAllByRole("link", { name: "Источник ↗" }).map((link) => link.getAttribute("href"))).toEqual([
-      "https://bmstu.example/score",
+      "https://api.www.bmstu.ru/majors/card",
     ]);
   });
 

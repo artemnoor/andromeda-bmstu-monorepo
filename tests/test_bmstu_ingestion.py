@@ -1229,10 +1229,12 @@ def test_mapper_v3_release_projection_keeps_legacy_evidence_counts_for_rollback(
     current = project_bundle(BASE_BUNDLE, mapper_version="bmstu-2026-bundle-v4")
 
     assert len(legacy.table_rows["curriculum_evidence"]) == 8_898
-    assert len(legacy.table_rows["source_evidence"]) == 13_886
+    # Seven previously added source facts and 106 exact official-card score
+    # facts affect general evidence, not the legacy curriculum inheritance.
+    assert len(legacy.table_rows["source_evidence"]) == 13_999
     assert legacy.report.get("curriculum_provenance_inheritance", {}) == {}
     assert len(current.table_rows["curriculum_evidence"]) == 14_165
-    assert len(current.table_rows["source_evidence"]) == 19_153
+    assert len(current.table_rows["source_evidence"]) == 19_266
     assert current.report["curriculum_provenance_inheritance"]["inherited_exact_parent_pdf"] == 5_267
 
 

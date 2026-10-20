@@ -64,39 +64,35 @@ describe("admission score table", () => {
     expect(enrollmentCell(summary({ campaignResults: [latest, result({ funding: "paid", admittedCount: null })] }), 2026).value).toBe("Не опубликовано");
   });
 
-  it("uses the EGE result when the same scope also has BVI, without an extra BVI row or count", () => {
-    const value = scoreCell(summary({ campaignResults: [result(), result({ status: "bvi", competitionType: "bvi", stage: "first", score: null, admittedCount: 30 })] }), 2026, SCORE_ROWS[0]);
-    expect(value.value).toBe("280 баллов");
-    expect(value.note).not.toContain("БВИ");
-    expect(SCORE_ROWS.map((row) => row.key)).toEqual(["budget", "paid", "targeted", "special", "separate"]);
-  });
-
-  it("marks BVI evidence without claiming every budget student was admitted without exams", () => {
-    const value = scoreCell(summary({ campaignResults: [result({ competitionType: "bvi", status: "bvi", stage: "first", score: null })] }), 2026, SCORE_ROWS[0]);
-    expect(value.value).toBe("БВИ");
-    expect(value.note).toContain("Числовой проходной не опубликован");
-  });
-
-  it("does not replace a program BVI result with a broader numeric result", () => {
-    const value = scoreCell(summary({ campaignResults: [result(), result({ status: "bvi", competitionType: "bvi", scopeType: "program", score: null })] }), 2026, SCORE_ROWS[0]);
-    expect(value.kind).toBe("bvi");
-  });
-
-  it("keeps years, funding and quotas independent, including a real numeric zero", () => {
-    const data = summary({ campaignResults: [result()], historicalResults: [
-      result({ year: 2025, funding: "paid", score: 189 }),
-      result({ year: 2025, competitionType: "targeted", score: 0 }),
+  it("uses only official scores and never substitutes numeric or BVI order results", () => {
+    const data = summary({ campaignResults: [result({ score: 193 }), result({ status: "bvi", score: null })], officialPassingScores: [
+      { year: 2026, funding: "budget", score: null, sourceUrl: "https://api.www.bmstu.ru/majors/card", scopeNote: "Всё направление" },
+      { year: 2026, funding: "paid", score: 259, sourceUrl: "https://api.www.bmstu.ru/majors/card", scopeNote: "Всё направление" },
     ] });
-    expect(scoreCell(data, 2025, SCORE_ROWS[0]).value).toBe("Не опубликован");
-    expect(scoreCell(data, 2025, SCORE_ROWS[1]).value).toBe("189 баллов");
-    expect(scoreCell(data, 2025, SCORE_ROWS[2]).value).toBe("0 баллов");
-    expect(scoreCell(data, 2025, SCORE_ROWS[3]).value).toBe("Не опубликован");
+    expect(scoreCell(data, 2026, SCORE_ROWS[0])).toMatchObject({ value: "Не опубликован", kind: "unavailable" });
+    expect(scoreCell(data, 2026, SCORE_ROWS[1])).toMatchObject({ value: "259 баллов", kind: "score" });
+    expect(SCORE_ROWS.map((row) => row.key)).toEqual(["budget", "paid"]);
   });
 
-  it("does not reuse current zero capacity for a historical year or contradict actual enrollment", () => {
-    const data = summary({ seats: [{ label: "Бюджет", value: "0 мест", numericValue: 0, note: null, sourceUrl: null }] });
-    expect(scoreCell(data, 2026, SCORE_ROWS[0]).kind).toBe("no-places");
-    expect(scoreCell(data, 2025, SCORE_ROWS[0]).kind).toBe("unavailable");
-    expect(scoreCell({ ...data, campaignResults: [result({ status: "count_only", stage: "first", score: null, admittedCount: 10 })] }, 2026, SCORE_ROWS[0]).kind).toBe("unavailable");
+  it("keeps exact years and funding independent and preserves a published numeric zero", () => {
+    const data = summary({ officialPassingScores: [
+      { year: 2025, funding: "paid", score: 254, sourceUrl: "https://api.www.bmstu.ru/majors/card", scopeNote: "Всё направление" },
+      { year: 2026, funding: "budget", score: 0, sourceUrl: "https://api.www.bmstu.ru/majors/card", scopeNote: "Всё направление" },
+    ] });
+    expect(scoreCell(data, 2026, SCORE_ROWS[0]).value).toBe("0 баллов");
+    expect(scoreCell(data, 2026, SCORE_ROWS[1]).value).toBe("Не опубликован");
+    expect(scoreCell(data, 2025, SCORE_ROWS[1]).value).toBe("254 баллов");
+  });
+
+  it("does not infer a score or BVI from zero seats or missing official data", () => {
+    const data = summary({ seats: [{ label: "Бюджет", value: "0 мест", numericValue: 0, note: null, sourceUrl: null }], campaignResults: [result()] });
+    expect(scoreCell(data, 2026, SCORE_ROWS[0]).kind).toBe("unavailable");
+    expect(scoreCell(undefined, 2026, SCORE_ROWS[0]).value).toBe("Не удалось загрузить");
+  });
+
+  it("rejects conflicting official values instead of selecting a minimum", () => {
+    const source = { year: 2026, funding: "paid" as const, score: 259, sourceUrl: "https://api.www.bmstu.ru/majors/card", scopeNote: "Всё направление" };
+    const data = summary({ officialPassingScores: [source, { ...source, score: 193 }] });
+    expect(scoreCell(data, 2026, SCORE_ROWS[1]).kind).toBe("unavailable");
   });
 });

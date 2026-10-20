@@ -8,7 +8,7 @@ import type { ProgramAdmissionData } from "@/features/catalog/admission-model";
 const { loadAdmission } = vi.hoisted(() => ({ loadAdmission: vi.fn() }));
 vi.mock("@/features/catalog/admission-api", () => ({ getProgramAdmission: loadAdmission }));
 
-it("shows an explicit BVI result as admission without exams, rather than an unpublished score", async () => {
+it("does not replace a missing official card score with BVI evidence from orders", async () => {
   const program = {
     external_key: "program:bvi", code: "09.03.04-01", name: "Программная инженерия",
     direction_key: "direction:09.03.04", directionCode: "09.03.04",
@@ -27,6 +27,7 @@ it("shows an explicit BVI result as admission without exams, rather than an unpu
   };
   loadAdmission.mockResolvedValue(data);
   render(<AdmissionDetails program={program} expectedReleaseKey="release:bvi" />);
-  expect(await screen.findByText("БВИ", { exact: true })).toBeVisible();
+  expect(await screen.findAllByText("Не опубликован", { exact: true })).toHaveLength(2);
+  expect(screen.queryByText("БВИ", { exact: true })).not.toBeInTheDocument();
   expect(screen.queryByText("Числовой балл не опубликован")).not.toBeInTheDocument();
 });
