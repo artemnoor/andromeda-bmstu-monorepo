@@ -79,6 +79,14 @@ export interface AdmissionCampaignResult {
   readonly sourceUrl: string | null;
 }
 
+export interface OfficialPassingScore {
+  readonly year: number;
+  readonly funding: "budget" | "paid";
+  readonly score: number | null;
+  readonly sourceUrl: string;
+  readonly scopeNote: string;
+}
+
 export interface AdmissionRequirement {
   readonly category: string;
   readonly text: string;
@@ -102,6 +110,7 @@ export interface AdmissionSummary {
   readonly history: readonly AdmissionHistoryRow[];
   readonly campaignResults: readonly AdmissionCampaignResult[];
   readonly historicalResults: readonly AdmissionCampaignResult[];
+  readonly officialPassingScores?: readonly OfficialPassingScore[];
   readonly requirements: readonly AdmissionRequirement[];
   readonly requirementsNote: string | null;
   readonly offers: readonly string[];
@@ -133,6 +142,25 @@ function placeText(value: number | null): string {
 
 function sourceUrl(record: { sources?: Array<{ source_url?: string | null }> }): string | null {
   return record.sources?.map((item) => safeExternalUrl(item.source_url)).find(Boolean) ?? null;
+}
+
+function officialPassingScores(program: CatalogProgram, history: readonly StatisticDto[]): OfficialPassingScore[] {
+  // The exact official major card publishes direction-wide budget/paid results.
+  // A released order observation is never a fallback for a missing card value.
+  // An unverified program campus stays unverified. This is the card's direction
+  // aggregate, not evidence about that profile's campus or individual offering.
+  if (program.campus_scope !== "head_moscow" && program.campus_scope !== "unverified" && program.campus_scope !== "unknown") return [];
+  const cardUrl = safeExternalUrl(program.sourceUrl);
+  if (!cardUrl || !cardUrl.startsWith("https://api.www.bmstu.ru/majors/")) return [];
+  return history.flatMap((record) => {
+    if (record.statistic_kind !== "official_program_card_passing_score"
+      || record.direction_code !== program.directionCode || record.scope_type !== "direction"
+      || record.scope_label !== program.directionCode || sourceUrl(record) !== cardUrl
+      || (record.funding_type !== "budget" && record.funding_type !== "paid")) return [];
+    const score = toNumber(record.minimum_score);
+    return [{ year: record.year, funding: record.funding_type, score: score !== null && score >= 0 ? score : null,
+      sourceUrl: cardUrl, scopeNote: `Всё направление ${program.directionCode} · официальная карточка` }];
+  });
 }
 
 function fundingLabel(value: string | null | undefined): string {
@@ -648,6 +676,7 @@ export function buildAdmissionSummary(program: CatalogProgram, data: ProgramAdmi
   return {
     year,
     directionCode: program.directionCode,
+    officialPassingScores: officialPassingScores(program, data.history),
     seats,
     seatScope: selectedPools.label,
     seatNote: selectedPools.rows.length

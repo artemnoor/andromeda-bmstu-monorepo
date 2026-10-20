@@ -3,6 +3,7 @@ import type { ApiSchemas } from "@/shared/api/client";
 import type { CatalogProgram } from "@/features/catalog/model";
 import { buildAdmissionSummary, type ProgramAdmissionData } from "@/features/catalog/admission-model";
 import { presentCompetition } from "@/features/catalog/admission-results";
+import { SCORE_ROWS, scoreCell, enrollmentCell } from "@/features/catalog/admission-table-model";
 
 type Campaign = ApiSchemas["AdmissionCampaignRecord"];
 type Offering = ApiSchemas["AdmissionOfferingRecord"];
@@ -75,6 +76,55 @@ function data(overrides: Partial<ProgramAdmissionData> = {}): ProgramAdmissionDa
 }
 
 describe("buildAdmissionSummary", () => {
+  it("uses the exact-year official card score instead of the lower order minimum, preserving enrollment", () => {
+    const sourceUrl = "https://api.www.bmstu.ru/majors/programmnaa-inzeneria-090304";
+    const selected = { ...program, directionCode: "09.03.04", sourceUrl };
+    const official: ApiSchemas["OfficialAdmissionStatisticRecord"] = {
+      external_key: "card-score:09.03.04:2026:paid", year: 2026, direction_code: "09.03.04",
+      ingested_at: "2026-10-20T00:00:00Z", statistic_kind: "official_program_card_passing_score",
+      scope_type: "direction", scope_label: "09.03.04", funding_type: "paid", minimum_score: "259",
+      sources: [{ source_artifact_key: "artifact:card", source_url: sourceUrl }],
+    };
+    const summary = buildAdmissionSummary(selected, data({ history: [official], campaignStatistics: [{
+      ...official, external_key: "order:193", statistic_kind: "general", competition_type: "general",
+      admission_stage: "main", status: "numeric", score: "193", minimum_score: null, admitted_count: 94,
+    }] }));
+    expect(scoreCell(summary, 2026, SCORE_ROWS[1])).toMatchObject({ value: "259 баллов", sourceUrl });
+    expect(enrollmentCell(summary, 2026).value).toBe("94");
+  });
+
+  it("keeps card scope and provenance exact across profiles and never changes a missing score to BVI", () => {
+    const sourceUrl = "https://api.www.bmstu.ru/majors/programmnaa-inzeneria-090304";
+    const selected = { ...program, directionCode: "09.03.04", sourceUrl };
+    const record: ApiSchemas["OfficialAdmissionStatisticRecord"] = {
+      external_key: "card-score:09.03.04:2026:budget", year: 2026, direction_code: "09.03.04",
+      ingested_at: "2026-10-20T00:00:00Z", statistic_kind: "official_program_card_passing_score",
+      scope_type: "direction", scope_label: "09.03.04", funding_type: "budget", minimum_score: null,
+      sources: [{ source_artifact_key: "artifact:card", source_url: sourceUrl }],
+    };
+    for (const code of ["09.03.04/01", "09.03.04/02", "09.03.04/03"]) {
+      const summary = buildAdmissionSummary({ ...selected, code }, data({ history: [record] }));
+      expect(scoreCell(summary, 2026, SCORE_ROWS[0])).toMatchObject({ value: "Не опубликован", kind: "unavailable", sourceUrl });
+      expect(summary.officialPassingScores).toHaveLength(1);
+    }
+    for (const invalid of [
+      { ...record, year: 2025 },
+      { ...record, direction_code: "09.03.01" },
+      { ...record, scope_type: "department" },
+      { ...record, sources: [{ source_artifact_key: "other", source_url: "https://api.www.bmstu.ru/majors/other" }] },
+      { ...record, statistic_kind: "paid_admission_published_aggregate" },
+    ]) {
+      const summary = buildAdmissionSummary(selected, data({ history: [invalid] }));
+      expect(scoreCell(summary, 2026, SCORE_ROWS[0]).value).toBe("Не опубликован");
+    }
+    const unknown = buildAdmissionSummary({ ...selected, campus_scope: "unverified", campus_status: "not_stated" }, data({ history: [record] }));
+    expect(unknown.officialPassingScores).toHaveLength(1);
+    const apiUnknown = buildAdmissionSummary({ ...selected, campus_scope: "unknown", campus_status: "unverified" }, data({ history: [record] }));
+    expect(apiUnknown.officialPassingScores).toHaveLength(1);
+    const branch = buildAdmissionSummary({ ...selected, campus_scope: "branch_kaluga" }, data({ history: [record] }));
+    expect(branch.officialPassingScores).toHaveLength(0);
+  });
+
   it("shows the current annual price with its source and excludes other years, profiles and campuses", () => {
     const price: ApiSchemas["TuitionRecord"] = {
       external_key: "tuition:current", direction_code: program.directionCode, academic_year: "2026/2027",

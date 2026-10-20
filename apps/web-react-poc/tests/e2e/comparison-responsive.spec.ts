@@ -30,7 +30,7 @@ for (const count of [3, 2]) {
         const programCells = `td[data-program-label="${program.code}"]`;
         await expect(admission.locator("table").filter({ has: page.getByRole("rowheader", { name: "Стоимость обучения", exact: true }) }).locator(programCells)).toHaveCount(2);
         await expect(admission.getByRole("table", { name: /Зачислено на всё направление подготовки/ }).locator(programCells)).toHaveCount(5);
-        await expect(admission.getByRole("table", { name: /Минимальные баллы зачисленных/ }).locator(programCells)).toHaveCount(5);
+        await expect(admission.getByRole("table", { name: /Проходные баллы по официальной карточке/ }).locator(programCells)).toHaveCount(2);
         const card = page.locator('[data-qa="category-chart-card"]').filter({ has: page.locator(`[data-qa="category-program-code"]`, { hasText: program.code }) });
         await expect(card).toHaveAttribute("data-item-count", String(program.expectedItemCount));
         if (program.expectedHours !== null) await expect(card).toHaveAttribute("data-total-hours", String(program.expectedHours));

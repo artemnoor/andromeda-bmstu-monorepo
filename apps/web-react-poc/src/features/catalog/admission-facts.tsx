@@ -62,12 +62,11 @@ export function ProgramEducationTable({ columns, showDescription = true }: { col
 }
 
 export function AdmissionScoreTable({ columns, year }: { columns: readonly AdmissionColumn[]; year: number }) {
-  const hasBvi = columns.some((column) => SCORE_ROWS.some((row) => scoreCell(column.summary, year, row).kind === "bvi"));
   return <section className={styles.section}>
     <h3>Проходные баллы · {year}</h3>
     <div className={styles.tableWrap}>
       <table className={styles.table}>
-        <caption className={styles.srOnly}>Минимальные баллы зачисленных в {year} году по видам конкурса</caption>
+        <caption className={styles.srOnly}>Проходные баллы по официальной карточке за {year} год</caption>
         <thead><tr><th scope="col">Конкурс</th>{columns.map((column) => <th scope="col" key={column.key}>{columns.length === 1 ? "Проходной балл" : column.label}</th>)}</tr></thead>
         <tbody>{SCORE_ROWS.map((row) => <tr key={row.key}>
           <th scope="row">{row.label}</th>
@@ -84,9 +83,7 @@ export function AdmissionScoreTable({ columns, year }: { columns: readonly Admis
         </tr>)}</tbody>
       </table>
     </div>
-    <p className={styles.note}>{hasBvi
-      ? "БВИ — без вступительных испытаний. Числовой проходной для такого зачисления не применяется."
-      : "Минимальные баллы среди опубликованных зачислений."}</p>
+    <p className={styles.note}>По официальной карточке направления МГТУ. Прочерк не означает ноль или БВИ. Баллы по отдельным квотам в карточке не опубликованы.</p>
   </section>;
 }
 
