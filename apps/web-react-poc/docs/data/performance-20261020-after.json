@@ -1,0 +1,2788 @@
+{
+  "capturedAt": "2026-10-20T06:36:42.944Z",
+  "baseURL": "http://185.135.175.229/",
+  "browser": "156.0.8078.4",
+  "viewport": {
+    "width": 1440,
+    "height": 900
+  },
+  "cache": "fresh browser context per sample",
+  "apiCache": "warm; not flushed",
+  "releaseKey": "bmstu-2026:a6fd1db98f75bd2426db4e11ddcc2bdf2234f6a4ec80c0b3a524168e7912428f:bmstu-2026-bundle-v5",
+  "programKeys": [
+    "program:bmstu:01.03.02:ИУ9:01.03.02-01:source:1-1",
+    "program:bmstu:01.03.03:ФН3:01.03.03-02:source:1-1",
+    "program:bmstu:01.03.04:ФН1:01.03.04-03:source:1-1"
+  ],
+  "repeats": 3,
+  "complete": true,
+  "samples": [
+    {
+      "iteration": 0,
+      "encoding": "identity",
+      "path": "/",
+      "readyMs": 1208.6000000238419,
+      "firstContentMs": null,
+      "apiRequests": 0,
+      "apiBytes": 0,
+      "jsBytes": 558629,
+      "totalTransfer": 768197,
+      "fcp": 384,
+      "cls": 0,
+      "longTasks": [
+        {
+          "start": 969.9000000357628,
+          "duration": 54
+        }
+      ],
+      "domNodes": 187,
+      "stages": [],
+      "apiWaterfall": [],
+      "errors": []
+    },
+    {
+      "iteration": 0,
+      "encoding": "identity",
+      "path": "/programs",
+      "readyMs": 2875.900000035763,
+      "firstContentMs": 2662.300000011921,
+      "apiRequests": 6,
+      "apiBytes": 947289,
+      "jsBytes": 427724,
+      "totalTransfer": 1456424,
+      "fcp": 296,
+      "cls": 0,
+      "longTasks": [],
+      "domNodes": 3880,
+      "stages": [],
+      "apiWaterfall": [
+        {
+          "path": "/api/v1/release",
+          "start": 812.1999999880791,
+          "ms": 96.70000004768372,
+          "bytes": 365
+        },
+        {
+          "path": "/api/v1/programs",
+          "start": 910,
+          "ms": 419.4000000357628,
+          "bytes": 454558
+        },
+        {
+          "path": "/api/v1/directions",
+          "start": 910.1999999880791,
+          "ms": 152.80000001192093,
+          "bytes": 130820
+        },
+        {
+          "path": "/api/v1/departments",
+          "start": 910.4000000357628,
+          "ms": 233.79999995231628,
+          "bytes": 113294
+        },
+        {
+          "path": "/api/v1/programs",
+          "start": 1333.9000000357628,
+          "ms": 1030.7999999523163,
+          "bytes": 247887
+        },
+        {
+          "path": "/api/v1/release",
+          "start": 2367.100000023842,
+          "ms": 97,
+          "bytes": 365
+        }
+      ],
+      "errors": []
+    },
+    {
+      "iteration": 0,
+      "encoding": "identity",
+      "path": "/compare",
+      "readyMs": 3765.5,
+      "firstContentMs": null,
+      "apiRequests": 38,
+      "apiBytes": 2275790,
+      "jsBytes": 838721,
+      "totalTransfer": 3222876,
+      "fcp": 328,
+      "cls": 0,
+      "longTasks": [
+        {
+          "start": 3193.100000023842,
+          "duration": 54
+        },
+        {
+          "start": 3686.199999988079,
+          "duration": 65
+        }
+      ],
+      "domNodes": 4066,
+      "stages": [
+        {
+          "name": "andromeda:comparison:stage:total",
+          "ms": 2419.399999976158
+        },
+        {
+          "name": "andromeda:comparison:stage:catalog",
+          "ms": 1268.300000011921
+        },
+        {
+          "name": "andromeda:comparison:stage:selection",
+          "ms": 0.800000011920929
+        },
+        {
+          "name": "andromeda:comparison:stage:admission",
+          "ms": 808.8999999761581
+        },
+        {
+          "name": "andromeda:comparison:stage:plans",
+          "ms": 129.80000001192093
+        },
+        {
+          "name": "andromeda:comparison:stage:items",
+          "ms": 820.5
+        },
+        {
+          "name": "andromeda:comparison:stage:taxonomy",
+          "ms": 96.5
+        },
+        {
+          "name": "andromeda:comparison:stage:curriculum-model",
+          "ms": 7.099999964237213
+        },
+        {
+          "name": "andromeda:comparison:stage:final-release-check",
+          "ms": 95
+        }
+      ],
+      "apiWaterfall": [
+        {
+          "path": "/api/v1/release",
+          "start": 1170,
+          "ms": 76.5,
+          "bytes": 365
+        },
+        {
+          "path": "/api/v1/programs",
+          "start": 1247.699999988079,
+          "ms": 464.5,
+          "bytes": 454558
+        },
+        {
+          "path": "/api/v1/directions",
+          "start": 1247.9000000357628,
+          "ms": 221.5,
+          "bytes": 130820
+        },
+        {
+          "path": "/api/v1/departments",
+          "start": 1248.1000000238419,
+          "ms": 210.30000001192093,
+          "bytes": 113294
+        },
+        {
+          "path": "/api/v1/programs",
+          "start": 1715.6000000238419,
+          "ms": 641.8999999761581,
+          "bytes": 247887
+        },
+        {
+          "path": "/api/v1/release",
+          "start": 2359.699999988079,
+          "ms": 76.30000001192093,
+          "bytes": 365
+        },
+        {
+          "path": "/api/v1/study-plans",
+          "start": 2438.5,
+          "ms": 119.10000002384186,
+          "bytes": 6247
+        },
+        {
+          "path": "/api/v1/study-plans",
+          "start": 2438.699999988079,
+          "ms": 128.60000002384186,
+          "bytes": 6253
+        },
+        {
+          "path": "/api/v1/study-plans",
+          "start": 2438.800000011921,
+          "ms": 110.80000001192093,
+          "bytes": 6281
+        },
+        {
+          "path": "/api/v1/campaigns",
+          "start": 2439,
+          "ms": 112.80000001192093,
+          "bytes": 1462
+        },
+        {
+          "path": "/api/v1/campaigns/campaign%3Abmstu%3A2026/offerings",
+          "start": 2553.800000011921,
+          "ms": 464.69999998807907,
+          "bytes": 161740
+        },
+        {
+          "path": "/api/v1/campaigns/campaign%3Abmstu%3A2026/calendar",
+          "start": 2553.900000035763,
+          "ms": 299.0999999642372,
+          "bytes": 72875
+        },
+        {
+          "path": "/api/v1/place-quotas",
+          "start": 2554.199999988079,
+          "ms": 89.90000003576279,
+          "bytes": 181
+        },
+        {
+          "path": "/api/v1/requirements",
+          "start": 2554.400000035763,
+          "ms": 143.19999998807907,
+          "bytes": 6298
+        },
+        {
+          "path": "/api/v1/competition-pools",
+          "start": 2554.600000023842,
+          "ms": 165.39999997615814,
+          "bytes": 31418
+        },
+        {
+          "path": "/api/v1/statistics",
+          "start": 2554.900000035763,
+          "ms": 209.5,
+          "bytes": 22974
+        },
+        {
+          "path": "/api/v1/statistics",
+          "start": 2555.100000023842,
+          "ms": 191.0999999642372,
+          "bytes": 11396
+        },
+        {
+          "path": "/api/v1/tuition",
+          "start": 2555.300000011921,
+          "ms": 226.89999997615814,
+          "bytes": 6115
+        },
+        {
+          "path": "/api/v1/requirements",
+          "start": 2555.400000035763,
+          "ms": 253.29999995231628,
+          "bytes": 4969
+        },
+        {
+          "path": "/api/v1/competition-pools",
+          "start": 2555.5,
+          "ms": 289.30000001192093,
+          "bytes": 20703
+        },
+        {
+          "path": "/api/v1/statistics",
+          "start": 2555.600000023842,
+          "ms": 328.89999997615814,
+          "bytes": 19029
+        },
+        {
+          "path": "/api/v1/statistics",
+          "start": 2555.800000011921,
+          "ms": 313.69999998807907,
+          "bytes": 11412
+        },
+        {
+          "path": "/api/v1/tuition",
+          "start": 2556,
+          "ms": 335.60000002384186,
+          "bytes": 6147
+        },
+        {
+          "path": "/api/v1/requirements",
+          "start": 2556.100000023842,
+          "ms": 378.89999997615814,
+          "bytes": 6297
+        },
+        {
+          "path": "/api/v1/competition-pools",
+          "start": 2556.199999988079,
+          "ms": 424.10000002384186,
+          "bytes": 36171
+        },
+        {
+          "path": "/api/v1/statistics",
+          "start": 2556.300000011921,
+          "ms": 483.80000001192093,
+          "bytes": 46604
+        },
+        {
+          "path": "/api/v1/statistics",
+          "start": 2556.400000035763,
+          "ms": 450.19999998807907,
+          "bytes": 12991
+        },
+        {
+          "path": "/api/v1/tuition",
+          "start": 2556.5,
+          "ms": 444.19999998807907,
+          "bytes": 6011
+        },
+        {
+          "path": "/api/v1/study-plans/study_plan%3Aprogram%3Abmstu%3A01.03.02%3A%D0%98%D0%A39%3A01.03.02-01%3Asource%3A1-1/items",
+          "start": 2568.699999988079,
+          "ms": 606.3000000119209,
+          "bytes": 225307
+        },
+        {
+          "path": "/api/v1/study-plans/study_plan%3Aprogram%3Abmstu%3A01.03.03%3A%D0%A4%D0%9D3%3A01.03.03-02%3Asource%3A1-1/items",
+          "start": 2568.800000011921,
+          "ms": 660.6999999880791,
+          "bytes": 218609
+        },
+        {
+          "path": "/api/v1/study-plans/study_plan%3Aprogram%3Abmstu%3A01.03.04%3A%D0%A4%D0%9D1%3A01.03.04-03%3Asource%3A1-1/items",
+          "start": 2569,
+          "ms": 596.6999999880791,
+          "bytes": 217140
+        },
+        {
+          "path": "/api/v1/campaigns/campaign%3Abmstu%3A2026/offerings",
+          "start": 3020.100000023842,
+          "ms": 172.30000001192093,
+          "bytes": 44574
+        },
+        {
+          "path": "/api/v1/study-plans/study_plan%3Aprogram%3Abmstu%3A01.03.04%3A%D0%A4%D0%9D1%3A01.03.04-03%3Asource%3A1-1/items",
+          "start": 3168.199999988079,
+          "ms": 100.60000002384186,
+          "bytes": 26396
+        },
+        {
+          "path": "/api/v1/study-plans/study_plan%3Aprogram%3Abmstu%3A01.03.02%3A%D0%98%D0%A39%3A01.03.02-01%3Asource%3A1-1/items",
+          "start": 3176.699999988079,
+          "ms": 94.90000003576279,
+          "bytes": 29578
+        },
+        {
+          "path": "/api/v1/release",
+          "start": 3247.100000023842,
+          "ms": 96,
+          "bytes": 365
+        },
+        {
+          "path": "/api/v1/study-plans/study_plan%3Aprogram%3Abmstu%3A01.03.03%3A%D0%A4%D0%9D3%3A01.03.03-02%3Asource%3A1-1/items",
+          "start": 3249.900000035763,
+          "ms": 126.19999998807907,
+          "bytes": 58530
+        },
+        {
+          "path": "/api/v1/subject-taxonomies/bmstu-subject-domain-16/v1",
+          "start": 3389.400000035763,
+          "ms": 95.29999995231628,
+          "bytes": 4063
+        },
+        {
+          "path": "/api/v1/release",
+          "start": 3492.800000011921,
+          "ms": 94.19999998807907,
+          "bytes": 365
+        }
+      ],
+      "errors": []
+    },
+    {
+      "iteration": 0,
+      "encoding": "identity",
+      "path": "/discover",
+      "readyMs": 4668.400000035763,
+      "firstContentMs": null,
+      "apiRequests": 12,
+      "apiBytes": 2191463,
+      "jsBytes": 448711,
+      "totalTransfer": 2799201,
+      "fcp": 304,
+      "cls": 0.0002762016390576775,
+      "longTasks": [],
+      "domNodes": 154,
+      "stages": [],
+      "apiWaterfall": [
+        {
+          "path": "/api/v1/release",
+          "start": 879.4000000357628,
+          "ms": 100.09999996423721,
+          "bytes": 365
+        },
+        {
+          "path": "/api/v1/programs",
+          "start": 981.1000000238419,
+          "ms": 413.80000001192093,
+          "bytes": 454558
+        },
+        {
+          "path": "/api/v1/directions",
+          "start": 981.4000000357628,
+          "ms": 261,
+          "bytes": 130820
+        },
+        {
+          "path": "/api/v1/departments",
+          "start": 981.6000000238419,
+          "ms": 290.69999998807907,
+          "bytes": 113294
+        },
+        {
+          "path": "/api/v1/programs",
+          "start": 1398.4000000357628,
+          "ms": 1357.199999988079,
+          "bytes": 247887
+        },
+        {
+          "path": "/api/v1/release",
+          "start": 2758.600000023842,
+          "ms": 101.5,
+          "bytes": 365
+        },
+        {
+          "path": "/api/v1/study-plans",
+          "start": 2862.100000023842,
+          "ms": 494.39999997615814,
+          "bytes": 532235
+        },
+        {
+          "path": "/api/v1/study-plans",
+          "start": 3360.800000011921,
+          "ms": 920.3000000119209,
+          "bytes": 268381
+        },
+        {
+          "path": "/api/v1/subject-taxonomies/bmstu-subject-domain-16/v1",
+          "start": 4284.100000023842,
+          "ms": 70.19999998807907,
+          "bytes": 4063
+        },
+        {
+          "path": "/api/v1/release",
+          "start": 4357.400000035763,
+          "ms": 69.09999996423721,
+          "bytes": 365
+        },
+        {
+          "path": "/api/v1/campaigns",
+          "start": 4430.300000011921,
+          "ms": 75.60000002384186,
+          "bytes": 1462
+        },
+        {
+          "path": "/api/v1/requirements",
+          "start": 4506.800000011921,
+          "ms": 410.30000001192093,
+          "bytes": 437668
+        }
+      ],
+      "errors": []
+    },
+    {
+      "iteration": 0,
+      "encoding": "gzip",
+      "path": "/",
+      "readyMs": 1442.0999999642372,
+      "firstContentMs": null,
+      "apiRequests": 0,
+      "apiBytes": 0,
+      "jsBytes": 190090,
+      "totalTransfer": 369342,
+      "fcp": 316,
+      "cls": 0,
+      "longTasks": [
+        {
+          "start": 724.0999999642372,
+          "duration": 56
+        }
+      ],
+      "domNodes": 187,
+      "stages": [],
+      "apiWaterfall": [],
+      "errors": []
+    },
+    {
+      "iteration": 0,
+      "encoding": "gzip",
+      "path": "/programs",
+      "readyMs": 1790.4000000357628,
+      "firstContentMs": 1689.1000000238419,
+      "apiRequests": 6,
+      "apiBytes": 141060,
+      "jsBytes": 144059,
+      "totalTransfer": 338406,
+      "fcp": 340,
+      "cls": 0,
+      "longTasks": [
+        {
+          "start": 1484.2000000476837,
+          "duration": 84
+        }
+      ],
+      "domNodes": 3880,
+      "stages": [],
+      "apiWaterfall": [
+        {
+          "path": "/api/v1/release",
+          "start": 779.4000000357628,
+          "ms": 101.5,
+          "bytes": 365
+        },
+        {
+          "path": "/api/v1/programs",
+          "start": 882.2000000476837,
+          "ms": 324,
+          "bytes": 67390
+        },
+        {
+          "path": "/api/v1/directions",
+          "start": 882.4000000357628,
+          "ms": 189.0999999642372,
+          "bytes": 23921
+        },
+        {
+          "path": "/api/v1/departments",
+          "start": 882.7000000476837,
+          "ms": 114.39999997615814,
+          "bytes": 14781
+        },
+        {
+          "path": "/api/v1/programs",
+          "start": 1211.300000011921,
+          "ms": 145.80000001192093,
+          "bytes": 34238
+        },
+        {
+          "path": "/api/v1/release",
+          "start": 1359.5,
+          "ms": 100.10000002384186,
+          "bytes": 365
+        }
+      ],
+      "errors": []
+    },
+    {
+      "iteration": 0,
+      "encoding": "gzip",
+      "path": "/compare",
+      "readyMs": 2685.5,
+      "firstContentMs": null,
+      "apiRequests": 38,
+      "apiBytes": 235743,
+      "jsBytes": 268029,
+      "totalTransfer": 569631,
+      "fcp": 308,
+      "cls": 0,
+      "longTasks": [
+        {
+          "start": 2334.199999988079,
+          "duration": 61
+        }
+      ],
+      "domNodes": 4066,
+      "stages": [
+        {
+          "name": "andromeda:comparison:stage:catalog",
+          "ms": 545.5999999642372
+        },
+        {
+          "name": "andromeda:comparison:stage:total",
+          "ms": 1436.199999988079
+        },
+        {
+          "name": "andromeda:comparison:stage:selection",
+          "ms": 0.800000011920929
+        },
+        {
+          "name": "andromeda:comparison:stage:admission",
+          "ms": 678.8000000119209
+        },
+        {
+          "name": "andromeda:comparison:stage:plans",
+          "ms": 135.0999999642372
+        },
+        {
+          "name": "andromeda:comparison:stage:items",
+          "ms": 592.3000000119209
+        },
+        {
+          "name": "andromeda:comparison:stage:taxonomy",
+          "ms": 78.60000002384186
+        },
+        {
+          "name": "andromeda:comparison:stage:curriculum-model",
+          "ms": 6
+        },
+        {
+          "name": "andromeda:comparison:stage:final-release-check",
+          "ms": 77.19999998807907
+        }
+      ],
+      "apiWaterfall": [
+        {
+          "path": "/api/v1/release",
+          "start": 827.3000000119209,
+          "ms": 90.09999996423721,
+          "bytes": 365
+        },
+        {
+          "path": "/api/v1/programs",
+          "start": 918.5,
+          "ms": 224.30000001192093,
+          "bytes": 67390
+        },
+        {
+          "path": "/api/v1/directions",
+          "start": 918.6999999880791,
+          "ms": 157.39999997615814,
+          "bytes": 23921
+        },
+        {
+          "path": "/api/v1/departments",
+          "start": 918.8000000119209,
+          "ms": 99.39999997615814,
+          "bytes": 14781
+        },
+        {
+          "path": "/api/v1/programs",
+          "start": 1146,
+          "ms": 133.39999997615814,
+          "bytes": 34238
+        },
+        {
+          "path": "/api/v1/release",
+          "start": 1281.5999999642372,
+          "ms": 89.40000003576279,
+          "bytes": 365
+        },
+        {
+          "path": "/api/v1/study-plans",
+          "start": 1373.0999999642372,
+          "ms": 112.70000004768372,
+          "bytes": 1469
+        },
+        {
+          "path": "/api/v1/study-plans",
+          "start": 1373.199999988079,
+          "ms": 133.89999997615814,
+          "bytes": 1445
+        },
+        {
+          "path": "/api/v1/study-plans",
+          "start": 1373.3999999761581,
+          "ms": 114.60000002384186,
+          "bytes": 1449
+        },
+        {
+          "path": "/api/v1/campaigns",
+          "start": 1373.5999999642372,
+          "ms": 89.90000003576279,
+          "bytes": 665
+        },
+        {
+          "path": "/api/v1/campaigns/campaign%3Abmstu%3A2026/offerings",
+          "start": 1464.800000011921,
+          "ms": 143.29999995231628,
+          "bytes": 10253
+        },
+        {
+          "path": "/api/v1/campaigns/campaign%3Abmstu%3A2026/calendar",
+          "start": 1465,
+          "ms": 164.39999997615814,
+          "bytes": 9342
+        },
+        {
+          "path": "/api/v1/place-quotas",
+          "start": 1465.0999999642372,
+          "ms": 82.20000004768372,
+          "bytes": 181
+        },
+        {
+          "path": "/api/v1/requirements",
+          "start": 1465.300000011921,
+          "ms": 163.39999997615814,
+          "bytes": 1338
+        },
+        {
+          "path": "/api/v1/competition-pools",
+          "start": 1465.5,
+          "ms": 191,
+          "bytes": 2659
+        },
+        {
+          "path": "/api/v1/statistics",
+          "start": 1465.5999999642372,
+          "ms": 193.80000001192093,
+          "bytes": 1582
+        },
+        {
+          "path": "/api/v1/statistics",
+          "start": 1465.800000011921,
+          "ms": 190.5,
+          "bytes": 1190
+        },
+        {
+          "path": "/api/v1/tuition",
+          "start": 1465.8999999761581,
+          "ms": 218.30000001192093,
+          "bytes": 962
+        },
+        {
+          "path": "/api/v1/requirements",
+          "start": 1466,
+          "ms": 272.5,
+          "bytes": 1274
+        },
+        {
+          "path": "/api/v1/competition-pools",
+          "start": 1466.199999988079,
+          "ms": 277.10000002384186,
+          "bytes": 1873
+        },
+        {
+          "path": "/api/v1/statistics",
+          "start": 1466.300000011921,
+          "ms": 321.0999999642372,
+          "bytes": 1341
+        },
+        {
+          "path": "/api/v1/statistics",
+          "start": 1466.3999999761581,
+          "ms": 283.4000000357628,
+          "bytes": 1323
+        },
+        {
+          "path": "/api/v1/tuition",
+          "start": 1466.5,
+          "ms": 320.80000001192093,
+          "bytes": 977
+        },
+        {
+          "path": "/api/v1/requirements",
+          "start": 1466.5999999642372,
+          "ms": 317.10000002384186,
+          "bytes": 1339
+        },
+        {
+          "path": "/api/v1/competition-pools",
+          "start": 1466.800000011921,
+          "ms": 392.89999997615814,
+          "bytes": 2528
+        },
+        {
+          "path": "/api/v1/statistics",
+          "start": 1467,
+          "ms": 383.69999998807907,
+          "bytes": 2142
+        },
+        {
+          "path": "/api/v1/statistics",
+          "start": 1467.0999999642372,
+          "ms": 406.2000000476837,
+          "bytes": 1380
+        },
+        {
+          "path": "/api/v1/tuition",
+          "start": 1467.199999988079,
+          "ms": 411.10000002384186,
+          "bytes": 950
+        },
+        {
+          "path": "/api/v1/study-plans/study_plan%3Aprogram%3Abmstu%3A01.03.02%3A%D0%98%D0%A39%3A01.03.02-01%3Asource%3A1-1/items",
+          "start": 1508.5,
+          "ms": 475.19999998807907,
+          "bytes": 10695
+        },
+        {
+          "path": "/api/v1/study-plans/study_plan%3Aprogram%3Abmstu%3A01.03.03%3A%D0%A4%D0%9D3%3A01.03.03-02%3Asource%3A1-1/items",
+          "start": 1508.5999999642372,
+          "ms": 414.9000000357628,
+          "bytes": 10917
+        },
+        {
+          "path": "/api/v1/study-plans/study_plan%3Aprogram%3Abmstu%3A01.03.04%3A%D0%A4%D0%9D1%3A01.03.04-03%3Asource%3A1-1/items",
+          "start": 1508.800000011921,
+          "ms": 498.5999999642372,
+          "bytes": 10770
+        },
+        {
+          "path": "/api/v1/campaigns/campaign%3Abmstu%3A2026/offerings",
+          "start": 1610,
+          "ms": 410.30000001192093,
+          "bytes": 3820
+        },
+        {
+          "path": "/api/v1/study-plans/study_plan%3Aprogram%3Abmstu%3A01.03.03%3A%D0%A4%D0%9D3%3A01.03.03-02%3Asource%3A1-1/items",
+          "start": 1925.800000011921,
+          "ms": 105.59999996423721,
+          "bytes": 4238
+        },
+        {
+          "path": "/api/v1/study-plans/study_plan%3Aprogram%3Abmstu%3A01.03.02%3A%D0%98%D0%A39%3A01.03.02-01%3Asource%3A1-1/items",
+          "start": 1985.5999999642372,
+          "ms": 103.90000003576279,
+          "bytes": 2292
+        },
+        {
+          "path": "/api/v1/study-plans/study_plan%3Aprogram%3Abmstu%3A01.03.04%3A%D0%A4%D0%9D1%3A01.03.04-03%3Asource%3A1-1/items",
+          "start": 2009.300000011921,
+          "ms": 90.29999995231628,
+          "bytes": 2291
+        },
+        {
+          "path": "/api/v1/release",
+          "start": 2051.699999988079,
+          "ms": 70,
+          "bytes": 365
+        },
+        {
+          "path": "/api/v1/subject-taxonomies/bmstu-subject-domain-16/v1",
+          "start": 2101.099999964237,
+          "ms": 77.10000002384186,
+          "bytes": 1268
+        },
+        {
+          "path": "/api/v1/release",
+          "start": 2185.199999988079,
+          "ms": 76.39999997615814,
+          "bytes": 365
+        }
+      ],
+      "errors": []
+    },
+    {
+      "iteration": 0,
+      "encoding": "gzip",
+      "path": "/discover",
+      "readyMs": 2162.199999988079,
+      "firstContentMs": null,
+      "apiRequests": 12,
+      "apiBytes": 239904,
+      "jsBytes": 150395,
+      "totalTransfer": 460460,
+      "fcp": 364,
+      "cls": 0.0002762016390576775,
+      "longTasks": [],
+      "domNodes": 154,
+      "stages": [],
+      "apiWaterfall": [
+        {
+          "path": "/api/v1/release",
+          "start": 816.6999999880791,
+          "ms": 101.30000001192093,
+          "bytes": 365
+        },
+        {
+          "path": "/api/v1/programs",
+          "start": 919.0999999642372,
+          "ms": 383.60000002384186,
+          "bytes": 67390
+        },
+        {
+          "path": "/api/v1/directions",
+          "start": 919.2999999523163,
+          "ms": 314.60000002384186,
+          "bytes": 23921
+        },
+        {
+          "path": "/api/v1/departments",
+          "start": 919.5,
+          "ms": 112.69999998807907,
+          "bytes": 14781
+        },
+        {
+          "path": "/api/v1/programs",
+          "start": 1306.199999988079,
+          "ms": 145.5,
+          "bytes": 34238
+        },
+        {
+          "path": "/api/v1/release",
+          "start": 1454.0999999642372,
+          "ms": 101.19999998807907,
+          "bytes": 365
+        },
+        {
+          "path": "/api/v1/study-plans",
+          "start": 1557.199999988079,
+          "ms": 198,
+          "bytes": 55226
+        },
+        {
+          "path": "/api/v1/study-plans",
+          "start": 1759.0999999642372,
+          "ms": 110.40000003576279,
+          "bytes": 28238
+        },
+        {
+          "path": "/api/v1/subject-taxonomies/bmstu-subject-domain-16/v1",
+          "start": 1873,
+          "ms": 77.39999997615814,
+          "bytes": 1268
+        },
+        {
+          "path": "/api/v1/release",
+          "start": 1953,
+          "ms": 76,
+          "bytes": 365
+        },
+        {
+          "path": "/api/v1/campaigns",
+          "start": 2032,
+          "ms": 81.89999997615814,
+          "bytes": 665
+        },
+        {
+          "path": "/api/v1/requirements",
+          "start": 2114.7999999523163,
+          "ms": 160.60000002384186,
+          "bytes": 13082
+        }
+      ],
+      "errors": []
+    },
+    {
+      "iteration": 1,
+      "encoding": "gzip",
+      "path": "/",
+      "readyMs": 1145,
+      "firstContentMs": null,
+      "apiRequests": 0,
+      "apiBytes": 0,
+      "jsBytes": 190090,
+      "totalTransfer": 369342,
+      "fcp": 316,
+      "cls": 0,
+      "longTasks": [],
+      "domNodes": 187,
+      "stages": [],
+      "apiWaterfall": [],
+      "errors": []
+    },
+    {
+      "iteration": 1,
+      "encoding": "gzip",
+      "path": "/programs",
+      "readyMs": 1779.300000011921,
+      "firstContentMs": 1679,
+      "apiRequests": 6,
+      "apiBytes": 141060,
+      "jsBytes": 144059,
+      "totalTransfer": 338406,
+      "fcp": 328,
+      "cls": 0,
+      "longTasks": [],
+      "domNodes": 3880,
+      "stages": [],
+      "apiWaterfall": [
+        {
+          "path": "/api/v1/release",
+          "start": 733.5,
+          "ms": 96.19999998807907,
+          "bytes": 365
+        },
+        {
+          "path": "/api/v1/programs",
+          "start": 830.8000000119209,
+          "ms": 310.69999998807907,
+          "bytes": 67390
+        },
+        {
+          "path": "/api/v1/directions",
+          "start": 831,
+          "ms": 158.19999998807907,
+          "bytes": 23921
+        },
+        {
+          "path": "/api/v1/departments",
+          "start": 831.1000000238419,
+          "ms": 112,
+          "bytes": 14781
+        },
+        {
+          "path": "/api/v1/programs",
+          "start": 1145.4000000357628,
+          "ms": 143.0999999642372,
+          "bytes": 34238
+        },
+        {
+          "path": "/api/v1/release",
+          "start": 1290.5,
+          "ms": 96.30000001192093,
+          "bytes": 365
+        }
+      ],
+      "errors": []
+    },
+    {
+      "iteration": 1,
+      "encoding": "gzip",
+      "path": "/compare",
+      "readyMs": 2646.900000035763,
+      "firstContentMs": null,
+      "apiRequests": 38,
+      "apiBytes": 235743,
+      "jsBytes": 268029,
+      "totalTransfer": 569631,
+      "fcp": 300,
+      "cls": 0,
+      "longTasks": [
+        {
+          "start": 2220.300000011921,
+          "duration": 59
+        }
+      ],
+      "domNodes": 4066,
+      "stages": [
+        {
+          "name": "andromeda:comparison:stage:total",
+          "ms": 1447.699999988079
+        },
+        {
+          "name": "andromeda:comparison:stage:catalog",
+          "ms": 490.9000000357628
+        },
+        {
+          "name": "andromeda:comparison:stage:selection",
+          "ms": 0.800000011920929
+        },
+        {
+          "name": "andromeda:comparison:stage:admission",
+          "ms": 797
+        },
+        {
+          "name": "andromeda:comparison:stage:plans",
+          "ms": 114.90000003576279
+        },
+        {
+          "name": "andromeda:comparison:stage:items",
+          "ms": 682.8999999761581
+        },
+        {
+          "name": "andromeda:comparison:stage:taxonomy",
+          "ms": 76.40000003576279
+        },
+        {
+          "name": "andromeda:comparison:stage:curriculum-model",
+          "ms": 4.099999964237213
+        },
+        {
+          "name": "andromeda:comparison:stage:final-release-check",
+          "ms": 76.80000001192093
+        }
+      ],
+      "apiWaterfall": [
+        {
+          "path": "/api/v1/release",
+          "start": 708.2000000476837,
+          "ms": 76.79999995231628,
+          "bytes": 365
+        },
+        {
+          "path": "/api/v1/programs",
+          "start": 786.2000000476837,
+          "ms": 208.5999999642372,
+          "bytes": 67390
+        },
+        {
+          "path": "/api/v1/directions",
+          "start": 786.3000000119209,
+          "ms": 126.19999998807907,
+          "bytes": 23921
+        },
+        {
+          "path": "/api/v1/departments",
+          "start": 786.5,
+          "ms": 103.40000003576279,
+          "bytes": 14781
+        },
+        {
+          "path": "/api/v1/programs",
+          "start": 998.2000000476837,
+          "ms": 120.89999997615814,
+          "bytes": 34238
+        },
+        {
+          "path": "/api/v1/release",
+          "start": 1121.300000011921,
+          "ms": 75.90000003576279,
+          "bytes": 365
+        },
+        {
+          "path": "/api/v1/study-plans",
+          "start": 1199.4000000357628,
+          "ms": 113.80000001192093,
+          "bytes": 1469
+        },
+        {
+          "path": "/api/v1/study-plans",
+          "start": 1199.5,
+          "ms": 96.5,
+          "bytes": 1445
+        },
+        {
+          "path": "/api/v1/study-plans",
+          "start": 1199.6000000238419,
+          "ms": 91.60000002384186,
+          "bytes": 1449
+        },
+        {
+          "path": "/api/v1/campaigns",
+          "start": 1199.7000000476837,
+          "ms": 114.59999996423721,
+          "bytes": 665
+        },
+        {
+          "path": "/api/v1/study-plans/study_plan%3Aprogram%3Abmstu%3A01.03.02%3A%D0%98%D0%A39%3A01.03.02-01%3Asource%3A1-1/items",
+          "start": 1314.7000000476837,
+          "ms": 165.0999999642372,
+          "bytes": 10695
+        },
+        {
+          "path": "/api/v1/study-plans/study_plan%3Aprogram%3Abmstu%3A01.03.03%3A%D0%A4%D0%9D3%3A01.03.03-02%3Asource%3A1-1/items",
+          "start": 1314.800000011921,
+          "ms": 259.69999998807907,
+          "bytes": 10917
+        },
+        {
+          "path": "/api/v1/study-plans/study_plan%3Aprogram%3Abmstu%3A01.03.04%3A%D0%A4%D0%9D1%3A01.03.04-03%3Asource%3A1-1/items",
+          "start": 1314.9000000357628,
+          "ms": 159.19999998807907,
+          "bytes": 10770
+        },
+        {
+          "path": "/api/v1/campaigns/campaign%3Abmstu%3A2026/offerings",
+          "start": 1316,
+          "ms": 257.60000002384186,
+          "bytes": 10253
+        },
+        {
+          "path": "/api/v1/campaigns/campaign%3Abmstu%3A2026/calendar",
+          "start": 1316.300000011921,
+          "ms": 179.10000002384186,
+          "bytes": 9342
+        },
+        {
+          "path": "/api/v1/place-quotas",
+          "start": 1316.5,
+          "ms": 133.9000000357628,
+          "bytes": 181
+        },
+        {
+          "path": "/api/v1/requirements",
+          "start": 1316.7000000476837,
+          "ms": 279.5999999642372,
+          "bytes": 1338
+        },
+        {
+          "path": "/api/v1/competition-pools",
+          "start": 1317,
+          "ms": 302.10000002384186,
+          "bytes": 2659
+        },
+        {
+          "path": "/api/v1/statistics",
+          "start": 1317.2000000476837,
+          "ms": 281.69999998807907,
+          "bytes": 1582
+        },
+        {
+          "path": "/api/v1/statistics",
+          "start": 1317.300000011921,
+          "ms": 301.80000001192093,
+          "bytes": 1190
+        },
+        {
+          "path": "/api/v1/tuition",
+          "start": 1317.4000000357628,
+          "ms": 335,
+          "bytes": 962
+        },
+        {
+          "path": "/api/v1/requirements",
+          "start": 1317.5,
+          "ms": 431.30000001192093,
+          "bytes": 1274
+        },
+        {
+          "path": "/api/v1/competition-pools",
+          "start": 1317.7000000476837,
+          "ms": 463.2999999523163,
+          "bytes": 1873
+        },
+        {
+          "path": "/api/v1/statistics",
+          "start": 1317.7000000476837,
+          "ms": 489,
+          "bytes": 1341
+        },
+        {
+          "path": "/api/v1/statistics",
+          "start": 1317.800000011921,
+          "ms": 496.10000002384186,
+          "bytes": 1323
+        },
+        {
+          "path": "/api/v1/tuition",
+          "start": 1318,
+          "ms": 460.7000000476837,
+          "bytes": 977
+        },
+        {
+          "path": "/api/v1/requirements",
+          "start": 1318.1000000238419,
+          "ms": 491.80000001192093,
+          "bytes": 1339
+        },
+        {
+          "path": "/api/v1/competition-pools",
+          "start": 1318.2000000476837,
+          "ms": 524.5,
+          "bytes": 2528
+        },
+        {
+          "path": "/api/v1/statistics",
+          "start": 1318.300000011921,
+          "ms": 549.3000000119209,
+          "bytes": 2142
+        },
+        {
+          "path": "/api/v1/statistics",
+          "start": 1318.4000000357628,
+          "ms": 549.5,
+          "bytes": 1380
+        },
+        {
+          "path": "/api/v1/tuition",
+          "start": 1318.4000000357628,
+          "ms": 574.5999999642372,
+          "bytes": 950
+        },
+        {
+          "path": "/api/v1/study-plans/study_plan%3Aprogram%3Abmstu%3A01.03.04%3A%D0%A4%D0%9D1%3A01.03.04-03%3Asource%3A1-1/items",
+          "start": 1476.2000000476837,
+          "ms": 434.69999998807907,
+          "bytes": 2291
+        },
+        {
+          "path": "/api/v1/study-plans/study_plan%3Aprogram%3Abmstu%3A01.03.02%3A%D0%98%D0%A39%3A01.03.02-01%3Asource%3A1-1/items",
+          "start": 1481.800000011921,
+          "ms": 458.4000000357628,
+          "bytes": 2292
+        },
+        {
+          "path": "/api/v1/campaigns/campaign%3Abmstu%3A2026/offerings",
+          "start": 1575.7000000476837,
+          "ms": 382.7999999523163,
+          "bytes": 3820
+        },
+        {
+          "path": "/api/v1/study-plans/study_plan%3Aprogram%3Abmstu%3A01.03.03%3A%D0%A4%D0%9D3%3A01.03.03-02%3Asource%3A1-1/items",
+          "start": 1577.4000000357628,
+          "ms": 395.80000001192093,
+          "bytes": 4238
+        },
+        {
+          "path": "/api/v1/release",
+          "start": 1996,
+          "ms": 69.90000003576279,
+          "bytes": 365
+        },
+        {
+          "path": "/api/v1/subject-taxonomies/bmstu-subject-domain-16/v1",
+          "start": 1997.300000011921,
+          "ms": 75.5,
+          "bytes": 1268
+        },
+        {
+          "path": "/api/v1/release",
+          "start": 2077.7000000476837,
+          "ms": 76.09999996423721,
+          "bytes": 365
+        }
+      ],
+      "errors": []
+    },
+    {
+      "iteration": 1,
+      "encoding": "gzip",
+      "path": "/discover",
+      "readyMs": 2141.099999964237,
+      "firstContentMs": null,
+      "apiRequests": 12,
+      "apiBytes": 239904,
+      "jsBytes": 150395,
+      "totalTransfer": 460460,
+      "fcp": 320,
+      "cls": 0.0002762016390576775,
+      "longTasks": [],
+      "domNodes": 154,
+      "stages": [],
+      "apiWaterfall": [
+        {
+          "path": "/api/v1/release",
+          "start": 785.8999999761581,
+          "ms": 100.80000001192093,
+          "bytes": 365
+        },
+        {
+          "path": "/api/v1/programs",
+          "start": 888,
+          "ms": 323.19999998807907,
+          "bytes": 67390
+        },
+        {
+          "path": "/api/v1/directions",
+          "start": 888.1999999880791,
+          "ms": 163,
+          "bytes": 23921
+        },
+        {
+          "path": "/api/v1/departments",
+          "start": 888.3999999761581,
+          "ms": 113.19999998807907,
+          "bytes": 14781
+        },
+        {
+          "path": "/api/v1/programs",
+          "start": 1214.8999999761581,
+          "ms": 151.4000000357628,
+          "bytes": 34238
+        },
+        {
+          "path": "/api/v1/release",
+          "start": 1368.3999999761581,
+          "ms": 100.80000001192093,
+          "bytes": 365
+        },
+        {
+          "path": "/api/v1/study-plans",
+          "start": 1471.199999988079,
+          "ms": 240.80000001192093,
+          "bytes": 55226
+        },
+        {
+          "path": "/api/v1/study-plans",
+          "start": 1716.5,
+          "ms": 130.80000001192093,
+          "bytes": 28238
+        },
+        {
+          "path": "/api/v1/subject-taxonomies/bmstu-subject-domain-16/v1",
+          "start": 1850.3999999761581,
+          "ms": 97.69999998807907,
+          "bytes": 1268
+        },
+        {
+          "path": "/api/v1/release",
+          "start": 1952.300000011921,
+          "ms": 96.59999996423721,
+          "bytes": 365
+        },
+        {
+          "path": "/api/v1/campaigns",
+          "start": 2052,
+          "ms": 103.5,
+          "bytes": 665
+        },
+        {
+          "path": "/api/v1/requirements",
+          "start": 2156.399999976158,
+          "ms": 181.19999998807907,
+          "bytes": 13082
+        }
+      ],
+      "errors": []
+    },
+    {
+      "iteration": 1,
+      "encoding": "identity",
+      "path": "/",
+      "readyMs": 1153.7999999523163,
+      "firstContentMs": null,
+      "apiRequests": 0,
+      "apiBytes": 0,
+      "jsBytes": 558629,
+      "totalTransfer": 768197,
+      "fcp": 324,
+      "cls": 0,
+      "longTasks": [
+        {
+          "start": 940.5999999642372,
+          "duration": 54
+        }
+      ],
+      "domNodes": 187,
+      "stages": [],
+      "apiWaterfall": [],
+      "errors": []
+    },
+    {
+      "iteration": 1,
+      "encoding": "identity",
+      "path": "/programs",
+      "readyMs": 2746.199999988079,
+      "firstContentMs": 2742.800000011921,
+      "apiRequests": 6,
+      "apiBytes": 947289,
+      "jsBytes": 427724,
+      "totalTransfer": 1456424,
+      "fcp": 364,
+      "cls": 0,
+      "longTasks": [
+        {
+          "start": 2313.300000011921,
+          "duration": 85
+        }
+      ],
+      "domNodes": 3880,
+      "stages": [],
+      "apiWaterfall": [
+        {
+          "path": "/api/v1/release",
+          "start": 895.4000000357628,
+          "ms": 100.89999997615814,
+          "bytes": 365
+        },
+        {
+          "path": "/api/v1/programs",
+          "start": 997.4000000357628,
+          "ms": 508.5999999642372,
+          "bytes": 454558
+        },
+        {
+          "path": "/api/v1/directions",
+          "start": 997.5,
+          "ms": 147.30000001192093,
+          "bytes": 130820
+        },
+        {
+          "path": "/api/v1/departments",
+          "start": 997.8000000119209,
+          "ms": 299.69999998807907,
+          "bytes": 113294
+        },
+        {
+          "path": "/api/v1/programs",
+          "start": 1510.1000000238419,
+          "ms": 674.5,
+          "bytes": 247887
+        },
+        {
+          "path": "/api/v1/release",
+          "start": 2186.900000035763,
+          "ms": 101.69999998807907,
+          "bytes": 365
+        }
+      ],
+      "errors": []
+    },
+    {
+      "iteration": 1,
+      "encoding": "identity",
+      "path": "/compare",
+      "readyMs": 4232.799999952316,
+      "firstContentMs": null,
+      "apiRequests": 38,
+      "apiBytes": 2275790,
+      "jsBytes": 838721,
+      "totalTransfer": 3222876,
+      "fcp": 368,
+      "cls": 0,
+      "longTasks": [
+        {
+          "start": 4136.599999964237,
+          "duration": 61
+        }
+      ],
+      "domNodes": 4066,
+      "stages": [
+        {
+          "name": "andromeda:comparison:stage:catalog",
+          "ms": 1661.8999999761581
+        },
+        {
+          "name": "andromeda:comparison:stage:total",
+          "ms": 2826.399999976158
+        },
+        {
+          "name": "andromeda:comparison:stage:selection",
+          "ms": 0.8999999761581421
+        },
+        {
+          "name": "andromeda:comparison:stage:admission",
+          "ms": 1009.4000000357628
+        },
+        {
+          "name": "andromeda:comparison:stage:plans",
+          "ms": 134.0999999642372
+        },
+        {
+          "name": "andromeda:comparison:stage:items",
+          "ms": 829.7000000476837
+        },
+        {
+          "name": "andromeda:comparison:stage:taxonomy",
+          "ms": 70.80000001192093
+        },
+        {
+          "name": "andromeda:comparison:stage:curriculum-model",
+          "ms": 4.300000011920929
+        },
+        {
+          "name": "andromeda:comparison:stage:final-release-check",
+          "ms": 76.69999998807907
+        }
+      ],
+      "apiWaterfall": [
+        {
+          "path": "/api/v1/release",
+          "start": 1243.7999999523163,
+          "ms": 76.70000004768372,
+          "bytes": 365
+        },
+        {
+          "path": "/api/v1/programs",
+          "start": 1321.5999999642372,
+          "ms": 477.60000002384186,
+          "bytes": 454558
+        },
+        {
+          "path": "/api/v1/directions",
+          "start": 1321.8999999761581,
+          "ms": 164.80000001192093,
+          "bytes": 130820
+        },
+        {
+          "path": "/api/v1/departments",
+          "start": 1322.0999999642372,
+          "ms": 212.19999998807907,
+          "bytes": 113294
+        },
+        {
+          "path": "/api/v1/programs",
+          "start": 1802.7999999523163,
+          "ms": 1021.8000000119209,
+          "bytes": 247887
+        },
+        {
+          "path": "/api/v1/release",
+          "start": 2826.7999999523163,
+          "ms": 76.10000002384186,
+          "bytes": 365
+        },
+        {
+          "path": "/api/v1/study-plans",
+          "start": 2904.899999976158,
+          "ms": 100.19999998807907,
+          "bytes": 6247
+        },
+        {
+          "path": "/api/v1/study-plans",
+          "start": 2905,
+          "ms": 118,
+          "bytes": 6253
+        },
+        {
+          "path": "/api/v1/study-plans",
+          "start": 2905.099999964237,
+          "ms": 132.69999998807907,
+          "bytes": 6281
+        },
+        {
+          "path": "/api/v1/campaigns",
+          "start": 2905.399999976158,
+          "ms": 138.69999998807907,
+          "bytes": 1462
+        },
+        {
+          "path": "/api/v1/study-plans/study_plan%3Aprogram%3Abmstu%3A01.03.02%3A%D0%98%D0%A39%3A01.03.02-01%3Asource%3A1-1/items",
+          "start": 3039.2999999523163,
+          "ms": 665.5,
+          "bytes": 225307
+        },
+        {
+          "path": "/api/v1/study-plans/study_plan%3Aprogram%3Abmstu%3A01.03.03%3A%D0%A4%D0%9D3%3A01.03.03-02%3Asource%3A1-1/items",
+          "start": 3039.5,
+          "ms": 519.3999999761581,
+          "bytes": 218609
+        },
+        {
+          "path": "/api/v1/study-plans/study_plan%3Aprogram%3Abmstu%3A01.03.04%3A%D0%A4%D0%9D1%3A01.03.04-03%3Asource%3A1-1/items",
+          "start": 3039.599999964237,
+          "ms": 250.80000001192093,
+          "bytes": 217140
+        },
+        {
+          "path": "/api/v1/campaigns/campaign%3Abmstu%3A2026/offerings",
+          "start": 3045.199999988079,
+          "ms": 694.5,
+          "bytes": 161740
+        },
+        {
+          "path": "/api/v1/campaigns/campaign%3Abmstu%3A2026/calendar",
+          "start": 3045.5,
+          "ms": 374.2999999523163,
+          "bytes": 72875
+        },
+        {
+          "path": "/api/v1/place-quotas",
+          "start": 3045.699999988079,
+          "ms": 285.69999998807907,
+          "bytes": 181
+        },
+        {
+          "path": "/api/v1/requirements",
+          "start": 3045.899999976158,
+          "ms": 333.69999998807907,
+          "bytes": 6298
+        },
+        {
+          "path": "/api/v1/competition-pools",
+          "start": 3046.199999988079,
+          "ms": 452.5999999642372,
+          "bytes": 31418
+        },
+        {
+          "path": "/api/v1/statistics",
+          "start": 3046.2999999523163,
+          "ms": 422.30000001192093,
+          "bytes": 22974
+        },
+        {
+          "path": "/api/v1/statistics",
+          "start": 3046.5,
+          "ms": 450.89999997615814,
+          "bytes": 11396
+        },
+        {
+          "path": "/api/v1/tuition",
+          "start": 3046.599999964237,
+          "ms": 510.5,
+          "bytes": 6115
+        },
+        {
+          "path": "/api/v1/requirements",
+          "start": 3046.699999988079,
+          "ms": 540.3000000119209,
+          "bytes": 4969
+        },
+        {
+          "path": "/api/v1/competition-pools",
+          "start": 3046.7999999523163,
+          "ms": 552.6000000238419,
+          "bytes": 20703
+        },
+        {
+          "path": "/api/v1/statistics",
+          "start": 3046.899999976158,
+          "ms": 601.8999999761581,
+          "bytes": 19029
+        },
+        {
+          "path": "/api/v1/statistics",
+          "start": 3047.099999964237,
+          "ms": 617.6000000238419,
+          "bytes": 11412
+        },
+        {
+          "path": "/api/v1/tuition",
+          "start": 3047.199999988079,
+          "ms": 616.3000000119209,
+          "bytes": 6147
+        },
+        {
+          "path": "/api/v1/requirements",
+          "start": 3047.2999999523163,
+          "ms": 642.9000000357628,
+          "bytes": 6297
+        },
+        {
+          "path": "/api/v1/competition-pools",
+          "start": 3047.399999976158,
+          "ms": 723.8000000119209,
+          "bytes": 36171
+        },
+        {
+          "path": "/api/v1/statistics",
+          "start": 3047.5,
+          "ms": 721,
+          "bytes": 46604
+        },
+        {
+          "path": "/api/v1/tuition",
+          "start": 3047.699999988079,
+          "ms": 739.0999999642372,
+          "bytes": 6011
+        },
+        {
+          "path": "/api/v1/statistics",
+          "start": 3047.699999988079,
+          "ms": 768.5999999642372,
+          "bytes": 12991
+        },
+        {
+          "path": "/api/v1/study-plans/study_plan%3Aprogram%3Abmstu%3A01.03.04%3A%D0%A4%D0%9D1%3A01.03.04-03%3Asource%3A1-1/items",
+          "start": 3292.2999999523163,
+          "ms": 537,
+          "bytes": 26396
+        },
+        {
+          "path": "/api/v1/study-plans/study_plan%3Aprogram%3Abmstu%3A01.03.03%3A%D0%A4%D0%9D3%3A01.03.03-02%3Asource%3A1-1/items",
+          "start": 3561,
+          "ms": 300.2999999523163,
+          "bytes": 58530
+        },
+        {
+          "path": "/api/v1/study-plans/study_plan%3Aprogram%3Abmstu%3A01.03.02%3A%D0%98%D0%A39%3A01.03.02-01%3Asource%3A1-1/items",
+          "start": 3707.2999999523163,
+          "ms": 160.80000001192093,
+          "bytes": 29578
+        },
+        {
+          "path": "/api/v1/campaigns/campaign%3Abmstu%3A2026/offerings",
+          "start": 3741.199999988079,
+          "ms": 140.5,
+          "bytes": 44574
+        },
+        {
+          "path": "/api/v1/subject-taxonomies/bmstu-subject-domain-16/v1",
+          "start": 3869,
+          "ms": 69.79999995231628,
+          "bytes": 4063
+        },
+        {
+          "path": "/api/v1/release",
+          "start": 3914,
+          "ms": 76.5,
+          "bytes": 365
+        },
+        {
+          "path": "/api/v1/release",
+          "start": 3991.2999999523163,
+          "ms": 76.10000002384186,
+          "bytes": 365
+        }
+      ],
+      "errors": []
+    },
+    {
+      "iteration": 1,
+      "encoding": "identity",
+      "path": "/discover",
+      "readyMs": 5277.100000023842,
+      "firstContentMs": null,
+      "apiRequests": 12,
+      "apiBytes": 2191463,
+      "jsBytes": 448711,
+      "totalTransfer": 2799201,
+      "fcp": 400,
+      "cls": 0.0002762016390576775,
+      "longTasks": [],
+      "domNodes": 154,
+      "stages": [],
+      "apiWaterfall": [
+        {
+          "path": "/api/v1/release",
+          "start": 1031.5,
+          "ms": 101.30000001192093,
+          "bytes": 365
+        },
+        {
+          "path": "/api/v1/programs",
+          "start": 1134,
+          "ms": 423.7000000476837,
+          "bytes": 454558
+        },
+        {
+          "path": "/api/v1/directions",
+          "start": 1134.2000000476837,
+          "ms": 291.7999999523163,
+          "bytes": 130820
+        },
+        {
+          "path": "/api/v1/departments",
+          "start": 1134.300000011921,
+          "ms": 385,
+          "bytes": 113294
+        },
+        {
+          "path": "/api/v1/programs",
+          "start": 1562.800000011921,
+          "ms": 1311.5,
+          "bytes": 247887
+        },
+        {
+          "path": "/api/v1/release",
+          "start": 2876.800000011921,
+          "ms": 101.5,
+          "bytes": 365
+        },
+        {
+          "path": "/api/v1/study-plans",
+          "start": 2980.400000035763,
+          "ms": 665,
+          "bytes": 532235
+        },
+        {
+          "path": "/api/v1/study-plans",
+          "start": 3649.900000035763,
+          "ms": 1370.800000011921,
+          "bytes": 268381
+        },
+        {
+          "path": "/api/v1/subject-taxonomies/bmstu-subject-domain-16/v1",
+          "start": 5025.600000023842,
+          "ms": 93.5,
+          "bytes": 4063
+        },
+        {
+          "path": "/api/v1/release",
+          "start": 5122.400000035763,
+          "ms": 94,
+          "bytes": 365
+        },
+        {
+          "path": "/api/v1/campaigns",
+          "start": 5220.200000047684,
+          "ms": 101,
+          "bytes": 1462
+        },
+        {
+          "path": "/api/v1/requirements",
+          "start": 5322.200000047684,
+          "ms": 366.69999998807907,
+          "bytes": 437668
+        }
+      ],
+      "errors": []
+    },
+    {
+      "iteration": 2,
+      "encoding": "identity",
+      "path": "/",
+      "readyMs": 1178.5999999642372,
+      "firstContentMs": null,
+      "apiRequests": 0,
+      "apiBytes": 0,
+      "jsBytes": 558629,
+      "totalTransfer": 768197,
+      "fcp": 352,
+      "cls": 0,
+      "longTasks": [
+        {
+          "start": 951.7999999523163,
+          "duration": 51
+        }
+      ],
+      "domNodes": 187,
+      "stages": [],
+      "apiWaterfall": [],
+      "errors": []
+    },
+    {
+      "iteration": 2,
+      "encoding": "identity",
+      "path": "/programs",
+      "readyMs": 2867.7000000476837,
+      "firstContentMs": 2656.900000035763,
+      "apiRequests": 6,
+      "apiBytes": 947289,
+      "jsBytes": 427724,
+      "totalTransfer": 1456424,
+      "fcp": 320,
+      "cls": 0,
+      "longTasks": [
+        {
+          "start": 2564,
+          "duration": 73
+        }
+      ],
+      "domNodes": 3880,
+      "stages": [],
+      "apiWaterfall": [
+        {
+          "path": "/api/v1/release",
+          "start": 821.4000000357628,
+          "ms": 89.69999998807907,
+          "bytes": 365
+        },
+        {
+          "path": "/api/v1/programs",
+          "start": 912.3000000119209,
+          "ms": 378,
+          "bytes": 454558
+        },
+        {
+          "path": "/api/v1/directions",
+          "start": 912.5,
+          "ms": 209.60000002384186,
+          "bytes": 130820
+        },
+        {
+          "path": "/api/v1/departments",
+          "start": 912.6000000238419,
+          "ms": 305.39999997615814,
+          "bytes": 113294
+        },
+        {
+          "path": "/api/v1/programs",
+          "start": 1294.4000000357628,
+          "ms": 1159.0999999642372,
+          "bytes": 247887
+        },
+        {
+          "path": "/api/v1/release",
+          "start": 2455.7000000476837,
+          "ms": 89.29999995231628,
+          "bytes": 365
+        }
+      ],
+      "errors": []
+    },
+    {
+      "iteration": 2,
+      "encoding": "identity",
+      "path": "/compare",
+      "readyMs": 4189.099999964237,
+      "firstContentMs": null,
+      "apiRequests": 38,
+      "apiBytes": 2275790,
+      "jsBytes": 838721,
+      "totalTransfer": 3222876,
+      "fcp": 304,
+      "cls": 0,
+      "longTasks": [
+        {
+          "start": 3992.300000011921,
+          "duration": 60
+        }
+      ],
+      "domNodes": 4066,
+      "stages": [
+        {
+          "name": "andromeda:comparison:stage:total",
+          "ms": 2693.199999988079
+        },
+        {
+          "name": "andromeda:comparison:stage:catalog",
+          "ms": 1515.6000000238419
+        },
+        {
+          "name": "andromeda:comparison:stage:selection",
+          "ms": 0.7999999523162842
+        },
+        {
+          "name": "andromeda:comparison:stage:admission",
+          "ms": 793.5
+        },
+        {
+          "name": "andromeda:comparison:stage:plans",
+          "ms": 142.4000000357628
+        },
+        {
+          "name": "andromeda:comparison:stage:items",
+          "ms": 838.3000000119209
+        },
+        {
+          "name": "andromeda:comparison:stage:taxonomy",
+          "ms": 95.79999995231628
+        },
+        {
+          "name": "andromeda:comparison:stage:curriculum-model",
+          "ms": 4.300000011920929
+        },
+        {
+          "name": "andromeda:comparison:stage:final-release-check",
+          "ms": 95.30000001192093
+        }
+      ],
+      "apiWaterfall": [
+        {
+          "path": "/api/v1/release",
+          "start": 1222.800000011921,
+          "ms": 69.09999996423721,
+          "bytes": 365
+        },
+        {
+          "path": "/api/v1/programs",
+          "start": 1293,
+          "ms": 493.80000001192093,
+          "bytes": 454558
+        },
+        {
+          "path": "/api/v1/directions",
+          "start": 1293.199999988079,
+          "ms": 1367.699999988079,
+          "bytes": 130820
+        },
+        {
+          "path": "/api/v1/departments",
+          "start": 1293.300000011921,
+          "ms": 133.5,
+          "bytes": 113294
+        },
+        {
+          "path": "/api/v1/programs",
+          "start": 1790.3999999761581,
+          "ms": 873.9000000357628,
+          "bytes": 247887
+        },
+        {
+          "path": "/api/v1/release",
+          "start": 2666.5,
+          "ms": 69.09999996423721,
+          "bytes": 365
+        },
+        {
+          "path": "/api/v1/study-plans",
+          "start": 2737.899999976158,
+          "ms": 98.90000003576279,
+          "bytes": 6247
+        },
+        {
+          "path": "/api/v1/study-plans",
+          "start": 2737.899999976158,
+          "ms": 130,
+          "bytes": 6253
+        },
+        {
+          "path": "/api/v1/study-plans",
+          "start": 2738.099999964237,
+          "ms": 141.20000004768372,
+          "bytes": 6281
+        },
+        {
+          "path": "/api/v1/campaigns",
+          "start": 2738.300000011921,
+          "ms": 82.09999996423721,
+          "bytes": 1462
+        },
+        {
+          "path": "/api/v1/campaigns/campaign%3Abmstu%3A2026/offerings",
+          "start": 2822.099999964237,
+          "ms": 332.7000000476837,
+          "bytes": 161740
+        },
+        {
+          "path": "/api/v1/campaigns/campaign%3Abmstu%3A2026/calendar",
+          "start": 2822.399999976158,
+          "ms": 293.5,
+          "bytes": 72875
+        },
+        {
+          "path": "/api/v1/place-quotas",
+          "start": 2822.599999964237,
+          "ms": 80.10000002384186,
+          "bytes": 181
+        },
+        {
+          "path": "/api/v1/requirements",
+          "start": 2822.800000011921,
+          "ms": 141.69999998807907,
+          "bytes": 6298
+        },
+        {
+          "path": "/api/v1/competition-pools",
+          "start": 2823.099999964237,
+          "ms": 216,
+          "bytes": 31418
+        },
+        {
+          "path": "/api/v1/statistics",
+          "start": 2823.399999976158,
+          "ms": 293.10000002384186,
+          "bytes": 22974
+        },
+        {
+          "path": "/api/v1/statistics",
+          "start": 2823.5,
+          "ms": 168.89999997615814,
+          "bytes": 11396
+        },
+        {
+          "path": "/api/v1/tuition",
+          "start": 2823.800000011921,
+          "ms": 216.69999998807907,
+          "bytes": 6115
+        },
+        {
+          "path": "/api/v1/requirements",
+          "start": 2823.899999976158,
+          "ms": 251.9000000357628,
+          "bytes": 4969
+        },
+        {
+          "path": "/api/v1/competition-pools",
+          "start": 2824.099999964237,
+          "ms": 342.60000002384186,
+          "bytes": 20703
+        },
+        {
+          "path": "/api/v1/statistics",
+          "start": 2824.300000011921,
+          "ms": 301.19999998807907,
+          "bytes": 19029
+        },
+        {
+          "path": "/api/v1/statistics",
+          "start": 2824.399999976158,
+          "ms": 331.30000001192093,
+          "bytes": 11412
+        },
+        {
+          "path": "/api/v1/tuition",
+          "start": 2824.5,
+          "ms": 394.39999997615814,
+          "bytes": 6147
+        },
+        {
+          "path": "/api/v1/requirements",
+          "start": 2824.699999988079,
+          "ms": 406.69999998807907,
+          "bytes": 6297
+        },
+        {
+          "path": "/api/v1/statistics",
+          "start": 2824.899999976158,
+          "ms": 429.10000002384186,
+          "bytes": 46604
+        },
+        {
+          "path": "/api/v1/competition-pools",
+          "start": 2824.899999976158,
+          "ms": 451.30000001192093,
+          "bytes": 36171
+        },
+        {
+          "path": "/api/v1/statistics",
+          "start": 2825.099999964237,
+          "ms": 431.4000000357628,
+          "bytes": 12991
+        },
+        {
+          "path": "/api/v1/tuition",
+          "start": 2825.300000011921,
+          "ms": 474.7999999523163,
+          "bytes": 6011
+        },
+        {
+          "path": "/api/v1/study-plans/study_plan%3Aprogram%3Abmstu%3A01.03.02%3A%D0%98%D0%A39%3A01.03.02-01%3Asource%3A1-1/items",
+          "start": 2880.199999988079,
+          "ms": 700.8999999761581,
+          "bytes": 225307
+        },
+        {
+          "path": "/api/v1/study-plans/study_plan%3Aprogram%3Abmstu%3A01.03.03%3A%D0%A4%D0%9D3%3A01.03.03-02%3Asource%3A1-1/items",
+          "start": 2880.300000011921,
+          "ms": 709.3999999761581,
+          "bytes": 218609
+        },
+        {
+          "path": "/api/v1/study-plans/study_plan%3Aprogram%3Abmstu%3A01.03.04%3A%D0%A4%D0%9D1%3A01.03.04-03%3Asource%3A1-1/items",
+          "start": 2880.5,
+          "ms": 658.3999999761581,
+          "bytes": 217140
+        },
+        {
+          "path": "/api/v1/campaigns/campaign%3Abmstu%3A2026/offerings",
+          "start": 3156.899999976158,
+          "ms": 344.10000002384186,
+          "bytes": 44574
+        },
+        {
+          "path": "/api/v1/release",
+          "start": 3531,
+          "ms": 69,
+          "bytes": 365
+        },
+        {
+          "path": "/api/v1/study-plans/study_plan%3Aprogram%3Abmstu%3A01.03.04%3A%D0%A4%D0%9D1%3A01.03.04-03%3Asource%3A1-1/items",
+          "start": 3541.099999964237,
+          "ms": 84.20000004768372,
+          "bytes": 26396
+        },
+        {
+          "path": "/api/v1/study-plans/study_plan%3Aprogram%3Abmstu%3A01.03.02%3A%D0%98%D0%A39%3A01.03.02-01%3Asource%3A1-1/items",
+          "start": 3583.300000011921,
+          "ms": 102,
+          "bytes": 29578
+        },
+        {
+          "path": "/api/v1/study-plans/study_plan%3Aprogram%3Abmstu%3A01.03.03%3A%D0%A4%D0%9D3%3A01.03.03-02%3Asource%3A1-1/items",
+          "start": 3591.399999976158,
+          "ms": 126.19999998807907,
+          "bytes": 58530
+        },
+        {
+          "path": "/api/v1/subject-taxonomies/bmstu-subject-domain-16/v1",
+          "start": 3718.699999988079,
+          "ms": 94.69999998807907,
+          "bytes": 4063
+        },
+        {
+          "path": "/api/v1/release",
+          "start": 3818.699999988079,
+          "ms": 94.5,
+          "bytes": 365
+        }
+      ],
+      "errors": []
+    },
+    {
+      "iteration": 2,
+      "encoding": "identity",
+      "path": "/discover",
+      "readyMs": 4191.099999964237,
+      "firstContentMs": null,
+      "apiRequests": 12,
+      "apiBytes": 2191463,
+      "jsBytes": 448711,
+      "totalTransfer": 2799201,
+      "fcp": 356,
+      "cls": 0.0002762016390576775,
+      "longTasks": [],
+      "domNodes": 154,
+      "stages": [],
+      "apiWaterfall": [
+        {
+          "path": "/api/v1/release",
+          "start": 920.7999999523163,
+          "ms": 101.5,
+          "bytes": 365
+        },
+        {
+          "path": "/api/v1/programs",
+          "start": 1023.5999999642372,
+          "ms": 508.10000002384186,
+          "bytes": 454558
+        },
+        {
+          "path": "/api/v1/directions",
+          "start": 1023.6999999880791,
+          "ms": 754.5,
+          "bytes": 130820
+        },
+        {
+          "path": "/api/v1/departments",
+          "start": 1024,
+          "ms": 308.2999999523163,
+          "bytes": 113294
+        },
+        {
+          "path": "/api/v1/programs",
+          "start": 1536.699999988079,
+          "ms": 1271.3999999761581,
+          "bytes": 247887
+        },
+        {
+          "path": "/api/v1/release",
+          "start": 2811.5,
+          "ms": 101.59999996423721,
+          "bytes": 365
+        },
+        {
+          "path": "/api/v1/study-plans",
+          "start": 2915.099999964237,
+          "ms": 666.3000000119209,
+          "bytes": 532235
+        },
+        {
+          "path": "/api/v1/study-plans",
+          "start": 3585.899999976158,
+          "ms": 218,
+          "bytes": 268381
+        },
+        {
+          "path": "/api/v1/subject-taxonomies/bmstu-subject-domain-16/v1",
+          "start": 3807.699999988079,
+          "ms": 95.19999998807907,
+          "bytes": 4063
+        },
+        {
+          "path": "/api/v1/release",
+          "start": 3905.7999999523163,
+          "ms": 93.80000001192093,
+          "bytes": 365
+        },
+        {
+          "path": "/api/v1/campaigns",
+          "start": 4003.599999964237,
+          "ms": 102.10000002384186,
+          "bytes": 1462
+        },
+        {
+          "path": "/api/v1/requirements",
+          "start": 4106.699999988079,
+          "ms": 354.69999998807907,
+          "bytes": 437668
+        }
+      ],
+      "errors": []
+    },
+    {
+      "iteration": 2,
+      "encoding": "gzip",
+      "path": "/",
+      "readyMs": 1161.7999999523163,
+      "firstContentMs": null,
+      "apiRequests": 0,
+      "apiBytes": 0,
+      "jsBytes": 190090,
+      "totalTransfer": 369342,
+      "fcp": 316,
+      "cls": 0,
+      "longTasks": [
+        {
+          "start": 737.5999999642372,
+          "duration": 50
+        }
+      ],
+      "domNodes": 187,
+      "stages": [],
+      "apiWaterfall": [],
+      "errors": []
+    },
+    {
+      "iteration": 2,
+      "encoding": "gzip",
+      "path": "/programs",
+      "readyMs": 1686.300000011921,
+      "firstContentMs": 1682,
+      "apiRequests": 6,
+      "apiBytes": 141060,
+      "jsBytes": 144059,
+      "totalTransfer": 338406,
+      "fcp": 364,
+      "cls": 0,
+      "longTasks": [
+        {
+          "start": 1229.800000011921,
+          "duration": 75
+        }
+      ],
+      "domNodes": 3880,
+      "stages": [],
+      "apiWaterfall": [
+        {
+          "path": "/api/v1/release",
+          "start": 655.7000000476837,
+          "ms": 76.29999995231628,
+          "bytes": 365
+        },
+        {
+          "path": "/api/v1/programs",
+          "start": 733,
+          "ms": 269.30000001192093,
+          "bytes": 67390
+        },
+        {
+          "path": "/api/v1/directions",
+          "start": 733.2000000476837,
+          "ms": 117.09999996423721,
+          "bytes": 23921
+        },
+        {
+          "path": "/api/v1/departments",
+          "start": 733.5,
+          "ms": 155.10000002384186,
+          "bytes": 14781
+        },
+        {
+          "path": "/api/v1/programs",
+          "start": 1006.2000000476837,
+          "ms": 121.09999996423721,
+          "bytes": 34238
+        },
+        {
+          "path": "/api/v1/release",
+          "start": 1129.6000000238419,
+          "ms": 76.10000002384186,
+          "bytes": 365
+        }
+      ],
+      "errors": []
+    },
+    {
+      "iteration": 2,
+      "encoding": "gzip",
+      "path": "/compare",
+      "readyMs": 2645.5,
+      "firstContentMs": null,
+      "apiRequests": 38,
+      "apiBytes": 235743,
+      "jsBytes": 268029,
+      "totalTransfer": 569631,
+      "fcp": 296,
+      "cls": 0,
+      "longTasks": [
+        {
+          "start": 2352.300000011921,
+          "duration": 53
+        }
+      ],
+      "domNodes": 4066,
+      "stages": [
+        {
+          "name": "andromeda:comparison:stage:total",
+          "ms": 1480.699999988079
+        },
+        {
+          "name": "andromeda:comparison:stage:catalog",
+          "ms": 593.6000000238419
+        },
+        {
+          "name": "andromeda:comparison:stage:selection",
+          "ms": 0.800000011920929
+        },
+        {
+          "name": "andromeda:comparison:stage:admission",
+          "ms": 678.5
+        },
+        {
+          "name": "andromeda:comparison:stage:plans",
+          "ms": 115.89999997615814
+        },
+        {
+          "name": "andromeda:comparison:stage:items",
+          "ms": 606.6999999880791
+        },
+        {
+          "name": "andromeda:comparison:stage:taxonomy",
+          "ms": 79.5
+        },
+        {
+          "name": "andromeda:comparison:stage:curriculum-model",
+          "ms": 6.300000011920929
+        },
+        {
+          "name": "andromeda:comparison:stage:final-release-check",
+          "ms": 77.30000001192093
+        }
+      ],
+      "apiWaterfall": [
+        {
+          "path": "/api/v1/release",
+          "start": 804.8999999761581,
+          "ms": 90.20000004768372,
+          "bytes": 365
+        },
+        {
+          "path": "/api/v1/programs",
+          "start": 896.1999999880791,
+          "ms": 272.30000001192093,
+          "bytes": 67390
+        },
+        {
+          "path": "/api/v1/directions",
+          "start": 896.3999999761581,
+          "ms": 265.2000000476837,
+          "bytes": 23921
+        },
+        {
+          "path": "/api/v1/departments",
+          "start": 896.5,
+          "ms": 110.80000001192093,
+          "bytes": 14781
+        },
+        {
+          "path": "/api/v1/programs",
+          "start": 1172,
+          "ms": 133.39999997615814,
+          "bytes": 34238
+        },
+        {
+          "path": "/api/v1/release",
+          "start": 1307.3999999761581,
+          "ms": 89.30000001192093,
+          "bytes": 365
+        },
+        {
+          "path": "/api/v1/study-plans",
+          "start": 1398.800000011921,
+          "ms": 114.19999998807907,
+          "bytes": 1469
+        },
+        {
+          "path": "/api/v1/study-plans",
+          "start": 1399,
+          "ms": 107.80000001192093,
+          "bytes": 1445
+        },
+        {
+          "path": "/api/v1/study-plans",
+          "start": 1399.1000000238419,
+          "ms": 114.79999995231628,
+          "bytes": 1449
+        },
+        {
+          "path": "/api/v1/campaigns",
+          "start": 1399.300000011921,
+          "ms": 88.59999996423721,
+          "bytes": 665
+        },
+        {
+          "path": "/api/v1/campaigns/campaign%3Abmstu%3A2026/offerings",
+          "start": 1489.199999988079,
+          "ms": 132.80000001192093,
+          "bytes": 10253
+        },
+        {
+          "path": "/api/v1/campaigns/campaign%3Abmstu%3A2026/calendar",
+          "start": 1489.5,
+          "ms": 160.10000002384186,
+          "bytes": 9342
+        },
+        {
+          "path": "/api/v1/place-quotas",
+          "start": 1489.699999988079,
+          "ms": 85.40000003576279,
+          "bytes": 181
+        },
+        {
+          "path": "/api/v1/requirements",
+          "start": 1489.800000011921,
+          "ms": 177.30000001192093,
+          "bytes": 1338
+        },
+        {
+          "path": "/api/v1/competition-pools",
+          "start": 1490.1000000238419,
+          "ms": 166,
+          "bytes": 2659
+        },
+        {
+          "path": "/api/v1/statistics",
+          "start": 1490.3999999761581,
+          "ms": 174,
+          "bytes": 1582
+        },
+        {
+          "path": "/api/v1/statistics",
+          "start": 1490.5,
+          "ms": 184.5,
+          "bytes": 1190
+        },
+        {
+          "path": "/api/v1/tuition",
+          "start": 1490.6000000238419,
+          "ms": 207.69999998807907,
+          "bytes": 962
+        },
+        {
+          "path": "/api/v1/requirements",
+          "start": 1490.800000011921,
+          "ms": 263.69999998807907,
+          "bytes": 1274
+        },
+        {
+          "path": "/api/v1/competition-pools",
+          "start": 1491,
+          "ms": 292.69999998807907,
+          "bytes": 1873
+        },
+        {
+          "path": "/api/v1/statistics",
+          "start": 1491.1000000238419,
+          "ms": 299.5,
+          "bytes": 1341
+        },
+        {
+          "path": "/api/v1/statistics",
+          "start": 1491.1000000238419,
+          "ms": 301.5,
+          "bytes": 1323
+        },
+        {
+          "path": "/api/v1/tuition",
+          "start": 1491.300000011921,
+          "ms": 295.5,
+          "bytes": 977
+        },
+        {
+          "path": "/api/v1/requirements",
+          "start": 1491.5,
+          "ms": 318,
+          "bytes": 1339
+        },
+        {
+          "path": "/api/v1/competition-pools",
+          "start": 1491.5,
+          "ms": 367.5,
+          "bytes": 2528
+        },
+        {
+          "path": "/api/v1/statistics",
+          "start": 1491.699999988079,
+          "ms": 411.4000000357628,
+          "bytes": 2142
+        },
+        {
+          "path": "/api/v1/statistics",
+          "start": 1491.800000011921,
+          "ms": 419.69999998807907,
+          "bytes": 1380
+        },
+        {
+          "path": "/api/v1/tuition",
+          "start": 1491.8999999761581,
+          "ms": 398.4000000357628,
+          "bytes": 950
+        },
+        {
+          "path": "/api/v1/study-plans/study_plan%3Aprogram%3Abmstu%3A01.03.02%3A%D0%98%D0%A39%3A01.03.02-01%3Asource%3A1-1/items",
+          "start": 1514.8999999761581,
+          "ms": 445.7000000476837,
+          "bytes": 10695
+        },
+        {
+          "path": "/api/v1/study-plans/study_plan%3Aprogram%3Abmstu%3A01.03.03%3A%D0%A4%D0%9D3%3A01.03.03-02%3Asource%3A1-1/items",
+          "start": 1515,
+          "ms": 467.30000001192093,
+          "bytes": 10917
+        },
+        {
+          "path": "/api/v1/study-plans/study_plan%3Aprogram%3Abmstu%3A01.03.04%3A%D0%A4%D0%9D1%3A01.03.04-03%3Asource%3A1-1/items",
+          "start": 1515.1000000238419,
+          "ms": 511.89999997615814,
+          "bytes": 10770
+        },
+        {
+          "path": "/api/v1/campaigns/campaign%3Abmstu%3A2026/offerings",
+          "start": 1623.6000000238419,
+          "ms": 410.5,
+          "bytes": 3820
+        },
+        {
+          "path": "/api/v1/study-plans/study_plan%3Aprogram%3Abmstu%3A01.03.02%3A%D0%98%D0%A39%3A01.03.02-01%3Asource%3A1-1/items",
+          "start": 1962.6000000238419,
+          "ms": 93.39999997615814,
+          "bytes": 2292
+        },
+        {
+          "path": "/api/v1/study-plans/study_plan%3Aprogram%3Abmstu%3A01.03.03%3A%D0%A4%D0%9D3%3A01.03.03-02%3Asource%3A1-1/items",
+          "start": 1984.5,
+          "ms": 92.19999998807907,
+          "bytes": 4238
+        },
+        {
+          "path": "/api/v1/study-plans/study_plan%3Aprogram%3Abmstu%3A01.03.04%3A%D0%A4%D0%9D1%3A01.03.04-03%3Asource%3A1-1/items",
+          "start": 2029.300000011921,
+          "ms": 90.69999998807907,
+          "bytes": 2291
+        },
+        {
+          "path": "/api/v1/release",
+          "start": 2077,
+          "ms": 70,
+          "bytes": 365
+        },
+        {
+          "path": "/api/v1/subject-taxonomies/bmstu-subject-domain-16/v1",
+          "start": 2121.800000011921,
+          "ms": 78,
+          "bytes": 1268
+        },
+        {
+          "path": "/api/v1/release",
+          "start": 2207.399999976158,
+          "ms": 76.40000003576279,
+          "bytes": 365
+        }
+      ],
+      "errors": []
+    },
+    {
+      "iteration": 2,
+      "encoding": "gzip",
+      "path": "/discover",
+      "readyMs": 2211.100000023842,
+      "firstContentMs": null,
+      "apiRequests": 12,
+      "apiBytes": 239904,
+      "jsBytes": 150395,
+      "totalTransfer": 460460,
+      "fcp": 368,
+      "cls": 0.0002762016390576775,
+      "longTasks": [],
+      "domNodes": 154,
+      "stages": [],
+      "apiWaterfall": [
+        {
+          "path": "/api/v1/release",
+          "start": 757.1999999880791,
+          "ms": 88.10000002384186,
+          "bytes": 365
+        },
+        {
+          "path": "/api/v1/programs",
+          "start": 846.6000000238419,
+          "ms": 279.39999997615814,
+          "bytes": 67390
+        },
+        {
+          "path": "/api/v1/directions",
+          "start": 846.8000000119209,
+          "ms": 200,
+          "bytes": 23921
+        },
+        {
+          "path": "/api/v1/departments",
+          "start": 847.1000000238419,
+          "ms": 195,
+          "bytes": 14781
+        },
+        {
+          "path": "/api/v1/programs",
+          "start": 1130.199999988079,
+          "ms": 132.5,
+          "bytes": 34238
+        },
+        {
+          "path": "/api/v1/release",
+          "start": 1265.199999988079,
+          "ms": 88.19999998807907,
+          "bytes": 365
+        },
+        {
+          "path": "/api/v1/study-plans",
+          "start": 1355.3999999761581,
+          "ms": 183,
+          "bytes": 55226
+        },
+        {
+          "path": "/api/v1/study-plans",
+          "start": 1542.699999988079,
+          "ms": 101.19999998807907,
+          "bytes": 28238
+        },
+        {
+          "path": "/api/v1/subject-taxonomies/bmstu-subject-domain-16/v1",
+          "start": 1646.8999999761581,
+          "ms": 70.20000004768372,
+          "bytes": 1268
+        },
+        {
+          "path": "/api/v1/release",
+          "start": 1719.800000011921,
+          "ms": 68.80000001192093,
+          "bytes": 365
+        },
+        {
+          "path": "/api/v1/campaigns",
+          "start": 1791.6000000238419,
+          "ms": 75.29999995231628,
+          "bytes": 665
+        },
+        {
+          "path": "/api/v1/requirements",
+          "start": 1867.8999999761581,
+          "ms": 151.70000004768372,
+          "bytes": 13082
+        }
+      ],
+      "errors": []
+    }
+  ]
+}

@@ -6,13 +6,16 @@ import { chromium } from "playwright";
 const { values } = parseArgs({ options: {
   "base-url": { type: "string", default: "http://127.0.0.1:4181" },
   repeats: { type: "string", default: "3" },
+  paths: { type: "string", default: "/,/programs,/compare,/discover" },
   encodings: { type: "string", default: "gzip" },
   output: { type: "string", default: "test-results/site-performance.json" },
 } });
 const base = new URL(values["base-url"]);
 const repeats = Number(values.repeats);
 const encodings = values.encodings.split(",");
+const paths = values.paths.split(",");
 if (!["http:", "https:"].includes(base.protocol) || !Number.isInteger(repeats) || repeats < 1 || repeats > 10
+  || paths.some((path) => !["/", "/programs", "/compare", "/discover"].includes(path))
   || encodings.some((encoding) => !["identity", "gzip"].includes(encoding))) throw new Error("Invalid profiling arguments");
 // Exact, stable identities used by the 2026-10-20 investigation; no fuzzy joins.
 const programKeys = [
@@ -36,8 +39,8 @@ try {
   for (let iteration = 0; iteration < repeats; iteration += 1) {
     // Alternate compression order to reduce a fixed-order bias in A/B runs.
     const modes = iteration % 2 ? [...encodings].reverse() : encodings;
-    for (const encoding of modes) for (const path of ["/", "/programs", "/compare", "/discover"]) {
-      const context = await browser.newContext({ viewport: results.viewport });
+    for (const encoding of modes) for (const path of paths) {
+      const context = await browser.newContext({ viewport: results.viewport, extraHTTPHeaders: { "Accept-Encoding": encoding } });
       try {
         await context.addInitScript((keys) => {
           localStorage.setItem("andromeda.compare.v1", JSON.stringify(keys));
@@ -49,9 +52,6 @@ try {
         const page = await context.newPage();
         const errors = [];
         page.on("pageerror", (error) => errors.push(error.message));
-        const session = await context.newCDPSession(page);
-        await session.send("Network.enable");
-        await session.send("Network.setAcceptedEncodings", { encodings: encoding === "identity" ? [] : ["gzip", "deflate"] });
         await page.goto(new URL(path, base).href, { waitUntil: "domcontentloaded" });
         let firstContentMs = null;
         if (path === "/programs") {
@@ -76,6 +76,8 @@ try {
             totalTransfer: sum(resources, "transferSize"), fcp: performance.getEntriesByName("first-contentful-paint")[0]?.startTime,
             cls: window.__siteProfile.cls, longTasks: window.__siteProfile.longTasks, domNodes: document.querySelectorAll("*").length,
             stages: performance.getEntriesByType("measure").filter((m) => m.name.startsWith("andromeda:")).map((m) => ({ name: m.name, ms: m.duration })),
+            navigation: performance.getEntriesByType("navigation").map((r) => r.toJSON()),
+            resourceWaterfall: resources.map((r) => ({ path: new URL(r.name).pathname, start: r.startTime, ms: r.duration, dns: r.domainLookupEnd - r.domainLookupStart, connect: r.connectEnd - r.connectStart, ttfb: r.responseStart - r.requestStart, download: r.responseEnd - r.responseStart, bytes: r.encodedBodySize })),
             apiWaterfall: api.map((r) => ({ path: new URL(r.name).pathname, start: r.startTime, ms: r.duration, bytes: r.encodedBodySize })) };
         });
         const sample = { iteration, encoding, path, readyMs, firstContentMs, ...metrics, errors };
