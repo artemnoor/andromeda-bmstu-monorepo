@@ -26,3 +26,12 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+## PDF export
+
+PDF export uses jsPDF (MIT, https://github.com/parallax/jsPDF) and
+jsPDF-AutoTable (MIT, https://github.com/simonbengtsson/jsPDF-AutoTable).
+Their license files are distributed with the installed npm packages.
+Noto Sans Regular/Bold: Copyright 2018 The Noto Project Authors.
+Source: https://github.com/notofonts/noto-fonts/tree/main/hinted/ttf/NotoSans
+Licensed under SIL Open Font License 1.1; full license: public/assets/fonts/OFL.txt.

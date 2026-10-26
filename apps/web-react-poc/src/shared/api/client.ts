@@ -8,7 +8,9 @@ const REQUEST_TIMEOUT_MS = 15_000;
 const client = createClient<paths>({
   // Empty means same-origin `/api/v1`, which the local Vite proxy forwards to FastAPI.
   // Set VITE_API_BASE_URL to an API origin (without `/api/v1`) for a separate origin.
-  baseUrl: (import.meta.env.VITE_API_BASE_URL ?? "").replace(/\/$/, ""),
+  baseUrl: (import.meta.env.SSR
+    ? process.env.SEO_API_ORIGIN ?? "https://andromedabmstu.ru"
+    : import.meta.env.VITE_API_BASE_URL ?? "").replace(/\/$/, ""),
 });
 
 export type ApiSchemas = components["schemas"];

@@ -1,0 +1,76 @@
+.panel { position: relative; padding: 0; border: 0; border-radius: 0; background: transparent; }
+.searchRow { display: flex; gap: 12px; align-items: stretch; }
+.searchArea { position: relative; flex: 1; min-width: 0; z-index: 3; }
+.searchBox { display: flex; min-height: 80px; align-items: center; gap: 18px; padding: 10px 12px 10px 22px; border: 1px solid var(--line); border-radius: 16px; background: var(--site-bg); transition: border-color 180ms ease, box-shadow 180ms ease; }
+.searchBox:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.searchIcon { flex: 0 0 24px; width: 24px; height: 24px; color: var(--accent); }
+.inputWrap { flex: 1; min-width: 0; }
+.inputWrap label { display: block; margin-bottom: 6px; color: var(--text-muted); font-size: 11px; line-height: 1.3; }
+.inputWrap input { display: block; width: 100%; min-width: 0; padding: 0; border: 0; outline: 0; border-radius: 0; color: var(--text); background: transparent; font: inherit; font-size: clamp(16px, 1.7vw, 22px); line-height: 1.4; }
+.inputWrap input::placeholder { color: var(--text-muted); opacity: .8; }
+.inputWrap input::-webkit-search-cancel-button { display: none; }
+.inputWrap input:focus-visible { outline: none; }
+.clear { display: grid; flex: 0 0 44px; width: 44px; height: 44px; place-items: center; padding: 0; border: 0; border-radius: 50%; color: var(--text-muted); background: transparent; cursor: pointer; }
+.clear svg { width: 22px; height: 22px; }
+.clear:hover { background: var(--surface-hover); color: var(--text); }
+.filterToggle { display: inline-flex; flex-shrink: 0; align-items: center; justify-content: center; gap: 10px; min-height: 56px; padding: 0 22px; border: 1px solid var(--line); border-radius: 16px; color: var(--text); background: var(--surface-raised); font: inherit; font-size: 15px; cursor: pointer; transition: background-color 160ms ease, border-color 160ms ease; }
+.filterToggle:hover, .filterToggle[aria-expanded="true"] { border-color: var(--accent-line); background: var(--accent-soft); }
+.filterToggle > svg { width: 22px; height: 22px; }
+.filterToggle .chevron { width: 16px; transition: transform 220ms cubic-bezier(.2,.7,.2,1); }
+.chevron[data-open="true"] { transform: rotate(180deg); }
+.badge { display: grid; min-width: 22px; height: 22px; padding-inline: 4px; place-items: center; border-radius: 7px; color: var(--site-bg); background: var(--accent); font-size: 12px; font-weight: 600; }
+.hint { margin: 12px 0 0; color: var(--text-muted); font-size: 12px; line-height: 1.7; }
+.hint button { min-height: 32px; padding: 0; border: 0; color: var(--text); background: transparent; font: inherit; text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 4px; cursor: pointer; }
+.hint button:hover { color: var(--accent); }
+.suggestions { position: absolute; top: calc(100% + 8px); inset-inline: 0; padding: 8px; border: 1px solid var(--line); border-radius: 16px; background: var(--surface-raised); box-shadow: 0 18px 44px rgb(0 0 0 / 35%); animation: arrive 160ms cubic-bezier(.16,1,.3,1) both; }
+.suggestionHeading { display: flex; justify-content: space-between; gap: 12px; margin: 0; padding: 9px 12px 12px; color: var(--text-muted); font-size: 11px; }
+.suggestionHeading span { opacity: .7; }
+.suggestions ul { display: grid; gap: 3px; max-height: min(410px, 45svh); margin: 0; padding: 0; overflow-y: auto; overscroll-behavior: contain; list-style: none; }
+.suggestion { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 5px 16px; padding: 12px; border-radius: 10px; cursor: pointer; }
+.suggestion:hover, .suggestion[aria-selected="true"] { background: var(--surface-hover); }
+.suggestionKind { grid-column: 1; color: var(--accent); font-size: 10px; }
+.suggestionTitle { grid-row: 2; min-width: 0; color: var(--text); font-size: 14px; line-height: 1.4; overflow-wrap: anywhere; }
+.suggestionTitle mark { color: var(--accent); background: transparent; font-weight: 600; }
+.suggestionDetail { grid-row: 1; grid-column: 2; max-width: 210px; color: var(--text-muted); font-size: 10px; line-height: 1.4; text-align: right; }
+.filterReveal { display: grid; grid-template-rows: 0fr; visibility: hidden; opacity: 0; transition: grid-template-rows 260ms cubic-bezier(.2,.7,.2,1), opacity 180ms ease, visibility 260ms; }
+.filterReveal[data-open="true"] { grid-template-rows: 1fr; visibility: visible; opacity: 1; }
+.filterClip { min-height: 0; overflow: hidden; }
+.filters { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; margin-top: 18px; padding-top: 22px; border-top: 1px solid var(--line); }
+.filterIntro { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px 20px; }
+.filterIntro strong { color: var(--text); font-size: 16px; font-weight: 500; }
+.filterIntro span, .filterNote { color: var(--text-muted); font-size: 12px; line-height: 1.5; }
+.filterField { display: grid; min-width: 0; gap: 9px; color: var(--text-muted); font-size: 12px; }
+.filterField select { width: 100%; min-width: 0; min-height: 52px; padding: 10px 36px 10px 14px; border: 1px solid var(--line); border-radius: 12px; color: var(--text); background: var(--surface-raised); font: inherit; font-size: 14px; text-overflow: ellipsis; cursor: pointer; color-scheme: dark; }
+.filterField select:focus { border-color: var(--accent); outline: 2px solid var(--accent-soft); outline-offset: 2px; }
+.filterNote { grid-column: 1 / -1; margin: -4px 0 0; }
+.selection { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 18px; }
+.chip { display: inline-flex; align-items: center; justify-content: space-between; gap: 16px; max-width: 100%; min-height: 48px; padding: 10px 12px; border: 1px solid var(--accent-line); border-radius: 12px; color: var(--text); background: var(--accent-soft); font: inherit; text-align: left; font-size: 12px; line-height: 1.4; cursor: pointer; animation: arrive 200ms cubic-bezier(.16,1,.3,1) both; }
+.chip > span { min-width: 0; overflow-wrap: anywhere; }
+.chip small { display: block; margin-bottom: 2px; color: var(--text-muted); font-size: 10px; }
+.chip svg { flex: 0 0 20px; width: 20px; height: 20px; color: var(--accent); }
+.chip:hover { border-color: var(--accent); }
+.reset { min-height: 44px; padding: 0 6px; border: 0; color: var(--text-muted); background: transparent; font: inherit; font-size: 12px; text-decoration: underline; text-underline-offset: 4px; cursor: pointer; }
+.reset:hover { color: var(--text); }
+.panel button:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
+@keyframes arrive { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+@media (max-width: 700px) {
+  .panel { padding: 0; border-radius: 0; }
+  .searchRow { flex-wrap: wrap; gap: 10px; }
+  .searchArea { flex-basis: 100%; }
+  .searchBox { min-height: 76px; padding-left: 14px; gap: 12px; }
+  .searchIcon { flex-basis: 20px; width: 20px; height: 20px; }
+  .inputWrap input { font-size: 16px; }
+  .filterToggle { min-height: 46px; padding-inline: 14px; border-radius: 12px; font-size: 14px; }
+  .hint { font-size: 12px; margin-top: 10px; }
+  .hint button { min-height: 44px; }
+  .filters { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  .filterField select { font-size: 16px; }
+  .suggestion { padding: 12px 10px; gap: 6px; }
+  .suggestionHeading span { display: none; }
+  .suggestionTitle { grid-column: 1 / -1; }
+  .suggestionDetail { max-width: 145px; }
+  .chip { width: 100%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .panel *, .panel *::before, .panel *::after { animation: none !important; transition: none !important; }
+}

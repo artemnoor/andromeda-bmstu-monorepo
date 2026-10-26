@@ -1,16 +1,31 @@
-import { Profiler, useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type ProfilerOnRenderCallback } from "react";
-import { Link } from "react-router";
-import { Bar, BarChart, Pie, PieChart, ResponsiveContainer, Sector, Tooltip, XAxis, YAxis, type PieSectorShapeProps, type TooltipContentProps } from "recharts";
+import { lazy, Suspense, Profiler, useEffect, useMemo, useRef, useState, type CSSProperties, type ProfilerOnRenderCallback } from "react";
+import { Link, useSearchParams } from "react-router";
+import { ShareActions } from "@/shared/sharing/share-actions";
+import { ScreenLoader } from "@/shared/ui/screen-loader";
+import { absoluteLink, comparisonKeys, comparisonPath } from "@/shared/sharing/links";
+import { comparisonReport } from "@/shared/sharing/report-model";
 import { AndromedaHeader } from "@/widgets/andromeda-navigation/andromeda-header";
-import { useComparisonSelection } from "@/shared/browser-state/hooks";
+import { useComparisonSelection, useHydrated } from "@/shared/browser-state/hooks";
 import { comparisonSelection } from "@/shared/browser-state/hooks";
 import { loadProgramComparison, type ComparisonOverview, type ComparisonSelection, type LoadedProgramComparison } from "@/features/comparison/api";
-import { buildDonutSegments } from "@/features/comparison/chart-data";
-import type { CategoryWorkload, ComparisonCurriculumItem, NullableMetric, ProgramComparisonModel } from "@/features/comparison/model";
-import { AdmissionEnrollmentTable, AdmissionExams, AdmissionScoreTable, ProgramEducationTable } from "@/features/catalog/admission-facts";
+import type { ProgramComparisonModel } from "@/features/comparison/model";
+import { AdmissionEnrollmentTable, AdmissionExams, AdmissionScoreTable, AdmissionPlacesTable, ProgramEducationTable, AdmissionFreshness } from "@/features/catalog/admission-facts";
+import { ProgramIdentity, programDepartment } from "@/features/catalog/program-identity";
 import admissionStyles from "@/features/catalog/admission-facts.module.css";
 import { AcademicReleaseMismatchError } from "@/shared/api/client";
+import { CategoryChart, buildComparisonCategories, percentage, classificationIsComplete, type ComparisonCategory } from "@/features/comparison/category-chart";
+import { MatrixCourseEntry, MatrixMissingCell } from "@/features/comparison/matrix-course-entry";
+import { formatMetric, SERIES_COLORS } from "@/features/comparison/presentation";
 import styles from "@/features/comparison/comparison.module.css";
+import { pageMeta } from "@/shared/seo";
+import { ProgramPicker } from "@/features/comparison/program-picker";
+import { trackEvent } from "@/shared/analytics/analytics";
+
+const WorkloadChart = lazy(() => import("@/features/comparison/workload-chart"));
+
+export function meta() {
+  return pageMeta("/compare");
+}
 
 type ComparisonLoadState =
   | { readonly signature: string; readonly kind: "ready"; readonly data: LoadedProgramComparison }
@@ -23,12 +38,6 @@ type ComparisonLoadState =
       readonly recovery: "retry" | "reload";
     };
 
-const SERIES_COLORS = ["#8dedf9", "#d9b8fe", "#edcf96"] as const;
-const CATEGORY_COLORS = [
-  "#8dedf9", "#a5d6b2", "#edcf96", "#d9b8fe", "#e9a4b0", "#79b8ca", "#adb7cd", "#bdd58e",
-  "#e8ae83", "#93adf0", "#dda2d3", "#c9cb91", "#90bfdc", "#d2b19b", "#b5a6cf", "#8ec5b7",
-] as const;
-
 const recordComparisonProfile: ProfilerOnRenderCallback = (
   id,
   phase,
@@ -40,15 +49,6 @@ const recordComparisonProfile: ProfilerOnRenderCallback = (
   const samples = window.__andromedaReactProfileSamples ??= [];
   samples.push({ id, phase, actualDuration, baseDuration, startTime, commitTime });
 };
-
-function colorFor(index: number): string {
-  return CATEGORY_COLORS[index % CATEGORY_COLORS.length] ?? CATEGORY_COLORS[0];
-}
-
-function formatMetric(metric: NullableMetric, unit: string): string {
-  if (metric.count === 0) return "—";
-  return `${new Intl.NumberFormat("ru-RU", { maximumFractionDigits: unit === "з.е." ? 1 : 0 }).format(metric.value)} ${unit}`;
-}
 
 function planStatusMessage(program: ProgramComparisonModel): string {
   if (program.itemsStatus === "unavailable") return "Состав подтверждённого плана не удалось полностью загрузить.";
@@ -75,15 +75,17 @@ function planStatusMessage(program: ProgramComparisonModel): string {
 function SelectionCards({
   selectedKeys,
   data,
+  onSelectionChange,
 }: {
   selectedKeys: readonly string[];
   data: ComparisonSelection | null;
+  onSelectionChange: (keys: readonly string[]) => ReturnType<typeof comparisonSelection.set>;
 }) {
   const [storageUnavailable, setStorageUnavailable] = useState(false);
   const found = data?.programs ?? [];
 
   function saveSelection(nextKeys: readonly string[]) {
-    setStorageUnavailable(comparisonSelection.set(nextKeys) === "unavailable");
+    setStorageUnavailable(onSelectionChange(nextKeys) === "unavailable");
   }
 
   function removeProgram(programKey: string, code: string) {
@@ -99,10 +101,10 @@ function SelectionCards({
           <p className={styles.selectionCount}>{selectedKeys.length} из 3 можно сравнить одновременно</p>
         </div>
         <div className={styles.selectionActions}>
-          <Link className={styles.button} to="/programs">Изменить выбор</Link>
+          <Link viewTransition className={styles.button} to="/programs">Изменить выбор</Link>
         </div>
       </div>
-      {storageUnavailable ? <p className={styles.warning} role="alert">Не удалось сохранить выбор в хранилище браузера. Список не изменён.</p> : null}
+      {storageUnavailable ? <p className={styles.warning} role="alert">Не удалось сохранить выбор в браузере. Сохрани ссылку на сравнение, чтобы вернуться к нему.</p> : null}
       <div className={styles.selectionList}>
         {data === null ? selectedKeys.map((key) => <article className={`${styles.selectionCard} ${styles.selectionPlaceholder}`} key={`loading:${key}`} aria-hidden="true">
           <div><span /><span /><span /></div>
@@ -112,6 +114,7 @@ function SelectionCards({
             <div className={styles.selectionCopy}>
               <span>{program.code || "Код не указан"}</span>
               <strong>{program.name || "Название не указано"}</strong>
+              <p className={styles.selectionDepartment}>{programDepartment(program)}</p>
             </div>
             <button className={styles.removeButton} type="button" aria-label={`Убрать программу ${program.code} из сравнения`} onClick={() => removeProgram(program.external_key, program.code)}>×</button>
           </article>
@@ -142,325 +145,17 @@ function AdmissionComparison({ data }: { data: ComparisonOverview }) {
     <section className={`${styles.section} ${admissionStyles.stack}`} id="admission" aria-labelledby="admission-title"
       data-qa="admission-summary" data-unavailable-count={data.admissionUnavailable.size}>
       <div className={styles.sectionHeading}><div><h2 id="admission-title">Поступление</h2></div></div>
+      {years.map((year) => <AdmissionFreshness key={`freshness:${year}`} year={year} />)}
       <ProgramEducationTable columns={columns} />
+      {years.map((year) => <AdmissionPlacesTable key={`places:${year}`} columns={columns} year={year} />)}
       {years.map((year) => <AdmissionEnrollmentTable key={`enrollment:${year}`} columns={columns} year={year} />)}
       {years.map((year) => <AdmissionScoreTable key={year} columns={columns} year={year} />)}
       {!years.length ? <p className={styles.warning}>Не удалось загрузить результаты приёма. Повторите загрузку.</p> : null}
       <div className={styles.sectionHeading}><div><h2>Необходимые экзамены</h2></div></div>
       <div className={admissionStyles.programExams}>{columns.map((column) => <section key={column.key}>
-        <h3>{column.label}</h3><AdmissionExams summary={column.summary} />
+        <h3><ProgramIdentity program={column.program} /></h3><AdmissionExams summary={column.summary} />
       </section>)}</div>
     </section>
-  );
-}
-
-interface WorkloadTooltipRow {
-  readonly label: string;
-  readonly color: string;
-  readonly value: number | null;
-  readonly text: string;
-}
-
-interface WorkloadChartPoint {
-  [key: string]: unknown;
-  readonly semester: string;
-  readonly tooltipRows: readonly WorkloadTooltipRow[];
-}
-
-function WorkloadTooltip(props: TooltipContentProps) {
-  const point = props.payload?.[0]?.payload as WorkloadChartPoint | undefined;
-  if (!props.active || !point) return null;
-  return (
-    <div className={styles.workloadTooltip} role="status">
-      <strong>{point.semester}</strong>
-      {point.tooltipRows.map((row) => (
-        <div className={styles.workloadTooltipRow} key={row.label}>
-          <span className={styles.workloadTooltipSwatch} style={{ "--series-color": row.color } as CSSProperties} aria-hidden="true" />
-          <span>{row.label}</span>
-          <strong>{row.text}</strong>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function WorkloadChart({ data }: { data: LoadedProgramComparison }) {
-  const unit = "ч.";
-  const semesters = [...new Map(data.curriculum.programs.flatMap((program) => program.semesters).map((semester) => [semester.key, semester])).values()]
-    .sort((left, right) => {
-      if (left.semester === null) return right.semester === null ? 0 : 1;
-      if (right.semester === null) return -1;
-      return left.semester - right.semester;
-    });
-  const chartData = semesters.map((semester): WorkloadChartPoint => {
-    const tooltipRows = data.curriculum.programs.map((program, index): WorkloadTooltipRow => {
-      const value = program.semesters.find((item) => item.key === semester.key)?.hours;
-      const hasValue = (value?.count ?? 0) > 0;
-      return {
-        label: data.programs[index]?.code || program.programKey,
-        color: SERIES_COLORS[index % SERIES_COLORS.length] ?? SERIES_COLORS[0],
-        value: hasValue && value ? value.value : null,
-        text: hasValue && value ? formatMetric(value, unit) : "Нет данных",
-      };
-    });
-    const point: WorkloadChartPoint = {
-      semester: semester.semester === null ? "Семестр не указан" : `${semester.semester} семестр`,
-      tooltipRows,
-    };
-    tooltipRows.forEach((row, index) => { point[`series-${index}`] = row.value; });
-    return point;
-  });
-  const chartHeight = Math.max(260, semesters.length * (data.programs.length * 18 + 18) + 64);
-
-  return (
-    <section className={styles.section} id="workload" aria-labelledby="workload-title">
-      <div className={styles.workloadPanel}>
-        <div className={styles.panelHead}>
-          <div><h2 className={styles.workloadTitle} id="workload-title">Нагрузка по семестрам</h2><p>Часы по семестрам для выбранных программ.</p></div>
-        </div>
-        <div className={styles.workloadLegend}>
-          {data.programs.map((program, index) => <span className={styles.legendItem} key={program.external_key}><span className={styles.legendDot} style={{ "--series-color": SERIES_COLORS[index % SERIES_COLORS.length] } as CSSProperties} aria-hidden="true" /><strong>{program.code || program.name}</strong></span>)}
-        </div>
-        {chartData.length ? (
-          <div className={styles.workloadChart} role="group" aria-label="Сравнение нагрузки по семестрам">
-            <ResponsiveContainer width="100%" height={chartHeight}>
-              <BarChart accessibilityLayer data={chartData} layout="vertical" margin={{ left: 0, right: 16, top: 8, bottom: 8 }} barGap={4} barCategoryGap="22%">
-                <YAxis dataKey="semester" type="category" tickLine={false} tickMargin={10} axisLine={false} width={132} interval={0} tick={{ fill: "var(--text-muted)", fontSize: 11 }} />
-                <XAxis type="number" domain={[0, "dataMax"]} hide />
-                <Tooltip cursor={false} content={WorkloadTooltip} />
-                {data.programs.map((program, index) => (
-                  <Bar key={program.external_key} dataKey={`series-${index}`} name={program.code || program.name} fill={SERIES_COLORS[index % SERIES_COLORS.length]} radius={5} maxBarSize={16} />
-                ))}
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        ) : <p className={styles.workloadEmpty}>В выбранных программах нет доступных данных о семестрах.</p>}
-      </div>
-    </section>
-  );
-}
-
-interface ComparisonCategory {
-  readonly key: string;
-  readonly categoryCode: string | null;
-  readonly name: string;
-  readonly color: string;
-  readonly workloads: ReadonlyMap<string, CategoryWorkload>;
-}
-
-interface DonutChartDatum {
-  readonly key: string;
-  readonly name: string;
-  readonly categoryCode: string | null;
-  readonly hours: number;
-  readonly plotValue: number;
-  readonly color: string;
-  readonly kind: "category" | "remainder" | "empty";
-}
-
-function percentage(value: number, total: number, hasData: boolean): string {
-  if (!hasData || total <= 0) return "—";
-  if (value === 0) return "0%";
-  const rounded = Math.round(value / total * 100);
-  return rounded < 1 ? "<1%" : String(rounded) + "%";
-}
-
-function wrapCenterLabel(value: string): readonly string[] {
-  const lines: string[] = [];
-  let line = "";
-  for (const word of value.split(/\s+/)) {
-    const next = line ? line + " " + word : word;
-    if (next.length > 16 && line) {
-      lines.push(line);
-      line = word;
-    } else {
-      line = next;
-    }
-  }
-  if (line) lines.push(line);
-  if (lines.length <= 3) return lines;
-  return [lines[0] ?? "", lines[1] ?? "", (lines[2] ?? "").slice(0, 13) + "…"];
-}
-
-function classificationIsComplete(program: ProgramComparisonModel, taxonomyUnavailable: boolean): boolean {
-  return !taxonomyUnavailable
-    && program.itemsStatus === "loaded"
-    && program.items.length > 0
-    && program.items.every((item) => item.classification !== null);
-}
-
-function CategoryChart({
-  program,
-  programCode,
-  programName,
-  programIndex,
-  categories,
-  activeKey,
-  taxonomyUnavailable,
-  onSelect,
-}: {
-  program: ProgramComparisonModel;
-  programCode: string;
-  programName: string;
-  programIndex: number;
-  categories: readonly ComparisonCategory[];
-  activeKey: string | null;
-  taxonomyUnavailable: boolean;
-  onSelect: (key: string) => void;
-}) {
-  const total = program.total.hours;
-  const circumference = 2 * Math.PI * 75;
-  const programComplete = classificationIsComplete(program, taxonomyUnavailable);
-  const segments = buildDonutSegments(
-    categories,
-    (category) => category.workloads.get(program.programKey)?.hours,
-    total.value,
-    circumference,
-  );
-  const activeCategory = categories.find((category) => category.key === activeKey);
-  const activeWorkload = activeCategory?.workloads.get(program.programKey);
-  const knownZero = Boolean(activeCategory && !activeWorkload && programComplete && total.count > 0);
-  const activeValue = activeWorkload?.hours.value ?? 0;
-  const hasActiveValue = Boolean(activeWorkload?.hours.count) || knownZero;
-  const chartData = useMemo<readonly DonutChartDatum[]>(() => {
-    const classifiedHours = segments.reduce((sum, segment) => sum + segment.value.value, 0);
-    const scale = classifiedHours > total.value && classifiedHours > 0 ? total.value / classifiedHours : 1;
-    const entries: DonutChartDatum[] = segments.map(({ category, value }) => ({
-      key: category.key,
-      name: category.name,
-      categoryCode: category.categoryCode,
-      hours: value.value,
-      plotValue: value.value * scale,
-      color: category.color,
-      kind: "category",
-    }));
-    const plottedHours = entries.reduce((sum, entry) => sum + entry.plotValue, 0);
-    const remainder = Math.max(0, total.value - plottedHours);
-    if (remainder > 0) {
-      entries.push({
-        key: "remainder",
-        name: "Часы вне подтверждённых категорий",
-        categoryCode: null,
-        hours: remainder,
-        plotValue: remainder,
-        color: "#45484e",
-        kind: "remainder",
-      });
-    }
-    if (!entries.some((entry) => entry.plotValue > 0)) {
-      return [{
-        key: "empty",
-        name: total.count ? "Нет подтверждённых часов по категориям" : "Нет числовых данных",
-        categoryCode: null,
-        hours: 0,
-        plotValue: 1,
-        color: "#45484e",
-        kind: "empty",
-      }];
-    }
-    return entries;
-  }, [segments, total.count, total.value]);
-
-  function activate(event: KeyboardEvent<SVGPathElement>, categoryKey: string) {
-    if (event.key === "Enter" || event.key === " ") {
-      event.preventDefault();
-      onSelect(categoryKey);
-    }
-  }
-
-  function renderSector(props: PieSectorShapeProps) {
-    const datum = props.payload as DonutChartDatum;
-    const isCategory = datum.kind === "category";
-    const isSelected = isCategory && datum.key === activeKey;
-    const isExpanded = isSelected || props.isActive;
-    const chartEvents = {
-      ...(props.onMouseEnter ? { onMouseEnter: props.onMouseEnter } : {}),
-      ...(props.onMouseLeave ? { onMouseLeave: props.onMouseLeave } : {}),
-      ...(props.onMouseMove ? { onMouseMove: props.onMouseMove } : {}),
-      ...(props.onMouseOver ? { onMouseOver: props.onMouseOver } : {}),
-      ...(props.onMouseOut ? { onMouseOut: props.onMouseOut } : {}),
-    };
-    const activeExpansion = Math.min(4, (props.outerRadius ?? 0) * 0.06);
-    return (
-      <Sector
-        cx={props.cx}
-        cy={props.cy}
-        innerRadius={props.innerRadius}
-        startAngle={props.startAngle}
-        endAngle={props.endAngle}
-        fill={datum.color}
-        {...chartEvents}
-        className={styles.donutSector + (isSelected ? " " + styles.donutSectorSelected : "")}
-        outerRadius={(props.outerRadius ?? 0) + (isExpanded ? activeExpansion : 0)}
-        cornerRadius={0}
-        stroke="none"
-        strokeWidth={0}
-        role={isCategory ? "button" : "presentation"}
-        tabIndex={isCategory ? 0 : -1}
-        aria-label={isCategory ? `${datum.name}: ${formatMetric({ value: datum.hours, count: 1 }, "ч.")}, ${percentage(datum.hours, total.value, true)}` : undefined}
-        aria-pressed={isCategory ? isSelected : undefined}
-        data-chart-category-code={isCategory ? datum.categoryCode ?? "unclassified" : undefined}
-        data-chart-hours={isCategory ? String(datum.hours) : undefined}
-        data-chart-start-angle={props.startAngle}
-        data-chart-end-angle={props.endAngle}
-        data-chart-padding-angle={props.paddingAngle ?? 0}
-        data-chart-slice-count={chartData.length}
-        {...(isCategory ? {
-          onKeyDown: (event: KeyboardEvent<SVGPathElement>) => activate(event, datum.key),
-          onClick: () => onSelect(datum.key),
-        } : {})}
-      />
-    );
-  }
-
-  return (
-    <article
-      className={styles.categoryCard}
-      data-qa="category-chart-card"
-      data-program-key={program.programKey}
-      data-plan-key={program.planSelection.currentPlan?.external_key ?? ""}
-      data-item-count={program.items.length}
-      data-total-hours={total.count ? String(total.value) : ""}
-      data-total-credits={program.total.credits.count ? String(program.total.credits.value) : ""}
-    >
-      <header className={styles.chartCardHeader} style={{ "--program-color": SERIES_COLORS[programIndex % SERIES_COLORS.length] } as CSSProperties}>
-        <span className={styles.chartCardCode} data-qa="category-program-code">{programCode || "Код не указан"}</span>
-        <h3 className={styles.chartCardTitle}>{programName}</h3>
-        <p className={styles.chartCardDescription}>Структура учебной нагрузки по предметным категориям</p>
-      </header>
-      <div className={styles.chartCardContent}>
-        <div className={styles.donutWrap} role="group" aria-label={"Распределение программы " + (programCode || programName) + " по категориям" + (total.count ? ", " + formatMetric(total, "ч.") : "")}>
-          <ResponsiveContainer className={styles.donut ?? ""} width="100%" height="100%">
-            <PieChart>
-              <Pie
-                data={chartData}
-                dataKey="plotValue"
-                nameKey="name"
-                innerRadius="58%"
-                outerRadius="82%"
-                paddingAngle={0}
-                strokeWidth={0}
-                cornerRadius={0}
-                shape={renderSector}
-                isAnimationActive={false}
-              >
-              </Pie>
-            </PieChart>
-          </ResponsiveContainer>
-          <div className={styles.donutCenter} aria-live="polite">
-            <strong className={styles.donutCenterValue} data-qa="category-chart-center-value">
-              {percentage(activeValue, total.value, hasActiveValue && total.count > 0)}
-            </strong>
-            <span className={styles.donutCenterLabel} data-qa="category-chart-center-label">
-              {wrapCenterLabel(activeCategory?.name ?? (total.count ? "Выберите категорию" : "Нет числовых данных")).map((line, index) => <span key={index}>{line}</span>)}
-            </span>
-          </div>
-        </div>
-      </div>
-      {program.items.length > 0 && program.total.hours.count < program.items.length
-        ? <p className={styles.categoryFootnote}>У части дисциплин часы не указаны. Доли рассчитаны по опубликованным значениям.</p>
-        : null}
-    </article>
   );
 }
 
@@ -468,39 +163,7 @@ function CategoryComparison({ data }: { data: LoadedProgramComparison }) {
   const [activeKey, setActiveKey] = useState<string | null>(null);
   const [detailKey, setDetailKey] = useState<string | null>(null);
   const dialogRef = useRef<HTMLDialogElement>(null);
-  const categories = useMemo(() => {
-    const found = new Map<string, { key: string; categoryCode: string | null; name: string }>();
-    for (const category of data.curriculum.taxonomyCategories) {
-      found.set("code:" + category.category_code, {
-        key: "code:" + category.category_code,
-        categoryCode: category.category_code,
-        name: category.name,
-      });
-    }
-    for (const program of data.curriculum.programs) {
-      for (const category of program.categories) {
-        if (!found.has(category.key)) found.set(category.key, {
-          key: category.key,
-          categoryCode: category.categoryCode,
-          name: category.name,
-        });
-      }
-    }
-    const ordered = [...found.values()].sort((left, right) => {
-      if (left.categoryCode === null) return right.categoryCode === null ? 0 : 1;
-      if (right.categoryCode === null) return -1;
-      const codeOrder = (Number(left.categoryCode) || 0) - (Number(right.categoryCode) || 0);
-      return codeOrder || left.name.localeCompare(right.name, "ru");
-    });
-    return ordered.map((category, index) => ({
-      ...category,
-      color: category.categoryCode === null ? "#b9c3cf" : colorFor(index),
-      workloads: new Map(data.curriculum.programs.flatMap((program) => {
-        const workload = program.categories.find((candidate) => candidate.key === category.key);
-        return workload ? [[program.programKey, workload] as const] : [];
-      })),
-    }));
-  }, [data.curriculum.programs, data.curriculum.taxonomyCategories]);
+  const categories = useMemo(() => buildComparisonCategories(data), [data]);
   const defaultCategoryKey = useMemo(() => {
     const aggregate = (category: ComparisonCategory) => [...category.workloads.values()]
       .reduce((sum, workload) => sum + workload.hours.value, 0);
@@ -545,6 +208,7 @@ function CategoryComparison({ data }: { data: LoadedProgramComparison }) {
               program={program}
               programCode={data.programs.find((candidate) => candidate.external_key === program.programKey)?.code ?? ""}
               programName={data.programs.find((candidate) => candidate.external_key === program.programKey)?.name ?? "Программа"}
+              department={(() => { const selected = data.programs.find((candidate) => candidate.external_key === program.programKey); return selected ? programDepartment(selected) : "Кафедра не подтверждена"; })()}
               programIndex={index}
               categories={categories}
               activeKey={selectedCategoryKey}
@@ -579,7 +243,7 @@ function CategoryComparison({ data }: { data: LoadedProgramComparison }) {
           <div className={styles.categoryDistributionWrap}>
             <table className={styles.table + " " + styles.categoryDistributionTable}>
               <caption className={styles.srOnly}>Сравнение учебных часов по категориям предметов.</caption>
-              <thead><tr><th scope="col">Категория предмета</th>{data.programs.map((program) => <th scope="col" key={program.external_key}><div className={styles.categoryProgramHead}><span className={styles.categoryProgramCode}>{program.code || "Код не указан"}</span><span className={styles.categoryProgramName}>{program.name || "Название не указано"}</span></div></th>)}</tr></thead>
+              <thead><tr><th scope="col">Категория предмета</th>{data.programs.map((program) => <th scope="col" key={program.external_key}><ProgramIdentity program={program} /></th>)}</tr></thead>
               <tbody>{displayCategories.length ? displayCategories.map((category) => (
                 <tr key={category.key} data-qa="category-distribution-row" data-category={category.name} style={{ "--category-color": category.color } as CSSProperties}>
                   <th scope="row"><span className={styles.categoryRowName}><span className={styles.categoryRowDot} aria-hidden="true" />{category.name}</span></th>
@@ -637,7 +301,7 @@ function CategoryComparison({ data }: { data: LoadedProgramComparison }) {
               const programData = data.programs.find((candidate) => candidate.external_key === program.programKey);
               const items = workload?.items ?? [];
               return <section className={styles.categoryDialogColumn} key={program.programKey} style={{ "--category-color": SERIES_COLORS[index % SERIES_COLORS.length] } as CSSProperties}>
-                <header className={styles.categoryDialogColumnHead}><span className={styles.categoryDialogDirectionCode}>{programData?.code || "Код не указан"}</span><h3 className={styles.categoryDialogDirection}>{programData?.directionName || programData?.directionCode || "Направление не указано"}</h3><p className={styles.categoryDialogProgram}>{programData?.name || "Название не указано"}</p><span className={styles.categoryDialogTotal}>{items.length ? formatMetric(workload?.hours ?? { value: 0, count: 0 }, "ч.") + " · " + items.length + " дисциплин" : "Дисциплин нет в выбранной категории"}</span></header>
+                <header className={styles.categoryDialogColumnHead}><span className={styles.categoryDialogDirectionCode}>{programData?.code || "Код не указан"}</span><h3 className={styles.categoryDialogDirection}>{programData?.directionName || programData?.directionCode || "Направление не указано"}</h3><p className={styles.categoryDialogProgram}>{programData?.name || "Название не указано"}</p>{programData ? <p className={styles.selectionDepartment}>{programDepartment(programData)}</p> : null}<span className={styles.categoryDialogTotal}>{items.length ? formatMetric(workload?.hours ?? { value: 0, count: 0 }, "ч.") + " · " + items.length + " дисциплин" : "Дисциплин нет в выбранной категории"}</span></header>
                 {items.length ? <ul className={styles.categoryDialogSubjects}>{items.map((item) => <li key={item.externalKey}><strong className={styles.categoryDialogSubjectName}>{item.displayName}</strong><span className={styles.categoryDialogSubjectMeta}>{item.semester === null ? "Семестр не указан" : String(item.semester) + " семестр"} · {item.hours === null ? "часы не указаны" : new Intl.NumberFormat("ru-RU").format(item.hours) + " ч."}{item.assessmentType ? " · " + item.assessmentType : ""}</span></li>)}</ul> : <p className={styles.categoryDialogEmpty}>{planStatusMessage(program)}</p>}
               </section>;
             })}
@@ -647,26 +311,6 @@ function CategoryComparison({ data }: { data: LoadedProgramComparison }) {
     </section>
   );
 }
-function MatrixCourseEntry({ item }: { item: ComparisonCurriculumItem }) {
-  const category = item.classification?.categoryName ?? "Категория не указана";
-  const details = [
-    item.semester === null ? "Семестр не указан" : `${item.semester} семестр`,
-    item.credits === null ? null : `${new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 1 }).format(item.credits)} з.е.`,
-    item.hours === null ? null : `${new Intl.NumberFormat("ru-RU").format(item.hours)} ч.`,
-    item.assessmentType,
-  ].filter((value): value is string => Boolean(value));
-  return <div className={styles.courseEntry}><span className={styles.courseCategory}>{category}</span><span className={styles.courseMeta}>{details.join(" · ")}</span></div>;
-}
-
-function MatrixMissingCell({ program }: { program: ProgramComparisonModel }) {
-  const status = program.itemsStatus === "unavailable" ? "Состав плана недоступен"
-    : program.planSelection.status === "ready" ? "Нет позиции с таким названием в подтверждённом плане"
-      : program.planSelection.status === "ambiguous" ? "Версия учебного плана не сопоставлена"
-        : program.planSelection.status === "needs-review" ? "Текущая версия требует проверки"
-          : "Учебный план не опубликован";
-  return <span className={styles.matrixMissing}>{status}</span>;
-}
-
 function CurriculumMatrix({ data }: { data: LoadedProgramComparison }) {
   const [query, setQuery] = useState("");
   const [semester, setSemester] = useState("");
@@ -679,14 +323,14 @@ function CurriculumMatrix({ data }: { data: LoadedProgramComparison }) {
     return Number(left) - Number(right);
   }), [data.curriculum.matrixRows]);
   const categoryOptions = useMemo(() => [...new Set(data.curriculum.matrixRows.flatMap((row) => (
-    [...row.itemsByProgram.values()].flat().map((item) => item.classification?.categoryName ?? "Категория не указана")
+    [...row.itemsByProgram.values()].flat().map((item) => item.generalCategory ?? item.classification?.categoryName ?? "Категория не указана")
   )))].sort((left, right) => left.localeCompare(right, "ru")), [data.curriculum.matrixRows]);
   const visibleRows = data.curriculum.matrixRows.filter((row) => {
     const items = [...row.itemsByProgram.values()].flat();
-    const text = [row.title, ...items.map((item) => item.classification?.categoryName ?? "")].join(" ").toLocaleLowerCase("ru-RU");
+    const text = [row.title, ...items.map((item) => item.generalCategory ?? item.classification?.categoryName ?? "")].join(" ").toLocaleLowerCase("ru-RU");
     if (query.trim() && !text.includes(query.trim().toLocaleLowerCase("ru-RU"))) return false;
     if (semester && !items.some((item) => item.semesterKey === semester)) return false;
-    if (category && !items.some((item) => (item.classification?.categoryName ?? "Категория не указана") === category)) return false;
+    if (category && !items.some((item) => (item.generalCategory ?? item.classification?.categoryName ?? "Категория не указана") === category)) return false;
     return true;
   });
 
@@ -706,7 +350,7 @@ function CurriculumMatrix({ data }: { data: LoadedProgramComparison }) {
         <div className={styles.tableWrap}>
           <table className={`${styles.table} ${styles.matrixTable}`}>
             <caption className={styles.srOnly}>Матрица дисциплин по выбранным образовательным программам.</caption>
-            <thead><tr><th scope="col">Дисциплина</th>{data.programs.map((program) => <th scope="col" key={program.external_key}><span className={styles.programCode}>{program.code}</span><span className={styles.programName}>{program.name}</span></th>)}</tr></thead>
+            <thead><tr><th scope="col">Дисциплина</th>{data.programs.map((program) => <th scope="col" key={program.external_key}><ProgramIdentity program={program} /></th>)}</tr></thead>
             <tbody>{visibleRows.length ? visibleRows.map((row) => (
               <tr key={row.visualKey}>
                 <th scope="row"><span className={styles.matrixTitle}>{row.title}</span>{row.itemsByProgram.size === data.programs.length ? <span className={styles.commonTag}>Название встречается во всех</span> : null}</th>
@@ -743,7 +387,19 @@ function CurriculumStatus({ data }: { data: LoadedProgramComparison }) {
 }
 
 export default function CompareRoute() {
-  const selectedKeys = useComparisonSelection();
+  const hydrated = useHydrated();
+  const storedKeys = useComparisonSelection();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const sharedKeys = useMemo(() => hydrated ? comparisonKeys(searchParams) : null, [searchParams, hydrated]);
+  const invalidSharedLink = hydrated && (searchParams.has("program") || searchParams.has("shared")) && sharedKeys === null;
+  const selectedKeys = sharedKeys ?? storedKeys;
+  useEffect(() => {
+    if (sharedKeys !== null) comparisonSelection.set(sharedKeys, false);
+  }, [sharedKeys]);
+  function updateSelection(keys: readonly string[]) {
+    if (sharedKeys !== null) setSearchParams(new URLSearchParams(comparisonPath(keys).split("?")[1]), { preventScrollReset: true });
+    return comparisonSelection.set(keys);
+  }
   const selectionSignature = selectedKeys.join("\u001f");
   const [retryCount, setRetryCount] = useState(0);
   const signature = `${selectionSignature}\u001e${retryCount}`;
@@ -771,6 +427,7 @@ export default function CompareRoute() {
       if (controller.signal.aborted) return;
       controller.abort();
       const releaseChanged = error instanceof AcademicReleaseMismatchError;
+      trackEvent("comparison_load_failed", { release_changed: releaseChanged, selected_count: selectedKeys.length });
       const message = releaseChanged
         ? "Во время загрузки активный академический выпуск изменился. Обновите страницу, чтобы сравнение использовало единые данные."
         : "Не удалось загрузить программы и учебные планы из FastAPI. Проверьте соединение и повторите попытку.";
@@ -798,17 +455,20 @@ export default function CompareRoute() {
         <section className={styles.intro} aria-labelledby="compare-title">
           <div className={styles.introCopy}>
             <h1 className={styles.title} id="compare-title">Сравни программы</h1>
-            <p className={styles.description}>Как поступить, что изучать и какая будет нагрузка. Все выбранные программы — в одном сравнении.</p>
+            <p className={styles.description}>Сравнение направлений и образовательных программ МГТУ им. Баумана: как поступить, что изучать и какая будет нагрузка.</p>
           </div>
           <div className={styles.count}><strong>{selectedKeys.length} / 3</strong><span>программ выбрано</span></div>
         </section>
 
-        {selectedKeys.length ? <SelectionCards selectedKeys={selectedKeys} data={selectedData} /> : null}
+        {invalidSharedLink ? <div className={styles.retryNotice} role="alert"><p>Ссылка на сравнение повреждена. Ваш сохранённый выбор остался на месте.</p><Link className={styles.button} to="/compare" replace preventScrollReset>Продолжить со своим выбором</Link></div> : null}
+        <ProgramPicker selectedKeys={selectedKeys} onSelectionChange={updateSelection} />
+        {selectedKeys.length ? <SelectionCards selectedKeys={selectedKeys} data={selectedData} onSelectionChange={updateSelection} /> : null}
+        {data && data.programs.length > 0 && <ShareActions key={selectionSignature} title="Поделиться сравнением" description="Отправь ссылку родителям или друзьям либо скачай PDF. Ссылка сохранит выбор программ, PDF — данные на момент скачивания." getLink={() => absoluteLink(comparisonPath(data.programs.map(p => p.external_key)))} getReport={() => comparisonReport(data, absoluteLink(comparisonPath(data.programs.map(p => p.external_key))))} />}
         {!selectedKeys.length ? (
           <section className={styles.state}>
             <h2>Добавь программы для сравнения</h2>
-            <p>В каталоге отметь до трёх профилей кнопкой «Сравнить». Выбор сохранится в этом браузере.</p>
-            <Link className={`${styles.button} ${styles.buttonBlue}`} to="/programs">Открыть каталог</Link>
+            <p>Найди программы в поиске выше или выбери их в каталоге. Выбор сохранится в этом браузере.</p>
+            <Link viewTransition className={`${styles.button} ${styles.buttonBlue}`} to="/programs">Открыть каталог</Link>
           </section>
         ) : null}
         {isLoading ? <ComparisonSkeleton /> : null}
@@ -825,8 +485,9 @@ export default function CompareRoute() {
         {data && data.programs.length > 0 ? (
           <>
             <CurriculumStatus data={data} />
+            <p className={styles.tableNote}>Нагрузка указана в академических часах за соответствующий семестр. Факультативы и физкультура без зачётных единиц учитываются отдельно от основной программы.</p>
             <CategoryComparison data={data} />
-            <WorkloadChart data={data} />
+            <Suspense fallback={<div className={styles.deferredChart}><ScreenLoader label="Загружаем диаграмму нагрузки" /></div>}><WorkloadChart data={data} /></Suspense>
             <CurriculumMatrix data={data} />
             <p className={styles.releaseNote} data-qa="active-release-note">Активный академический выпуск: <code data-qa="active-release-key">{data.releaseKey}</code>. Все таблицы и планы сверены с этим ключом.</p>
           </>
@@ -841,8 +502,7 @@ export default function CompareRoute() {
 }
 
 function ComparisonSkeleton({ curriculumOnly = false }: { curriculumOnly?: boolean }) {
-  return <section id="curriculum-loading" className={styles.loading} role="status" aria-busy="true">
-    <div><p className={styles.kicker}>{curriculumOnly ? "Учебные планы" : "Сравнение программ"}</p><h2>{curriculumOnly ? "Загружаем дисциплины и нагрузку" : "Собираем данные для сравнения"}</h2><p>{curriculumOnly ? "Условия поступления уже можно смотреть. Состав учебных планов появится здесь." : "Сверяем программы, условия поступления и версии учебных планов."}</p></div>
-    <div className={styles.skeletonGrid} aria-hidden="true">{[0, 1, 2].map((index) => <div key={index}><span /><span /><span /></div>)}</div>
+  return <section id="curriculum-loading" className={styles.loading} aria-busy="true">
+    <ScreenLoader label={curriculumOnly ? "Загружаем учебные планы" : "Собираем сравнение"} />
   </section>;
 }

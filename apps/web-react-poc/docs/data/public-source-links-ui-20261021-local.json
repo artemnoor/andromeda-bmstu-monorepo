@@ -1,0 +1,1379 @@
+{
+  "capturedAt": "2026-10-20T20:59:56.641Z",
+  "releaseKey": "bmstu-2026:d582d03646ad24267abf6c9f9d528060b275970f260ac39e4f95aa335e6d7bbe:bmstu-2026-bundle-v5",
+  "expectedSourceCapture": "2026-10-20T13:14:57.862033+00:00",
+  "browser": "156.0.8078.4",
+  "complete": true,
+  "apiPrograms": 152,
+  "apiScoreFacts": 106,
+  "checkedPrograms": [
+    {
+      "key": "program:bmstu:01.03.02:ИУ9:01.03.02-01:source:1-1",
+      "code": "01.03.02-01",
+      "cardUrl": "https://api.www.bmstu.ru/majors/prikladnaa-matematika-i-informatika-010302",
+      "displayed": {
+        "budget": "БВИ вне квот",
+        "paid": "264 баллов"
+      }
+    },
+    {
+      "key": "program:bmstu:01.03.03:ФН11:01.03.03-03:source:2-1",
+      "code": "01.03.03-03",
+      "cardUrl": "https://api.www.bmstu.ru/majors/mekhanika-i-matematicheskoe-modelirovanie",
+      "displayed": {
+        "budget": "288 баллов",
+        "paid": "Не опубликован"
+      }
+    },
+    {
+      "key": "program:bmstu:01.03.03:ФН3:01.03.03-02:source:1-1",
+      "code": "01.03.03-02",
+      "cardUrl": "https://api.www.bmstu.ru/majors/mekhanika-i-matematicheskoe-modelirovanie",
+      "displayed": {
+        "budget": "288 баллов",
+        "paid": "Не опубликован"
+      }
+    },
+    {
+      "key": "program:bmstu:01.03.04:ФН1:01.03.04-03:source:1-1",
+      "code": "01.03.04-03",
+      "cardUrl": "https://api.www.bmstu.ru/majors/prikladnaa-matematika-010304",
+      "displayed": {
+        "budget": "294 баллов",
+        "paid": "235 баллов"
+      }
+    },
+    {
+      "key": "program:bmstu:01.03.04:ФН12:01.03.04-04:source:3-1",
+      "code": "01.03.04-04",
+      "cardUrl": "https://api.www.bmstu.ru/majors/prikladnaa-matematika-010304",
+      "displayed": {
+        "budget": "294 баллов",
+        "paid": "235 баллов"
+      }
+    },
+    {
+      "key": "program:bmstu:01.03.04:ФН2:01.03.04-05:source:2-1",
+      "code": "01.03.04-05",
+      "cardUrl": "https://api.www.bmstu.ru/majors/prikladnaa-matematika-010304",
+      "displayed": {
+        "budget": "294 баллов",
+        "paid": "235 баллов"
+      }
+    },
+    {
+      "key": "program:bmstu:02.03.01:ФН11:02.03.01-01:source:1-1",
+      "code": "02.03.01-01",
+      "cardUrl": "https://api.www.bmstu.ru/majors/matematika-i-komputernye-nauki-020301",
+      "displayed": {
+        "budget": "291 баллов",
+        "paid": "239 баллов"
+      }
+    },
+    {
+      "key": "program:bmstu:02.03.01:ФН11:02.03.01-22(АК3):source:1-2",
+      "code": "02.03.01-22(АК3)",
+      "cardUrl": "https://api.www.bmstu.ru/majors/matematika-i-komputernye-nauki-020301",
+      "displayed": {
+        "budget": "291 баллов",
+        "paid": "239 баллов"
+      }
+    },
+    {
+      "key": "program:bmstu:09.03.01:ИУ5:09.03.01-02:source:1-1",
+      "code": "09.03.01-02",
+      "cardUrl": "https://api.www.bmstu.ru/majors/informatika-i-vycislitelnaa-tehnika-090301",
+      "displayed": {
+        "budget": "290 баллов",
+        "paid": "189 баллов"
+      }
+    },
+    {
+      "key": "program:bmstu:09.03.01:ИУ5:09.03.01-12:source:1-2",
+      "code": "09.03.01-12",
+      "cardUrl": "https://api.www.bmstu.ru/majors/informatika-i-vycislitelnaa-tehnika-090301",
+      "displayed": {
+        "budget": "290 баллов",
+        "paid": "189 баллов"
+      }
+    },
+    {
+      "key": "program:bmstu:09.03.01:ИУ5:09.03.01-22(РТ5):source:1-3",
+      "code": "09.03.01-22(РТ5)",
+      "cardUrl": "https://api.www.bmstu.ru/majors/informatika-i-vycislitelnaa-tehnika-090301",
+      "displayed": {
+        "budget": "290 баллов",
+        "paid": "189 баллов"
+      }
+    },
+    {
+      "key": "program:bmstu:09.03.01:ИУ5:09.03.01-62:source:1-4",
+      "code": "09.03.01-62",
+      "cardUrl": "https://api.www.bmstu.ru/majors/informatika-i-vycislitelnaa-tehnika-090301",
+      "displayed": {
+        "budget": "290 баллов",
+        "paid": "189 баллов"
+      }
+    },
+    {
+      "key": "program:bmstu:09.03.01:ИУ6:09.03.01-03:source:2-1",
+      "code": "09.03.01-03",
+      "cardUrl": "https://api.www.bmstu.ru/majors/informatika-i-vycislitelnaa-tehnika-090301",
+      "displayed": {
+        "budget": "290 баллов",
+        "paid": "189 баллов"
+      }
+    },
+    {
+      "key": "program:bmstu:09.03.01:ИУ6:09.03.01-13:source:2-2",
+      "code": "09.03.01-13",
+      "cardUrl": "https://api.www.bmstu.ru/majors/informatika-i-vycislitelnaa-tehnika-090301",
+      "displayed": {
+        "budget": "290 баллов",
+        "paid": "189 баллов"
+      }
+    },
+    {
+      "key": "program:bmstu:09.03.01:ИУ6:09.03.01-53:source:2-3",
+      "code": "09.03.01-53",
+      "cardUrl": "https://api.www.bmstu.ru/majors/informatika-i-vycislitelnaa-tehnika-090301",
+      "displayed": {
+        "budget": "290 баллов",
+        "paid": "189 баллов"
+      }
+    },
+    {
+      "key": "program:bmstu:09.03.01:РК6:09.03.01-01:source:3-1",
+      "code": "09.03.01-01",
+      "cardUrl": "https://api.www.bmstu.ru/majors/informatika-i-vycislitelnaa-tehnika-090301",
+      "displayed": {
+        "budget": "290 баллов",
+        "paid": "189 баллов"
+      }
+    },
+    {
+      "key": "program:bmstu:09.03.01:РК6:09.03.01-11:source:3-2",
+      "code": "09.03.01-11",
+      "cardUrl": "https://api.www.bmstu.ru/majors/informatika-i-vycislitelnaa-tehnika-090301",
+      "displayed": {
+        "budget": "290 баллов",
+        "paid": "189 баллов"
+      }
+    },
+    {
+      "key": "program:bmstu:09.03.02:ИУ3:09.03.02/01:source:1-1",
+      "code": "09.03.02/01",
+      "cardUrl": "https://api.www.bmstu.ru/majors/informacionnye-sistemy-i-tehnologii-090302",
+      "displayed": {
+        "budget": "292 баллов",
+        "paid": "218 баллов"
+      }
+    },
+    {
+      "key": "program:bmstu:09.03.03:БМТ1:09.03.03/06:source:2-1",
+      "code": "09.03.03/06",
+      "cardUrl": "https://api.www.bmstu.ru/majors/prikladnaa-informatika-090303",
+      "displayed": {
+        "budget": "286 баллов",
+        "paid": "199 баллов"
+      }
+    },
+    {
+      "key": "program:bmstu:09.03.03:ИБМ3:09.03.03/10:source:1-1",
+      "code": "09.03.03/10",
+      "cardUrl": "https://api.www.bmstu.ru/majors/prikladnaa-informatika-090303",
+      "displayed": {
+        "budget": "286 баллов",
+        "paid": "199 баллов"
+      }
+    },
+    {
+      "key": "program:bmstu:09.03.03:СГН3:09.03.03/01:source:3-1",
+      "code": "09.03.03/01",
+      "cardUrl": "https://api.www.bmstu.ru/majors/prikladnaa-informatika-090303",
+      "displayed": {
+        "budget": "286 баллов",
+        "paid": "199 баллов"
+      }
+    },
+    {
+      "key": "program:bmstu:09.03.04:ИУ7:09.03.04/01:source:1-1",
+      "code": "09.03.04/01",
+      "cardUrl": "https://api.www.bmstu.ru/majors/programmnaa-inzeneria-090304",
+      "displayed": {
+        "budget": "БВИ вне квот",
+        "paid": "259 баллов"
+      }
+    },
+    {
+      "key": "program:bmstu:09.03.04:ИУ7:09.03.04/02:source:1-2",
+      "code": "09.03.04/02",
+      "cardUrl": "https://api.www.bmstu.ru/majors/programmnaa-inzeneria-090304",
+      "displayed": {
+        "budget": "БВИ вне квот",
+        "paid": "259 баллов"
+      }
+    },
+    {
+      "key": "program:bmstu:09.03.04:ИУ7:09.03.04/03:source:1-3",
+      "code": "09.03.04/03",
+      "cardUrl": "https://api.www.bmstu.ru/majors/programmnaa-inzeneria-090304",
+      "displayed": {
+        "budget": "БВИ вне квот",
+        "paid": "259 баллов"
+      }
+    },
+    {
+      "key": "program:bmstu:10.05.01:ИУ8:10.05.01-02:source:1-1",
+      "code": "10.05.01-02",
+      "cardUrl": "https://api.www.bmstu.ru/majors/komputernaa-bezopasnost-100501",
+      "displayed": {
+        "budget": "290 баллов",
+        "paid": "183 баллов"
+      }
+    },
+    {
+      "key": "program:bmstu:10.05.03:ИУ10:10.05.03-04:source:2-1",
+      "code": "10.05.03-04",
+      "cardUrl": "https://api.www.bmstu.ru/majors/informacionnaa-bezopasnost-avtomatizirovannyh-sistem-100503",
+      "displayed": {
+        "budget": "Не опубликован",
+        "paid": "222 баллов"
+      }
+    },
+    {
+      "key": "program:bmstu:10.05.03:ИУ10:10.05.03/05:source:2-2",
+      "code": "10.05.03/05",
+      "cardUrl": "https://api.www.bmstu.ru/majors/informacionnaa-bezopasnost-avtomatizirovannyh-sistem-100503",
+      "displayed": {
+        "budget": "Не опубликован",
+        "paid": "222 баллов"
+      }
+    },
+    {
+      "key": "program:bmstu:10.05.03:ИУ8:10.05.03-02:source:1-1",
+      "code": "10.05.03-02",
+      "cardUrl": "https://api.www.bmstu.ru/majors/informacionnaa-bezopasnost-avtomatizirovannyh-sistem-100503",
+      "displayed": {
+        "budget": "Не опубликован",
+        "paid": "222 баллов"
+      }
+    },
+    {
+      "key": "program:bmstu:10.05.03:ИУ8:10.05.03-62:source:1-2",
+      "code": "10.05.03-62",
+      "cardUrl": "https://api.www.bmstu.ru/majors/informacionnaa-bezopasnost-avtomatizirovannyh-sistem-100503",
+      "displayed": {
+        "budget": "Не опубликован",
+        "paid": "222 баллов"
+      }
+    },
+    {
+      "key": "program:bmstu:10.05.03:ИУ8:10.05.03/01:source:1-3",
+      "code": "10.05.03/01",
+      "cardUrl": "https://api.www.bmstu.ru/majors/informacionnaa-bezopasnost-avtomatizirovannyh-sistem-100503",
+      "displayed": {
+        "budget": "Не опубликован",
+        "paid": "222 баллов"
+      }
+    },
+    {
+      "key": "program:bmstu:10.05.03:ИУ8:10.05.03/03:source:1-4",
+      "code": "10.05.03/03",
+      "cardUrl": "https://api.www.bmstu.ru/majors/informacionnaa-bezopasnost-avtomatizirovannyh-sistem-100503",
+      "displayed": {
+        "budget": "Не опубликован",
+        "paid": "222 баллов"
+      }
+    },
+    {
+      "key": "program:bmstu:10.05.05:ЮР:10.05.05-01:source:1-1",
+      "code": "10.05.05-01",
+      "cardUrl": "https://api.www.bmstu.ru/majors/bezopasnost-informacionnykh-tekhnologii-v-pravookhranitelnoi-sfere",
+      "displayed": {
+        "budget": "279 баллов",
+        "paid": "Не опубликован"
+      }
+    },
+    {
+      "key": "program:bmstu:11.03.03:ИУ4:11.03.03-01:source:1-1",
+      "code": "11.03.03-01",
+      "cardUrl": "https://api.www.bmstu.ru/majors/konstruirovanie-i-tehnologia-elektronnyh-sredstv-110303",
+      "displayed": {
+        "budget": "279 баллов",
+        "paid": "Не опубликован"
+      }
+    },
+    {
+      "key": "program:bmstu:11.03.03:ИУ4:11.03.03-21(РТ2):source:1-2",
+      "code": "11.03.03-21(РТ2)",
+      "cardUrl": "https://api.www.bmstu.ru/majors/konstruirovanie-i-tehnologia-elektronnyh-sredstv-110303",
+      "displayed": {
+        "budget": "279 баллов",
+        "paid": "Не опубликован"
+      }
+    },
+    {
+      "key": "program:bmstu:11.03.03:Э8:11.03.03-02:source:2-1",
+      "code": "11.03.03-02",
+      "cardUrl": "https://api.www.bmstu.ru/majors/konstruirovanie-i-tehnologia-elektronnyh-sredstv-110303",
+      "displayed": {
+        "budget": "279 баллов",
+        "paid": "Не опубликован"
+      }
+    },
+    {
+      "key": "program:bmstu:11.03.04:МТ11:11.03.04-01:source:1-1",
+      "code": "11.03.04-01",
+      "cardUrl": "https://api.www.bmstu.ru/majors/elektronika-i-nanoelektronika-110304",
+      "displayed": {
+        "budget": "294 баллов",
+        "paid": "195 баллов"
+      }
+    },
+    {
+      "key": "program:bmstu:11.05.01:РЛ1:11.05.01-01:source:2-1",
+      "code": "11.05.01-01",
+      "cardUrl": "https://api.www.bmstu.ru/majors/radioelektronnye-sistemy-i-kompleksy-110501",
+      "displayed": {
+        "budget": "266 баллов",
+        "paid": "Не опубликован"
+      }
+    },
+    {
+      "key": "program:bmstu:11.05.01:РЛ1:11.05.01-21(РТ1):source:2-2",
+      "code": "11.05.01-21(РТ1)",
+      "cardUrl": "https://api.www.bmstu.ru/majors/radioelektronnye-sistemy-i-kompleksy-110501",
+      "displayed": {
+        "budget": "266 баллов",
+        "paid": "Не опубликован"
+      }
+    },
+    {
+      "key": "program:bmstu:11.05.01:РЛ6:11.05.01-05:source:3-1",
+      "code": "11.05.01-05",
+      "cardUrl": "https://api.www.bmstu.ru/majors/radioelektronnye-sistemy-i-kompleksy-110501",
+      "displayed": {
+        "budget": "266 баллов",
+        "paid": "Не опубликован"
+      }
+    },
+    {
+      "key": "program:bmstu:11.05.01:СМ5:11.05.01-09:source:1-1",
+      "code": "11.05.01-09",
+      "cardUrl": "https://api.www.bmstu.ru/majors/radioelektronnye-sistemy-i-kompleksy-110501",
+      "displayed": {
+        "budget": "266 баллов",
+        "paid": "Не опубликован"
+      }
+    },
+    {
+      "key": "program:bmstu:12.03.04:БМТ1:12.03.04:source:1-1",
+      "code": "12.03.04",
+      "cardUrl": "https://api.www.bmstu.ru/majors/biotehniceskie-sistemy-i-tehnologii-120304",
+      "displayed": {
+        "budget": "295 баллов",
+        "paid": "Не опубликован"
+      }
+    },
+    {
+      "key": "program:bmstu:12.03.04:БМТ1:12.03.04:source:1-2",
+      "code": "12.03.04",
+      "cardUrl": "https://api.www.bmstu.ru/majors/biotehniceskie-sistemy-i-tehnologii-120304",
+      "displayed": {
+        "budget": "295 баллов",
+        "paid": "Не опубликован"
+      }
+    },
+    {
+      "key": "program:bmstu:12.03.04:БМТ1:12.03.04:source:1-3",
+      "code": "12.03.04",
+      "cardUrl": "https://api.www.bmstu.ru/majors/biotehniceskie-sistemy-i-tehnologii-120304",
+      "displayed": {
+        "budget": "295 баллов",
+        "paid": "Не опубликован"
+      }
+    },
+    {
+      "key": "program:bmstu:12.03.04:БМТ1:12.03.04:source:1-4",
+      "code": "12.03.04",
+      "cardUrl": "https://api.www.bmstu.ru/majors/biotehniceskie-sistemy-i-tehnologii-120304",
+      "displayed": {
+        "budget": "295 баллов",
+        "paid": "Не опубликован"
+      }
+    },
+    {
+      "key": "program:bmstu:12.03.04:БМТ1:12.03.04/05:source:1-5",
+      "code": "12.03.04/05",
+      "cardUrl": "https://api.www.bmstu.ru/majors/biotehniceskie-sistemy-i-tehnologii-120304",
+      "displayed": {
+        "budget": "295 баллов",
+        "paid": "Не опубликован"
+      }
+    },
+    {
+      "key": "program:bmstu:12.03.04:БМТ2:12.03.04:source:2-1",
+      "code": "12.03.04",
+      "cardUrl": "https://api.www.bmstu.ru/majors/biotehniceskie-sistemy-i-tehnologii-120304",
+      "displayed": {
+        "budget": "295 баллов",
+        "paid": "Не опубликован"
+      }
+    },
+    {
+      "key": "program:bmstu:12.03.04:БМТ2:12.03.04:source:2-2",
+      "code": "12.03.04",
+      "cardUrl": "https://api.www.bmstu.ru/majors/biotehniceskie-sistemy-i-tehnologii-120304",
+      "displayed": {
+        "budget": "295 баллов",
+        "paid": "Не опубликован"
+      }
+    },
+    {
+      "key": "program:bmstu:12.03.04:БМТ2:12.03.04:source:2-3",
+      "code": "12.03.04",
+      "cardUrl": "https://api.www.bmstu.ru/majors/biotehniceskie-sistemy-i-tehnologii-120304",
+      "displayed": {
+        "budget": "295 баллов",
+        "paid": "Не опубликован"
+      }
+    },
+    {
+      "key": "program:bmstu:12.03.04:БМТ3:12.03.04:source:3-1",
+      "code": "12.03.04",
+      "cardUrl": "https://api.www.bmstu.ru/majors/biotehniceskie-sistemy-i-tehnologii-120304",
+      "displayed": {
+        "budget": "295 баллов",
+        "paid": "Не опубликован"
+      }
+    },
+    {
+      "key": "program:bmstu:12.03.04:БМТ3:12.03.04:source:3-2",
+      "code": "12.03.04",
+      "cardUrl": "https://api.www.bmstu.ru/majors/biotehniceskie-sistemy-i-tehnologii-120304",
+      "displayed": {
+        "budget": "295 баллов",
+        "paid": "Не опубликован"
+      }
+    },
+    {
+      "key": "program:bmstu:12.03.04:БМТ3:12.03.04:source:3-3",
+      "code": "12.03.04",
+      "cardUrl": "https://api.www.bmstu.ru/majors/biotehniceskie-sistemy-i-tehnologii-120304",
+      "displayed": {
+        "budget": "295 баллов",
+        "paid": "Не опубликован"
+      }
+    },
+    {
+      "key": "program:bmstu:12.03.04:БМТ5:12.03.04:source:4-1",
+      "code": "12.03.04",
+      "cardUrl": "https://api.www.bmstu.ru/majors/biotehniceskie-sistemy-i-tehnologii-120304",
+      "displayed": {
+        "budget": "295 баллов",
+        "paid": "Не опубликован"
+      }
+    },
+    {
+      "key": "program:bmstu:12.03.05:РЛ2:12.03.05-01:source:1-1",
+      "code": "12.03.05-01",
+      "cardUrl": "https://api.www.bmstu.ru/majors/lazernaa-tehnika-i-lazernye-tehnologii-120305",
+      "displayed": {
+        "budget": "281 баллов",
+        "paid": "Не опубликован"
+      }
+    },
+    {
+      "key": "program:bmstu:12.05.01:РЛ2:12.05.01-01:source:1-1",
+      "code": "12.05.01-01",
+      "cardUrl": "https://api.www.bmstu.ru/majors/elektronnye-i-optiko-elektronnye-pribory-i-sistemy-specialnogo-naznacenia-120501",
+      "displayed": {
+        "budget": "265 баллов",
+        "paid": "Не опубликован"
+      }
+    },
+    {
+      "key": "program:bmstu:13.03.02:СМ10:13.03.02-02:source:1-1",
+      "code": "13.03.02-02",
+      "cardUrl": "https://api.www.bmstu.ru/majors/elektroenergetika-i-elektrotehnika-130302",
+      "displayed": {
+        "budget": "270 баллов",
+        "paid": "Не опубликован"
+      }
+    },
+    {
+      "key": "program:bmstu:13.03.02:ФН7:13.03.02-03:source:3-1",
+      "code": "13.03.02-03",
+      "cardUrl": "https://api.www.bmstu.ru/majors/elektroenergetika-i-elektrotehnika-130302",
+      "displayed": {
+        "budget": "270 баллов",
+        "paid": "Не опубликован"
+      }
+    },
+    {
+      "key": "program:bmstu:13.03.02:Э11:13.03.02-04:source:4-1",
+      "code": "13.03.02-04",
+      "cardUrl": "https://api.www.bmstu.ru/majors/elektroenergetika-i-elektrotehnika-130302",
+      "displayed": {
+        "budget": "270 баллов",
+        "paid": "Не опубликован"
+      }
+    },
+    {
+      "key": "program:bmstu:13.03.02:Э4:13.03.02-01:source:2-1",
+      "code": "13.03.02-01",
+      "cardUrl": "https://api.www.bmstu.ru/majors/elektroenergetika-i-elektrotehnika-130302",
+      "displayed": {
+        "budget": "270 баллов",
+        "paid": "Не опубликован"
+      }
+    },
+    {
+      "key": "program:bmstu:13.03.03:Э10:13.03.03-02:source:2-1",
+      "code": "13.03.03-02",
+      "cardUrl": "https://api.www.bmstu.ru/majors/energeticeskoe-masinostroenie-130303",
+      "displayed": {
+        "budget": "267 баллов",
+        "paid": "Не опубликован"
+      }
+    },
+    {
+      "key": "program:bmstu:13.03.03:Э2:13.03.03-01:source:1-1",
+      "code": "13.03.03-01",
+      "cardUrl": "https://api.www.bmstu.ru/majors/energeticeskoe-masinostroenie-130303",
+      "displayed": {
+        "budget": "267 баллов",
+        "paid": "Не опубликован"
+      }
+    },
+    {
+      "key": "program:bmstu:14.05.01:Э7:14.05.01-02:source:1-1",
+      "code": "14.05.01-02",
+      "cardUrl": "https://api.www.bmstu.ru/majors/adernye-reaktory-i-materialy-140501",
+      "displayed": {
+        "budget": "БВИ вне квот",
+        "paid": "217 баллов"
+      }
+    },
+    {
+      "key": "program:bmstu:15.03.01:МТ13:15.03.01-02:source:1-1",
+      "code": "15.03.01-02",
+      "cardUrl": "https://api.www.bmstu.ru/majors/masinostroenie-150301",
+      "displayed": {
+        "budget": "289 баллов",
+        "paid": "Не опубликован"
+      }
+    },
+    {
+      "key": "program:bmstu:15.03.02:Э5:15.03.02-01:source:1-1",
+      "code": "15.03.02-01",
+      "cardUrl": "https://api.www.bmstu.ru/majors/tehnologiceskie-masiny-i-oborudovanie-150302",
+      "displayed": {
+        "budget": "265 баллов",
+        "paid": "Не опубликован"
+      }
+    },
+    {
+      "key": "program:bmstu:15.03.03:РК5:15.03.03-01:source:1-1",
+      "code": "15.03.03-01",
+      "cardUrl": "https://api.www.bmstu.ru/majors/prikladnaa-mehanika-150303",
+      "displayed": {
+        "budget": "293 баллов",
+        "paid": "189 баллов"
+      }
+    },
+    {
+      "key": "program:bmstu:15.03.04:РК9:15.03.04-01:source:2-1",
+      "code": "15.03.04-01",
+      "cardUrl": "https://api.www.bmstu.ru/majors/avtomatizacia-tehnologiceskih-processovi-proizodstv-150304",
+      "displayed": {
+        "budget": "298 баллов",
+        "paid": "Не опубликован"
+      }
+    },
+    {
+      "key": "program:bmstu:15.03.04:РК9:15.03.04-61:source:2-2",
+      "code": "15.03.04-61",
+      "cardUrl": "https://api.www.bmstu.ru/majors/avtomatizacia-tehnologiceskih-processovi-proizodstv-150304",
+      "displayed": {
+        "budget": "298 баллов",
+        "paid": "Не опубликован"
+      }
+    },
+    {
+      "key": "program:bmstu:15.03.04:Э5:15.03.04-02:source:1-1",
+      "code": "15.03.04-02",
+      "cardUrl": "https://api.www.bmstu.ru/majors/avtomatizacia-tehnologiceskih-processovi-proizodstv-150304",
+      "displayed": {
+        "budget": "298 баллов",
+        "paid": "Не опубликован"
+      }
+    },
+    {
+      "key": "program:bmstu:15.03.06:РК3:15.03.06-02:source:4-1",
+      "code": "15.03.06-02",
+      "cardUrl": "https://api.www.bmstu.ru/majors/mehatronika-i-robototehnika-150306",
+      "displayed": {
+        "budget": "Не опубликован",
+        "paid": "171 баллов"
+      }
+    },
+    {
+      "key": "program:bmstu:15.03.06:РК4:15.03.06-01:source:5-1",
+      "code": "15.03.06-01",
+      "cardUrl": "https://api.www.bmstu.ru/majors/mehatronika-i-robototehnika-150306",
+      "displayed": {
+        "budget": "Не опубликован",
+        "paid": "171 баллов"
+      }
+    },
+    {
+      "key": "program:bmstu:15.03.06:РК4:15.03.06-08:source:5-2",
+      "code": "15.03.06-08",
+      "cardUrl": "https://api.www.bmstu.ru/majors/mehatronika-i-robototehnika-150306",
+      "displayed": {
+        "budget": "Не опубликован",
+        "paid": "171 баллов"
+      }
+    },
+    {
+      "key": "program:bmstu:15.03.06:СМ10:15.03.06/М9:source:2-1",
+      "code": "15.03.06/М9",
+      "cardUrl": "https://api.www.bmstu.ru/majors/mehatronika-i-robototehnika-150306",
+      "displayed": {
+        "budget": "Не опубликован",
+        "paid": "171 баллов"
+      }
+    },
+    {
+      "key": "program:bmstu:15.03.06:СМ11:15.03.06-04:source:3-1",
+      "code": "15.03.06-04",
+      "cardUrl": "https://api.www.bmstu.ru/majors/mehatronika-i-robototehnika-150306",
+      "displayed": {
+        "budget": "Не опубликован",
+        "paid": "171 баллов"
+      }
+    },
+    {
+      "key": "program:bmstu:15.03.06:СМ7:15.03.06-03:source:1-1",
+      "code": "15.03.06-03",
+      "cardUrl": "https://api.www.bmstu.ru/majors/mehatronika-i-robototehnika-150306",
+      "displayed": {
+        "budget": "Не опубликован",
+        "paid": "171 баллов"
+      }
+    },
+    {
+      "key": "program:bmstu:15.05.01:МТ1:15.05.01-01:source:1-1",
+      "code": "15.05.01-01",
+      "cardUrl": "https://api.www.bmstu.ru/majors/proektirovanie-tehnologiceskih-masin-i-kompleksov-150501",
+      "displayed": {
+        "budget": "254 баллов",
+        "paid": "Не опубликован"
+      }
+    },
+    {
+      "key": "program:bmstu:15.05.01:МТ10:15.05.01-10:source:7-1",
+      "code": "15.05.01-10",
+      "cardUrl": "https://api.www.bmstu.ru/majors/proektirovanie-tehnologiceskih-masin-i-kompleksov-150501",
+      "displayed": {
+        "budget": "254 баллов",
+        "paid": "Не опубликован"
+      }
+    },
+    {
+      "key": "program:bmstu:15.05.01:МТ12:15.05.01-04:source:8-1",
+      "code": "15.05.01-04",
+      "cardUrl": "https://api.www.bmstu.ru/majors/proektirovanie-tehnologiceskih-masin-i-kompleksov-150501",
+      "displayed": {
+        "budget": "254 баллов",
+        "paid": "Не опубликован"
+      }
+    },
+    {
+      "key": "program:bmstu:15.05.01:МТ12:15.05.01-04:source:8-2",
+      "code": "15.05.01-04",
+      "cardUrl": "https://api.www.bmstu.ru/majors/proektirovanie-tehnologiceskih-masin-i-kompleksov-150501",
+      "displayed": {
+        "budget": "254 баллов",
+        "paid": "Не опубликован"
+      }
+    },
+    {
+      "key": "program:bmstu:15.05.01:МТ2:15.05.01-02:source:2-1",
+      "code": "15.05.01-02",
+      "cardUrl": "https://api.www.bmstu.ru/majors/proektirovanie-tehnologiceskih-masin-i-kompleksov-150501",
+      "displayed": {
+        "budget": "254 баллов",
+        "paid": "Не опубликован"
+      }
+    },
+    {
+      "key": "program:bmstu:15.05.01:МТ2:15.05.01-22(РКТ3):source:2-2",
+      "code": "15.05.01-22(РКТ3)",
+      "cardUrl": "https://api.www.bmstu.ru/majors/proektirovanie-tehnologiceskih-masin-i-kompleksov-150501",
+      "displayed": {
+        "budget": "254 баллов",
+        "paid": "Не опубликован"
+      }
+    },
+    {
+      "key": "program:bmstu:15.05.01:МТ3:15.05.01-03:source:3-1",
+      "code": "15.05.01-03",
+      "cardUrl": "https://api.www.bmstu.ru/majors/proektirovanie-tehnologiceskih-masin-i-kompleksov-150501",
+      "displayed": {
+        "budget": "254 баллов",
+        "paid": "Не опубликован"
+      }
+    },
+    {
+      "key": "program:bmstu:15.05.01:МТ5:15.05.01-05:source:4-1",
+      "code": "15.05.01-05",
+      "cardUrl": "https://api.www.bmstu.ru/majors/proektirovanie-tehnologiceskih-masin-i-kompleksov-150501",
+      "displayed": {
+        "budget": "254 баллов",
+        "paid": "Не опубликован"
+      }
+    },
+    {
+      "key": "program:bmstu:15.05.01:МТ6:15.05.01-06:source:5-1",
+      "code": "15.05.01-06",
+      "cardUrl": "https://api.www.bmstu.ru/majors/proektirovanie-tehnologiceskih-masin-i-kompleksov-150501",
+      "displayed": {
+        "budget": "254 баллов",
+        "paid": "Не опубликован"
+      }
+    },
+    {
+      "key": "program:bmstu:15.05.01:МТ7:15.05.01-07:source:6-1",
+      "code": "15.05.01-07",
+      "cardUrl": "https://api.www.bmstu.ru/majors/proektirovanie-tehnologiceskih-masin-i-kompleksov-150501",
+      "displayed": {
+        "budget": "254 баллов",
+        "paid": "Не опубликован"
+      }
+    },
+    {
+      "key": "program:bmstu:15.05.01:Э5:15.05.01-09:source:9-1",
+      "code": "15.05.01-09",
+      "cardUrl": "https://api.www.bmstu.ru/majors/proektirovanie-tehnologiceskih-masin-i-kompleksov-150501",
+      "displayed": {
+        "budget": "254 баллов",
+        "paid": "Не опубликован"
+      }
+    },
+    {
+      "key": "program:bmstu:15.05.02:МТ7:15.05.02-02:source:1-1",
+      "code": "15.05.02-02",
+      "cardUrl": "https://api.www.bmstu.ru/majors/robototekhnika-voennogo-i-specialnogo-naznacheniya",
+      "displayed": {
+        "budget": "258 баллов",
+        "paid": "Не опубликован"
+      }
+    },
+    {
+      "key": "program:bmstu:15.05.02:СМ9:15.05.02-01:source:2-1",
+      "code": "15.05.02-01",
+      "cardUrl": "https://api.www.bmstu.ru/majors/robototekhnika-voennogo-i-specialnogo-naznacheniya",
+      "displayed": {
+        "budget": "258 баллов",
+        "paid": "Не опубликован"
+      }
+    },
+    {
+      "key": "program:bmstu:16.03.01:ФН4:16.03.01-01:source:1-1",
+      "code": "16.03.01-01",
+      "cardUrl": "https://api.www.bmstu.ru/majors/tehniceskaa-fizika-160301",
+      "displayed": {
+        "budget": "282 баллов",
+        "paid": "228 баллов"
+      }
+    },
+    {
+      "key": "program:bmstu:16.03.02:Э8:16.03.02-01:source:1-1",
+      "code": "16.03.02-01",
+      "cardUrl": "https://api.www.bmstu.ru/majors/vysokotehnologicnye-plazmennye-i-energeticeskie-ustanovki-160302",
+      "displayed": {
+        "budget": "273 баллов",
+        "paid": "207 баллов"
+      }
+    },
+    {
+      "key": "program:bmstu:16.03.03:Э4:16.03.03-01:source:1-1",
+      "code": "16.03.03-01",
+      "cardUrl": "https://api.www.bmstu.ru/majors/holodilnaa-kriogennaa-tehnika-i-sistemy-zizneobespecenia-160303",
+      "displayed": {
+        "budget": "266 баллов",
+        "paid": "177 баллов"
+      }
+    },
+    {
+      "key": "program:bmstu:16.05.01:Э4:16.05.01-01:source:1-1",
+      "code": "16.05.01-01",
+      "cardUrl": "https://api.www.bmstu.ru/majors/specialnye-sistemy-zizneobespecenia-160501",
+      "displayed": {
+        "budget": "259 баллов",
+        "paid": "Не опубликован"
+      }
+    },
+    {
+      "key": "program:bmstu:17.05.01:СМ4:17.05.01-02:source:1-1",
+      "code": "17.05.01-02",
+      "cardUrl": "https://api.www.bmstu.ru/majors/boepripasy-i-vzryvateli-170501",
+      "displayed": {
+        "budget": "245 баллов",
+        "paid": "Не опубликован"
+      }
+    },
+    {
+      "key": "program:bmstu:17.05.02:СМ6:17.05.02-02:source:1-1",
+      "code": "17.05.02-02",
+      "cardUrl": "https://api.www.bmstu.ru/majors/strelkovo-pusecnoe-artillerijskoe-i-raketnoe-oruzie-170502",
+      "displayed": {
+        "budget": "249 баллов",
+        "paid": "Не опубликован"
+      }
+    },
+    {
+      "key": "program:bmstu:20.03.01:Э9:20.03.01/01:source:1-1",
+      "code": "20.03.01/01",
+      "cardUrl": "https://api.www.bmstu.ru/majors/tehnosfernaa-bezopasnost-200301",
+      "displayed": {
+        "budget": "245 баллов",
+        "paid": "Не опубликован"
+      }
+    },
+    {
+      "key": "program:bmstu:22.03.01:МТ8:22.03.01-01:source:1-1",
+      "code": "22.03.01-01",
+      "cardUrl": "https://api.www.bmstu.ru/majors/materialovedenie-i-tehnologia-materialov-220301",
+      "displayed": {
+        "budget": "251 баллов",
+        "paid": "Не опубликован"
+      }
+    },
+    {
+      "key": "program:bmstu:22.03.01:МТ8:22.03.01-61:source:1-2",
+      "code": "22.03.01-61",
+      "cardUrl": "https://api.www.bmstu.ru/majors/materialovedenie-i-tehnologia-materialov-220301",
+      "displayed": {
+        "budget": "251 баллов",
+        "paid": "Не опубликован"
+      }
+    },
+    {
+      "key": "program:bmstu:22.03.01:СМ13:22.03.01-02:source:2-1",
+      "code": "22.03.01-02",
+      "cardUrl": "https://api.www.bmstu.ru/majors/materialovedenie-i-tehnologia-materialov-220301",
+      "displayed": {
+        "budget": "251 баллов",
+        "paid": "Не опубликован"
+      }
+    },
+    {
+      "key": "program:bmstu:23.05.01:РК4:23.05.01-02:source:3-1",
+      "code": "23.05.01-02",
+      "cardUrl": "https://api.www.bmstu.ru/majors/nazemnye-transportno-tehnologiceskie-sredstva-230501",
+      "displayed": {
+        "budget": "267 баллов",
+        "paid": "Не опубликован"
+      }
+    },
+    {
+      "key": "program:bmstu:23.05.01:СМ10:23.05.01-10:source:2-1",
+      "code": "23.05.01-10",
+      "cardUrl": "https://api.www.bmstu.ru/majors/nazemnye-transportno-tehnologiceskie-sredstva-230501",
+      "displayed": {
+        "budget": "267 баллов",
+        "paid": "Не опубликован"
+      }
+    },
+    {
+      "key": "program:bmstu:23.05.01:СМ9:23.05.01-09:source:1-1",
+      "code": "23.05.01-09",
+      "cardUrl": "https://api.www.bmstu.ru/majors/nazemnye-transportno-tehnologiceskie-sredstva-230501",
+      "displayed": {
+        "budget": "267 баллов",
+        "paid": "Не опубликован"
+      }
+    },
+    {
+      "key": "program:bmstu:23.05.02:СМ10:23.05.02-10:source:2-1",
+      "code": "23.05.02-10",
+      "cardUrl": "https://api.www.bmstu.ru/majors/transportnye-sredstva-specialnogo-naznacenia-230502",
+      "displayed": {
+        "budget": "260 баллов",
+        "paid": "Не опубликован"
+      }
+    },
+    {
+      "key": "program:bmstu:23.05.02:СМ9:23.05.02-09:source:1-1",
+      "code": "23.05.02-09",
+      "cardUrl": "https://api.www.bmstu.ru/majors/transportnye-sredstva-specialnogo-naznacenia-230502",
+      "displayed": {
+        "budget": "260 баллов",
+        "paid": "Не опубликован"
+      }
+    },
+    {
+      "key": "program:bmstu:24.03.01:СМ1:24.03.01-01:source:1-1",
+      "code": "24.03.01-01",
+      "cardUrl": "https://api.www.bmstu.ru/majors/raketnye-kompleksy-i-kosmonavtika-240301",
+      "displayed": {
+        "budget": "283 баллов",
+        "paid": "Не опубликован"
+      }
+    },
+    {
+      "key": "program:bmstu:24.03.01:СМ13:24.03.01-02:source:2-1",
+      "code": "24.03.01-02",
+      "cardUrl": "https://api.www.bmstu.ru/majors/raketnye-kompleksy-i-kosmonavtika-240301",
+      "displayed": {
+        "budget": "283 баллов",
+        "paid": "Не опубликован"
+      }
+    },
+    {
+      "key": "program:bmstu:24.05.01:СМ1:24.05.01-05:source:1-1",
+      "code": "24.05.01-05",
+      "cardUrl": "https://api.www.bmstu.ru/majors/proektirovanie-proizvodstvo-i-ekspluatacia-raket-i-raketno-kosmiceskih-kompleksov-240501",
+      "displayed": {
+        "budget": "Не опубликован",
+        "paid": "Не опубликован"
+      }
+    },
+    {
+      "key": "program:bmstu:24.05.01:СМ1:24.05.01-25(РКТ2):source:1-2",
+      "code": "24.05.01-25(РКТ2)",
+      "cardUrl": "https://api.www.bmstu.ru/majors/proektirovanie-proizvodstvo-i-ekspluatacia-raket-i-raketno-kosmiceskih-kompleksov-240501",
+      "displayed": {
+        "budget": "Не опубликован",
+        "paid": "Не опубликован"
+      }
+    },
+    {
+      "key": "program:bmstu:24.05.01:СМ12:24.05.01-03:source:4-1",
+      "code": "24.05.01-03",
+      "cardUrl": "https://api.www.bmstu.ru/majors/proektirovanie-proizvodstvo-i-ekspluatacia-raket-i-raketno-kosmiceskih-kompleksov-240501",
+      "displayed": {
+        "budget": "Не опубликован",
+        "paid": "Не опубликован"
+      }
+    },
+    {
+      "key": "program:bmstu:24.05.01:СМ12:24.05.01-23(РКТ4):source:4-2",
+      "code": "24.05.01-23(РКТ4)",
+      "cardUrl": "https://api.www.bmstu.ru/majors/proektirovanie-proizvodstvo-i-ekspluatacia-raket-i-raketno-kosmiceskih-kompleksov-240501",
+      "displayed": {
+        "budget": "Не опубликован",
+        "paid": "Не опубликован"
+      }
+    },
+    {
+      "key": "program:bmstu:24.05.01:СМ13:24.05.01-10:source:5-1",
+      "code": "24.05.01-10",
+      "cardUrl": "https://api.www.bmstu.ru/majors/proektirovanie-proizvodstvo-i-ekspluatacia-raket-i-raketno-kosmiceskih-kompleksov-240501",
+      "displayed": {
+        "budget": "Не опубликован",
+        "paid": "Не опубликован"
+      }
+    },
+    {
+      "key": "program:bmstu:24.05.01:СМ2:24.05.01-01:source:2-4",
+      "code": "24.05.01-01",
+      "cardUrl": "https://api.www.bmstu.ru/majors/proektirovanie-proizvodstvo-i-ekspluatacia-raket-i-raketno-kosmiceskih-kompleksov-240501",
+      "displayed": {
+        "budget": "Не опубликован",
+        "paid": "Не опубликован"
+      }
+    },
+    {
+      "key": "program:bmstu:24.05.01:СМ2:24.05.01-21(АК1):source:2-5",
+      "code": "24.05.01-21(АК1)",
+      "cardUrl": "https://api.www.bmstu.ru/majors/proektirovanie-proizvodstvo-i-ekspluatacia-raket-i-raketno-kosmiceskih-kompleksov-240501",
+      "displayed": {
+        "budget": "Не опубликован",
+        "paid": "Не опубликован"
+      }
+    },
+    {
+      "key": "program:bmstu:24.05.01:СМ2:24.05.01(АК1):source:2-1",
+      "code": "24.05.01(АК1)",
+      "cardUrl": "https://api.www.bmstu.ru/majors/proektirovanie-proizvodstvo-i-ekspluatacia-raket-i-raketno-kosmiceskih-kompleksov-240501",
+      "displayed": {
+        "budget": "Не опубликован",
+        "paid": "Не опубликован"
+      }
+    },
+    {
+      "key": "program:bmstu:24.05.01:СМ2:24.05.01(АК1):source:2-2",
+      "code": "24.05.01(АК1)",
+      "cardUrl": "https://api.www.bmstu.ru/majors/proektirovanie-proizvodstvo-i-ekspluatacia-raket-i-raketno-kosmiceskih-kompleksov-240501",
+      "displayed": {
+        "budget": "Не опубликован",
+        "paid": "Не опубликован"
+      }
+    },
+    {
+      "key": "program:bmstu:24.05.01:СМ2:24.05.01(АК2):source:2-3",
+      "code": "24.05.01(АК2)",
+      "cardUrl": "https://api.www.bmstu.ru/majors/proektirovanie-proizvodstvo-i-ekspluatacia-raket-i-raketno-kosmiceskih-kompleksov-240501",
+      "displayed": {
+        "budget": "Не опубликован",
+        "paid": "Не опубликован"
+      }
+    },
+    {
+      "key": "program:bmstu:24.05.01:СМ8:24.05.01-07:source:3-1",
+      "code": "24.05.01-07",
+      "cardUrl": "https://api.www.bmstu.ru/majors/proektirovanie-proizvodstvo-i-ekspluatacia-raket-i-raketno-kosmiceskih-kompleksov-240501",
+      "displayed": {
+        "budget": "Не опубликован",
+        "paid": "Не опубликован"
+      }
+    },
+    {
+      "key": "program:bmstu:24.05.01:СМ8:24.05.01-14(ПС3):source:3-2",
+      "code": "24.05.01-14(ПС3)",
+      "cardUrl": "https://api.www.bmstu.ru/majors/proektirovanie-proizvodstvo-i-ekspluatacia-raket-i-raketno-kosmiceskih-kompleksov-240501",
+      "displayed": {
+        "budget": "Не опубликован",
+        "paid": "Не опубликован"
+      }
+    },
+    {
+      "key": "program:bmstu:24.05.01:Э4:24.05.01-12:source:6-1",
+      "code": "24.05.01-12",
+      "cardUrl": "https://api.www.bmstu.ru/majors/proektirovanie-proizvodstvo-i-ekspluatacia-raket-i-raketno-kosmiceskih-kompleksov-240501",
+      "displayed": {
+        "budget": "Не опубликован",
+        "paid": "Не опубликован"
+      }
+    },
+    {
+      "key": "program:bmstu:24.05.02:Э1:24.05.02-03:source:1-1",
+      "code": "24.05.02-03",
+      "cardUrl": "https://api.www.bmstu.ru/majors/proektirovanie-aviacionnyh-i-raketnyh-dvigatelej-240502",
+      "displayed": {
+        "budget": "273 баллов",
+        "paid": "Не опубликован"
+      }
+    },
+    {
+      "key": "program:bmstu:24.05.02:Э2:24.05.02-09:source:2-1",
+      "code": "24.05.02-09",
+      "cardUrl": "https://api.www.bmstu.ru/majors/proektirovanie-aviacionnyh-i-raketnyh-dvigatelej-240502",
+      "displayed": {
+        "budget": "273 баллов",
+        "paid": "Не опубликован"
+      }
+    },
+    {
+      "key": "program:bmstu:24.05.02:Э3:24.05.02-01:source:3-1",
+      "code": "24.05.02-01",
+      "cardUrl": "https://api.www.bmstu.ru/majors/proektirovanie-aviacionnyh-i-raketnyh-dvigatelej-240502",
+      "displayed": {
+        "budget": "273 баллов",
+        "paid": "Не опубликован"
+      }
+    },
+    {
+      "key": "program:bmstu:24.05.02:Э6:24.05.02-07:source:4-1",
+      "code": "24.05.02-07",
+      "cardUrl": "https://api.www.bmstu.ru/majors/proektirovanie-aviacionnyh-i-raketnyh-dvigatelej-240502",
+      "displayed": {
+        "budget": "273 баллов",
+        "paid": "Не опубликован"
+      }
+    },
+    {
+      "key": "program:bmstu:24.05.02:Э8:24.05.02-05:source:5-1",
+      "code": "24.05.02-05",
+      "cardUrl": "https://api.www.bmstu.ru/majors/proektirovanie-aviacionnyh-i-raketnyh-dvigatelej-240502",
+      "displayed": {
+        "budget": "273 баллов",
+        "paid": "Не опубликован"
+      }
+    },
+    {
+      "key": "program:bmstu:24.05.04:СМ3:24.05.04-02:source:1-1",
+      "code": "24.05.04-02",
+      "cardUrl": "https://api.www.bmstu.ru/majors/navigacionno-ballisticeskoe-obespecenie-primenenia-kosmiceskoj-tehniki-240504",
+      "displayed": {
+        "budget": "270 баллов",
+        "paid": "Не опубликован"
+      }
+    },
+    {
+      "key": "program:bmstu:24.05.06:ИУ1:24.05.06-02:source:1-1",
+      "code": "24.05.06-02",
+      "cardUrl": "https://api.www.bmstu.ru/majors/sistemy-upravlenia-letatelnymi-apparatami-240506",
+      "displayed": {
+        "budget": "252 баллов",
+        "paid": "Не опубликован"
+      }
+    },
+    {
+      "key": "program:bmstu:24.05.06:ИУ1:24.05.06-03:source:1-2",
+      "code": "24.05.06-03",
+      "cardUrl": "https://api.www.bmstu.ru/majors/sistemy-upravlenia-letatelnymi-apparatami-240506",
+      "displayed": {
+        "budget": "252 баллов",
+        "paid": "Не опубликован"
+      }
+    },
+    {
+      "key": "program:bmstu:24.05.06:ИУ1:24.05.06-21(ПС2):source:1-3",
+      "code": "24.05.06-21(ПС2)",
+      "cardUrl": "https://api.www.bmstu.ru/majors/sistemy-upravlenia-letatelnymi-apparatami-240506",
+      "displayed": {
+        "budget": "252 баллов",
+        "paid": "Не опубликован"
+      }
+    },
+    {
+      "key": "program:bmstu:24.05.06:ИУ1:24.05.06-22(АК4):source:1-4",
+      "code": "24.05.06-22(АК4)",
+      "cardUrl": "https://api.www.bmstu.ru/majors/sistemy-upravlenia-letatelnymi-apparatami-240506",
+      "displayed": {
+        "budget": "252 баллов",
+        "paid": "Не опубликован"
+      }
+    },
+    {
+      "key": "program:bmstu:24.05.06:ИУ1:24.05.06-22(РТ4):source:1-5",
+      "code": "24.05.06-22(РТ4)",
+      "cardUrl": "https://api.www.bmstu.ru/majors/sistemy-upravlenia-letatelnymi-apparatami-240506",
+      "displayed": {
+        "budget": "252 баллов",
+        "paid": "Не опубликован"
+      }
+    },
+    {
+      "key": "program:bmstu:24.05.06:ИУ1:24.05.06-29(РКТ1):source:1-6",
+      "code": "24.05.06-29(РКТ1)",
+      "cardUrl": "https://api.www.bmstu.ru/majors/sistemy-upravlenia-letatelnymi-apparatami-240506",
+      "displayed": {
+        "budget": "252 баллов",
+        "paid": "Не опубликован"
+      }
+    },
+    {
+      "key": "program:bmstu:24.05.06:ИУ11:24.05.06-20(ПС4):source:3-1",
+      "code": "24.05.06-20(ПС4)",
+      "cardUrl": "https://api.www.bmstu.ru/majors/sistemy-upravlenia-letatelnymi-apparatami-240506",
+      "displayed": {
+        "budget": "252 баллов",
+        "paid": "Не опубликован"
+      }
+    },
+    {
+      "key": "program:bmstu:24.05.06:ИУ2:24.05.06-04:source:2-1",
+      "code": "24.05.06-04",
+      "cardUrl": "https://api.www.bmstu.ru/majors/sistemy-upravlenia-letatelnymi-apparatami-240506",
+      "displayed": {
+        "budget": "252 баллов",
+        "paid": "Не опубликован"
+      }
+    },
+    {
+      "key": "program:bmstu:27.03.01:МТ4:27.03.01-01:source:1-1",
+      "code": "27.03.01-01",
+      "cardUrl": "https://api.www.bmstu.ru/majors/standartizacia-i-metrologia-270301",
+      "displayed": {
+        "budget": "255 баллов",
+        "paid": "Не опубликован"
+      }
+    },
+    {
+      "key": "program:bmstu:27.03.01:МТ4:27.03.01-61:source:1-2",
+      "code": "27.03.01-61",
+      "cardUrl": "https://api.www.bmstu.ru/majors/standartizacia-i-metrologia-270301",
+      "displayed": {
+        "budget": "255 баллов",
+        "paid": "Не опубликован"
+      }
+    },
+    {
+      "key": "program:bmstu:27.03.04:ИУ1:27.03.04-01:source:1-1",
+      "code": "27.03.04-01",
+      "cardUrl": "https://api.www.bmstu.ru/majors/upravlenie-v-tehniceskih-sistemah-270304",
+      "displayed": {
+        "budget": "284 баллов",
+        "paid": "Не опубликован"
+      }
+    },
+    {
+      "key": "program:bmstu:27.03.04:СМ5:27.03.04-02:source:2-1",
+      "code": "27.03.04-02",
+      "cardUrl": "https://api.www.bmstu.ru/majors/upravlenie-v-tehniceskih-sistemah-270304",
+      "displayed": {
+        "budget": "284 баллов",
+        "paid": "Не опубликован"
+      }
+    },
+    {
+      "key": "program:bmstu:27.03.05:ИБМ2:27.03.05/02:source:1-1",
+      "code": "27.03.05/02",
+      "cardUrl": "https://api.www.bmstu.ru/majors/innovatika-270305",
+      "displayed": {
+        "budget": "280 баллов",
+        "paid": "189 баллов"
+      }
+    },
+    {
+      "key": "program:bmstu:27.03.05:ИБМ3:27.03.05/03:source:2-1",
+      "code": "27.03.05/03",
+      "cardUrl": "https://api.www.bmstu.ru/majors/innovatika-270305",
+      "displayed": {
+        "budget": "280 баллов",
+        "paid": "189 баллов"
+      }
+    },
+    {
+      "key": "program:bmstu:27.03.05:ИБМ3:27.03.05/09:source:2-2",
+      "code": "27.03.05/09",
+      "cardUrl": "https://api.www.bmstu.ru/majors/innovatika-270305",
+      "displayed": {
+        "budget": "280 баллов",
+        "paid": "189 баллов"
+      }
+    },
+    {
+      "key": "program:bmstu:27.03.05:ИБМ4:27.03.05/04:source:3-1",
+      "code": "27.03.05/04",
+      "cardUrl": "https://api.www.bmstu.ru/majors/innovatika-270305",
+      "displayed": {
+        "budget": "280 баллов",
+        "paid": "189 баллов"
+      }
+    },
+    {
+      "key": "program:bmstu:27.03.05:ИБМ5:27.03.05/05:source:4-1",
+      "code": "27.03.05/05",
+      "cardUrl": "https://api.www.bmstu.ru/majors/innovatika-270305",
+      "displayed": {
+        "budget": "280 баллов",
+        "paid": "189 баллов"
+      }
+    },
+    {
+      "key": "program:bmstu:27.03.05:ИБМ7:27.03.05/07:source:5-1",
+      "code": "27.03.05/07",
+      "cardUrl": "https://api.www.bmstu.ru/majors/innovatika-270305",
+      "displayed": {
+        "budget": "280 баллов",
+        "paid": "189 баллов"
+      }
+    },
+    {
+      "key": "program:bmstu:28.03.02:МТ11:28.03.02-02:source:1-1",
+      "code": "28.03.02-02",
+      "cardUrl": "https://api.www.bmstu.ru/majors/nanoinzeneria-280302",
+      "displayed": {
+        "budget": "276 баллов",
+        "paid": "Не опубликован"
+      }
+    },
+    {
+      "key": "program:bmstu:28.03.02:РЛ6:28.03.02-01:source:2-1",
+      "code": "28.03.02-01",
+      "cardUrl": "https://api.www.bmstu.ru/majors/nanoinzeneria-280302",
+      "displayed": {
+        "budget": "276 баллов",
+        "paid": "Не опубликован"
+      }
+    },
+    {
+      "key": "program:bmstu:38.03.01:ИБМ1:38.03.01/01:source:1-1",
+      "code": "38.03.01/01",
+      "cardUrl": "https://api.www.bmstu.ru/majors/ekonomika-380301",
+      "displayed": {
+        "budget": "Не опубликован",
+        "paid": "221 баллов"
+      }
+    },
+    {
+      "key": "program:bmstu:38.03.01:ИБМ5:38.03.01/05:source:2-1",
+      "code": "38.03.01/05",
+      "cardUrl": "https://api.www.bmstu.ru/majors/ekonomika-380301",
+      "displayed": {
+        "budget": "Не опубликован",
+        "paid": "221 баллов"
+      }
+    },
+    {
+      "key": "program:bmstu:38.03.02:ИБМ4:38.03.02/04:source:1-1",
+      "code": "38.03.02/04",
+      "cardUrl": "https://api.www.bmstu.ru/majors/menedzment-380302",
+      "displayed": {
+        "budget": "Не опубликован",
+        "paid": "207 баллов"
+      }
+    },
+    {
+      "key": "program:bmstu:38.03.02:ИБМ7:38.03.02/07:source:2-1",
+      "code": "38.03.02/07",
+      "cardUrl": "https://api.www.bmstu.ru/majors/menedzment-380302",
+      "displayed": {
+        "budget": "Не опубликован",
+        "paid": "207 баллов"
+      }
+    },
+    {
+      "key": "program:bmstu:38.03.05:ИБМ3:38.03.05/02:source:1-1",
+      "code": "38.03.05/02",
+      "cardUrl": "https://api.www.bmstu.ru/majors/biznes-informatika-380305",
+      "displayed": {
+        "budget": "291 баллов",
+        "paid": "201 баллов"
+      }
+    },
+    {
+      "key": "program:bmstu:38.03.05:ИБМ6:38.03.05/01:source:2-1",
+      "code": "38.03.05/01",
+      "cardUrl": "https://api.www.bmstu.ru/majors/biznes-informatika-380305",
+      "displayed": {
+        "budget": "291 баллов",
+        "paid": "201 баллов"
+      }
+    },
+    {
+      "key": "program:bmstu:40.05.03/40.05.01:ЮР:40.05.03/Д1:source:1-1",
+      "code": "40.05.03/Д1",
+      "cardUrl": "https://api.www.bmstu.ru/majors/sudebnaa-ekspertiza-400503",
+      "displayed": {
+        "budget": "246 баллов",
+        "paid": "Не опубликован"
+      }
+    },
+    {
+      "key": "program:bmstu:45.03.02:Л4:45.03.02/01:source:1-1",
+      "code": "45.03.02/01",
+      "cardUrl": "https://api.www.bmstu.ru/majors/lingvistika-450302",
+      "displayed": {
+        "budget": "Не опубликован",
+        "paid": "173 баллов"
+      }
+    },
+    {
+      "key": "program:bmstu:45.03.03:Л4:45.03.03/01:source:1-1",
+      "code": "45.03.03/01",
+      "cardUrl": "https://api.www.bmstu.ru/majors/fundamentalnaya-i-kompyuternaya-lingvistika",
+      "displayed": {
+        "budget": "Не опубликован",
+        "paid": "223 баллов"
+      }
+    },
+    {
+      "key": "program:bmstu:54.03.01:МТ9:54.03.01/01:source:1-1",
+      "code": "54.03.01/01",
+      "cardUrl": "https://api.www.bmstu.ru/majors/dizajn-540301",
+      "displayed": {
+        "budget": "240 баллов",
+        "paid": "181 баллов"
+      }
+    }
+  ]
+}

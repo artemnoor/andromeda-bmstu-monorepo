@@ -671,6 +671,8 @@ export interface components {
             external_key: string;
             /** Faculty Name */
             faculty_name?: string | null;
+            /** General Education Category */
+            general_education_category?: ("physical_education" | "choice_unresolved") | null;
             /** Hours */
             hours?: number | null;
             /** Lab Hours */
@@ -685,6 +687,8 @@ export interface components {
             self_study_hours?: number | null;
             /** Semester */
             semester?: number | null;
+            /** Source Page */
+            source_page?: number | null;
             /** Sources */
             sources?: components["schemas"]["SourceReference"][];
             /** Study Plan Key */
@@ -692,6 +696,12 @@ export interface components {
             subject_classification?: components["schemas"]["SubjectClassificationSummary"] | null;
             /** Total Hours */
             total_hours?: number | null;
+            /**
+             * Workload Scope
+             * @default unknown
+             * @enum {string}
+             */
+            workload_scope: "core" | "optional" | "non_credit" | "unknown";
         };
         /** DataGap */
         DataGap: {

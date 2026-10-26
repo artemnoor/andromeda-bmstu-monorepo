@@ -1,15 +1,19 @@
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
 import { useReducedMotion } from "motion/react";
 import { AndromedaHeader } from "@/widgets/andromeda-navigation/andromeda-header";
-import CardSwap, { Card } from "@/shared/ui/card-swap";
 import { RotatingText } from "@/shared/ui/rotating-text";
 import { LearningOverviewAccordion } from "./learning-overview-accordion";
+import { HomeFooter } from "./home-footer";
+import { TrajectoryFinale } from "./trajectory-finale";
 import styles from "./home-page.module.css";
+
+const ComparisonShowcase = lazy(() => import("./comparison-showcase"));
 
 export function HomePage() {
   const [menuOpen, setMenuOpen] = useState(false);
-  const [isNarrowViewport, setIsNarrowViewport] = useState(false);
+  const showcaseRef = useRef<HTMLDivElement>(null);
+  const [showcaseEnabled, setShowcaseEnabled] = useState(false);
   const prefersReducedMotion = useReducedMotion();
 
   useEffect(() => {
@@ -22,12 +26,16 @@ export function HomePage() {
   }, []);
 
   useEffect(() => {
-    const media = window.matchMedia("(max-width: 600px)");
-    const updateViewport = () => setIsNarrowViewport(media.matches);
-
-    updateViewport();
-    media.addEventListener("change", updateViewport);
-    return () => media.removeEventListener("change", updateViewport);
+    const target = showcaseRef.current;
+    if (!target) return;
+    const observer = new IntersectionObserver(([entry]) => {
+      if (entry?.isIntersecting) {
+        setShowcaseEnabled(true);
+        observer.disconnect();
+      }
+    }, { rootMargin: "320px 0px" });
+    observer.observe(target);
+    return () => observer.disconnect();
   }, []);
 
   return (
@@ -54,9 +62,6 @@ export function HomePage() {
                   />
                 </picture>
               </div>
-              <p className={styles.heroBrand}>
-                МГТУ имени Баумана <span>× Андромеда</span>
-              </p>
               <div className={styles.heroIntro}>
                 <div>
                   <h1 className={styles.universityName}>
@@ -85,8 +90,8 @@ export function HomePage() {
                 </div>
               </div>
               <div className={styles.heroActions} role="group" aria-label="Основные действия">
-                <Link to="/discover" className={styles.heroPrimary}>Пройти профтест</Link>
-                <Link to="/compare" className={styles.heroSecondary}>Сравнить направление</Link>
+                <Link viewTransition to="/discover" className={styles.heroPrimary}>Пройти профтест</Link>
+                <Link viewTransition to="/compare" className={styles.heroSecondary}>Сравнить направление</Link>
               </div>
             </section>
           </div>
@@ -98,53 +103,10 @@ export function HomePage() {
                   <h2 className={styles.sectionTitle}>Всё для осознанного выбора направления</h2>
                 </header>
               </div>
-              <div className={styles.comparisonSwapViewport}>
-                <CardSwap
-                  className={styles.comparisonSwap ?? ""}
-                  width={isNarrowViewport ? 840 : 900}
-                  height={isNarrowViewport ? 500 : 560}
-                  cardDistance={isNarrowViewport ? 10 : 35}
-                  verticalDistance={isNarrowViewport ? 24 : 36}
-                  depth={isNarrowViewport ? 24 : 42}
-                  skewAmount={6}
-                  visibleCards={4}
-                  delay={4000}
-                  speed={1}
-                  bounce={0.35}
-                  parallax={0.5}
-                  hoverSpread={0.12}
-                  dim={0.5}
-                  cardRadius={18}
-                  theme="dark"
-                  autoplay
-                  pauseOnHover
-                  draggable
-                >
-                <Card customClass={styles.comparisonCard ?? ""}>
-                  <div className={styles.comparisonCardCopy}>
-                    <h3 className={styles.comparisonCardTitle}>Учебные планы рядом</h3>
-                    <p className={styles.comparisonCardDescription}>Сравнивай дисциплины и предметные категории в программах.</p>
-                  </div>
-                </Card>
-                <Card customClass={styles.comparisonCard ?? ""}>
-                  <div className={styles.comparisonCardCopy}>
-                    <h3 className={styles.comparisonCardTitle}>Куда уходит учебное время</h3>
-                    <p className={styles.comparisonCardDescription}>Изучай распределение опубликованных часов по категориям.</p>
-                  </div>
-                </Card>
-                <Card customClass={styles.comparisonCard ?? ""}>
-                  <div className={styles.comparisonCardCopy}>
-                    <h3 className={styles.comparisonCardTitle}>Условия по каждому направлению</h3>
-                    <p className={styles.comparisonCardDescription}>Сопоставляй опубликованные места, баллы и вступительные требования.</p>
-                  </div>
-                </Card>
-                <Card customClass={styles.comparisonCard ?? ""}>
-                  <div className={styles.comparisonCardCopy}>
-                    <h3 className={styles.comparisonCardTitle}>Проверяй основу сравнения</h3>
-                    <p className={styles.comparisonCardDescription}>Смотри год и источник опубликованных сведений.</p>
-                  </div>
-                </Card>
-                </CardSwap>
+              <div className={styles.comparisonSwapViewport} ref={showcaseRef}>
+                {showcaseEnabled ? <Suspense fallback={<div className={styles.comparisonPlaceholder} aria-label="Загружаем пример сравнения" />}>
+                  <ComparisonShowcase />
+                </Suspense> : <div className={styles.comparisonPlaceholder} aria-hidden="true" />}
               </div>
             </div>
           </section>
@@ -155,23 +117,12 @@ export function HomePage() {
               <p className={styles.learningOverviewDescription}>Ещё ищешь своё направление или уже выбрал? Выбери подходящий путь: профтест и рекомендации либо сравнение программ.</p>
             </header>
             <LearningOverviewAccordion />
-            <Link className={styles.sectionAction} to="/programs">Открыть каталог программ</Link>
+            <Link viewTransition className={styles.sectionAction} to="/programs">Открыть каталог программ</Link>
           </section>
 
-          <section className={`${styles.contentSection} ${styles.finalSection}`} id="final-cta">
-            <div className={styles.finalCta}>
-              <div className={styles.ctaCopy}>
-                <span className={`${styles.sectionKicker} ${styles.ctaKicker}`}>Твой следующий шаг</span>
-                <h2 className={styles.ctaTitle}>Выбери, с чего начать</h2>
-                <p className={styles.ctaDescription}>Пройди тест, чтобы сузить выбор, или сравни два направления, которые уже тебя заинтересовали.</p>
-              </div>
-              <div className={styles.finalActions}>
-                <Link className={styles.sectionAction} to="/discover">Пройти профтест</Link>
-                <Link className={styles.sectionAction} to="/compare">Открыть сравнение</Link>
-              </div>
-            </div>
-          </section>
+          <TrajectoryFinale />
         </main>
+        <HomeFooter />
       </div>
 
     </div>

@@ -47,12 +47,15 @@ export interface CardSwapProps {
   autoplay?: boolean;
   pauseOnHover?: boolean;
   draggable?: boolean;
+  interactive?: boolean;
+  initialIndex?: number;
   speed?: number;
   bounce?: number;
   parallax?: number;
   hoverSpread?: number;
   dim?: number;
   cardRadius?: number;
+  renderAtDisplaySize?: boolean;
   intro?: boolean;
   theme?: 'dark' | 'light';
   onCardClick?: ((index: number) => void) | undefined;
@@ -99,11 +102,14 @@ interface Settings {
   autoplay: boolean;
   pauseOnHover: boolean;
   draggable: boolean;
+  interactive: boolean;
+  initialIndex: number;
   speed: number;
   bounce: number;
   parallax: number;
   hoverSpread: number;
   dim: number;
+  renderAtDisplaySize: boolean;
   bounds: Bounds;
   onCardClick?: ((index: number) => void) | undefined;
   onChange?: ((index: number) => void) | undefined;
@@ -304,12 +310,15 @@ const CardSwap = forwardRef<CardSwapHandle, CardSwapProps>(
       autoplay = true,
       pauseOnHover = true,
       draggable = true,
+      interactive = true,
+      initialIndex = 0,
       speed = 1,
       bounce = 0.35,
       parallax = 0.5,
       hoverSpread = 0.12,
       dim = 0.5,
       cardRadius = 18,
+      renderAtDisplaySize = false,
       intro = true,
       theme = 'dark',
       onCardClick,
@@ -365,11 +374,14 @@ const CardSwap = forwardRef<CardSwapHandle, CardSwapProps>(
       autoplay,
       pauseOnHover,
       draggable,
+      interactive,
+      initialIndex: Math.trunc(initialIndex),
       speed: clamp(speed, 0.1, 4),
       bounce: clamp(bounce, 0, 1),
       parallax: clamp(parallax, 0, 1),
       hoverSpread: Math.max(0, hoverSpread),
       dim: clamp(dim, 0, 1),
+      renderAtDisplaySize,
       bounds,
       onCardClick,
       onChange
@@ -420,7 +432,7 @@ const CardSwap = forwardRef<CardSwapHandle, CardSwapProps>(
         })
       );
       const state: EngineState = {
-        order: deck.map(card => card.index),
+        order: Array.from({ length: count }, (_, position) => (position + clamp(s0.initialIndex, 0, count - 1)) % count),
         raf: 0,
         last: 0,
         timer: 0,
@@ -443,6 +455,11 @@ const CardSwap = forwardRef<CardSwapHandle, CardSwapProps>(
         autoplay: s0.autoplay,
         delay: s0.delay
       };
+      deck.forEach(card => {
+        const position = state.order.indexOf(card.index);
+        card.pos = position;
+        card.from = position;
+      });
 
       const slot = (position: number, s: Settings): Pose => {
         const q = Math.min(position, s.visible);
@@ -475,24 +492,53 @@ const CardSwap = forwardRef<CardSwapHandle, CardSwapProps>(
       const write = (card: DeckCard, s: Settings) => {
         const { el, shade } = card;
         if (!el) return;
-        el.style.transform = `translate3d(${card.x.toFixed(2)}px, ${card.y.toFixed(2)}px, ${card.z.toFixed(2)}px) rotate(${card.r.toFixed(3)}deg) skewY(${s.skew}deg)`;
-        el.style.zIndex = String(layerOf(card));
+        let transform: string;
+        if (s.renderAtDisplaySize) {
+          // All planes rotate only around Z. Project the same perspective into
+          // a 2D matrix so text isn't forced into low-resolution 3D textures.
+          const projection = PERSPECTIVE / (PERSPECTIVE - card.z);
+          const x = card.x * projection + state.px * (1 - projection);
+          const y = card.y * projection + state.py * (1 - projection);
+          transform = `translate(${x.toFixed(3)}px, ${y.toFixed(3)}px) rotate(${card.r.toFixed(3)}deg) skewY(${s.skew}deg) scale(${projection.toFixed(6)})`;
+          if (el.style.backfaceVisibility !== 'visible') el.style.backfaceVisibility = 'visible';
+        } else {
+          transform = `translate3d(${card.x.toFixed(2)}px, ${card.y.toFixed(2)}px, ${card.z.toFixed(2)}px) rotate(${card.r.toFixed(3)}deg) skewY(${s.skew}deg)`;
+        }
+        if (el.style.transform !== transform) el.style.transform = transform;
+        const layer = String(layerOf(card));
+        if (el.style.zIndex !== layer) el.style.zIndex = layer;
         const fade = clamp(s.visible - card.p, 0, 1);
-        el.style.opacity = fade < 1 ? fade.toFixed(3) : '';
-        el.style.visibility = fade <= 0.001 ? 'hidden' : '';
+        const opacity = fade < 1 ? fade.toFixed(3) : '';
+        const visibility = fade <= 0.001 ? 'hidden' : '';
+        if (el.style.opacity !== opacity) el.style.opacity = opacity;
+        if (el.style.visibility !== visibility) el.style.visibility = visibility;
         if (shade) {
           const depthT = clamp(card.p / Math.max(1, s.visible - 1), 0, 1);
-          shade.style.opacity = (s.dim * 0.62 * depthT).toFixed(3);
+          const shadeOpacity = (s.dim * 0.62 * depthT).toFixed(3);
+          if (shade.style.opacity !== shadeOpacity) shade.style.opacity = shadeOpacity;
         }
-        el.style.cursor = card.phase === 'drag' ? 'grabbing' : card.pos > 0 ? 'pointer' : s.draggable ? 'grab' : '';
-        if (card.pos === 0) el.setAttribute('data-front', '');
-        else el.removeAttribute('data-front');
+        const cursor = card.phase === 'drag' ? 'grabbing' : card.pos > 0 ? 'pointer' : s.draggable ? 'grab' : '';
+        if (el.style.cursor !== cursor) el.style.cursor = cursor;
+        const front = card.pos === 0;
+        if (el.hasAttribute('data-front') !== front) el.toggleAttribute('data-front', front);
+        // Keep outgoing content visible until it has left the stack. Background
+        // previews keep their layout, while their dense tables need no paint.
+        const previewActive = front || card.phase === 'exit' || card.phase === 'enter';
+        if (el.hasAttribute('data-preview-active') !== previewActive) el.toggleAttribute('data-preview-active', previewActive);
+        const content = el.firstElementChild;
+        // Accessibility state changes once per swap, never once per frame.
+        if (content?.getAttribute('aria-hidden') !== String(!front)) {
+          content?.toggleAttribute('inert', !front);
+          content?.setAttribute('aria-hidden', String(!front));
+        }
       };
 
       const writeStage = (s: Settings) => {
+        if (s.renderAtDisplaySize) return;
         const ox = s.bounds.originX + state.px;
         const oy = s.bounds.originY + state.py;
-        stage.style.perspectiveOrigin = `${ox.toFixed(2)}px ${oy.toFixed(2)}px`;
+        const origin = `${ox.toFixed(2)}px ${oy.toFixed(2)}px`;
+        if (stage.style.perspectiveOrigin !== origin) stage.style.perspectiveOrigin = origin;
       };
 
       const integrate = (card: DeckCard, target: Pose, omega: number, zeta: number, dt: number) => {
@@ -600,7 +646,18 @@ const CardSwap = forwardRef<CardSwapHandle, CardSwapProps>(
       };
 
       const wake = () => {
-        if (!state.raf) state.raf = requestAnimationFrame(frame);
+        if (!state.raf && state.inView && document.visibilityState !== 'hidden') state.raf = requestAnimationFrame(frame);
+      };
+
+      const updateActivity = () => {
+        if (!state.inView || document.visibilityState === 'hidden') {
+          cancelAnimationFrame(state.raf);
+          state.raf = 0;
+          state.last = 0;
+        } else {
+          wake();
+        }
+        schedule();
       };
 
       const paused = () => {
@@ -609,6 +666,7 @@ const CardSwap = forwardRef<CardSwapHandle, CardSwapProps>(
           !s.autoplay ||
           count < 2 ||
           (s.pauseOnHover && state.overCard) ||
+          root.contains(document.activeElement) ||
           state.drag ||
           !state.inView ||
           document.visibilityState === 'hidden'
@@ -698,7 +756,16 @@ const CardSwap = forwardRef<CardSwapHandle, CardSwapProps>(
         const h = root.clientHeight;
         const scale = Math.min(1, w / s.bounds.width, h > 0 ? h / s.bounds.height : 1);
         state.scale = scale > 0 ? scale : 1;
-        stage.style.transform = `translate(-50%, -50%) scale(${state.scale.toFixed(4)})`;
+        stage.style.perspective = s.renderAtDisplaySize ? 'none' : '';
+        // CSS zoom lays out/rasterizes text at its displayed size instead of
+        // shrinking an already composited texture. Card transforms stay intact.
+        if (s.renderAtDisplaySize && CSS.supports('zoom', '0.5')) {
+          stage.style.zoom = state.scale.toFixed(4);
+          stage.style.transform = 'translate(-50%, -50%)';
+        } else {
+          stage.style.zoom = '';
+          stage.style.transform = `translate(-50%, -50%) scale(${state.scale.toFixed(4)})`;
+        }
       };
 
       const local = (event: PointerEvent) => {
@@ -708,7 +775,7 @@ const CardSwap = forwardRef<CardSwapHandle, CardSwapProps>(
 
       const onMove = (event: PointerEvent) => {
         const s = settingsRef.current;
-        if (event.pointerType !== 'touch') {
+        if (s.interactive && event.pointerType !== 'touch') {
           const point = local(event);
           const nx = clamp((point.x / Math.max(1, point.w)) * 2 - 1, -1, 1);
           const ny = clamp((point.y / Math.max(1, point.h)) * 2 - 1, -1, 1);
@@ -769,6 +836,8 @@ const CardSwap = forwardRef<CardSwapHandle, CardSwapProps>(
       const onDown = (event: PointerEvent) => {
         const s = settingsRef.current;
         state.dragged = false;
+        if (!s.interactive) return;
+        if ((event.target as Element | null)?.closest?.('[data-swap-interactive]')) return;
         if (!s.draggable || event.button > 0 || count < 2) return;
         const target = (event.target as Element | null)?.closest?.('[data-swap-index]');
         if (!target || !root.contains(target)) return;
@@ -832,6 +901,7 @@ const CardSwap = forwardRef<CardSwapHandle, CardSwapProps>(
       };
 
       const onClick = (event: MouseEvent) => {
+        if (!settingsRef.current.interactive) return;
         if (state.dragged) {
           state.dragged = false;
           return;
@@ -844,7 +914,7 @@ const CardSwap = forwardRef<CardSwapHandle, CardSwapProps>(
         if (position > 0) goTo(position);
       };
 
-      const onVisibility = () => schedule();
+      const onVisibility = () => updateActivity();
 
       apiRef.current = {
         next: () => shift(1),
@@ -889,7 +959,7 @@ const CardSwap = forwardRef<CardSwapHandle, CardSwapProps>(
       resizeObserver.observe(root);
       const intersectionObserver = new IntersectionObserver(entries => {
         state.inView = entries[entries.length - 1]?.isIntersecting ?? true;
-        schedule();
+        updateActivity();
       });
       intersectionObserver.observe(root);
       root.addEventListener('pointermove', onMove);
@@ -897,6 +967,8 @@ const CardSwap = forwardRef<CardSwapHandle, CardSwapProps>(
       root.addEventListener('pointerdown', onDown);
       root.addEventListener('pointerup', onUp);
       root.addEventListener('pointercancel', onUp);
+      root.addEventListener('focusin', schedule);
+      root.addEventListener('focusout', schedule);
       root.addEventListener('click', onClick);
       document.addEventListener('visibilitychange', onVisibility);
       schedule();
@@ -912,6 +984,8 @@ const CardSwap = forwardRef<CardSwapHandle, CardSwapProps>(
         root.removeEventListener('pointerdown', onDown);
         root.removeEventListener('pointerup', onUp);
         root.removeEventListener('pointercancel', onUp);
+        root.removeEventListener('focusin', schedule);
+        root.removeEventListener('focusout', schedule);
         root.removeEventListener('click', onClick);
         document.removeEventListener('visibilitychange', onVisibility);
         apiRef.current = null;
@@ -923,6 +997,8 @@ const CardSwap = forwardRef<CardSwapHandle, CardSwapProps>(
     });
 
     const onKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
+      if (!settingsRef.current.interactive) return;
+      if ((event.target as Element | null)?.closest?.('[data-swap-interactive]')) return;
       if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
         event.preventDefault();
         apiRef.current?.next();
@@ -949,7 +1025,8 @@ const CardSwap = forwardRef<CardSwapHandle, CardSwapProps>(
         ref={rootRef}
         className={`card-swap${className ? ` ${className}` : ''}`}
         style={rootStyle}
-        tabIndex={0}
+        tabIndex={interactive ? 0 : -1}
+        inert={!interactive}
         role="region"
         aria-roledescription="carousel"
         aria-label="Card stack"

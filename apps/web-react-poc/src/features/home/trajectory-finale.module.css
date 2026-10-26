@@ -1,0 +1,26 @@
+.section { position: relative; isolation: isolate; overflow: hidden; padding: clamp(80px, 12vw, 160px) 0 24px; text-align: center; view-timeline-name: --trajectory; view-timeline-axis: block; }
+.section h2 { position: relative; z-index: 1; margin: 0; color: var(--text); font-size: clamp(40px, 6.8vw, 92px); font-weight: 500; line-height: 1.02; letter-spacing: -.055em; text-wrap: balance; }
+.section em { color: var(--accent); font-style: normal; }
+.universe { position: relative; width: min(100%, 1040px); aspect-ratio: 920 / 390; margin: 12px auto 0; }
+.orbits { position: absolute; inset: 0; color: rgb(141 237 249 / 65%); transform-origin: center; }
+.orbits svg { width: 100%; height: 100%; overflow: visible; }
+.mark { position: absolute; top: 50%; left: 50%; width: 15.65%; height: auto; transform: translate(-50%, -50%); filter: brightness(0) invert(1); }
+.label { position: absolute; color: var(--text-muted); font-size: clamp(11px, 1.3vw, 16px); letter-spacing: .025em; }
+.start { top: 79%; left: 7%; }
+.finish { top: 26%; right: 7%; }
+@supports (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .orbits { animation: orbitJourney linear both; animation-timeline: --trajectory; animation-range: entry 0% exit 100%; }
+    .section h2 { animation: titleJourney linear both; animation-timeline: --trajectory; animation-range: entry 0% entry 85%; }
+  }
+}
+@supports not (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .orbits { transform: rotate(-9deg); transition: transform 650ms cubic-bezier(.16, 1, .3, 1); }
+    .section[data-revealed] .orbits { transform: rotate(9deg); }
+  }
+}
+@keyframes orbitJourney { from { transform: rotate(-12deg); } to { transform: rotate(16deg); } }
+@keyframes titleJourney { from { transform: translateY(18px); opacity: .35; } to { transform: translateY(0); opacity: 1; } }
+@media (max-width: 600px) { .section { padding-top: 80px; padding-bottom: 26px; } .universe { width: 120%; max-width: none; margin-left: -10%; margin-top: 28px; } .section h2 { font-size: clamp(38px, 10vw, 58px); } }
+@media (prefers-reduced-motion: reduce) { .orbits, .section h2 { animation: none; transition: none; opacity: 1; } }

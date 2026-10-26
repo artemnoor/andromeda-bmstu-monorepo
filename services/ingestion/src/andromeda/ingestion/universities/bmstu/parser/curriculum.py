@@ -193,8 +193,8 @@ def _plan_header(lines: list[str]) -> dict[str, Any]:
 
 def _semester_columns(header: str) -> tuple[list[int], list[int | None]]:
     matches = list(re.finditer(r"Семестр\s+(\d+)\s*-\s*(\d+)\s+нед", header))
-    starts = [max(0, match.start() - 4) for match in matches[:12]]
-    weeks: list[int | None] = [int(match.group(2)) for match in matches[:12]]
+    starts = [max(0, match.start() - 4) for match in matches[:20]]
+    weeks: list[int | None] = [int(match.group(2)) for match in matches[:20]]
     return starts, weeks
 
 
@@ -212,7 +212,7 @@ def _study_plan_semester_summary(lines: list[str]) -> list[dict[str, Any]]:
     starts, weeks = _semester_columns(lines[header_index])
     if not starts:
         plain_matches = list(re.finditer(r"Семестр\s+(\d+)", lines[header_index]))
-        starts = [max(0, match.start() - 4) for match in plain_matches[:12]]
+        starts = [max(0, match.start() - 4) for match in plain_matches[:20]]
         week_header = next(
             (line for line in lines[:marker] if "Семестр 1" in line and "нед" in line),
             "",
@@ -301,16 +301,23 @@ def _study_plan_records(
     text = _pdf_layout_text(resource.body)
     if not text or "ПЛАН УЧЕБНОГО ПРОЦЕССА" not in text:
         return []
+    from .curriculum_geometry import read_curriculum_geometry
+
+    geometry = read_curriculum_geometry(resource.body)
     page_lines = [page.splitlines() for page in text.split("\f")]
     lines = [line for page in page_lines for line in page]
     line_pages = [page_no for page_no, page in enumerate(page_lines, start=1) for _line in page]
     block_by_line: list[str | None] = []
     part_by_line: list[str | None] = []
+    scope_by_line: list[str] = []
     active_block: str | None = None
     active_part: str | None = None
+    active_scope = "core"
     for line in lines:
         stripped = line.strip()
         normalized = _normalized_text(stripped)
+        if "факультативные дисциплины" in normalized:
+            active_scope = "optional"
         block_match = re.match(r"^(Б\s*\d{1,2})\b", stripped, re.IGNORECASE)
         if block_match:
             active_block = re.sub(r"\s+", "", block_match.group(1)).upper()
@@ -320,6 +327,7 @@ def _study_plan_records(
             active_part = "Вариативная часть"
         block_by_line.append(active_block)
         part_by_line.append(active_part)
+        scope_by_line.append(active_scope)
     plan_header = _plan_header(lines)
     direction_code = plan_header.get("direction_code") or context.get("direction_code")
     profile_code = plan_header.get("program_profile_code") or context.get("profile_code")
@@ -362,7 +370,7 @@ def _study_plan_records(
         if len(starts) < 1:
             starts = [193 + index * 35 for index in range(12)]
             weeks = [None] * len(starts)
-        sections.append((section_header_index + 1, section_end, starts[:12], weeks[:12]))
+        sections.append((section_header_index + 1, section_end, starts[:20], weeks[:20]))
     if not sections:
         return []
     semester_starts = sections[0][2]
@@ -371,6 +379,9 @@ def _study_plan_records(
     records: list[dict[str, Any]] = []
     parsed_position = 0
     summary_semesters = _study_plan_semester_summary(lines)
+    for entry in summary_semesters:
+        if cell := geometry.semester_totals.get(entry["semester"]):
+            entry.update({key: cell[key] for key in ("credits", "hours", "audited_hours_semester", "self_study")})
     overall_totals = _study_plan_overall_totals(lines, semester_starts[0])
     summary_record = {
         **plan_header,
@@ -517,6 +528,10 @@ def _study_plan_records(
                 "total_labs": total_values[5],
                 "total_self_study": total_values[6],
             }
+            geometry_row = geometry.match(line_pages[line_index], row_no, name)
+            workload_scope = scope_by_line[line_index]
+            if workload_scope == "core" and total_values[0] is None and "физическ" in name.casefold() and "культур" in name.casefold():
+                workload_scope = "non_credit"
             base = {
                 "program_code": direction_code or context.get("direction_code"),
                 "direction_code": direction_code or context.get("direction_code"),
@@ -529,6 +544,13 @@ def _study_plan_records(
                 "course_block": block_by_line[line_index],
                 "source_part": part_by_line[line_index],
                 "source_page": line_pages[line_index],
+                "source_row": {
+                    "workload_scope": workload_scope,
+                    "source_page": line_pages[line_index],
+                    "printed_row_no": row_no,
+                    "workload_cell_basis": "pdf_coordinates" if geometry_row is not None else "text_layout",
+                    "is_choice_group": bool(re.search(r"дисциплин[аы].*по выбору", name, re.IGNORECASE)),
+                },
                 "qualification": plan_header.get("qualification"),
                 "education_year": plan_header.get("education_year") or context.get("year"),
                 "form": form,
@@ -552,9 +574,15 @@ def _study_plan_records(
                     if number_re.fullmatch(value)
                     and (number := parse_number(value)) is not None
                 ]
-                if len(semester_numbers) < 4:
+                cell = next((value for value in geometry_row.cells if value["semester"] == semester), None) if geometry_row is not None else None
+                if geometry_row is not None:
+                    if cell is None:
+                        continue
+                    semester_numbers = [cell["credits"], cell["hours"], cell["audited_hours_semester"], cell["self_study"]]
+                    control = cell["assessment_type"]
+                elif len(semester_numbers) < 4:
                     continue
-                if semester_numbers[0] > 60 or semester_numbers[1] > 2_000:
+                elif semester_numbers[0] > 60 or semester_numbers[1] > 2_000:
                     repaired = _repair_semester_cell(line, start, number_re)
                     if repaired is not None:
                         semester_numbers, control = repaired

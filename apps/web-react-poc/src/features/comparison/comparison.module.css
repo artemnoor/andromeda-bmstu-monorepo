@@ -66,6 +66,7 @@
 .selectionList { display: grid; grid-template-columns: repeat(var(--comparison-count, 3), minmax(0, 1fr)); gap: 12px; }
 .selectionCard { display: grid; grid-template-columns: minmax(0, 1fr) 34px; align-items: start; gap: 10px; min-width: 0; padding: 14px; border-top: 3px solid var(--program-color, var(--blue)); border-radius: 8px; background: var(--surface-raised); }
 .selectionCopy { min-width: 0; }
+.selectionDepartment { margin: 8px 0 0; color: var(--muted); font-size: 12px; font-weight: 400; line-height: 1.5; overflow-wrap: anywhere; }
 .selectionCopy span { display: block; margin-bottom: 5px; color: var(--blue); font-size: 10px; font-weight: 700; }
 .selectionCopy strong { display: -webkit-box; overflow: hidden; font-size: 11px; font-weight: 600; line-height: 1.4; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 .removeButton { display: grid; place-items: center; width: 34px; height: 34px; border: 1px solid var(--line); border-radius: 50%; background: var(--surface); color: var(--muted); font-size: 17px; cursor: pointer; }
@@ -99,6 +100,10 @@
 .categoryCount { display: inline-flex; min-height: 25px; align-items: center; margin-top: 12px; padding: 0 9px; border: 1px solid var(--accent-line); border-radius: 7px; color: var(--blue); background: var(--surface-raised); font-size: 10px; font-weight: 650; }
 .categoryGrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); gap: 16px; padding: 16px; background: var(--surface-raised); }
 .categoryCard { display: flex; min-width: 0; flex-direction: column; padding: 20px 18px 0; overflow: hidden; border: 1px solid var(--line); border-radius: 18px; background: var(--surface); box-shadow: 0 2px 8px rgb(17 17 17 / 3%); }
+/* Share header, chart and footnote rows across adjacent programs. Department
+   names can wrap freely without moving one donut below its neighbours. */
+.categoryGrid > .categoryCard { display: grid; grid-template-rows: subgrid; grid-row: span 3; row-gap: 0; }
+.categoryGrid > .categoryCard > .chartCardContent { min-width: 0; align-items: start; }
 .categoryProgramHead { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; min-height: 74px; padding-left: 12px; border-left: 3px solid var(--program-color); }
 .categoryProgramCode { display: block; margin-bottom: 5px; color: var(--program-color); font-size: 10px; font-weight: 700; }
 .categoryProgramName { margin: 0; font-size: 12px; font-weight: 600; line-height: 1.35; letter-spacing: -.015em; }
@@ -161,10 +166,11 @@
 .categoryDialog::backdrop { background: rgb(15 25 40 / 48%); backdrop-filter: blur(5px); }
 .categoryDialogShell { display: grid; grid-template-rows: auto minmax(0, 1fr); max-height: min(90svh, 920px); }
 .categoryDialogHead { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; padding: 24px 28px; border-bottom: 1px solid var(--line); background: var(--surface); }
-.categoryDialogTitle { margin: 7px 0 0; font-size: clamp(24px, 4vw, 36px); font-weight: 550; line-height: 1.05; letter-spacing: -.05em; }
+.categoryDialogHead > div { min-width: 0; }
+.categoryDialogTitle { margin: 7px 0 0; font-size: clamp(24px, 4vw, 36px); font-weight: 550; line-height: 1.05; letter-spacing: -.05em; overflow-wrap: anywhere; }
 .categoryDialogDescription { margin: 8px 0 0; color: var(--muted); font-size: 12px; line-height: 1.45; }
 .categoryDialogClose { display: grid; width: 40px; height: 40px; flex: 0 0 auto; place-items: center; border: 1px solid var(--line); border-radius: 50%; color: var(--muted); background: var(--surface); font-size: 24px; line-height: 1; cursor: pointer; }
-.categoryDialogGrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); align-items: start; gap: 12px; overflow: auto; padding: 20px 24px 24px; }
+.categoryDialogGrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); grid-auto-rows: max-content; align-content: start; align-items: start; min-width: 0; min-height: 0; gap: 12px; overflow: auto; overscroll-behavior: contain; padding: 20px 24px 24px; }
 .categoryDialogColumn { min-width: 0; overflow: hidden; border: 1px solid var(--line); border-radius: 15px; background: var(--surface); }
 .categoryDialogColumnHead { padding: 16px; border-top: 3px solid var(--category-color); background: var(--surface-raised); }
 .categoryDialogDirectionCode { display: block; color: var(--blue); font-size: 10px; font-weight: 700; letter-spacing: .04em; }
@@ -219,7 +225,7 @@
 .relatedFacts summary { color: var(--blue); font-size: 12px; line-height: 1.5; cursor: pointer; }
 .relatedFacts > div { margin-top: 12px; padding: 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface-raised); }
 .relatedFacts strong { font-size: 17px; }
-.loading { display: grid; gap: 24px; margin-top: 32px; padding: 24px; border: 1px solid var(--line); border-radius: 18px; background: var(--surface); scroll-margin-top: 88px; }
+.loading { display: grid; margin-top: 32px; padding: 0; border: 0; background: transparent; scroll-margin-top: 88px; }
 .loading h2 { margin: 10px 0; font-size: 22px; font-weight: 500; letter-spacing: -.03em; }
 .loading p:not(.kicker) { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.6; }
 .skeletonGrid { display: grid; grid-template-columns: repeat(var(--comparison-count, 3), minmax(0, 1fr)); gap: 16px; }
@@ -267,11 +273,12 @@
 .releaseNote { font-size: 12px; line-height: 1.6; }
 
 /* Shared home-page surfaces with quiet, cyan outlines. */
-.selection, .categoryBoard, .workloadPanel, .matrixDetails, .tableWrap {
+.selection, .workloadPanel, .matrixDetails, .tableWrap {
   border-color: var(--accent-line);
   box-shadow: inset 0 1px 0 rgb(255 255 255 / 3%);
 }
-.selection, .categoryBoard, .workloadPanel, .matrixDetails { border-radius: 22px; }
+.selection, .workloadPanel, .matrixDetails { border-radius: 22px; }
+.categoryBoard { border: 0; background: transparent; box-shadow: none; }
 .intro { padding-block: 20px 36px; }
 .selection { padding: 24px; }
 .selectionCard { min-height: 124px; border: 1px solid var(--line); border-top: 2px solid var(--program-color); border-radius: 12px; padding: 18px; }
@@ -429,3 +436,4 @@
 .directionQuotas ul { display: grid; gap: 12px; padding: 0; list-style: none; }
 .directionQuotas li { display: grid; gap: 6px; padding-top: 12px; border-top: 1px solid var(--line); overflow-wrap: anywhere; }
 .directionQuotas small { color: var(--text-muted); }
+.deferredChart { display: grid; place-items: center; min-height: 320px; }

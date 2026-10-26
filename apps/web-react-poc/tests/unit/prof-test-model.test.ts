@@ -60,7 +60,8 @@ function item(
     external_key: externalKey,
     study_plan_key: studyPlanKey,
     ordinal: 1,
-    total_hours: hours,
+    hours,
+    total_hours: hours === null ? null : hours * 3,
     subject_classification: categoryCode === null ? null : {
       category_code: categoryCode,
       category_name: categoryCode,
@@ -95,6 +96,18 @@ const taxonomy = {
 } as SubjectTaxonomyDto;
 
 describe("career test profiles and ranking", () => {
+  it("excludes sport and optional modules from professional interests and uses semester hours", () => {
+    const result = buildProgramProfiles({
+      programs: [program("program:a", "01.03.02-01")], plans: [plan("plan:a", "program:a")], taxonomy,
+      itemsByPlanKey: new Map([["plan:a", [
+        item("math", "plan:a", "03", 72, { total_hours: 432 }),
+        item("pe", "plan:a", "04", 340, { discipline_name: "Элективный курс по физической культуре и спорту" }),
+        item("vk", "plan:a", "05", 1512, { workload_scope: "optional" }),
+      ]]]),
+    });
+    expect(result.profiles[0]?.totalHours).toBe(72);
+    expect([...result.profiles[0]!.categoryHours]).toEqual([["03", 72]]);
+  });
   it("uses exact latest verified plans and keeps the Jev category assignment when it needs review", () => {
     const programs = [
       program("program:a", "01.01.01"),
@@ -252,6 +265,15 @@ describe("career test profiles and ranking", () => {
       },
     ];
     const result = buildProgramProfilesFromSnapshot({ programs: [a, b], plans, taxonomy, snapshots: snapshot });
+    const withExcluded = buildProgramProfilesFromSnapshot({
+      programs: [a, b], plans, taxonomy,
+      snapshots: [{ ...snapshot[0]!, excluded_rows: 1, assigned_rows: 3, classified_rows: 2 }, snapshot[1]!],
+    });
+    expect(withExcluded.assignedRows).toBe(5);
+    expect(() => buildProgramProfilesFromSnapshot({
+      programs: [a, b], plans, taxonomy,
+      snapshots: [{ ...snapshot[0]!, excluded_rows: 4 }, snapshot[1]!],
+    })).toThrow(/invalid excluded row count/);
 
     expect(result.totalCurriculumRows).toBe(6);
     expect(result.classifiedRows).toBe(5);

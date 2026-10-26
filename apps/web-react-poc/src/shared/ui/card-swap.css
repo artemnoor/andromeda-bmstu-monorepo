@@ -47,6 +47,9 @@
   touch-action: pan-y;
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
+  /* Keep each dense preview in its own composited layer during swaps. */
+  will-change: transform;
+  contain: layout paint style;
 }
 
 .card-swap:focus-visible .card-swap-slot[data-front] {

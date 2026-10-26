@@ -2,7 +2,9 @@
 
 > A Python monorepo for source-backed BMSTU academic data, reviewed releases, and a read-only API.
 
-Andromeda captures official academic sources, stages changes for review, and publishes immutable releases in PostgreSQL. The public API reads the active release. Directus is an optional internal viewer. The original applicant-facing frontend is restored in `apps/web/`; applicant account services, production hosting, Dagster runtime, and Graph Explorer are not implemented.
+Andromeda captures official academic sources, stages changes for review, and publishes immutable releases in PostgreSQL. The public API reads the active release. Directus is an optional internal viewer. The current applicant-facing React application is in `apps/web-react-poc/` and is deployed at [andromedabmstu.ru](https://andromedabmstu.ru/). The original frontend remains in `apps/web/`. Applicant account services, Dagster runtime, and Graph Explorer are not implemented.
+
+For the current site, start with the [React application guide](apps/web-react-poc/README.md). It covers the catalog, program pages, career test, comparison, shared links, PDF export, and frontend development. The checked-in academic bundle is a reviewed test fixture; deployed immutable releases and database credentials are managed separately.
 
 ## Quick start
 
@@ -38,6 +40,7 @@ uv run academic-data bundle import --input data/bmstu-2026 --dry-run
 | Path | Owner |
 |---|---|
 | `apps/web/` | Original multi-page applicant frontend and its static assets |
+| `apps/web-react-poc/` | Current React site, prerendered program pages, career test, comparison, sharing and PDF export |
 | `domain/` | Framework-independent ontology semantics and policy ports |
 | `packages/contracts/` | Versioned HTTP DTOs |
 | `packages/db/` | PostgreSQL models, repositories, and Alembic history |

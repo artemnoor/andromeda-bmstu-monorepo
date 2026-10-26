@@ -1,0 +1,10 @@
+.region { position: fixed; z-index: 1100; inset-inline: 16px; bottom: max(24px, env(safe-area-inset-bottom)); width: min(480px, calc(100% - 32px)); margin-inline: auto; pointer-events: none; }
+.notice { display: flex; align-items: flex-start; gap: 12px; padding: 18px; border: 1px solid #ff6b6b; border-radius: 18px; color: #f4f4f4; background: #202020; box-shadow: 0 12px 40px rgb(0 0 0 / 40%); pointer-events: auto; animation: appear 180ms cubic-bezier(.16, 1, .3, 1); }
+.copy { display: grid; flex: 1; min-width: 0; gap: 8px; font-size: 13px; line-height: 1.5; }
+.copy strong { font-size: 14px; font-weight: 600; }
+.copy span { color: #b8bec7; }
+.copy a { width: fit-content; min-height: 32px; display: inline-flex; align-items: center; color: #f4f4f4; text-decoration: underline; text-underline-offset: 3px; }
+.close { display: grid; flex-shrink: 0; place-items: center; width: 44px; height: 44px; margin: -8px -8px 0 0; padding: 0; border: 0; border-radius: 50%; color: #f4f4f4; background: transparent; font-size: 24px; cursor: pointer; }
+.close:hover { background: rgb(255 255 255 / 8%); }
+@keyframes appear { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+@media (prefers-reduced-motion: reduce) { .notice { animation: none; } }

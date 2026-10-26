@@ -1,4 +1,5 @@
 import type { Page } from "@playwright/test";
+import bviReview from "../../docs/data/bvi-orders-20261020.json" with { type: "json" };
 import {
   clearPocStorage,
   discoverLiveCurriculumProgram,
@@ -58,84 +59,64 @@ function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-async function expectSeededAdmissionFacts(page: Page, program: { readonly directionKey: string; readonly directionCode: string | null; readonly releaseKey: string }, table: ReturnType<Page["getByRole"]>): Promise<void> {
-  // `direction_code` is nullable in the FastAPI DTO; validate direction-only
-  // statistics and their displayed scope only when the live record provides it.
-  const campaignsResponse = await page.request.get("/api/v1/campaigns?year=2026&limit=100");
-  expect(campaignsResponse.status(), "campaign response used as the independent admission fixture").toBe(200);
-  const campaignBody = await campaignsResponse.json() as {
-    readonly items: readonly { readonly campaign_kind: string; readonly external_key: string; readonly year: number }[];
-    readonly page: { readonly release_key: string };
+async function expectSeededAdmissionFacts(page: Page, program: { readonly directionKey: string; readonly directionCode: string | null; readonly releaseKey: string }, admission: ReturnType<Page["locator"]>): Promise<void> {
+  // The program DTO does not duplicate the direction code; resolve the exact
+  // direction key instead of inferring it from a profile display code.
+  const directionsResponse = await page.request.get("/api/v1/directions?limit=100");
+  expect(directionsResponse.status()).toBe(200);
+  const directions = await directionsResponse.json();
+  expect(directions.page.release_key).toBe(program.releaseKey);
+  expect(directions.page.next_cursor).toBeNull();
+  const directionCode = directions.items.find((item: { external_key: string }) => item.external_key === program.directionKey)?.code;
+  expect(typeof directionCode).toBe("string");
+  if (typeof directionCode !== "string") throw new Error("Selected program has no exact direction record.");
+  const query = new URLSearchParams({ kind: "historical", year: "2026", direction_code: directionCode, limit: "100" });
+  const response = await page.request.get(`/api/v1/statistics?${query}`);
+  expect(response.status()).toBe(200);
+  const body = await response.json() as {
+    items: { statistic_kind: string; funding_type: string; minimum_score: string | null; scope_type: string; scope_label: string; sources: { source_url: string }[] }[];
+    page: { release_key: string; next_cursor: string | null };
   };
+  expect(body.page.release_key).toBe(program.releaseKey);
+  expect(body.page.next_cursor, "the exact-year fixture must be complete").toBeNull();
+  const official = body.items.filter((item) => item.statistic_kind === "official_program_card_passing_score");
+  expect(official).toHaveLength(2);
+  const table = admission.getByRole("table", { name: /Проходные баллы по официальной карточке/ });
+  for (const [funding, label] of [["budget", "Бюджет"], ["paid", "Платное обучение"]] as const) {
+    const record = official.find((item) => item.funding_type === funding);
+    expect(record).toBeDefined();
+    if (!record) throw new Error(`Missing official ${funding} record`);
+    expect(record.scope_type).toBe("direction");
+    expect(record.scope_label).toBe(directionCode);
+    const cell = table.getByRole("row").filter({ has: page.getByRole("rowheader", { name: label, exact: true }) }).getByRole("cell");
+    const source = record.sources.find((item) => item.source_url.startsWith("https://api.www.bmstu.ru/majors/"));
+    expect(source, "official score provenance must point to a major card").toBeDefined();
+    if (record.minimum_score === null) {
+      const bvi = funding === "budget" ? bviReview.directions.find((item) => item.directionCode === directionCode && item.verdict === "bvi_outside_quotas") : undefined;
+      await expect(cell.locator("strong")).toHaveText(bvi ? "БВИ вне квот" : "Не опубликован");
+      if (bvi) await expect(cell.getByRole("link", { name: "Приказ о зачислении БВИ" })).toHaveAttribute("href", bvi.bviSource!);
+    } else {
+      await expect(cell.locator("strong")).toHaveText(`${new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 1 }).format(Number(record.minimum_score))} баллов`);
+      await expect(cell).toContainText(`Всё направление ${directionCode}`);
+    }
+    await expect(cell.getByRole("link", { name: "Источник" })).toHaveAttribute("href",
+      `https://bmstu.ru/bachelor/majors/${new URL(source!.source_url).pathname.split("/").at(-1)}`);
+    if (funding !== "budget" || !bviReview.directions.some((item) => item.directionCode === directionCode && item.verdict === "bvi_outside_quotas")) await expect(cell).not.toContainText("БВИ");
+  }
+  const campaigns = await page.request.get("/api/v1/campaigns?year=2026&limit=100");
+  expect(campaigns.status()).toBe(200);
+  const campaignBody = await campaigns.json();
   expect(campaignBody.page.release_key).toBe(program.releaseKey);
-  const campaign = campaignBody.items.find((item) => item.campaign_kind === "admission" && item.year === 2026);
-  expect(campaign, "the isolated 2026 release should contain an admission campaign").toBeDefined();
-  if (!campaign) throw new Error("The test release has no 2026 admission campaign.");
-
-  if (program.directionCode) {
-    const statisticsQuery = new URLSearchParams({
-      kind: "admission",
-      year: "2026",
-      direction_code: program.directionCode,
-      limit: "100",
-    });
-    const statisticsResponse = await page.request.get("/api/v1/statistics?" + statisticsQuery.toString());
-    expect(statisticsResponse.status(), "direction admission statistics response").toBe(200);
-    const statisticsBody = await statisticsResponse.json() as {
-      readonly items: readonly {
-        readonly admission_stage: string | null;
-        readonly competition_type: string | null;
-        readonly direction_code: string | null;
-        readonly funding_type: string | null;
-        readonly scope_type: string | null;
-        readonly status: string | null;
-      }[];
-      readonly page: { readonly release_key: string };
-    };
-    expect(statisticsBody.page.release_key).toBe(program.releaseKey);
-    const unscopedBudgetScore = statisticsBody.items.some((item) => (
-      item.direction_code === program.directionCode
-      && item.admission_stage === "main"
-      && item.funding_type === "budget"
-      && ["general", "other"].includes(item.competition_type ?? "")
-      && item.status === "numeric"
-      && item.scope_type === null
-    ));
-    expect(unscopedBudgetScore, "the release fixture should exercise the real direction-only admission statistic contract").toBe(true);
-    const budgetScoreRow = table.locator("tbody tr").filter({ hasText: "Проходной балл · бюджет · основной конкурс" });
-    await expect(budgetScoreRow).toContainText(`по направлению ${program.directionCode}; область источника не уточнена`);
-    await expect(budgetScoreRow).not.toContainText("по программе");
-  }
-
-  const quotaQuery = new URLSearchParams({ campaign_key: campaign.external_key, limit: "100" });
-  const quotaResponse = await page.request.get("/api/v1/place-quotas?" + quotaQuery.toString());
-  expect(quotaResponse.status(), "empty place quota page is a valid response").toBe(200);
-  const quotaBody = await quotaResponse.json() as {
-    readonly items: readonly unknown[];
-    readonly page: { readonly release_key: string; readonly total_count: number | null };
-  };
-  expect(quotaBody.items).toEqual([]);
-  expect(quotaBody.page.total_count).toBe(0);
-  expect(quotaBody.page.release_key).toBe(program.releaseKey);
-
-  const requirementQuery = new URLSearchParams({ campaign_key: campaign.external_key, limit: "100" });
-  const requirementResponse = await page.request.get("/api/v1/requirements?" + requirementQuery.toString());
-  expect(requirementResponse.status(), "requirements response used as the independent admission fixture").toBe(200);
-  const requirementBody = await requirementResponse.json() as {
-    readonly items: readonly { readonly direction_key: string; readonly root: unknown }[];
-    readonly page: { readonly release_key: string };
-  };
-  expect(requirementBody.page.release_key).toBe(program.releaseKey);
-  const matching = requirementBody.items.filter((item) => item.direction_key === program.directionKey);
-  expect(matching, "the selected program direction should have source-backed entrance requirements").not.toHaveLength(0);
-  const subjects = matching.flatMap((item) => collectRequirementSubjects(item.root));
-  const displayedSubject = subjects.find((subject) => subject.trim().length > 0);
-  expect(displayedSubject, "the API requirement tree should contain a named subject").toBeDefined();
-  if (!displayedSubject) throw new Error("The selected direction has no named requirement subject.");
-  await expect(table).toContainText(displayedSubject);
-  if (program.directionCode) {
-    await expect(table).toContainText(`Требования указаны для направления ${program.directionCode}.`);
-  }
+  const campaign = campaignBody.items.find((item: { campaign_kind: string }) => item.campaign_kind === "admission");
+  expect(campaign).toBeDefined();
+  const requirementQuery = new URLSearchParams({ campaign_key: campaign.external_key, direction_key: program.directionKey, limit: "100" });
+  const requirementResponse = await page.request.get(`/api/v1/requirements?${requirementQuery}`);
+  expect(requirementResponse.status()).toBe(200);
+  const requirements = await requirementResponse.json();
+  expect(requirements.page.release_key).toBe(program.releaseKey);
+  const subjects = requirements.items.flatMap((item: { root: unknown }) => collectRequirementSubjects(item.root));
+  expect(subjects.length).toBeGreaterThan(0);
+  await expect(admission).toContainText(subjects[0]!);
 }
 
 test.beforeEach(async ({ page }) => {
@@ -151,7 +132,7 @@ test("live comparison preserves program-scoped admission and curriculum facts", 
 
   const card = page.getByRole("article").filter({ hasText: program.code }).first();
   await expect(card.getByRole("heading", { level: 2, name: program.name, exact: true })).toBeVisible();
-  const addButton = card.getByRole("button", { name: /Сравнить/ });
+  const addButton = card.getByRole("button", { name: "Добавить в сравнение", exact: true });
   await expect(addButton).toHaveAttribute("aria-pressed", "false");
   await addButton.click();
   await expect(card.getByRole("button", { name: /В сравнении/ })).toHaveAttribute("aria-pressed", "true");
@@ -167,16 +148,18 @@ test("live comparison preserves program-scoped admission and curriculum facts", 
 
   await expect(page.getByRole("heading", { name: "Куда уходит учебное время" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Матрица предметов" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Места и проходные баллы" })).toBeVisible();
-  const admissionTable = page.getByRole("table", { name: "Сравнение мест и условий приёма в выбранные программы." });
-  await expect(admissionTable).toBeVisible();
-  await expect(admissionTable.locator("tbody tr")).toHaveCount(10);
-  for (const label of ["Отдельная квота", "Особая квота", "Целевая квота", "БВИ · без вступительных испытаний"]) {
-    await expect(admissionTable.getByRole("rowheader", { name: label, exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Поступление", exact: true })).toBeVisible();
+  const admission = page.locator('[data-qa="admission-summary"]');
+  await expect(admission).toHaveAttribute("data-unavailable-count", "0");
+  const enrollmentTable = admission.getByRole("table", { name: /Зачислено на всё направление подготовки/ });
+  await expect(enrollmentTable.locator("tbody tr")).toHaveCount(5);
+  const scoreTable = admission.getByRole("table", { name: /Проходные баллы по официальной карточке/ });
+  await expect(scoreTable.locator("tbody tr")).toHaveCount(2);
+  for (const label of ["В том числе · отдельная квота", "В том числе · особая квота", "В том числе · целевая квота"]) {
+    await expect(enrollmentTable.getByRole("rowheader", { name: label, exact: true })).toBeVisible();
   }
-  await expect(admissionTable).toContainText(/Количество не указано|Не указано|не указаны|не найдено|не найдены|не указана|Сведения о приёме недоступны|мест|баллов|₽/i);
   expectSuccessfulAdmissionCalls(diagnostics.apiResponses);
-  await expectSeededAdmissionFacts(page, program, admissionTable);
+  await expectSeededAdmissionFacts(page, program, admission);
   // Compute the workload from the FastAPI study-plan items above, independently
   // of the React comparison model, then check that the chart exposes that sum.
   const expectedHours = program.expectedHours;
@@ -252,7 +235,7 @@ test("a live catalog choice persists into a one-program comparison after refresh
   await expect(page.getByRole("heading", { name: "Каталог программ" })).toBeVisible();
   const program = await discoverLiveCurriculumProgram(page);
   const card = page.getByRole("article").filter({ hasText: program.code }).first();
-  await card.getByRole("button", { name: /Сравнить/ }).click();
+  await card.getByRole("button", { name: "Добавить в сравнение", exact: true }).click();
   await expect(card.getByRole("button", { name: /В сравнении/ })).toHaveAttribute("aria-pressed", "true");
   await page.getByRole("link", { name: /Открыть сравнение/ }).click();
   await expect(page).toHaveURL(/\/compare$/);
@@ -289,20 +272,19 @@ test("catalog details open through Подробнее and remain available after
   await page.goto("/programs");
   const program = await discoverLiveCurriculumProgram(page);
   const card = page.getByRole("article").filter({ hasText: program.code }).first();
-  await card.getByRole("button", { name: "Подробнее" }).click();
-  await expect(card.getByRole("heading", { name: /Места и условия поступления/ })).toBeVisible();
-  await expect(card.getByRole("button", { name: "Скрыть" })).toHaveAttribute("aria-expanded", "true");
-  await expect(card.getByRole("button", { name: /избранное/i })).toHaveCount(0);
+  await card.getByRole("link", { name: "Подробнее ↗" }).click();
+  await expect(page).toHaveURL(/\/programs\/[\w.-]+$/);
+  await expect(page.getByRole("heading", { name: "Приёмная кампания", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Содержание программы", exact: true })).toBeVisible();
+  await expect(page.locator("main > header").getByRole("button", { name: /избранное/i })).toHaveCount(0);
 
   // The expanded card loads admission facts. Let those real API reads settle
   // before exercising refresh persistence; otherwise browser navigation
   // cancellation codes differ between Chromium and Firefox.
   await page.waitForLoadState("networkidle");
   await page.reload();
-  const reloadedCard = page.getByRole("article").filter({ hasText: program.code }).first();
-  await reloadedCard.getByRole("button", { name: "Подробнее" }).click();
-  await expect(reloadedCard.getByRole("heading", { name: /Места и условия поступления/ })).toBeVisible();
-  await expect(reloadedCard.getByRole("button", { name: "Скрыть" })).toHaveAttribute("aria-expanded", "true");
+  await expect(page.getByRole("heading", { name: "Приёмная кампания", exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Назад в каталог", exact: true })).toBeVisible();
   await page.waitForLoadState("networkidle");
   expectLiveApiCalls(diagnostics, catalogEndpoints);
   expectHealthyBrowser(diagnostics);
@@ -322,7 +304,7 @@ test("two live programs keep their own plans, chart totals, matrix columns, and 
 
   for (const program of [first, second]) {
     const card = page.getByRole("article").filter({ hasText: program.code }).first();
-    await card.getByRole("button", { name: /Сравнить/ }).click();
+    await card.getByRole("button", { name: "Добавить в сравнение", exact: true }).click();
     await expect(card.getByRole("button", { name: /В сравнении/ })).toHaveAttribute("aria-pressed", "true");
   }
   await expect(page.getByText("В сравнении 2 из 3 программы")).toBeVisible();

@@ -17,7 +17,7 @@
   background-color: #111;
   background-attachment: fixed;
   background-position: 0 0;
-  overflow-x: hidden;
+  overflow-x: clip;
 }
 
 
@@ -39,17 +39,7 @@
   box-sizing: border-box;
 }
 
-.pageScene * { padding: 0; }
-
-.page {
-  transition: transform .9s cubic-bezier(.16, 1, .3, 1), filter .9s ease, opacity .7s ease;
-}
-
-.menuOpen .page {
-  transform: scale(.985);
-  filter: blur(2px);
-  opacity: .72;
-}
+:where(.pageScene *) { padding: 0; }
 
 .page {
   display: grid;
@@ -159,13 +149,6 @@
 .comparisonCopy .sectionHeading { gap: clamp(12px, 2vw, 20px); }
 .comparisonCopy .sectionTitle { max-width: 1100px; font-size: clamp(48px, 6.2vw, 88px); }
 .comparisonSwapViewport { position: relative; width: min(100%, 1240px); height: min(63svh, 590px); min-height: 430px; justify-self: center; }
-.comparisonSwap { width: 100%; height: 100%; }
-.comparisonCard { --swap-tile: #111; --swap-tile-edge: #8dedf9; --swap-tile-highlight: rgb(141 237 249 / 24%); display: grid; align-content: center; gap: 24px; min-width: 0; padding: clamp(24px, 3vw, 38px); }
-.comparisonCard :global(.card-swap-card-rim) { box-shadow: inset 0 0 0 1.5px #8dedf9, inset 0 1px 0 rgb(141 237 249 / 24%); }
-.comparisonCardCopy { position: relative; z-index: 1; display: grid; gap: 20px; }
-.comparisonCardTitle { max-width: 12ch; margin: 0; color: #fff; font-size: clamp(48px, 5vw, 64px); font-weight: 500; line-height: 1.02; letter-spacing: -.055em; text-wrap: balance; }
-.comparisonCardDescription { max-width: 30ch; margin: 0; color: rgb(255 255 255 / 74%); font-size: clamp(20px, 1.8vw, 24px); line-height: 1.45; }
-.comparisonSwap :global(.card-swap-stage) { top: 45%; }
 .admissionStoryGrid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .storyCard { display: grid; align-content: start; gap: 14px; min-width: 0; min-height: 210px; padding: clamp(22px, 3vw, 34px); border: 2px solid #8dedf9; border-radius: 22px; background: #171717; }
 .storyLabel { color: rgba(255, 255, 255, .52); font-size: 12px; font-weight: 600; line-height: 1.3; letter-spacing: .08em; text-transform: uppercase; }
@@ -226,10 +209,6 @@
   .comparisonCopy .sectionTitle { max-width: 18ch; font-size: clamp(38px, 10vw, 52px); }
   .comparisonCopy .sectionDescription { font-size: 14px; }
   .comparisonSwapViewport { width: min(100%, 600px); height: min(48svh, 420px); min-height: 340px; }
-  .comparisonCard { padding: 28px; }
-  .comparisonCardCopy { gap: 16px; }
-  .comparisonCardTitle { font-size: clamp(56px, 14vw, 64px); }
-  .comparisonCardDescription { font-size: clamp(27px, 7vw, 30px); }
   .stepCard { min-height: 220px; gap: 46px; }
   .finalCta { grid-template-columns: minmax(0, 1fr); align-items: start; }
   .ctaLink { justify-self: start; }
@@ -271,8 +250,8 @@
 .contentSection { padding-block: clamp(42px, 6vw, 88px); }
 .storySection,
 .finalSection {
+  /* Browser controls collapsing must not resize sections while scrolling. */
   min-height: 100svh;
-  min-height: 100dvh;
   align-content: center;
   padding-block: clamp(48px, 8svh, 96px);
 }
@@ -306,8 +285,8 @@
   --first-screen-top-inset: clamp(18px, 3.2vw, 42px);
   display: flex;
   height: 100vh;
+  /* Keep the photo's crop fixed when mobile browser controls collapse. */
   height: 100svh;
-  height: 100dvh;
   flex-direction: column;
   padding-block: var(--first-screen-top-inset) 0;
 }
@@ -462,26 +441,6 @@
   text-align: center;
 }
 
-.heroBrand {
-  position: absolute;
-  z-index: 2;
-  inset-block-start: clamp(86px, 10svh, 112px);
-  inset-inline-start: 0;
-  width: min(35vw, 560px);
-  margin: 0;
-  color: #fff;
-  font-size: clamp(26px, 2.4vw, 40px);
-  font-weight: 600;
-  line-height: 1.02;
-  letter-spacing: -.05em;
-  text-align: left;
-  pointer-events: none;
-}
-
-.heroBrand span {
-  display: block;
-}
-
 .heroIntro > div {
   width: 100%;
 }
@@ -557,14 +516,12 @@
     padding-inline: .12em;
   }
 
-  .heroBrand {
-    inset-block-start: clamp(86px, 10svh, 104px);
-    width: 100%;
-    font-size: clamp(26px, 6.4vw, 40px);
-  }
-
   .universityName {
     font-size: clamp(30px, 8.5vw, 40px);
     line-height: 1.02;
   }
 }
+
+.finalSection { padding-block-end: clamp(36px, 5vw, 64px); }
+
+.comparisonPlaceholder { width: calc(100% - 24px); height: calc(100% - 64px); margin: 16px auto 0; border: 1px solid rgb(141 237 249 / 30%); border-radius: 18px; background: #111; }

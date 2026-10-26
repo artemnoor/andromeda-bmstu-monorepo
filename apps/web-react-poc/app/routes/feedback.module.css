@@ -1,0 +1,31 @@
+.page {
+  width: min(1100px, 100%);
+  min-height: 100svh;
+  margin: 0 auto;
+  padding: clamp(128px, 17vh, 190px) clamp(20px, 5vw, 60px) 64px;
+}
+.intro { max-width: 780px; }
+.eyebrow { margin: 0 0 24px; color: var(--text-muted); font-size: 14px; }
+.intro h1 { margin: 0; font-size: clamp(42px, 7vw, 86px); font-weight: 500; line-height: 1.02; letter-spacing: -.055em; }
+.intro h1 span { color: var(--accent); }
+.description { max-width: 610px; margin: 28px 0 0; color: var(--text-muted); font-size: clamp(17px, 2vw, 21px); line-height: 1.5; }
+.contacts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; margin-top: 48px; }
+.contact { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 30px 18px; padding: 32px; border: 1px solid var(--line); border-radius: 24px; color: var(--text); background: var(--surface); text-decoration: none; transition: background .2s ease, border-color .2s ease; }
+.contact:hover { background: var(--surface-hover); border-color: rgb(255 255 255 / 35%); }
+.contact > img { grid-column: 1; object-fit: contain; }
+.contact > div { grid-column: 1; min-width: 0; }
+.contact h2 { margin: 0; font-size: 26px; font-weight: 500; letter-spacing: -.025em; }
+.contact p { margin: 10px 0 0; color: var(--text-muted); font-size: 15px; line-height: 1.5; }
+.arrow { grid-column: 2; grid-row: 1; align-self: start; font-size: 27px; line-height: 1; }
+.note { max-width: 650px; margin-top: 40px; }
+.note h2 { margin: 0; font-size: 18px; font-weight: 500; }
+.note p { margin: 12px 0 0; color: var(--text-muted); font-size: 16px; line-height: 1.6; }
+.back { display: inline-block; margin-top: 36px; color: var(--text); font-size: 15px; text-underline-offset: 5px; }
+.srOnly { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+@media (max-width: 600px) {
+  .contacts { grid-template-columns: 1fr; gap: 14px; margin-top: 32px; }
+  .contact { padding: 24px; gap: 20px 16px; }
+  .description { margin-top: 22px; }
+  .note { margin-top: 30px; }
+}
+@media (prefers-reduced-motion: reduce) { .contact { transition: none; } }

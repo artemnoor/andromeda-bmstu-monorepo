@@ -1,6 +1,9 @@
 .page {
   --ink: var(--text);
   --muted: var(--text-muted);
+  --accent: rgb(217 184 254);
+  --accent-line: rgb(217 184 254 / 38%);
+  --accent-soft: rgb(217 184 254 / 8%);
   --blue: var(--accent);
   --page-gutter: clamp(22px, 5vw, 72px);
   min-height: 100vh;
@@ -51,7 +54,7 @@
 .orbit { position: absolute; top: 50%; right: 3px; width: 130px; height: 130px; transform: translateY(-50%); overflow: visible; color: #fff; fill: currentColor; opacity: .76; }
 .orbit ellipse { fill: none; stroke: currentColor; stroke-width: 1; stroke-dasharray: 3 6; stroke-linecap: round; opacity: .7; animation: orbitDash 20s linear infinite; }
 .orbit ellipse:nth-child(2) { animation-direction: reverse; }
-.orbitCore { transform-origin: 80px 80px; animation: orbitPulse 5s ease-in-out infinite; }
+.orbitCore { fill: var(--accent); transform-origin: 80px 80px; animation: orbitPulse 5s ease-in-out infinite; }
 @keyframes orbitDash { to { stroke-dashoffset: -108; } }
 @keyframes orbitPulse { 0%, 100% { opacity: .75; transform: scale(.9); } 50% { opacity: 1; transform: scale(1.12); } }
 .secondaryStats { display: grid; grid-template-columns: 1fr 1fr; }
@@ -76,21 +79,17 @@
 .searchInput::placeholder { color: var(--text-muted); }
 .filterControl { padding: 0 38px 0 12px; font-size: 11px; }
 .searchInput:hover, .filterControl:hover { border-color: var(--line); background: var(--surface); }
-.searchInput:focus, .filterControl:focus { border-color: var(--accent-line); outline: 0; background: var(--surface); box-shadow: 0 0 0 3px rgb(44 119 210 / 12%); }
+.searchInput:focus, .filterControl:focus { border-color: var(--accent-line); outline: 0; background: var(--surface); box-shadow: 0 0 0 3px var(--accent-soft); }
 .toolbarReset { display: inline-flex; min-height: 44px; align-items: center; justify-content: center; gap: 6px; padding: 0 10px; border: 1px solid transparent; border-radius: 11px; color: var(--text-muted); background: transparent; font: inherit; font-size: 11px; font-weight: 600; text-decoration: none; cursor: pointer; transition: color .18s ease, background .18s ease, border-color .18s ease; }
 .toolbarReset span { font-size: 17px; line-height: 1; }
 .toolbarReset:hover { border-color: var(--line); color: var(--accent); background: var(--surface-raised); }
 .toolbarReset:focus-visible { outline: 3px solid var(--accent-line); outline-offset: 2px; }
 
-.compareBar { display: flex; min-height: 58px; align-items: center; justify-content: space-between; gap: 16px; margin: 14px 0 20px; padding: 10px 17px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface-raised); }
-.compareBar span { color: var(--accent); font-size: 11px; }
-.compareBar a { display: inline-flex; align-items: center; gap: 8px; color: var(--accent); font-size: 11px; font-weight: 650; text-decoration: none; }
-.compareBar a:hover { text-decoration: underline; }
 
 .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-top: 17px; }
 .programCard { --muted: var(--text-muted); display: grid; grid-template-rows: auto 1fr auto; min-width: 0; min-height: 0; padding: 23px 24px 0; overflow: hidden; border: 1px solid var(--line); border-radius: 19px; color: var(--accent); background: var(--surface); box-shadow: 0 5px 22px rgb(22 34 49 / 3.5%); transition: border-color .2s ease, transform .35s cubic-bezier(.16, 1, .3, 1), box-shadow .35s ease;  }
 .programCard:hover { transform: translateY(-2px); border-color: var(--line); box-shadow: 0 14px 34px rgb(22 34 49 / 7.5%); }
-.cardTop { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 12px; }
+.cardTop { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 12px; }
 .cardActions { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 8px; }
 .programCode { display: inline-flex; min-width: 0; max-width: 100%; min-height: 29px; align-items: center; justify-self: start; padding: 0 10px; overflow: hidden; border: 1px solid var(--line); border-radius: 999px; color: var(--accent); background: var(--surface-raised); font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 10px; font-weight: 600; font-variant-numeric: tabular-nums; letter-spacing: 0; text-overflow: ellipsis; white-space: nowrap; }
 .cardAction { display: inline-flex; min-width: 0; min-height: 37px; align-items: center; justify-content: center; padding: 0 13px; border: 1px solid var(--line); border-radius: 999px; color: var(--accent); background: var(--surface-raised); font-size: 10px; font-weight: 650; cursor: pointer; transition: transform .16s ease, border-color .16s ease, color .16s ease, background .16s ease; }
@@ -108,6 +107,7 @@
 .factValue { min-width: 0; color: var(--text-muted); }
 .detailsButton { display: inline-flex; min-height: 38px; align-items: center; justify-content: center; padding: 0 15px; border: 1px solid rgb(255 255 255 / 27%); border-radius: 8px; color: var(--text); background: transparent; font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; transition: border-color .18s ease, background-color .18s ease; }
 .detailsButton:hover { border-color: rgb(255 255 255 / 46%); background: rgb(255 255 255 / 7%); }
+.detailsButton { text-decoration: none; }
 .detailsButton:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 .admissionPanel { display: grid; gap: 20px; padding: 20px 0 30px; border-top: 1px solid var(--line); animation: reveal .28s ease both; }
 @keyframes reveal { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
@@ -122,8 +122,8 @@
 .admissionList { display: grid; gap: 9px; margin: 0; padding: 0; list-style: none; }
 .admissionList li { display: grid; gap: 5px; padding: 11px 13px; border: 1px solid var(--line); border-radius: 11px; background: var(--surface-raised); font-size: 11px; line-height: 1.45; }
 .admissionList span { color: var(--muted); font-size: 10px; }
-.sourceLink { width: fit-content; color: var(--accent); font-size: 10px; font-weight: 600; text-decoration: none; }
-.sourceLink:hover { color: var(--accent); text-decoration: underline; text-underline-offset: 3px; }
+.sourceLink { width: fit-content; color: var(--text); font-size: 10px; font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
+.sourceLink:hover { color: var(--text); text-underline-offset: 4px; }
 .historyWrap { overflow-x: auto; }
 .historyTable { width: 100%; min-width: 440px; border-collapse: collapse; font-size: 11px; text-align: left; }
 .historyTable th { padding: 0 8px 9px; color: var(--muted); font-size: 9px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; }
@@ -132,8 +132,8 @@
 .cardBottom { display: flex; min-height: 53px; align-items: center; justify-content: space-between; gap: 16px; padding: 11px 0; border-top: 1px solid var(--line); }
 .campusTag { color: var(--muted); font-size: 9px; line-height: 1.35; }
 .cardLinks { display: flex; align-items: center; justify-content: flex-end; gap: 13px; flex-wrap: wrap; }
-.programLink { display: inline-flex; align-items: center; gap: 9px; color: var(--accent); font-size: 10px; font-weight: 650; text-decoration: none; white-space: nowrap; }
-.programLink:hover { color: var(--accent); text-decoration: underline; text-underline-offset: 4px; }
+.programLink { display: inline-flex; align-items: center; gap: 9px; color: var(--text); font-size: 10px; font-weight: 650; text-decoration: underline; text-underline-offset: 3px; white-space: nowrap; }
+.programLink:hover { color: var(--text); text-underline-offset: 4px; }
 .programLink:hover .linkArrow { transform: translate(2px, -2px); }
 .linkArrow { font-size: 16px; line-height: 1; transition: transform .2s ease; }
 .state { grid-column: 1 / -1; padding: 52px 24px; border: 1px dashed var(--line); border-radius: 19px; background: var(--surface); text-align: center; }
@@ -175,11 +175,9 @@
 .searchInput:focus, .filterControl:focus { background: var(--surface-raised); border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
 .toolbarReset { color: var(--text-muted); }
 .toolbarReset:hover { color: var(--text); background: var(--surface-hover); }
-.compareBar { border-color: var(--accent-line); background: var(--surface); }
-.compareBar a { min-height: 36px; }
 .programCard { padding-top: 26px; border-width: .5px; border-color: rgb(255 255 255 / 27%); background: var(--surface); box-shadow: inset 0 1px 0 rgb(255 255 255 / 3%); }
 .programCard:hover { transform: none; border-color: rgb(255 255 255 / 39%); box-shadow: inset 0 0 28px rgb(255 255 255 / 3%); }
-.programCard:has(.cardAction[aria-pressed="true"]) { border-color: rgb(255 255 255 / 36%); }
+.programCard:has(.cardActions [aria-pressed="true"]) { border-color: rgb(255 255 255 / 36%); }
 .cardAction, .retryAdmission { min-height: 40px; padding-inline: 14px; border-radius: 9px; border-color: var(--line); background: transparent; color: var(--text); font-size: 12px; }
 .cardAction:hover, .retryAdmission:hover { transform: none; color: var(--text); border-color: rgb(255 255 255 / 52%); background: rgb(255 255 255 / 8%); }
 .cardAction[aria-pressed="true"] { color: var(--accent); border-color: var(--accent-line); background: var(--accent-soft); }
@@ -193,7 +191,7 @@
 .admissionMetric span, .admissionNote { font-size: 12px; }
 .admissionMetric strong { color: var(--text); }
 .admissionList li { background: var(--surface-raised); }
-.programLink, .sourceLink { color: var(--accent); font-size: 12px; }
+.programLink, .sourceLink { color: var(--text); font-size: 12px; }
 .programLink:hover, .sourceLink:hover { color: var(--text); }
 .linkArrow { transition: none; }
 .programLink:hover .linkArrow { transform: none; }
@@ -240,7 +238,7 @@
   .statLabel, .secondaryStats span, .microLabel, .resultCount, .toolbarLabel { font-size: 12px; }
   .programDescription, .programFacts, .detailsButton, .admissionNote, .admissionMuted,
   .admissionMetric span, .admissionList li, .admissionList span, .sourceLink,
-  .campusTag, .programLink, .footnote, .releaseNote, .compareBar span, .compareBar a { font-size: 12px; line-height: 1.5; }
+  .campusTag, .programLink, .footnote, .releaseNote { font-size: 12px; line-height: 1.5; }
   .factLabel { flex-basis: 88px; font-size: 11px; }
   .searchInput, .filterControl { font-size: 16px; }
   .cardAction, .detailsButton, .retryAdmission, .toolbarReset { min-height: 44px; font-size: 12px; }

@@ -48,7 +48,6 @@ describe("home page interactions", () => {
     expect([...container.querySelectorAll("main > section[id]")].map((section) => section.id)).toEqual([
       "comparison-overview",
       "career-guidance",
-      "final-cta",
     ]);
     expect(screen.queryByRole("heading", { name: "Изучи содержание каждой программы" })).not.toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Смотри на условия вместе с их контекстом" })).not.toBeInTheDocument();
@@ -61,7 +60,8 @@ describe("home page interactions", () => {
       expect(link).toHaveAttribute("href", "/programs");
     }
     expect(screen.queryByRole("link", { name: "Изучить условия поступления" })).not.toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Открыть сравнение" })).toHaveAttribute("href", "/compare");
+    expect(screen.getByRole("link", { name: "Сравнение программ" })).toHaveAttribute("href", "/compare");
+    expect(screen.queryByRole("heading", { name: "Выбери, с чего начать" })).not.toBeInTheDocument();
   });
 
   it("opens and closes navigation with Escape and backdrop, restoring focus and inert state", async () => {

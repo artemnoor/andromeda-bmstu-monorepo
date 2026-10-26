@@ -232,7 +232,8 @@ def test_fixture_capture_and_parse_are_offline_and_reproducible(tmp_path: Path, 
     assert len(parsed["normalized"]["programs"]) == 2
     assert len(parsed["normalized"]["curricula"]) == 2
     assert len(parsed["normalized"]["disciplines"]) == 101
-    assert sum(len(item["items"]) for item in parsed["normalized"]["curricula"]) == 212
+    # PDF coordinate cells recover four semester occurrences previously dropped.
+    assert sum(len(item["items"]) for item in parsed["normalized"]["curricula"]) == 216
     assert len(parsed["normalized"]["historical_results"]) == 1
     assert all(item["department_code"] and item["department_name"] for item in parsed["normalized"]["programs"])
     assert all(len(item["sha256"]) == 64 for item in parsed["sources"])
@@ -286,7 +287,7 @@ def test_real_curriculum_fixtures_have_stable_exact_item_keys_and_pdf_provenance
         "name": "fixture profile",
         "study_plan_external_key": "study_plan:program:bmstu:01.03.02:ИУ9:01.03.02-01:source:1-1",
     }
-    expected_counts = {"curriculum.pdf": 89, "curriculum_2.pdf": 123}
+    expected_counts = {"curriculum.pdf": 89, "curriculum_2.pdf": 127}
     for name in ("curriculum.pdf", "curriculum_2.pdf"):
         body = (FIXTURE_DIR / name).read_bytes()
         kwargs = {

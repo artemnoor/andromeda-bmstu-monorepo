@@ -5,6 +5,7 @@ import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { CatalogProgram } from "@/features/catalog/model";
 import { ProgramCard } from "@/features/catalog/program-card";
+import { programPath } from "@/features/catalog/program-path";
 import { STORAGE_KEYS } from "@/shared/browser-state/storage";
 
 vi.mock("@/features/catalog/admission-api", () => ({
@@ -98,17 +99,13 @@ describe("program card browser state", () => {
     expect(screen.queryByText("Не указано")).not.toBeInTheDocument();
   });
 
-  it("opens and closes program details only through the Подробнее button", async () => {
+  it("links Подробнее to the exact program page without changing comparison selection", () => {
     render(<CardHarness />);
-
-    const detailsButton = screen.getByRole("button", { name: "Подробнее" });
-    expect(detailsButton).toHaveAttribute("aria-expanded", "false");
+    const details = screen.getByRole("link", { name: /Подробнее/ });
+    expect(details).toHaveAttribute("href", programPath(program));
     expect(screen.queryByRole("button", { name: /избранное/i })).not.toBeInTheDocument();
-    fireEvent.click(detailsButton);
-
-    expect(screen.getByRole("button", { name: "Скрыть" })).toHaveAttribute("aria-expanded", "true");
-    fireEvent.click(screen.getByRole("button", { name: "Скрыть" }));
-    expect(screen.getByRole("button", { name: "Подробнее" })).toHaveAttribute("aria-expanded", "false");
+    fireEvent.click(details);
+    expect(localStorage.getItem(STORAGE_KEYS.compare)).toBeNull();
   });
 
   it("shows a visible message when browser storage rejects a user action", () => {

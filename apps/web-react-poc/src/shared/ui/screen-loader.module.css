@@ -1,0 +1,11 @@
+.loader { display: grid; align-content: center; justify-items: center; gap: 22px; min-height: 320px; color: var(--text); }
+.loader p { margin: 0; color: var(--text-muted); font-size: 14px; letter-spacing: .01em; }
+.orbit { position: relative; display: grid; place-items: center; width: 88px; height: 88px; }
+.orbit img { width: 50px; height: 50px; object-fit: contain; }
+.orbit span { position: absolute; inset: 0; border: 1px solid rgb(255 255 255 / 10%); border-top: 2px solid var(--accent); border-radius: 50%; animation: orbit 1.25s linear infinite; }
+.dots { display: inline-block; width: 18px; margin-left: 4px; animation: breathe 1.4s ease-in-out infinite; }
+.overlay { position: fixed; z-index: 160; inset: 0; min-height: 100dvh; background: rgb(17 17 17 / 96%); opacity: 0; animation: reveal 180ms ease-out 140ms forwards; pointer-events: none; }
+@keyframes orbit { to { transform: rotate(360deg); } }
+@keyframes breathe { 50% { opacity: .25; } }
+@keyframes reveal { to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .orbit span, .dots { animation: none; } .overlay { animation: none; opacity: 1; } }

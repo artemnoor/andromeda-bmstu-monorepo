@@ -952,6 +952,13 @@ class AcademicDataQueries:
         )
 
     def _curriculum_item(self, row: dict[str, Any]) -> CurriculumItemRecord:
+        source_row = row.get("source_row") or {}
+        title = (row.get("discipline_name") or "").casefold()
+        physical_education = "физическ" in title and "культур" in title
+        general_category = (
+            "physical_education" if physical_education
+            else "choice_unresolved" if source_row.get("is_choice_group") else None
+        )
         return CurriculumItemRecord(
             external_key=row["external_key"],
             study_plan_key=self._linked_key("study_plans", row["study_plan_id"]),
@@ -959,33 +966,20 @@ class AcademicDataQueries:
             discipline_name=row["discipline_name"],
             semester=row["semester"],
             credits=row["credits"],
-            hours=row["total_hours"] if row["total_hours"] is not None else row["hours"],
-            lecture_hours=(
-                row["total_lecture_hours"]
-                if row["total_lecture_hours"] is not None
-                else row["lecture_hours"]
-            ),
-            practice_hours=(
-                row["total_practice_hours"]
-                if row["total_practice_hours"] is not None
-                else row["practice_hours"]
-            ),
-            lab_hours=(
-                row["total_lab_hours"]
-                if row["total_lab_hours"] is not None
-                else row["lab_hours"]
-            ),
-            self_study_hours=(
-                row["total_self_study_hours"]
-                if row["total_self_study_hours"] is not None
-                else row["self_study_hours"]
-            ),
+            hours=row["hours"],
+            lecture_hours=row["lecture_hours"],
+            practice_hours=row["practice_hours"],
+            lab_hours=row["lab_hours"],
+            self_study_hours=row["self_study_hours"],
             total_hours=row["total_hours"],
+            workload_scope=source_row.get("workload_scope", "unknown"),
+            general_education_category=general_category,
+            source_page=source_row.get("source_page"),
             control_form=row["assessment_type"],
             department_name=row["department_name"],
             faculty_name=row["faculty_name"],
             chair_name=row["chair_name"],
-            subject_classification=row.get("subject_classification"),
+            subject_classification=None if general_category else row.get("subject_classification"),
             **self._sourced("curriculum_items", row),
         )
 

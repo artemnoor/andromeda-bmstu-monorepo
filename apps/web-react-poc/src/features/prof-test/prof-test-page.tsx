@@ -1,5 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Link } from "react-router";
+import { trackEvent } from "@/shared/analytics/analytics";
+import { Link, useSearchParams } from "react-router";
+import { ShareActions } from "@/shared/sharing/share-actions";
+import { absoluteLink, comparisonPath } from "@/shared/sharing/links";
+import { profTestResultPath, readSharedResult } from "./shared-result";
+import { ComparisonMorph } from "@/shared/ui/comparison-morph";
+import { ScreenLoader } from "@/shared/ui/screen-loader";
+import { programPath } from "@/features/catalog/program-path";
 import {
   AcademicApiContractError,
   AcademicApiError,
@@ -119,6 +126,9 @@ function questionActionLabel(flow: FlowState, data: ProfTestData): string {
 }
 
 export function ProfTestPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const sharedResult = searchParams.get("result");
+  const [sharedNotice, setSharedNotice] = useState("");
   const [loadAttempt, setLoadAttempt] = useState(0);
   const [loadState, setLoadState] = useState<LoadState>({ status: "loading", progress: INITIAL_PROGRESS });
   const [flow, setFlow] = useState(initialFlow);
@@ -151,7 +161,17 @@ export function ProfTestPage() {
       if (!controller.signal.aborted) setLoadState({ status: "loading", progress });
     }).then((data) => {
       if (!controller.signal.aborted) {
-        const restored = readProfTestSession(data.releaseKey, data.categories);
+        let restored = readProfTestSession(data.releaseKey, data.categories);
+        setSharedNotice("");
+        if (sharedResult !== null) {
+          try {
+            restored = readSharedResult(sharedResult, data.releaseKey, data.categories);
+            setSharedNotice("Открыт результат по ссылке. Рекомендации восстановлены по сохранённым ответам.");
+          } catch (error) {
+            const message = error instanceof Error ? error.message : "Не удалось открыть результат по ссылке.";
+            setSharedNotice(restored ? `${message} Ваши сохранённые ответы восстановлены.` : message);
+          }
+        }
         setFlow(restored ?? initialFlow());
         setDraftRestored(Boolean(restored));
         setLoadState({ status: "ready", data });
@@ -165,7 +185,7 @@ export function ProfTestPage() {
       window.removeEventListener("pageshow", resume);
       controller.abort();
     };
-  }, [loadAttempt]);
+  }, [loadAttempt, sharedResult]);
 
   const readyReleaseKey = loadState.status === "ready" ? loadState.data.releaseKey : null;
   const admissionState = admissionResult?.releaseKey === readyReleaseKey
@@ -197,14 +217,16 @@ export function ProfTestPage() {
   }, [flow.answers.comparisons.length, flow.history.length, flow.phase]);
 
   useEffect(() => {
-    if (flow.phase !== "results") return;
+    // Shared-link notices explain whose result is displayed. Keep them in view
+    // instead of scrolling past them when a link restores the result phase.
+    if (flow.phase !== "results" || sharedResult !== null) return;
     const frame = window.requestAnimationFrame(() => {
       const behavior = window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth";
       resultsRef.current?.focus({ preventScroll: true });
       resultsRef.current?.scrollIntoView({ behavior, block: "start" });
     });
     return () => window.cancelAnimationFrame(frame);
-  }, [flow.phase]);
+  }, [flow.phase, sharedResult]);
 
   useEffect(() => {
     const refreshScores = (event: StorageEvent) => {
@@ -217,6 +239,18 @@ export function ProfTestPage() {
   }, []);
 
   const data = loadState.status === "ready" ? loadState.data : null;
+  const analyticsStep = useRef<string | null>(null);
+  useEffect(() => {
+    if (!data) return;
+    const step = `${flow.phase}:${flow.answers.comparisons.length}`;
+    if (analyticsStep.current === step) return;
+    const previous = analyticsStep.current;
+    analyticsStep.current = step;
+    if (flow.phase === "results") {
+      trackEvent("prof_test_result_viewed", { source: sharedResult ? "shared_link" : draftRestored ? "restored" : "test" });
+      if (previous !== null && !sharedResult) trackEvent("prof_test_completed", { comparison_count: flow.answers.comparisons.length });
+    } else trackEvent("prof_test_step_viewed", { step: flow.phase, comparison_count: flow.answers.comparisons.length });
+  }, [data, flow.phase, flow.answers.comparisons.length, sharedResult, draftRestored]);
   useEffect(() => {
     if (data) saveProfTestSession(data.releaseKey, flow);
   }, [data, flow]);
@@ -309,6 +343,7 @@ export function ProfTestPage() {
 
   function continueTest() {
     if (!data) return;
+    if (flow.phase === "interests") trackEvent("prof_test_started");
     profTestLog.info("flow.continue", { phase: flow.phase, comparisonCount: flow.answers.comparisons.length });
     setFeedback("");
     setFlow((current) => {
@@ -369,29 +404,43 @@ export function ProfTestPage() {
   }
 
   function restartTest() {
+    trackEvent("prof_test_restarted");
     profTestLog.info("flow.restart", { phase: flow.phase });
     setFlow(initialFlow());
     setFeedback("");
     setComparisonFeedback("");
     setDraftRestored(false);
+    clearResultLink(initialFlow());
   }
 
   function editAnswers() {
-    setFlow({ ...initialFlow(), answers: { ...flow.answers, comparisons: [] } });
+    const next = { ...initialFlow(), answers: { ...flow.answers, comparisons: [] } };
+    setFlow(next);
+    clearResultLink(next);
     setFeedback("");
+  }
+
+  function clearResultLink(next: FlowState) {
+    setSharedNotice("");
+    if (sharedResult === null) return;
+    if (data) saveProfTestSession(data.releaseKey, next);
+    const params = new URLSearchParams(searchParams);
+    params.delete("result");
+    setSearchParams(params, { replace: true, preventScrollReset: true });
   }
 
   function toggleComparison(programKey: string, selected: boolean) {
     if (!selected && comparisonKeys.length >= 3) {
       setComparisonFeedback("В сравнении уже три программы. Удалите одну на странице сравнения, чтобы добавить новую.");
-      return;
+      return false;
     }
     if (comparisonSelection.toggle(programKey, !selected) === "unavailable") {
       setComparisonFeedback("Не удалось сохранить выбор. Проверь настройки браузера и повтори попытку.");
-      return;
+      return false;
     }
     profTestLog.info("comparison-selection.changed", { programKey, selected: !selected, currentCount: comparisonKeys.length + (selected ? -1 : 1) });
     setComparisonFeedback(selected ? "Программа удалена из списка сравнения." : "Программа добавлена в список сравнения.");
+    return true;
   }
 
   function retryLoad() {
@@ -419,23 +468,14 @@ export function ProfTestPage() {
       <main className={styles.main}>
         <section className={styles.intro} aria-labelledby="prof-test-title">
           <div>
-            <p className={styles.eyebrow}>НАЙДИ ТО, ЧТО ИНТЕРЕСНО ТЕБЕ</p>
-            <h1 className={styles.title} id="prof-test-title">Проф-тест</h1>
-            <p className={styles.description}>Расскажи, что тебе нравится и как ты любишь учиться. Мы предложим программы и объясним, чем они подходят.</p>
-            <ul className={styles.introFacts}><li>5–7 коротких вопросов</li><li>Нет правильных и неправильных ответов</li><li>Можно вернуться и передумать</li></ul>
+            <p className={styles.eyebrow}>АНДРОМЕДА / ПРОФОРИЕНТАЦИЯ</p>
+            <h1 className={styles.title} id="prof-test-title">{flow.phase === "results" ? "Твои рекомендации" : "Найди своё направление"}</h1>
           </div>
         </section>
 
         {loadState.status === "loading" ? (
           <section className={styles.shell} aria-label="Загрузка проф-теста" aria-busy="true">
-            <div className={styles.loading} role="status" aria-live="polite">
-              <span className={styles.loader} aria-hidden="true" />
-              <strong>{loadState.progress.label}</strong>
-              <span>Собираем проверенные учебные планы и предметные категории из одного активного выпуска.</span>
-              {loadState.progress.total > 0 ? (
-                <span>{formatCount(loadState.progress.completed)} из {formatCount(loadState.progress.total)} планов</span>
-              ) : null}
-            </div>
+            <ScreenLoader label="Готовим профтест" />
           </section>
         ) : null}
 
@@ -449,14 +489,15 @@ export function ProfTestPage() {
           </section>
         ) : null}
 
+        {sharedNotice && <p className={styles.resultsMethodNote} role="status">{sharedNotice}</p>}
         {data && flow.phase !== "results" ? (
           <section className={styles.shell} aria-labelledby="test-experience-title" aria-busy="false">
             <h2 className={styles.srOnly} id="test-experience-title">Подбор образовательной программы</h2>
             <div className={styles.panel}>
               <header className={styles.progressHead}>
                 <div>
-                  <p className={styles.sectionKicker}>Твой маршрут</p>
-                  <p className={styles.stepCount}>Вопрос {step} · обычно 5–7</p>
+                  <p className={styles.sectionKicker}>{flow.phase === "interests" ? "01 / Интересы" : flow.phase === "activity" ? "02 / Формат учёбы" : flow.phase === "avoid" ? "03 / Предпочтения" : "04 / Уточнение"}</p>
+                  <p className={styles.stepCount}>Вопрос {step} <span>из 7 максимум</span></p>
                 </div>
                 <button className={styles.restartLink} type="button" onClick={restartTest}>Начать заново</button>
               </header>
@@ -471,14 +512,14 @@ export function ProfTestPage() {
                 <span style={{ width: `${Math.min(100, (step / 7) * 100)}%` }} />
               </div>
               <ol className={styles.flowSteps} aria-label="Этапы подбора">
-                {["Интересы", "Как учиться", "Что ближе", "Результат"].map((label, index) => <li key={label} aria-current={(flow.phase === "interests" ? 0 : flow.phase === "activity" ? 1 : 2) === index ? "step" : undefined}><span aria-hidden="true">{index + 1}</span>{label}</li>)}
+                {["Интересы", "Формат", "Предпочтения", "Уточнение"].map((label, index) => <li key={label} aria-current={(flow.phase === "interests" ? 0 : flow.phase === "activity" ? 1 : flow.phase === "avoid" ? 2 : 3) === index ? "step" : undefined}><span aria-hidden="true">{index + 1}</span>{label}</li>)}
               </ol>
-              <p className={styles.sourceNote}>{draftRestored ? "Продолжим с сохранённого шага. " : ""}Сравним твои интересы с содержанием {data.profiles.length} программ. Ответы сохраняются в этой вкладке.</p>
+              {draftRestored ? <p className={styles.sourceNote}>Продолжим с сохранённого шага.</p> : null}
 
-              <section className={styles.question} ref={questionRef} tabIndex={-1} aria-labelledby="prof-question-title">
+              <section key={flow.phase === "compare" ? `compare:${flow.answers.comparisons.length}` : flow.phase} className={styles.question} ref={questionRef} tabIndex={-1} aria-labelledby="prof-question-title">
                 {flow.phase === "interests" ? (
                   <>
-                    <QuestionHeading title="Что тебе интересно изучать?" description="Выбери от одной до пяти тем, которые хочется попробовать. Неважно, насколько хорошо ты уже в них разбираешься." />
+                    <QuestionHeading title="Что тебе интересно изучать?" description="Выбери до пяти тем. Достаточно интереса — разбираться в них уже сейчас необязательно." />
                     <button className={styles.unsureChoice} type="button" aria-pressed={flow.answers.interests.includes(UNKNOWN_INTEREST)} onClick={() => toggleInterest(UNKNOWN_INTEREST)}>Пока трудно выбрать <span>Помогут следующие вопросы</span></button>
                     <div className={`${styles.choiceGrid} ${styles.categoryChoiceGrid}`}>
                       {data.categories.map((category) => (
@@ -613,22 +654,19 @@ export function ProfTestPage() {
           <section className={styles.results} aria-labelledby="results-title">
             <header ref={resultsRef} className={styles.resultsIntro} tabIndex={-1}>
               <div>
-                <p className={styles.sectionKicker}>РЕЗУЛЬТАТ ПО УЧЕБНОМУ ПЛАНУ</p>
-                <h2 id="results-title">{hasRankingSignal ? "Твои подходящие программы" : "Пока не получилось выделить совпадение"}</h2>
-                <p>Это отправная точка для выбора. Посмотри, какие темы есть в программах, добавь интересные варианты в сравнение и проверь условия поступления.</p>
+                <p className={styles.sectionKicker}>РЕЗУЛЬТАТ ПРОФТЕСТА</p>
+                <h2 id="results-title">{hasRankingSignal ? "Лучшие совпадения" : "Уточним твои интересы"}</h2>
+                <p>По содержанию учебных планов · не прогноз поступления</p>
               </div>
               <div className={styles.resultsTotal}><strong>{formatCount(ranked.length)}</strong><span>программ с данными для сравнения</span></div>
             </header>
-            <div className={styles.resultsMethodNote}>
-              Чем выше совпадение, тем ближе содержание программы к твоим ответам. Этот индекс не оценивает твои способности и не предсказывает поступление.
-            </div>
-            <section className={styles.answerSummary} aria-label="Твои предпочтения">
+            <details className={styles.answerSummary}><summary>Твои предпочтения</summary><div className={styles.answerSummaryContent}>
               <div><h3>Твои предпочтения</h3><p>{flow.answers.interests.filter((code) => code !== UNKNOWN_INTEREST).map((code) => categoryByCode.get(code)).filter((category): category is SubjectCategory => Boolean(category)).map((category) => categoryPresentation(category).title).join(" · ") || "Интересы уточнялись в сравнениях"}</p><p>{ACTIVITY_OPTIONS.find((option) => option.key === flow.answers.activity)?.title ?? "Формат занятий без предпочтения"}</p>{flow.answers.avoid.some((code) => code !== NO_AVOID) ? <p>Хочется меньше: {flow.answers.avoid.filter((code) => code !== NO_AVOID).map((code) => categoryByCode.get(code)?.name).filter(Boolean).join(" · ")}</p> : null}</div>
               <div className={styles.answerSummaryActions}>
-                <a className={styles.restartLink} href="#prof-program-search">Все программы и поиск ↓</a>
+                <a className={styles.restartLink} href="#prof-program-search" onClick={() => { document.getElementById("all-programs")?.setAttribute("open", ""); requestAnimationFrame(() => document.getElementById("prof-program-search")?.focus()); }}>Все программы и поиск ↓</a>
                 <button type="button" className={styles.restartLink} onClick={editAnswers}>Уточнить интересы</button>
               </div>
-            </section>
+            </div></details>
             {hasRankingSignal && !hasSubjectPreference ? <p className={styles.resultsMethodNote} role="status">Пока подбор опирается только на формат занятий. Уточни интересы, чтобы программы различались и по содержанию дисциплин.</p> : null}
             {!hasRankingSignal ? (
               <p className={styles.resultsMethodNote} role="status">Ты пока не выделил любимые темы или формат занятий. Можно уточнить интересы или посмотреть все программы ниже — без персональной оценки.</p>
@@ -649,11 +687,7 @@ export function ProfTestPage() {
               ))}
             </div> : null}
             {hasRankingSignal && alternatives.length > 0 ? (
-              <section className={styles.alternativeSection} aria-labelledby="alternative-title">
-                <header className={styles.alternativeHeading}>
-                  <div><p className={styles.sectionKicker}>ЕЩЁ ВАРИАНТЫ</p><h3 id="alternative-title">Другие варианты</h3></div>
-                  <p>Их содержание может заметно отличаться от первого варианта. Сравни совпадения и темы, которые занимают больше всего времени.</p>
-                </header>
+              <details className={styles.alternativeSection}><summary>Ещё {alternatives.length} подходящие программы</summary>
                 <div className={styles.alternativeGrid}>
                   {alternatives.map((item, index) => (
                     <RecommendationCard
@@ -670,19 +704,29 @@ export function ProfTestPage() {
                     />
                   ))}
                 </div>
-              </section>
+              </details>
             ) : null}
+            {hasRankingSignal && selectedMain.length > 0 && <ShareActions
+              key={JSON.stringify(flow.answers)}
+              title="Сохранить результат"
+              description="Поделись ссылкой или скачай PDF."
+              getLink={() => absoluteLink(profTestResultPath(data.releaseKey, flow.answers))}
+              comparisonTo={comparisonPath(selectedMain.map(r => r.profile.program.external_key))}
+              getReport={async () => { const { profTestReport } = await import("./prof-test-report"); return profTestReport(data, flow.answers, ranked, absoluteLink(profTestResultPath(data.releaseKey, flow.answers))); }}
+            />}
             {comparisonFeedback ? <p className={styles.actionFeedback} role="status" aria-live="polite">{comparisonFeedback}</p> : null}
+            <details id="all-programs" className={styles.resultsBrowse}><summary>Все программы · {data.programs.length}</summary>
             <ProgramResults key={`${data.releaseKey}:${flow.answers.comparisons.length}`} data={data} ranked={ranked} hasSignal={hasRankingSignal} comparisonKeys={comparisonKeys} onToggleComparison={toggleComparison} />
+            </details>
             <details className={styles.resultsDataNote}><summary>Как устроен подбор и какие данные учтены</summary><p>
               Активный академический выпуск: {activeProfileSource(data)}. Индекс учитывает доли часов по интересам, формат занятий и небольшой штраф за нежелательные области. Помеченные Jev для проверки назначения участвуют как наиболее вероятные.
               Учтено {formatCount(ranked.length)} из {formatCount(data.programs.length)} программ. В {formatCount(data.totalCurriculumRows)} строках учебных планов назначена категория для {formatCount(data.assignedRows)} строк; Jev пометил {formatCount(data.reviewRows)} {russianPlural(data.reviewRows, ["назначение для проверки", "назначения для проверки", "назначений для проверки"])}. Такие категории учитываются как наиболее вероятные.
-              {data.assignedRows < data.totalCurriculumRows ? ` Ещё ${formatCount(data.totalCurriculumRows - data.assignedRows)} строк в источнике без назначения категории.` : ""}
+              {data.assignedRows < data.totalCurriculumRows ? ` Ещё ${formatCount(data.totalCurriculumRows - data.assignedRows)} строк не участвуют в профессиональном профиле: дополнительные и общие дисциплины учитываются отдельно.` : ""}
               {data.unavailableProgramCount > 0 ? ` Для ${formatCount(data.unavailableProgramCount)} программ актуальный подтверждённый план недоступен.` : ""}
             </p></details>
             <footer className={styles.resultsFooter}>
-              <button className={`${styles.button} ${styles.buttonSecondary}`} type="button" onClick={goBack}>Изменить ответы</button>
-              <Link className={`${styles.button} ${styles.buttonBlue}`} to="/compare">Сравнить программы{comparisonKeys.length ? ` (${comparisonKeys.length})` : ""}</Link>
+              <button className={`${styles.button} ${styles.buttonSecondary}`} type="button" onClick={editAnswers}>Изменить ответы</button>
+              <Link viewTransition className={`${styles.button} ${styles.buttonBlue}`} to={comparisonPath(comparisonKeys.length ? comparisonKeys : selectedMain.map(r => r.profile.program.external_key))}>Сравнить программы{comparisonKeys.length ? ` (${comparisonKeys.length})` : ""}</Link>
               <button className={styles.restartLink} type="button" onClick={restartTest}>Пройти заново</button>
             </footer>
           </section>
@@ -759,7 +803,7 @@ function RecommendationCard({
   readonly admissionState: AdmissionState;
   readonly applicantScores: Readonly<Record<string, unknown>>;
   readonly comparisonKeys: readonly string[];
-  readonly onToggleComparison: (programKey: string, selected: boolean) => void;
+  readonly onToggleComparison: (programKey: string, selected: boolean) => boolean | void;
 }) {
   const { profile, score, positivePreferences, activityFit } = item;
   const program = profile.program;
@@ -768,7 +812,7 @@ function RecommendationCard({
     .map(([code, weight]) => ({ code, weight, share: profile.categoryShares.get(code) ?? 0, contribution: weight * normalizedCategoryShare(profile, code) }))
     .filter((match) => match.share > 0)
     .sort((left, right) => right.contribution - left.contribution)
-    .slice(0, 3);
+    .slice(0, 2);
   const avoids = answers.avoid
     .filter((code) => code !== NO_AVOID)
     .map((code) => ({ code, share: profile.categoryShares.get(code) ?? 0 }))
@@ -819,23 +863,23 @@ function RecommendationCard({
         <span className={styles.recommendationCode}>{program.code || "Код не указан"}</span>
       </div>
       <h3>{program.name || "Образовательная программа"}</h3>
-      <p className={styles.recommendationDirection}>{[program.directionCode, program.directionName].filter(Boolean).join(" · ") || "Направление не указано"}</p>
+      <p className={styles.recommendationDirection}>{[program.departmentCode, program.directionName].filter(Boolean).join(" · ") || "Направление не указано"}</p>
       <div className={styles.fitIndex}>
-        <div className={styles.fitIndexTop}><span>Совпадение с ответами</span><strong>{Math.round(score)} / 100</strong></div>
+        <div className={styles.fitIndexTop}><span>Совпадение</span><strong>{Math.round(score)}<small> / 100</small></strong></div>
         <div className={styles.fitIndexTrack} aria-hidden="true"><span style={{ width: `${Math.max(0, Math.min(100, score))}%` }} /></div>
-        <span className={styles.fitIndexCaption}>Относительный индекс по программам каталога, не шанс поступления</span>
       </div>
       {matches.length > 0 ? (
         <section className={styles.recommendationReasons}>
-          <h4>Ближе всего по содержанию</h4>
+          <h4>Интересы · доля часов</h4>
           <div className={styles.reasonBars}>
             {matches.map((match) => (
-              <div className={styles.reasonBar} key={match.code}><div><span>{categories.get(match.code)?.name ?? `Категория ${match.code}`}</span><strong>{percent(match.share)}</strong></div><span className={styles.reasonTrack} aria-hidden="true"><span style={{ width: `${Math.min(100, match.share * 100)}%` }} /></span></div>
+                <div className={styles.reasonBar} key={match.code}><div><span>{categories.has(match.code) ? categoryPresentation(categories.get(match.code)!).title : `Категория ${match.code}`}</span><strong>{percent(match.share)}</strong></div><span className={styles.reasonTrack} aria-hidden="true"><span style={{ width: `${Math.min(100, match.share * 100)}%` }} /></span></div>
             ))}
           </div>
-          <p className={styles.reasonCaption}>Доля указанных часов учебного плана</p>
         </section>
       ) : null}
+      <details className={styles.recommendationData}>
+        <summary>Подробнее о совпадении и поступлении</summary>
       {avoids.length > 0 ? (
         <section className={styles.recommendationReasons}>
           <h4>Проверь нежелательные темы</h4>
@@ -846,8 +890,7 @@ function RecommendationCard({
           </div>
         </section>
       ) : null}
-      <details className={styles.recommendationData}>
-        <summary>Учебный план и источники</summary>
+
         <p>
         <strong>{formatCount(profile.totalHours)} ч</strong> в учебном плане · категория назначена для <strong>{percent(coverage)}</strong> указанных часов
         {activityFit !== null && activity ? <><br />{activity.title}: {percent(profile.activityShares[activity.key])} распределённых часов</> : null}
@@ -855,22 +898,13 @@ function RecommendationCard({
         {profile.reviewRows === 0 && profile.assignedRows > 0 ? <><br />Все назначенные категории этого плана отмечены как классифицированные.</> : null}
         {sourceUrl ? <><br /><a className={styles.sourceLink} href={sourceUrl} target="_blank" rel="noopener noreferrer">Оригинал учебного плана ↗</a></> : null}
         </p>
+        <div><strong>{admissionStatus}</strong><p>{admissionNote}</p>
+        <Link viewTransition to={`/programs?direction=${encodeURIComponent(program.directionCode ?? "")}`}>Все условия направления ↗</Link>
+        </div>
       </details>
-      <section className={styles.admissionFit} aria-label="Условия поступления">
-        <strong>Поступление · {admissionStatus}</strong>
-        <span>{admissionNote}</span>
-        <Link to={`/programs?direction=${encodeURIComponent(program.directionCode ?? "")}`}>Все условия направления ↗</Link>
-      </section>
       <div className={styles.recommendationActions}>
-        <Link className={`${styles.button} ${styles.buttonSecondary}`} to={`/programs?code=${encodeURIComponent(program.code)}`}>Подробнее о программе</Link>
-        <button
-          className={`${styles.button} ${styles.buttonSecondary} ${styles.compareToggle}`}
-          type="button"
-          aria-pressed={selected}
-          onClick={() => onToggleComparison(program.external_key, selected)}
-        >
-          {selected ? "Добавлено ✓" : "В сравнение"}
-        </button>
+        <Link viewTransition className={`${styles.button} ${styles.buttonSecondary}`} to={programPath(program)}>О программе ↗</Link>
+        <ComparisonMorph selected={selected} label={selected ? "Добавлено ✓" : "В сравнение"} onToggle={() => onToggleComparison(program.external_key, selected)} />
       </div>
     </article>
   );

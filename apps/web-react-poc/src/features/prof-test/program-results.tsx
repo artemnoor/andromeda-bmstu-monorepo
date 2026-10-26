@@ -4,6 +4,8 @@ import { russianPlural } from "@/features/catalog/model";
 import type { ProfTestData } from "./api";
 import type { RankedCareerProfile } from "./model";
 import { matchesProgramSearch } from "./presentation";
+import { ComparisonMorph } from "@/shared/ui/comparison-morph";
+import { programPath } from "@/features/catalog/program-path";
 import styles from "./prof-test.module.css";
 
 const PAGE_SIZE = 12;
@@ -13,7 +15,7 @@ export function ProgramResults({ data, ranked, hasSignal, comparisonKeys, onTogg
   readonly ranked: readonly RankedCareerProfile[];
   readonly hasSignal: boolean;
   readonly comparisonKeys: readonly string[];
-  readonly onToggleComparison: (key: string, selected: boolean) => void;
+  readonly onToggleComparison: (key: string, selected: boolean) => boolean | void;
 }) {
   const [query, setQuery] = useState("");
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
@@ -21,7 +23,7 @@ export function ProgramResults({ data, ranked, hasSignal, comparisonKeys, onTogg
   const focusNextIndex = useRef<number | null>(null);
   useEffect(() => {
     if (focusNextIndex.current !== null) {
-      listRef.current?.querySelectorAll("a")[focusNextIndex.current]?.focus();
+      listRef.current?.querySelectorAll<HTMLAnchorElement>("[data-program-result-link]")[focusNextIndex.current]?.focus();
       focusNextIndex.current = null;
     }
   }, [visibleCount]);
@@ -56,11 +58,11 @@ export function ProgramResults({ data, ranked, hasSignal, comparisonKeys, onTogg
               <li className={styles.programRow} key={program.external_key}>
                 <div className={styles.programRowCopy}>
                   <span>{program.code}{program.departmentCode ? ` · ${program.departmentCode}` : ""}</span>
-                  <Link to={`/programs?code=${encodeURIComponent(program.code)}`}>{program.name || "Образовательная программа"}</Link>
+                  <Link viewTransition data-program-result-link to={programPath(program)}>{program.name || "Образовательная программа"}</Link>
                   {program.directionName ? <small>{program.directionName}</small> : null}
                 </div>
                 <span className={styles.programRowScore}>{hasSignal ? <><strong>{Math.round(score)}</strong> / 100</> : "Без оценки"}</span>
-                <button type="button" className={`${styles.button} ${styles.buttonSecondary}`} aria-label={`${selected ? "Убрать из сравнения" : "В сравнение"}: ${program.name || program.code}`} aria-pressed={selected} onClick={() => onToggleComparison(program.external_key, selected)}>{selected ? "Добавлено ✓" : "В сравнение"}</button>
+                <ComparisonMorph selected={selected} label={`${selected ? "Убрать из сравнения" : "В сравнение"}: ${program.name || program.code}`} onToggle={() => onToggleComparison(program.external_key, selected)} />
               </li>
             );
           })}
@@ -72,7 +74,7 @@ export function ProgramResults({ data, ranked, hasSignal, comparisonKeys, onTogg
           <summary>Без подтверждённого учебного плана · {unavailable.length}</summary>
           <p>Эти программы есть в каталоге, но для них пока нет доступного подтверждённого плана. Оценить совпадение по содержанию нельзя. Открой карточку, чтобы посмотреть опубликованные сведения.</p>
           <ul className={styles.programList} aria-label="Программы без оценки">
-            {unavailable.map((program) => <li className={styles.programRow} key={program.external_key}><div className={styles.programRowCopy}><span>{program.code}</span><Link to={`/programs?code=${encodeURIComponent(program.code)}`}>{program.name || "Образовательная программа"}</Link></div><span className={styles.programRowScore}>Без оценки</span></li>)}
+            {unavailable.map((program) => <li className={styles.programRow} key={program.external_key}><div className={styles.programRowCopy}><span>{program.code}</span><Link viewTransition to={programPath(program)}>{program.name || "Образовательная программа"}</Link></div><span className={styles.programRowScore}>Без оценки</span></li>)}
           </ul>
         </details>
       ) : null}

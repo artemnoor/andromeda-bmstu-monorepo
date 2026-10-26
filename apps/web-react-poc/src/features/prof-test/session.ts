@@ -63,7 +63,7 @@ function selection(value: unknown, maximum: number, sentinel: string, codes?: Re
     && (!value.includes(sentinel) || value.length === 1);
 }
 
-function validAnswers(value: unknown, codes?: ReadonlySet<string>): value is CareerTestAnswers {
+export function validAnswers(value: unknown, codes?: ReadonlySet<string>): value is CareerTestAnswers {
   if (!record(value) || !exactKeys(value, ["interests", "activity", "avoid", "comparisons"])) return false;
   if (!selection(value.interests, MAX_INTERESTS, UNKNOWN_INTEREST, codes)
     || !selection(value.avoid, MAX_AVOID, NO_AVOID, codes)

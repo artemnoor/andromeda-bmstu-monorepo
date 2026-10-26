@@ -1,0 +1,49 @@
+.page { --error-accent: #d9b8fe; min-height: 100svh; color: var(--text); background: var(--site-bg); }
+.main { width: min(1240px, calc(100% - 96px)); margin: auto; padding: clamp(130px, 16vh, 185px) 0 30px; }
+.hero { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.12fr); gap: 38px; align-items: center; min-height: 420px; }
+.copy { position: relative; z-index: 1; }
+.copy h1 { max-width: 580px; margin: 0; font-size: clamp(42px, 5.1vw, 70px); font-weight: 500; line-height: 1.04; letter-spacing: -.055em; text-wrap: balance; }
+.description { max-width: 440px; margin: 24px 0 0; color: var(--text-muted); font-size: 16px; line-height: 1.75; }
+.actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 30px; }
+.actions a { display: inline-flex; justify-content: center; align-items: center; gap: 12px; min-height: 50px; padding: 12px 19px; border: 1px solid transparent; border-radius: 12px; font-size: 13px; font-weight: 550; text-decoration: none; transition: background-color 160ms ease, border-color 160ms ease; }
+.primary { color: #17121f; background: var(--error-accent); }
+.primary:hover { background: #e5cdff; }
+.actions .secondary { color: var(--text); border-color: var(--line); background: transparent; }
+.secondary:hover { border-color: rgb(217 184 254 / 50%); background: rgb(217 184 254 / 5%); }
+.illustration { position: relative; isolation: isolate; min-width: 0; padding: 0 0 16px; text-align: center; }
+.illustration > svg { position: relative; display: block; width: 100%; height: auto; overflow: visible; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; }
+.glow { position: absolute; z-index: -1; inset: 0; background: radial-gradient(ellipse at center, rgb(217 184 254 / 9%), transparent 64%); pointer-events: none; }
+.orbitCaption { display: block; margin-top: -22px; color: var(--text-muted); font-size: 11px; letter-spacing: .03em; }
+.orbit { animation: orbitTravel 3.2s linear infinite; }
+@keyframes orbitTravel { to { stroke-dashoffset: -44; } }
+.explore { display: grid; grid-template-columns: .75fr 1.7fr; gap: 40px; align-items: center; margin-top: 60px; padding: 30px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.exploreHeading h2 { margin: 0; font-size: 19px; font-weight: 500; line-height: 1.4; letter-spacing: -.025em; }
+.exploreHeading p { margin: 8px 0 0; color: var(--text-muted); font-size: 12px; line-height: 1.6; }
+.routes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 15px; }
+.route { display: grid; grid-template-columns: 42px minmax(0, 1fr) 18px; align-items: center; gap: 13px; min-width: 0; padding: 18px 15px; border: 1px solid var(--line); border-radius: 15px; color: var(--text); background: var(--surface); text-decoration: none; transition: border-color 160ms ease, background-color 160ms ease; }
+.route:hover { border-color: rgb(217 184 254 / 40%); background: rgb(217 184 254 / 5%); }
+.routeIcon { display: grid; width: 42px; height: 42px; place-items: center; border-radius: 11px; color: var(--error-accent); background: rgb(217 184 254 / 7%); }
+.route strong { display: block; font-size: 13px; font-weight: 500; line-height: 1.5; }
+.route small { display: block; margin-top: 5px; color: var(--text-muted); font-size: 11px; line-height: 1.5; }
+.routeArrow { color: var(--text-muted); }
+.footer { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px 24px; margin-top: 25px; color: var(--text-muted); font-size: 11px; line-height: 1.6; }
+.footer a { display: inline-flex; align-items: center; gap: 5px; min-height: 40px; color: var(--text-muted); text-decoration: underline; text-underline-offset: 4px; }
+.footer a:hover { color: var(--text); }
+.page a:focus-visible { outline: 2px solid var(--error-accent); outline-offset: 4px; }
+@media (max-width: 1050px) { .explore { grid-template-columns: 1fr; gap: 20px; } }
+@media (max-width: 700px) {
+  .main { width: calc(100% - 40px); padding-top: 105px; }
+  .hero { grid-template-columns: minmax(0, 1fr); gap: 28px; min-height: 0; }
+  .illustration { grid-row: 1; width: min(100%, 410px); justify-self: center; padding-bottom: 0; }
+  .illustration > svg { max-height: 235px; }
+  .orbitCaption { margin-top: -14px; font-size: 10px; }
+  .copy h1 { max-width: 450px; font-size: clamp(39px, 10vw, 58px); }
+  .description { margin-top: 20px; font-size: 14px; line-height: 1.75; }
+  .actions { margin-top: 24px; gap: 10px; }
+  .actions a { flex: 1; padding-inline: 12px; font-size: 12px; white-space: nowrap; }
+  .explore { margin-top: 38px; padding-block: 24px; }
+  .routes { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  .route { min-height: 84px; padding: 16px; }
+  .footer { margin-top: 20px; gap: 8px; }
+}
+@media (prefers-reduced-motion: reduce) { .actions a, .route { transition: none; } .orbit { animation: none; } }

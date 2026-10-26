@@ -11,6 +11,9 @@ const { values } = parseArgs({ options: {
 } });
 const base = new URL(values["base-url"]);
 const expected = JSON.parse(await readFile(values.expected, "utf8"));
+// Independent full-PDF section census, including directions where a dash
+// coexists with main-competition admits and must NOT be called BVI-only.
+const bviReview = JSON.parse(await readFile("docs/data/bvi-orders-20261020.json", "utf8"));
 const cards = new Map(expected.cards.map((card) => [card.url, card]));
 const fetchJson = async (path) => {
   const response = await fetch(new URL(path, base), { signal: AbortSignal.timeout(20_000) });
@@ -48,7 +51,9 @@ const jobs = programs.map((program) => {
     assert.equal(rows[0].minimum_score === null ? null : Number(rows[0].minimum_score), score);
     assert(rows[0].sources.some((source) => source.source_url === url && source.sha256 === card.sha256));
   }
-  return { program, url, card };
+  const bvi = bviReview.directions.find((item) => item.directionCode === card.code
+    && item.verdict === "bvi_outside_quotas" && program.campus_scope === "head_moscow");
+  return { program, url, card, bvi };
 });
 const browser = await chromium.launch();
 const report = { capturedAt: new Date().toISOString(), releaseKey: release.release_key, expectedSourceCapture: expected.fetchedAt,
@@ -64,10 +69,10 @@ try {
       page.on("pageerror", (error) => errors.push(error.message));
       await page.goto(new URL("/programs", base).href);
       await page.locator("article[data-program-key]").nth(programs.length - 1).waitFor();
-      for (const { program, url, card } of jobs.filter((_, index) => index % 4 === worker)) {
+      for (const { program, url, card, bvi } of jobs.filter((_, index) => index % 4 === worker)) {
         const article = page.locator(`article[data-program-key=${JSON.stringify(program.external_key)}]`);
         await article.getByRole("button", { name: "Подробнее", exact: true }).click();
-        const table = article.getByRole("table", { name: "Проходные баллы по официальной карточке за 2026 год" });
+        const table = article.getByRole("table", { name: "Проходные баллы по официальной карточке и сведения БВИ по приказам за 2026 год" });
         await table.waitFor();
         const rows = table.locator("tbody tr");
         assert.equal(await rows.count(), 2);
@@ -75,12 +80,24 @@ try {
         for (const [index, funding] of ["budget", "paid"].entries()) {
           const raw = card.year2026[funding];
           const numeric = typeof raw === "number" || (typeof raw === "string" && /^\d+$/.test(raw));
-          const wanted = numeric ? `${Number(raw)} баллов` : "Не опубликован";
+          const isBvi = !numeric && funding === "budget" && bvi;
+          const wanted = numeric ? `${Number(raw)} баллов` : isBvi ? "БВИ вне квот" : "Не опубликован";
           const cell = rows.nth(index).locator("td");
           displayed[funding] = await cell.locator("strong").textContent();
           assert.equal(displayed[funding], wanted, `Wrong displayed score for ${program.external_key}/${funding}`);
-          assert.equal(await cell.getByRole("link", { name: "Источник ↗" }).getAttribute("href"), url);
+          const publicUrl = `https://bmstu.ru/bachelor/majors/${new URL(url).pathname.split("/").at(-1)}`;
+          assert.equal(await cell.getByRole("link", { name: "Источник ↗" }).getAttribute("href"), publicUrl);
+          if (isBvi) {
+            assert((await cell.textContent()).includes(`${bvi.bviAdmitted} зачисленных`));
+            assert.equal(await cell.getByRole("link", { name: "Приказ о зачислении БВИ ↗" }).getAttribute("href"), bvi.bviSource);
+          }
         }
+        assert.equal(await article.locator("footer").getByRole("link", { name: "Источник" }).getAttribute("href"),
+          `https://bmstu.ru/bachelor/majors/${new URL(url).pathname.split("/").at(-1)}`);
+        const apiLinks = await article.locator('a[href^="https://api.www.bmstu.ru/"]').evaluateAll((links) => links.map((link) => link.href));
+        // Official document downloads also use this host; they open the actual
+        // document and must keep their exact source address.
+        assert.deepEqual(apiLinks.filter((href) => !/^\/file\/\d+\/download$/.test(new URL(href).pathname)), [], program.code);
         report.checkedPrograms.push({ key: program.external_key, code: program.code, cardUrl: url, displayed });
         await article.getByRole("button", { name: "Скрыть", exact: true }).click();
       }

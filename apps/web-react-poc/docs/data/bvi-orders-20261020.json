@@ -1,0 +1,134 @@
+{
+  "checkedAt": "2026-10-20T18:58:44.193557+00:00",
+  "year": 2026,
+  "campus": "head_moscow",
+  "manifestUrl": "https://priem.bmstu.ru/lists/orders.json",
+  "manifestSha256": "99f7b91abfdd5d83c59eff6d25d9fc2d2d94f7ebff602813a2341636e7842dc3",
+  "documents": [
+    {
+      "url": "https://priem.bmstu.ru/lists/upload/orders/first_msk_zero.pdf",
+      "title": "Высшее образование, бакалавриат, специалитет, бюджетная основа, БВИ, особая, отдельная и целевая квоты, МГТУ им. Н. Э. Баумана (Москва)",
+      "sha256": "388e7934248dd87aaef5b8c8247ae6802e8dc0a28a97695f7f9a356f9bcaf648",
+      "pages": 100
+    },
+    {
+      "url": "https://priem.bmstu.ru/lists/upload/orders/first_msk_main.pdf",
+      "title": "Высшее образование, бакалавриат, специалитет, бюджетная основа, основной этап, МГТУ им. Н.Э. Баумана (Москва)",
+      "sha256": "bba340a47c433e4d54fa2d1223ecdcde1ed535089a85c6e003d680a6ac29aa6b",
+      "pages": 87
+    }
+  ],
+  "note": "Independent section/paragraph census of all published Moscow undergraduate budget orders. Quota rows remain separate. No applicant records retained. A missing card value alone is not BVI evidence.",
+  "directions": [
+    {
+      "directionCode": "01.03.02",
+      "cardUrl": "https://api.www.bmstu.ru/majors/prikladnaa-matematika-i-informatika-010302",
+      "cardSha256": "b657d2712b2ca9a982188732767fbc201b0f3f4b12b1a3b274a346cb2f17a640",
+      "rawBudget": "—",
+      "bviAdmitted": 6,
+      "mainAdmitted": 0,
+      "quotaAdmitted": 30,
+      "bviSource": "https://priem.bmstu.ru/lists/upload/orders/first_msk_zero.pdf#page=2",
+      "verdict": "bvi_outside_quotas"
+    },
+    {
+      "directionCode": "09.03.04",
+      "cardUrl": "https://api.www.bmstu.ru/majors/programmnaa-inzeneria-090304",
+      "cardSha256": "261a76eb2b9a5ae3f095afb8524f3cb20468c180e293af177eed6787c8b386a6",
+      "rawBudget": "—",
+      "bviAdmitted": 25,
+      "mainAdmitted": 0,
+      "quotaAdmitted": 59,
+      "bviSource": "https://priem.bmstu.ru/lists/upload/orders/first_msk_zero.pdf#page=25",
+      "verdict": "bvi_outside_quotas"
+    },
+    {
+      "directionCode": "10.05.03",
+      "cardUrl": "https://api.www.bmstu.ru/majors/informacionnaa-bezopasnost-avtomatizirovannyh-sistem-100503",
+      "cardSha256": "767ea15a91c7337b54ccb474bab6bbdb042a4928814c9e6ed73372a4353b06ba",
+      "rawBudget": "—",
+      "bviAdmitted": 7,
+      "mainAdmitted": 8,
+      "quotaAdmitted": 52,
+      "bviSource": "https://priem.bmstu.ru/lists/upload/orders/first_msk_zero.pdf#page=30",
+      "verdict": "no_bvi_only_conclusion"
+    },
+    {
+      "directionCode": "14.05.01",
+      "cardUrl": "https://api.www.bmstu.ru/majors/adernye-reaktory-i-materialy-140501",
+      "cardSha256": "226b29d975f3794684c619260fb068911f557ab073c46f87d5b09cbcb2987f18",
+      "rawBudget": "—",
+      "bviAdmitted": 10,
+      "mainAdmitted": 0,
+      "quotaAdmitted": 27,
+      "bviSource": "https://priem.bmstu.ru/lists/upload/orders/first_msk_zero.pdf#page=50",
+      "verdict": "bvi_outside_quotas"
+    },
+    {
+      "directionCode": "15.03.06",
+      "cardUrl": "https://api.www.bmstu.ru/majors/mehatronika-i-robototehnika-150306",
+      "cardSha256": "d63bc3671e85aa34c72b0609a1ea755ddcda2eab0da50fc953e956e957f3d0e0",
+      "rawBudget": "—",
+      "bviAdmitted": 80,
+      "mainAdmitted": 19,
+      "quotaAdmitted": 36,
+      "bviSource": "https://priem.bmstu.ru/lists/upload/orders/first_msk_zero.pdf#page=58",
+      "verdict": "no_bvi_only_conclusion"
+    },
+    {
+      "directionCode": "24.05.01",
+      "cardUrl": "https://api.www.bmstu.ru/majors/proektirovanie-proizvodstvo-i-ekspluatacia-raket-i-raketno-kosmiceskih-kompleksov-240501",
+      "cardSha256": "b1d2e77338e89e803d2747c636801553083cc0c551b68a8df3a6a835c4da593c",
+      "rawBudget": "—",
+      "bviAdmitted": 37,
+      "mainAdmitted": 72,
+      "quotaAdmitted": 139,
+      "bviSource": "https://priem.bmstu.ru/lists/upload/orders/first_msk_zero.pdf#page=82",
+      "verdict": "no_bvi_only_conclusion"
+    },
+    {
+      "directionCode": "38.03.01",
+      "cardUrl": "https://api.www.bmstu.ru/majors/ekonomika-380301",
+      "cardSha256": "eada33e4023170a5de95bb085916ebd2b071b9c8415f110a3a205365c1e9005f",
+      "rawBudget": "—",
+      "bviAdmitted": 0,
+      "mainAdmitted": 0,
+      "quotaAdmitted": 0,
+      "bviSource": null,
+      "verdict": "no_bvi_only_conclusion"
+    },
+    {
+      "directionCode": "38.03.02",
+      "cardUrl": "https://api.www.bmstu.ru/majors/menedzment-380302",
+      "cardSha256": "624e0fadb430ed7927f36e223692736ceb107e78132a5dd17824e19a54ce326f",
+      "rawBudget": "—",
+      "bviAdmitted": 0,
+      "mainAdmitted": 0,
+      "quotaAdmitted": 0,
+      "bviSource": null,
+      "verdict": "no_bvi_only_conclusion"
+    },
+    {
+      "directionCode": "45.03.02",
+      "cardUrl": "https://api.www.bmstu.ru/majors/lingvistika-450302",
+      "cardSha256": "4b46547c5b16dd24c9f0a62de3a80fc1ed816cff0ba56d56cea7989fc3d35077",
+      "rawBudget": "—",
+      "bviAdmitted": 0,
+      "mainAdmitted": 0,
+      "quotaAdmitted": 0,
+      "bviSource": null,
+      "verdict": "no_bvi_only_conclusion"
+    },
+    {
+      "directionCode": "45.03.03",
+      "cardUrl": "https://api.www.bmstu.ru/majors/fundamentalnaya-i-kompyuternaya-lingvistika",
+      "cardSha256": "2ce25d627633f486f18c831d321da342b7e267db1961398f89f4790715da87eb",
+      "rawBudget": "—",
+      "bviAdmitted": 0,
+      "mainAdmitted": 0,
+      "quotaAdmitted": 0,
+      "bviSource": null,
+      "verdict": "no_bvi_only_conclusion"
+    }
+  ]
+}

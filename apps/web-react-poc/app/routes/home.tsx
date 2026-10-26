@@ -1,7 +1,8 @@
 import { HomePage } from "../../src/features/home/home-page";
+import { pageMeta } from "@/shared/seo";
 
 export function meta() {
-  return [{ title: "Андромеда × МГТУ имени Баумана — выбор направления" }, { name: "description", content: "Подбор образовательных программ по интересам, сравнение учебных планов и опубликованные условия поступления МГТУ." }];
+  return pageMeta("/");
 }
 
 export default function HomeRoute() {

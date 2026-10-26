@@ -1,6 +1,7 @@
 import type { ApiSchemas, CurriculumItemDto, SubjectTaxonomyDto, StudyPlanDto } from "@/shared/api/client";
 import type { CatalogProgram } from "@/features/catalog/model";
 import { selectLatestVerifiedPlans } from "@/features/comparison/model";
+import { contributesToProfessionalProfile } from "@/features/comparison/workload";
 
 export const MAX_INTERESTS = 5;
 export const MAX_AVOID = 3;
@@ -97,6 +98,7 @@ export interface CareerTestProfileSnapshotRecord {
   readonly program_key: string;
   readonly plan_key: string;
   readonly plan_item_count: number;
+  readonly excluded_rows?: number;
   readonly total_hours: number;
   readonly assigned_hours: number;
   readonly classified_rows: number;
@@ -197,13 +199,15 @@ export function buildProgramProfiles(input: ProfileBuildInput): ProfileBuildResu
     let profileReviewRows = 0;
     const activityTotals: Partial<Record<ActivityKey, number>> = {};
     const knownActivities = new Set<ActivityKey>();
+    let activitiesComplete = true;
 
     for (const row of rows) {
       if (row.study_plan_key !== plan.external_key) {
         throw new Error(`Curriculum item ${row.external_key} does not belong to the selected plan.`);
       }
 
-      const hours = finiteNumber(row.total_hours ?? row.hours);
+      if (!contributesToProfessionalProfile(row)) continue;
+      const hours = finiteNumber(row.hours);
       if (hours !== null && hours > 0) totalHours += hours;
 
       const classification = row.subject_classification;
@@ -234,7 +238,7 @@ export function buildProgramProfiles(input: ProfileBuildInput): ProfileBuildResu
 
       for (const option of ACTIVITY_OPTIONS) {
         const value = finiteNumber(row[option.key]);
-        if (value === null || value < 0) continue;
+        if (value === null || value < 0) { activitiesComplete = false; continue; }
         knownActivities.add(option.key);
         activityTotals[option.key] = (activityTotals[option.key] ?? 0) + value;
       }
@@ -244,7 +248,7 @@ export function buildProgramProfiles(input: ProfileBuildInput): ProfileBuildResu
     const categoryShares = new Map([...categoryHours].map(([code, hours]) => [code, hours / assignedHours]));
     const activityTotal = Object.values(activityTotals).reduce((sum, value) => sum + (value ?? 0), 0);
     const activityShares: Partial<Record<ActivityKey, number>> = {};
-    if (activityTotal > 0) {
+    if (activityTotal > 0 && activitiesComplete) {
       for (const key of knownActivities) activityShares[key] = (activityTotals[key] ?? 0) / activityTotal;
     }
     profiles.push({
@@ -348,7 +352,11 @@ export function buildProgramProfilesFromSnapshot(input: {
     if (!Number.isInteger(snapshot.classified_rows) || snapshot.classified_rows < 0 || snapshot.classified_rows > snapshot.plan_item_count) {
       throw new Error(`Profile snapshot has an invalid classified row count for ${snapshot.plan_key}.`);
     }
-    if (!Number.isInteger(snapshot.assigned_rows) || snapshot.assigned_rows !== snapshot.plan_item_count || snapshot.assigned_rows < snapshot.classified_rows) {
+    const excludedRows = snapshot.excluded_rows ?? 0;
+    if (!Number.isInteger(excludedRows) || excludedRows < 0 || excludedRows >= snapshot.plan_item_count) {
+      throw new Error(`Profile snapshot has an invalid excluded row count for ${snapshot.plan_key}.`);
+    }
+    if (!Number.isInteger(snapshot.assigned_rows) || snapshot.assigned_rows !== snapshot.plan_item_count - excludedRows || snapshot.assigned_rows < snapshot.classified_rows) {
       throw new Error(`Profile snapshot has an invalid assigned row count for ${snapshot.plan_key}.`);
     }
     if (

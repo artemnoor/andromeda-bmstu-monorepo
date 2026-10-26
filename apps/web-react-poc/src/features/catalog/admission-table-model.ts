@@ -6,6 +6,42 @@ export const SCORE_ROWS = [
 ] as const;
 
 type ScoreRow = typeof SCORE_ROWS[number];
+
+const VERIFIED_MAIN_ORDER_SOURCES: Readonly<Record<string, { year: number; funding: "budget" | "paid"; url: string }>> = {
+  "bba340a47c433e4d54fa2d1223ecdcde1ed535089a85c6e003d680a6ac29aa6b": {
+    year: 2026,
+    funding: "budget",
+    url: "https://priem.bmstu.ru/lists/upload/orders/first_msk_main.pdf",
+  },
+  "73fd699df0a1cc44967acb96d99a0d76f6dafa20f7dc1c57fffff11a0e55ce2d": {
+    year: 2026,
+    funding: "paid",
+    url: "https://priem.bmstu.ru/lists/upload/orders/first_msk_paid.pdf",
+  },
+};
+
+function verifiedMainOrderUrl(result: AdmissionCampaignResult, funding: "budget" | "paid"): string | null {
+  const verified = result.sourceSha256 ? VERIFIED_MAIN_ORDER_SOURCES[result.sourceSha256] : undefined;
+  if (verified?.year === result.year && verified.funding === funding
+    && (!result.sourceArtifactUrl || result.sourceArtifactUrl === verified.url)) {
+    return verified.url;
+  }
+
+  // New API releases can expose the official PDF URL directly. Legacy rows
+  // omit it, so those are accepted only through the exact hashes above.
+  if (!result.sourceArtifactUrl) return null;
+  try {
+    const url = new URL(result.sourceArtifactUrl);
+    const filename = funding === "budget" ? "first_msk_main.pdf" : "first_msk_paid.pdf";
+    if (url.origin !== "https://priem.bmstu.ru"
+      || url.pathname !== `/lists/upload/orders/${filename}`
+      || url.search || url.hash) return null;
+    return url.toString();
+  } catch {
+    return null;
+  }
+}
+
 export const ENROLLMENT_ROWS = [
   { key: "budget", label: "Бюджет · всего", funding: "budget", competition: null },
   { key: "paid", label: "Платное обучение", funding: "paid", competition: null },
@@ -66,6 +102,7 @@ export interface ScoreCell {
   readonly value: string;
   readonly note: string | null;
   readonly sourceUrl: string | null;
+  readonly bviSourceUrl?: string;
   readonly kind: "score" | "bvi" | "unavailable" | "no-places";
 }
 
@@ -83,5 +120,43 @@ export function scoreCell(summary: AdmissionSummary | undefined, year: number, r
     value: `${new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 1 }).format(selected.score)} баллов`,
     note: selected.scopeNote, sourceUrl: selected.sourceUrl, kind: "score",
   };
-  return { value: "Не опубликован", note: "В официальной карточке нет числового значения за этот год.", sourceUrl: selected?.sourceUrl ?? null, kind: "unavailable" };
+  if (values.size > 1) return {
+    value: "Требует проверки",
+    note: "В официальной карточке найдены противоречащие друг другу значения; балл нужно проверить по источнику.",
+    sourceUrl: null,
+    kind: "unavailable",
+  };
+  if (values.size <= 1 && summary.orderScoreFallbackAllowed === true) {
+    const orderResults = (summary.year === year ? summary.campaignResults : summary.historicalResults).flatMap((result) => {
+      if (result.year !== year || result.funding !== row.funding || result.competitionType !== "general"
+        || result.stage !== "main" || result.status !== "numeric"
+        || (result.scopeType !== null && result.scopeType !== "direction")
+        || (result.scopeLabel != null && result.scopeLabel !== summary.directionCode)
+        || result.score === null || !Number.isFinite(result.score) || result.score < 0 || result.score > 400) return [];
+      const sourceUrl = verifiedMainOrderUrl(result, row.funding);
+      return sourceUrl ? [{ result, sourceUrl }] : [];
+    });
+    const orderScores = new Set(orderResults.map(({ result }) => result.score));
+    if (orderScores.size === 1) {
+      const { result: orderResult, sourceUrl } = orderResults[0]!;
+      return {
+        value: `${new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 1 }).format(orderResult.score!)} баллов`,
+        note: `Минимальная сумма баллов в основном приказе · всё направление ${summary.directionCode ?? ""}, все профили`,
+        sourceUrl,
+        kind: "score",
+      };
+    }
+    if (orderScores.size > 1) return {
+      value: "Требует проверки",
+      note: "В основном приказе найдены противоречащие друг другу числовые результаты; балл нужно проверить по источнику.",
+      sourceUrl: null,
+      kind: "unavailable",
+    };
+  }
+  const bvi = summary.budgetBviEvidence;
+  if (selected?.score === null && row.funding === "budget" && bvi?.year === year) return {
+    value: "БВИ вне квот", kind: "bvi", sourceUrl: selected.sourceUrl, bviSourceUrl: bvi.sourceUrl,
+    note: `По опубликованному приказу — ${bvi.admittedCount} зачисленных без вступительных испытаний вне квот. Числовой проходной в карточке не указан. Зачисление по квотам учитывается отдельно.`,
+  };
+  return { value: "Не опубликован", note: "Числового значения нет ни в официальной карточке, ни в основном приказе о зачислении.", sourceUrl: selected?.sourceUrl ?? null, kind: "unavailable" };
 }

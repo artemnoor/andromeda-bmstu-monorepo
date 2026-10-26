@@ -1,0 +1,105 @@
+.previewFrame {
+  --ink: var(--text);
+  --muted: var(--text-muted);
+  --blue: var(--accent);
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  overflow: auto;
+  overscroll-behavior: contain;
+  border: 1px solid rgb(255 255 255 / 10%);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--text);
+  scrollbar-width: thin;
+  scrollbar-color: var(--line) transparent;
+  text-align: left;
+  cursor: auto;
+  touch-action: pan-x pan-y;
+  user-select: text;
+}
+.previewFrame:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.stack :global(.card-swap-slot:not([data-preview-active])) .previewFrame { visibility: hidden; }
+.previewFrame > section { padding: 14px; }
+.previewFrame table { min-width: 0; }
+.previewFrame table th, .previewFrame table td { padding: 12px; }
+.previewFrame table thead th { position: static; }
+/* Keep both programs side by side inside the miniature comparison. */
+.previewFrame table[class] { display: table; }
+.previewFrame table[class] thead { display: table-header-group; position: static; width: auto; height: auto; overflow: visible; clip-path: none; white-space: normal; }
+.previewFrame table[class] tbody { display: table-row-group; }
+.previewFrame table[class] tr { display: table-row; }
+.previewFrame table[class] tbody th, .previewFrame table[class] tbody td { display: table-cell; width: auto; padding: 12px; }
+.previewFrame table[class] th:first-child { width: 24%; }
+.previewFrame table[class] td::before { display: none; content: none; }
+.chartGrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; padding: 10px; }
+.chartGrid [class*=categoryCard] { display: grid; grid-template-rows: subgrid; grid-row: span 2; row-gap: 0; padding: 12px 10px 0; }
+.chartGrid [class*=chartCardHeader] { min-height: 100px; padding: 0; }
+.chartGrid [class*=chartCardTitle] { margin-top: 8px; font-size: 15px; }
+.chartGrid [class*=chartCardTitle], .chartGrid [class*=donutCenterLabel] { position: static; width: auto; height: auto; overflow: visible; clip: auto; white-space: normal; }
+.chartGrid [class*=chartCardCode] { min-height: 24px; padding-inline: 9px; font-size: 10px; }
+.chartGrid [class*=donutCenterValue] { font-size: 32px; }
+.chartGrid [class*=chartCardDescription] { display: none; }
+.chartGrid [class*=selectionDepartment] { margin-top: 6px; font-size: 11px; }
+.chartGrid [class*=donutWrap] { width: min(100%, 190px); }
+.chartGrid [class*=chartCardContent] { min-width: 0; align-items: start; padding-bottom: 4px; }
+.state, .empty { padding: 20px; color: var(--text-muted); font-size: 16px; }
+.state button { margin-top: 12px; padding: 8px 14px; border: 1px solid var(--line); border-radius: 8px; background: transparent; color: var(--text); font: inherit; cursor: pointer; }
+.skeleton { display: grid; gap: 14px; padding: 20px; }
+.skeleton span { display: block; height: 54px; border-radius: 8px; background: rgb(255 255 255 / 4%); }
+/* The original tilted stack; only its rendering resolution is adjusted. */
+.stack { width: 100%; height: 100%; }
+.stack :global(.card-swap-stage) { top: 45%; }
+.stackCard { --swap-tile: #111; --swap-tile-edge: #8dedf9; --swap-tile-highlight: rgb(141 237 249 / 24%); display: grid; grid-template-rows: auto minmax(0, 1fr); gap: 24px; min-width: 0; padding: 32px; }
+.stackCard :global(.card-swap-card-rim) { box-shadow: inset 0 0 0 1.5px #8dedf9, inset 0 1px 0 rgb(141 237 249 / 24%); }
+.cardHeader { display: grid; gap: 10px; }
+.cardHeader h3 { margin: 0; color: #fff; font-size: 44px; font-weight: 500; line-height: 1.08; letter-spacing: -.045em; text-wrap: balance; }
+.cardHeader p { margin: 0; color: var(--text-muted); font-size: 22px; line-height: 1.4; }
+.categoryCaption { display: none; }
+.departmentShort { display: none; }
+.previewFrame table[class] { font-size: 16px; }
+.previewFrame table[class] thead th { font-size: 14px; }
+.previewFrame [class*=matrixTitle] { font-size: 15px; }
+.previewFrame [class*=courseMeta], .previewFrame [class*=courseCategory] { font-size: 14px; }
+.previewFrame a { font-size: 13px; }
+
+@media (max-width: 600px) {
+  .stack :global(.card-swap-stage) { top: 50%; }
+  .stackCard { gap: 20px; padding: 24px; }
+  .cardHeader { gap: 8px; }
+  .cardHeader h3 { font-size: 36px; }
+  .cardHeader p { font-size: 20px; line-height: 1.35; }
+  .previewFrame { overflow: hidden; }
+  .previewFrame > section { gap: 10px; padding: 12px; }
+
+  /* The full comparison uses a stacked mobile table. These noninteractive
+     examples instead show two complete columns and two representative rows. */
+  .stack .previewFrame table[class] { display: table; width: 100%; min-width: 0; table-layout: fixed; }
+  .stack .previewFrame table[class] thead { display: table-header-group; }
+  .stack .previewFrame table[class] tbody { display: table-row-group; }
+  .stack .previewFrame table[class] tr { display: table-row; }
+  .stack .previewFrame table[class] tbody th,
+  .stack .previewFrame table[class] tbody td { display: table-cell; width: auto; padding: 10px; }
+  .stack .previewFrame table[class] thead th { padding: 10px; }
+  .stack .previewFrame table[class] th:first-child { width: 25%; }
+  .stack .previewFrame table[class] tbody tr:nth-child(n+3) { display: none; }
+  .previewFrame [class*=courseEntry]:not(:first-child) { display: none; }
+  .previewFrame [class*=result] > span {
+    display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
+  }
+  .previewFrame [class*=note] { display: none; }
+  .previewName, .departmentFull { display: none; }
+  .departmentShort { display: inline; }
+  .previewFrame [class*=identity] { gap: 4px; }
+
+  .chartGrid { gap: 10px; padding: 10px; }
+  .chartGrid [class*=categoryCard] { padding: 12px 8px 8px; }
+  .chartGrid [class*=chartCardHeader] { min-height: 120px; }
+  .chartGrid [class*=chartCardCode] { font-size: 14px; }
+  .chartGrid [class*=chartCardTitle] { font-size: 18px; line-height: 1.25; }
+  .chartGrid [class*=selectionDepartment] { font-size: 13px; line-height: 1.3; }
+  .chartGrid [class*=donutWrap] { width: min(100%, 190px); }
+  .chartGrid [class*=donutCenterValue] { font-size: 30px; }
+  .chartGrid [class*=donutCenterLabel] { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; }
+  .categoryCaption { display: block; margin: 0; padding: 0 12px 12px; color: var(--text-muted); font-size: 15px; line-height: 1.4; text-align: center; }
+}

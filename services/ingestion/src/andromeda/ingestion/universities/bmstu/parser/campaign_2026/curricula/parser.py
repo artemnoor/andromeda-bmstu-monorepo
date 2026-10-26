@@ -91,7 +91,7 @@ def _attach_exact_identity(
         if resolution.status == "ambiguous":
             identity["status"] = "ambiguous"
             item["suggested_existing_keys"] = list(resolution.suggested_existing_keys)
-        item["source_row"] = {"identity": identity}
+        item["source_row"] = {**item.get("source_row", {}), "identity": identity}
         item["identity_status"] = resolution.status
 
     if all(item.get("identity_status") != "ambiguous" for item in items):
@@ -134,6 +134,17 @@ def _parse_pdf(body: bytes, final_url: str, share_url: str, profile: dict[str, A
     )
     summary = next((item for item in records if item.get("record_type") == "StudyPlanSummary"), None)
     items = [item for item in records if item.get("record_type") == "StudyPlan"]
+    workload_error = None
+    if summary and items:
+        core = [item for item in items if item.get("source_row", {}).get("workload_scope") == "core"]
+        expected = summary.get("overall_academic") or {}
+        if (
+            not core
+            or expected.get("total_hours") != sum(item.get("hours") or 0 for item in core)
+            or expected.get("total_credits") != sum(item.get("credits") or 0 for item in core)
+            or any(item.get("semester") is None for item in core)
+        ):
+            workload_error = "curriculum_core_totals_require_pdf_review"
     header_code = normalize_code(summary.get("program_profile_code")) if summary else None
     return {
         "format": "pdf",
@@ -152,7 +163,7 @@ def _parse_pdf(body: bytes, final_url: str, share_url: str, profile: dict[str, A
         "overall_astronomical": summary.get("overall_astronomical") if summary else None,
         "overall_academic": summary.get("overall_academic") if summary else None,
         "items": items,
-        "error": None if summary and items else "official PDF did not yield a plan summary and curriculum rows",
+        "error": workload_error if summary and items else "official PDF did not yield a plan summary and curriculum rows",
     }
 
 

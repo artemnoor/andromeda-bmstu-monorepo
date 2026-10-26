@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Link, useLocation } from "react-router";
+import { ComparisonIndicator } from "@/shared/ui/comparison-indicator";
 import styles from "./andromeda-header.module.css";
 
 const links = [
@@ -7,6 +8,7 @@ const links = [
   { label: "Проф-тест", to: "/discover", internal: true },
   { label: "Сравнить программы", to: "/compare", internal: true },
   { label: "Каталог программ", to: "/programs", internal: true },
+  { label: "Обратная связь", to: "/feedback", internal: true },
 ] as const;
 
 function isCurrentPath(pathname: string, target: string): boolean {
@@ -25,9 +27,9 @@ export function AndromedaHeader({ onOpenChange }: { onOpenChange?: (open: boolea
   const location = useLocation();
 
   useLayoutEffect(() => {
-    if (isOpen) firstLinkRef.current?.focus();
+    if (isOpen) firstLinkRef.current?.focus({ preventScroll: true });
     else if (returnFocusRef.current) {
-      openButtonRef.current?.focus();
+      openButtonRef.current?.focus({ preventScroll: true });
       returnFocusRef.current = false;
     }
   }, [isOpen]);
@@ -100,11 +102,12 @@ export function AndromedaHeader({ onOpenChange }: { onOpenChange?: (open: boolea
   return (
     <div className={`${styles.headerRoot} ${isOpen ? styles.menuOpen : ""} ${isScrolled ? styles.headerScrolled : ""}`}>
       <header ref={siteHeaderRef} className={styles.siteHeader} aria-hidden="true" />
-      <Link className={styles.brandLockup} to="/" aria-label="Andromeda × МГТУ имени Баумана — главная" inert={isOpen} onClick={() => closeMenu(false)}>
+      <Link viewTransition className={styles.brandLockup} to="/" aria-label="Андромеда и МГТУ имени Баумана — главная" inert={isOpen} onClick={() => closeMenu(false)}>
         <img className={styles.andromedaMark} src="/assets/andromeda-symbol.webp" alt="" width="384" height="256" />
         <span className={styles.brandSeparator} aria-hidden="true">×</span>
         <img className={styles.bmstuMark} src="/assets/bmstu-seal.png" alt="" width="116" height="140" />
       </Link>
+      <div className={styles.comparisonControl} inert={isOpen}><ComparisonIndicator /></div>
         <button
           ref={openButtonRef}
           hidden={isOpen}
@@ -157,7 +160,7 @@ export function AndromedaHeader({ onOpenChange }: { onOpenChange?: (open: boolea
                   return (
                     <li className={styles.menuItem} key={item.label}>
                       {item.internal ? (
-                        <Link
+                        <Link viewTransition
                           ref={index === 0 ? firstLinkRef : undefined}
                           to={item.to}
                           className={className}

@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /insights/
+Disallow: /openapi.json
+
+Sitemap: https://andromedabmstu.ru/sitemap.xml

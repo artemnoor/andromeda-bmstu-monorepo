@@ -497,7 +497,7 @@ def test_place_quota_page_prefetch_preserves_exact_links_zero_and_provenance() -
     )
 
 
-def test_curriculum_query_preserves_explicit_zero_hours_and_falls_back_only_for_nulls() -> None:
+def test_curriculum_query_preserves_semester_hours_without_using_course_totals() -> None:
     repository = Mock()
     repository.get_by_id.return_value = {"external_key": "study-plan:fixture"}
     repository.evidence_for.return_value = []
@@ -530,11 +530,11 @@ def test_curriculum_query_preserves_explicit_zero_hours_and_falls_back_only_for_
         }
     )
 
-    assert item.hours == 0
+    assert item.hours == 72
     assert item.total_hours == 0
-    assert item.lecture_hours == 0
+    assert item.lecture_hours == 18
     assert item.practice_hours == 24
-    assert item.lab_hours == 0
+    assert item.lab_hours == 6
     assert item.self_study_hours == 24
 
 

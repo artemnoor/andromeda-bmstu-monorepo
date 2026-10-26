@@ -1,16 +1,19 @@
-import { useDeferredValue, useMemo, useState } from "react";
+import { useDeferredValue, useEffect, useMemo, useState } from "react";
+import { trackEvent } from "@/shared/analytics/analytics";
 import { Link, useRevalidator, useRouteError, useSearchParams } from "react-router";
 import type { ShouldRevalidateFunctionArgs } from "react-router";
 import type { Route } from "./+types/programs";
 import { AndromedaHeader } from "@/widgets/andromeda-navigation/andromeda-header";
-import { useComparisonSelection } from "@/shared/browser-state/hooks";
 import { AcademicReleaseMismatchError, loadCatalog } from "@/shared/api/client";
 import { buildCatalogSearchIndex, filterPrograms, getCatalogOptions, normalizeCatalogProgram, russianPlural } from "@/features/catalog/model";
 import { ProgramList } from "@/features/catalog/program-list";
+import { CatalogSearch } from "@/features/catalog/catalog-search";
 import styles from "@/features/catalog/programs.module.css";
 import feedbackStyles from "@/features/catalog/feedback.module.css";
+import { pageMeta } from "@/shared/seo";
+import { useHydrated } from "@/shared/browser-state/hooks";
 
-export async function clientLoader({ request }: Route.ClientLoaderArgs) {
+async function catalogData(request: Request) {
   const snapshot = await loadCatalog(request.signal);
   const directions = new Map(snapshot.directions.items.map((item) => [item.external_key, item]));
   const departments = new Map(snapshot.departments.items.map((item) => [item.external_key, item]));
@@ -21,6 +24,16 @@ export async function clientLoader({ request }: Route.ClientLoaderArgs) {
     release: snapshot.release,
   };
 }
+
+// Build-time HTML includes real catalog content; browser loads still refresh the active release.
+export async function loader({ request }: Route.LoaderArgs) {
+  return catalogData(request);
+}
+
+export async function clientLoader({ request }: Route.ClientLoaderArgs) {
+  return catalogData(request);
+}
+clientLoader.hydrate = true as const;
 
 const catalogFilterParameters = new Set(["q", "code", "direction", "department"]);
 
@@ -47,19 +60,16 @@ export function shouldRevalidate({
 }
 
 export function meta() {
-  return [
-    { title: "Каталог образовательных программ — Andromeda × BMSTU" },
-    { name: "description", content: "Каталог образовательных программ МГТУ с условиями поступления из активного академического выпуска." },
-  ];
+  return pageMeta("/programs");
 }
 
 export default function ProgramsRoute({ loaderData }: Route.ComponentProps) {
   const [searchParams, setSearchParams] = useSearchParams();
-  const comparison = useComparisonSelection();
+  const hydrated = useHydrated();
   const [feedback, setFeedback] = useState("");
-  const query = searchParams.get("q") ?? searchParams.get("code") ?? "";
-  const directionCode = searchParams.get("direction") ?? "";
-  const departmentCode = searchParams.get("department") ?? "";
+  const query = hydrated ? searchParams.get("q") ?? searchParams.get("code") ?? "" : "";
+  const directionCode = hydrated ? searchParams.get("direction") ?? "" : "";
+  const departmentCode = hydrated ? searchParams.get("department") ?? "" : "";
   const options = useMemo(() => getCatalogOptions(loaderData.programs), [loaderData.programs]);
   const searchIndex = useMemo(() => buildCatalogSearchIndex(loaderData.programs), [loaderData.programs]);
   const filteredPrograms = useMemo(() => filterPrograms(loaderData.programs, {
@@ -68,12 +78,22 @@ export default function ProgramsRoute({ loaderData }: Route.ComponentProps) {
     departmentCode,
   }, searchIndex), [loaderData.programs, searchIndex, query, directionCode, departmentCode]);
   const displayedPrograms = useDeferredValue(filteredPrograms);
+  useEffect(() => {
+    const timer = window.setTimeout(() => trackEvent("catalog_results_viewed", {
+      has_search: Boolean(query.trim()), search_length: query.trim().length,
+      has_direction_filter: Boolean(directionCode), has_department_filter: Boolean(departmentCode),
+      result_count: filteredPrograms.length,
+    }), 600);
+    return () => window.clearTimeout(timer);
+  }, [query, directionCode, departmentCode, filteredPrograms.length]);
 
-  function setFilter(name: string, value: string) {
+  function setFilters(updates: Partial<{ q: string; direction: string; department: string }>) {
     const next = new URLSearchParams(searchParams);
-    if (value) next.set(name, value);
-    else next.delete(name);
-    if (name === "q") next.delete("code");
+    for (const [name, value] of Object.entries(updates)) {
+      if (value) next.set(name, value);
+      else next.delete(name);
+    }
+    if ("q" in updates) next.delete("code");
     setSearchParams(next, { replace: true, preventScrollReset: true });
     setFeedback("");
   }
@@ -111,43 +131,17 @@ export default function ProgramsRoute({ loaderData }: Route.ComponentProps) {
 
         <section className={styles.catalogPanel} aria-labelledby="catalog-list-title">
           <div className={styles.toolbarHeading}>
-            <div><p className={styles.microLabel}>Найди своё направление</p><h2 className={styles.sectionTitle} id="catalog-list-title">Все программы</h2></div>
-            <span className={styles.resultCount} aria-live="polite">{filteredPrograms.length} {russianPlural(filteredPrograms.length, ["программа", "программы", "программ"])}</span>
+            <h2 className={styles.sectionTitle} id="catalog-list-title">Все программы</h2>
           </div>
 
-          <div className={styles.toolbar}>
-            <label className={styles.searchField} htmlFor="program-search">
-              <span className={styles.toolbarLabel}>Поиск по каталогу</span>
-              <span className={styles.searchWrap}>
-                <svg className={styles.searchIcon} viewBox="0 0 20 20" fill="none" aria-hidden="true"><circle cx="8.7" cy="8.7" r="5.7" stroke="currentColor" strokeWidth="1.5" /><path d="m13 13 4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>
-                <input id="program-search" className={styles.searchInput} type="search" autoComplete="off" placeholder="Название, код, направление…" value={query} onChange={(event) => setFilter("q", event.currentTarget.value)} />
-              </span>
-            </label>
-            <label className={styles.filterField} htmlFor="direction-filter">
-              <span className={styles.toolbarLabel}>Направление</span>
-              <select id="direction-filter" className={styles.filterControl} value={directionCode} onChange={(event) => setFilter("direction", event.currentTarget.value)}>
-                <option value="">Все направления</option>
-                {options.directions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-              </select>
-            </label>
-            <label className={styles.filterField} htmlFor="department-filter">
-              <span className={styles.toolbarLabel}>Кафедра</span>
-              <select id="department-filter" className={styles.filterControl} value={departmentCode} onChange={(event) => setFilter("department", event.currentTarget.value)}>
-                <option value="">Все кафедры</option>
-                {options.departments.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-              </select>
-            </label>
-            <button className={styles.toolbarReset} type="button" onClick={resetFilters}><span aria-hidden="true">↺</span> Сбросить</button>
-          </div>
+          <CatalogSearch
+            programs={loaderData.programs}
+            filters={{ q: query, direction: directionCode, department: departmentCode }}
+            onChange={setFilters}
+            onReset={resetFilters}
+          />
 
           <p className={feedback ? feedbackStyles.feedback : styles.srOnly} role="status" aria-live="polite">{feedback}</p>
-          {comparison.length > 0 ? (
-            <div className={styles.compareBar}>
-              <span>В сравнении {comparison.length} из 3 {russianPlural(comparison.length, ["программа", "программы", "программ"])}</span>
-              <Link to="/compare">Открыть сравнение <span aria-hidden="true">↗</span></Link>
-            </div>
-          ) : null}
-
           <ProgramList programs={displayedPrograms} expectedReleaseKey={loaderData.release.release_key} onSelectionLimit={setFeedback} />
 
           <footer className={styles.footnote}>
@@ -179,7 +173,7 @@ export function ErrorBoundary() {
               if (releaseChanged) window.location.reload();
               else void revalidator.revalidate();
             }}>{pending ? "Загружаем…" : releaseChanged ? "Обновить страницу" : "Повторить загрузку"}</button>
-            <Link className={styles.programLink} to="/">На главную</Link>
+            <Link viewTransition className={styles.programLink} to="/">На главную</Link>
           </div>
         </section>
       </main>

@@ -1,14 +1,16 @@
-import { memo, useId, useState } from "react";
-import { Link } from "react-router";
-import { AdmissionDetails } from "./admission-details";
+import { memo } from "react";
+import { Link, useLocation } from "react-router";
+import { programPath } from "./program-path";
 import type { CatalogProgram } from "./model";
 import { comparisonSelection, useIsCompared } from "@/shared/browser-state/hooks";
 import { getComparisonSnapshot, MAX_COMPARE_PROGRAMS } from "@/shared/browser-state/storage";
+import { publicSourceUrl } from "@/shared/links/public-source-url";
+import { ComparisonMorph } from "@/shared/ui/comparison-morph";
 import styles from "./programs.module.css";
 
 function safeLinks(program: CatalogProgram): readonly { href: string; label: string }[] {
   const studyPlan = program.study_plan_url ? safeUrl(program.study_plan_url) : null;
-  const source = program.sourceUrl ? safeUrl(program.sourceUrl) : null;
+  const source = publicSourceUrl(program.sourceUrl);
   return [
     ...(studyPlan ? [{ href: studyPlan, label: "Учебный план" }] : []),
     ...(source && source !== studyPlan ? [{ href: source, label: "Источник" }] : []),
@@ -24,13 +26,12 @@ function safeUrl(value: string): string | null {
   }
 }
 
-export const ProgramCard = memo(function ProgramCard({ program, expectedReleaseKey, onSelectionLimit }: {
+export const ProgramCard = memo(function ProgramCard({ program, onSelectionLimit }: {
   program: CatalogProgram;
   expectedReleaseKey: string;
   onSelectionLimit: (message: string) => void;
 }) {
-  const [detailsOpen, setDetailsOpen] = useState(false);
-  const detailsId = useId();
+  const location = useLocation();
   const key = program.external_key;
   const isCompared = useIsCompared(key);
   const externalLinks = safeLinks(program);
@@ -44,27 +45,21 @@ export const ProgramCard = memo(function ProgramCard({ program, expectedReleaseK
     const selected = comparison.includes(key);
     if (!selected && comparison.length >= MAX_COMPARE_PROGRAMS) {
       onSelectionLimit("Можно сравнить не более трёх программ. Удалите одну из выбранных или очистите список сравнения.");
-      return;
+      return false;
     }
     const status = comparisonSelection.toggle(key, !selected);
     onSelectionLimit(status === "unavailable"
       ? "Браузер не сохранил сравнение. Разрешите localStorage и попробуйте снова."
       : "");
+    return status !== "unavailable";
   }
 
   return (
-    <article className={styles.programCard} data-program-code={program.code} data-program-key={program.external_key} data-expanded={detailsOpen}>
+    <article className={styles.programCard} data-program-code={program.code} data-program-key={program.external_key}>
       <div className={styles.cardTop}>
         <span className={styles.programCode} title={program.code}>{program.code || "Код не указан"}</span>
         <div className={styles.cardActions}>
-          <button
-            className={styles.cardAction}
-            type="button"
-            aria-pressed={isCompared}
-            onClick={toggleComparison}
-          >
-            {isCompared ? "✓ В сравнении" : "Добавить в сравнение"}
-          </button>
+          <ComparisonMorph selected={isCompared} onToggle={toggleComparison} />
         </div>
       </div>
 
@@ -78,36 +73,29 @@ export const ProgramCard = memo(function ProgramCard({ program, expectedReleaseK
               {department ? <span className={styles.programFact}><span className={styles.factLabel}>Кафедра</span><span className={styles.factValue}>{department}</span></span> : null}
             </span>
           ) : null}
-          <button
+          <Link
             className={styles.detailsButton}
-            type="button"
-            aria-expanded={detailsOpen}
-            aria-controls={detailsId}
-            onClick={() => setDetailsOpen((open) => !open)}
+            to={programPath(program)}
+            state={{ catalogSearch: location.search }}
+            viewTransition
           >
-            {detailsOpen ? "Скрыть" : "Подробнее"}
-          </button>
+            Подробнее ↗
+          </Link>
         </div>
-        {detailsOpen ? (
-          <div id={detailsId}>
-            <AdmissionDetails program={program} expectedReleaseKey={expectedReleaseKey} />
-          </div>
-        ) : null}
       </div>
 
       <footer className={styles.cardBottom}>
         <span className={styles.campusTag}>{program.campus_status === "verified" && program.campus_scope === "head_moscow"
-          ? "МГТУ · Москва"
+          ? "МГТУ им. Н. Э. Баумана · Москва"
           : program.campus_status === "verified" && program.campus_scope === "other"
-            ? "МГТУ · другой кампус"
-            : "МГТУ · кампус не подтверждён"}</span>
+            ? "МГТУ им. Н. Э. Баумана · другой кампус"
+            : "МГТУ им. Н. Э. Баумана · кампус не подтверждён"}</span>
         <div className={styles.cardLinks}>
           {externalLinks.length ? externalLinks.map((externalLink) => (
             <a key={`${externalLink.label}:${externalLink.href}`} className={styles.programLink} href={externalLink.href} target="_blank" rel="noopener noreferrer">
-              {externalLink.label}<span className={styles.linkArrow} aria-hidden="true">↗</span>
+              {externalLink.label}
             </a>
           )) : <span className={styles.campusTag}>Источник не указан</span>}
-          {isCompared ? <Link className={styles.programLink} to="/compare">Перейти к сравнению</Link> : null}
         </div>
       </footer>
     </article>

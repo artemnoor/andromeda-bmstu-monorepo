@@ -77,6 +77,8 @@ export interface AdmissionCampaignResult {
   readonly scopeLabel: string | null;
   readonly scopeNote: string;
   readonly sourceUrl: string | null;
+  readonly sourceArtifactUrl?: string | null;
+  readonly sourceSha256?: string | null;
 }
 
 export interface OfficialPassingScore {
@@ -85,6 +87,12 @@ export interface OfficialPassingScore {
   readonly score: number | null;
   readonly sourceUrl: string;
   readonly scopeNote: string;
+}
+
+export interface BudgetBviEvidence {
+  readonly year: number;
+  readonly admittedCount: number;
+  readonly sourceUrl: string;
 }
 
 export interface AdmissionRequirement {
@@ -99,6 +107,7 @@ export interface AdmissionRequirement {
 export interface AdmissionSummary {
   readonly year: number | null;
   readonly directionCode: string | null;
+  readonly orderScoreFallbackAllowed?: boolean;
   readonly seats: readonly AdmissionMetric[];
   readonly seatScope: string;
   readonly seatNote: string | null;
@@ -111,6 +120,7 @@ export interface AdmissionSummary {
   readonly campaignResults: readonly AdmissionCampaignResult[];
   readonly historicalResults: readonly AdmissionCampaignResult[];
   readonly officialPassingScores?: readonly OfficialPassingScore[];
+  readonly budgetBviEvidence?: BudgetBviEvidence | null;
   readonly requirements: readonly AdmissionRequirement[];
   readonly requirementsNote: string | null;
   readonly offers: readonly string[];
@@ -144,6 +154,10 @@ function sourceUrl(record: { sources?: Array<{ source_url?: string | null }> }):
   return record.sources?.map((item) => safeExternalUrl(item.source_url)).find(Boolean) ?? null;
 }
 
+function sourceSha256(record: { sources?: Array<{ sha256?: string | null }> }): string | null {
+  return record.sources?.map((item) => item.sha256?.trim().toLocaleLowerCase("en-US")).find(Boolean) ?? null;
+}
+
 function officialPassingScores(program: CatalogProgram, history: readonly StatisticDto[]): OfficialPassingScore[] {
   // The exact official major card publishes direction-wide budget/paid results.
   // A released order observation is never a fallback for a missing card value.
@@ -161,6 +175,36 @@ function officialPassingScores(program: CatalogProgram, history: readonly Statis
     return [{ year: record.year, funding: record.funding_type, score: score !== null && score >= 0 ? score : null,
       sourceUrl: cardUrl, scopeNote: `Всё направление ${program.directionCode} · официальная карточка` }];
   });
+}
+
+function budgetBviEvidence(program: CatalogProgram, data: ProgramAdmissionData, year: number | null): BudgetBviEvidence | null {
+  if (year !== 2026 || program.campus_scope !== "head_moscow" || !program.directionCode) return null;
+  const rows = data.campaignStatistics.filter((record) => record.year === year
+    && record.direction_code === program.directionCode && record.funding_type === "budget");
+  const quotaRoutes = new Set(["targeted", "special_quota", "separate_quota"]);
+  // A BVI row within a quota says nothing about the nonquota competition.
+  // Even an unscored main/unknown route prevents replacing the missing score.
+  if (rows.some((record) => record.competition_type !== "bvi" && !quotaRoutes.has(record.competition_type ?? ""))) return null;
+  const bvi = rows.filter((record) => record.competition_type === "bvi");
+  if (!bvi.length || bvi.some((record) => record.status !== "bvi" || record.admission_stage !== "first"
+    || (record.scope_type != null && record.scope_type !== "direction")
+    || (record.scope_type === "direction" && record.scope_label != null && record.scope_label !== program.directionCode)
+    || toNumber(record.score ?? record.minimum_score) !== null)) return null;
+  const counts = new Set(bvi.map((record) => toNumber(record.admitted_count)));
+  const count = counts.size === 1 ? [...counts][0] : null;
+  if (count == null || !Number.isSafeInteger(count) || count <= 0) return null;
+  // This exact Moscow 2026 priority order was independently checked against
+  // the complete official manifest and main order. Legacy API sources have
+  // null URLs, so restore the link only from its verified content hash.
+  const orderSha = "388e7934248dd87aaef5b8c8247ae6802e8dc0a28a97695f7f9a356f9bcaf648";
+  const orderUrl = "https://priem.bmstu.ru/lists/upload/orders/first_msk_zero.pdf";
+  const sources = bvi.map((record) => record.sources?.find((source) => source.sha256 === orderSha
+    && (source.source_url == null || source.source_url === orderUrl)));
+  if (sources.some((source) => !source)) return null;
+  const locator = sources[0]?.locator;
+  const page = Number(locator && typeof locator === "object" ? locator.page : null);
+  const sourceUrl = orderUrl + (Number.isSafeInteger(page) && page > 0 ? `#page=${page}` : "");
+  return { year, admittedCount: count, sourceUrl };
 }
 
 function fundingLabel(value: string | null | undefined): string {
@@ -676,7 +720,9 @@ export function buildAdmissionSummary(program: CatalogProgram, data: ProgramAdmi
   return {
     year,
     directionCode: program.directionCode,
+    orderScoreFallbackAllowed: program.campus_status === "verified" && program.campus_scope === "head_moscow",
     officialPassingScores: officialPassingScores(program, data.history),
+    budgetBviEvidence: budgetBviEvidence(program, data, year),
     seats,
     seatScope: selectedPools.label,
     seatNote: selectedPools.rows.length
@@ -717,6 +763,8 @@ export function buildAdmissionSummary(program: CatalogProgram, data: ProgramAdmi
         scopeType: statistic.scope_type ?? null,
         scopeLabel: statistic.scope_label ?? null,
         scopeNote: statisticScopeNote(statistic, program),
+        sourceArtifactUrl: sourceUrl(statistic),
+        sourceSha256: sourceSha256(statistic),
         sourceUrl: sourceUrl(statistic)
           ?? (statistic.year === year && statistic.admission_stage && toNumber(statistic.admitted_count) !== null
             ? OFFICIAL_ORDER_LIST_URL
@@ -738,6 +786,8 @@ export function buildAdmissionSummary(program: CatalogProgram, data: ProgramAdmi
         scopeType: statistic.scope_type ?? null,
         scopeLabel: statistic.scope_label ?? null,
         scopeNote: statisticScopeNote(statistic, program),
+        sourceArtifactUrl: sourceUrl(statistic),
+        sourceSha256: sourceSha256(statistic),
         sourceUrl: sourceUrl(statistic),
       })),
     requirements,

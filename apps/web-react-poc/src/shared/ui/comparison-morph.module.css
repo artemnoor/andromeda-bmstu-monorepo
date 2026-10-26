@@ -1,0 +1,19 @@
+.wrapper { display: flex; max-width: 100%; flex-direction: column; align-items: center; justify-content: center; gap: 16px; }
+.row { display: flex; max-width: 100%; align-items: center; gap: 12px; }
+.action { position: relative; display: flex; min-width: 110px; height: 44px; align-items: center; justify-content: center; overflow: hidden; padding: 0 20px; border: 1px solid rgb(255 255 255 / 8%); border-radius: 999px; color: #fff; background: #000; font: inherit; font-size: 12px; font-weight: 500; letter-spacing: -.025em; white-space: nowrap; user-select: none; cursor: pointer; transition: background-color 150ms ease, color 150ms ease, border-color 150ms ease; }
+.action:hover { border-color: rgb(255 255 255 / 20%); }
+.action[data-added="true"] { border-color: #fff; color: #000; background: #fff; }
+.buttonLabel { display: inline-flex; align-items: center; gap: 6px; }
+.buttonLabel svg { width: 14px; height: 14px; }
+.action[data-added="true"] .buttonLabel { font-weight: 600; }
+.flight, .counter { display: flex; width: 20px; height: 20px; align-items: center; justify-content: center; border-radius: 50%; color: #000; background: #fff; font-size: 10px; font-weight: 700; pointer-events: none; }
+.flight { position: fixed; z-index: 600; }
+.headerTarget { position: relative; display: grid; width: 44px; height: 44px; place-items: center; border: 1px solid rgb(255 255 255 / 14%); border-radius: 50%; color: #d4d4d4; background: #000; text-decoration: none; }
+.headerTarget:hover { border-color: rgb(255 255 255 / 40%); color: #fff; }
+.headerTarget:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
+.counter { position: absolute; top: -4px; right: -4px; font-variant-numeric: tabular-nums; box-shadow: 0 4px 6px rgb(0 0 0 / 12%); }
+.reset { display: grid; flex-shrink: 0; width: 32px; height: 44px; place-items: center; padding: 0; border: 0; border-radius: 50%; color: #737373; background: transparent; cursor: pointer; transition: color 150ms ease; }
+.reset:hover { color: #fff; }
+.action:focus-visible, .reset:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+@media (max-width: 700px) { .action { padding-inline: 12px; } .reset { width: 44px; } }
+@media (prefers-reduced-motion: reduce) { .wrapper * { transition: none; } }

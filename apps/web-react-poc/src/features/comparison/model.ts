@@ -1,4 +1,5 @@
 import type { components } from "@/shared/api/schema";
+import { generalEducationCategory, isAdditionalWorkload } from "./workload";
 
 export type StudyPlanDto = components["schemas"]["StudyPlanRecord"];
 export type CurriculumItemDto = components["schemas"]["CurriculumItemRecord"];
@@ -43,6 +44,7 @@ export interface ComparisonCurriculumItem {
   hours: number | null;
   assessmentType: string | null;
   classification: SubjectClassification | null;
+  generalCategory?: string | null;
 }
 
 export interface SemesterWorkload {
@@ -67,6 +69,7 @@ export interface ProgramComparisonModel {
   itemsStatus: "loaded" | "unavailable";
   items: ComparisonCurriculumItem[];
   total: { hours: NullableMetric; credits: NullableMetric };
+  additionalItems?: ComparisonCurriculumItem[];
   semesters: SemesterWorkload[];
   categories: CategoryWorkload[];
 }
@@ -215,10 +218,11 @@ function normalizeItem(
     semester,
     semesterKey: semester === null ? "unknown" : String(semester),
     credits: nullableFiniteNumber(item.credits),
-    // Keep parity with the original adapter's `total_hours ?? hours` rule.
-    hours: nullableFiniteNumber(item.total_hours ?? item.hours),
+    // Each API row is a semester occurrence. Course totals must never be summed here.
+    hours: nullableFiniteNumber(item.hours),
     assessmentType: item.control_form?.trim() || null,
-    classification: classifyItem(item, taxonomy),
+    classification: generalEducationCategory(item) ? null : classifyItem(item, taxonomy),
+    generalCategory: generalEducationCategory(item),
   };
 }
 
@@ -261,10 +265,10 @@ function buildCategories(items: readonly ComparisonCurriculumItem[]): CategoryWo
   const groups = new Map<string, { code: string | null; name: string; items: ComparisonCurriculumItem[] }>();
   for (const item of items) {
     const classification = item.classification;
-    const key = classification ? `code:${classification.categoryCode}` : UNCLASSIFIED_KEY;
+    const key = item.generalCategory ? `general:${item.generalCategory}` : classification ? `code:${classification.categoryCode}` : UNCLASSIFIED_KEY;
     const group = groups.get(key) ?? {
       code: classification?.categoryCode ?? null,
-      name: classification?.categoryName ?? "Категория не указана",
+      name: item.generalCategory ?? classification?.categoryName ?? "Категория не указана",
       items: [],
     };
     group.items.push(item);
@@ -329,16 +333,18 @@ export function buildCurriculumComparison(input: BuildCurriculumComparisonInput)
     const rows = selectedPlan && !unavailable
       ? (input.itemsByPlanKey.get(planKey) ?? [])
         .filter((item) => item.study_plan_key === planKey)
-        .map((item) => normalizeItem(item, planSelection.programKey, planKey, input.taxonomy))
       : [];
+    const mainRows = rows.filter((item) => !isAdditionalWorkload(item)).map((item) => normalizeItem(item, planSelection.programKey, planKey, input.taxonomy));
+    const additionalItems = rows.filter(isAdditionalWorkload).map((item) => normalizeItem(item, planSelection.programKey, planKey, input.taxonomy));
     return {
       programKey: planSelection.programKey,
       planSelection,
       itemsStatus: unavailable ? "unavailable" : "loaded",
-      items: rows,
-      total: { hours: sumMetric(rows, "hours"), credits: sumMetric(rows, "credits") },
-      semesters: buildSemesters(rows),
-      categories: buildCategories(rows),
+      items: mainRows,
+      additionalItems,
+      total: { hours: sumMetric(mainRows, "hours"), credits: sumMetric(mainRows, "credits") },
+      semesters: buildSemesters(mainRows),
+      categories: buildCategories(mainRows),
     };
   });
 

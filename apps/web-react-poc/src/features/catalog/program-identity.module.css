@@ -1,0 +1,4 @@
+.identity { display: grid; gap: 6px; min-width: 0; text-align: start; overflow-wrap: anywhere; white-space: normal; }
+.code { color: var(--text-muted, #aaa); font-size: 12px; line-height: 1.4; }
+.name { color: var(--text, #f4f4f4); font-size: 14px; font-weight: 500; line-height: 1.45; }
+.department { color: var(--text-muted, #aaa); font-size: 12px; font-weight: 400; line-height: 1.5; }

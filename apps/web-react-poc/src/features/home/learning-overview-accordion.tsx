@@ -132,7 +132,7 @@ export function LearningOverviewAccordion() {
             </section>
             <div className={styles.topicActions}>
               {topic.actions.map((action) => (
-                <Link
+                <Link viewTransition
                   className={`${styles.actionButton} ${
                     action.primary ? styles.actionPrimary : styles.actionSecondary
                   }`}

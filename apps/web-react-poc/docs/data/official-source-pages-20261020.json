@@ -1,0 +1,431 @@
+{
+  "checkedAt": "2026-10-20T20:27:46.915342+00:00",
+  "checkedCards": 53,
+  "complete": true,
+  "pages": [
+    {
+      "apiUrl": "https://api.www.bmstu.ru/majors/prikladnaa-matematika-i-informatika-010302",
+      "publicUrl": "https://bmstu.ru/bachelor/majors/prikladnaa-matematika-i-informatika-010302",
+      "directionCode": "01.03.02",
+      "status": 200,
+      "matchesCapturedScores": true,
+      "pageSha256": "9c551f5701393269ec2d574f97a66d7247d75bd621e6f41d5207f38f98cb29c3"
+    },
+    {
+      "apiUrl": "https://api.www.bmstu.ru/majors/mekhanika-i-matematicheskoe-modelirovanie",
+      "publicUrl": "https://bmstu.ru/bachelor/majors/mekhanika-i-matematicheskoe-modelirovanie",
+      "directionCode": "01.03.03",
+      "status": 200,
+      "matchesCapturedScores": true,
+      "pageSha256": "0bc7ceaef2808abf1522921fa3f50b89badaa0524273fab710c8228e5b4c4a01"
+    },
+    {
+      "apiUrl": "https://api.www.bmstu.ru/majors/prikladnaa-matematika-010304",
+      "publicUrl": "https://bmstu.ru/bachelor/majors/prikladnaa-matematika-010304",
+      "directionCode": "01.03.04",
+      "status": 200,
+      "matchesCapturedScores": true,
+      "pageSha256": "5f1a3bab9431c7b634f1e870e943ee4f5ac624db965e3af267a0d87f2dd099aa"
+    },
+    {
+      "apiUrl": "https://api.www.bmstu.ru/majors/matematika-i-komputernye-nauki-020301",
+      "publicUrl": "https://bmstu.ru/bachelor/majors/matematika-i-komputernye-nauki-020301",
+      "directionCode": "02.03.01",
+      "status": 200,
+      "matchesCapturedScores": true,
+      "pageSha256": "69b3174343ae7e984854be5b9cd114001dd24e7e62feb0062be6353835ad7964"
+    },
+    {
+      "apiUrl": "https://api.www.bmstu.ru/majors/informatika-i-vycislitelnaa-tehnika-090301",
+      "publicUrl": "https://bmstu.ru/bachelor/majors/informatika-i-vycislitelnaa-tehnika-090301",
+      "directionCode": "09.03.01",
+      "status": 200,
+      "matchesCapturedScores": true,
+      "pageSha256": "e1def89673cccefdcd61c878ec89c35b0bd82a8b92041645c6e8e1a64b849ce2"
+    },
+    {
+      "apiUrl": "https://api.www.bmstu.ru/majors/informacionnye-sistemy-i-tehnologii-090302",
+      "publicUrl": "https://bmstu.ru/bachelor/majors/informacionnye-sistemy-i-tehnologii-090302",
+      "directionCode": "09.03.02",
+      "status": 200,
+      "matchesCapturedScores": true,
+      "pageSha256": "7eaf278e4c9a63601c9b8be283040a6f57af126b567e974647eb83c9d1476b0b"
+    },
+    {
+      "apiUrl": "https://api.www.bmstu.ru/majors/prikladnaa-informatika-090303",
+      "publicUrl": "https://bmstu.ru/bachelor/majors/prikladnaa-informatika-090303",
+      "directionCode": "09.03.03",
+      "status": 200,
+      "matchesCapturedScores": true,
+      "pageSha256": "5d1a431fbc5aaa8f04d4e091db738eeee5c6047b81481ba1c0da757e9fbe4b66"
+    },
+    {
+      "apiUrl": "https://api.www.bmstu.ru/majors/programmnaa-inzeneria-090304",
+      "publicUrl": "https://bmstu.ru/bachelor/majors/programmnaa-inzeneria-090304",
+      "directionCode": "09.03.04",
+      "status": 200,
+      "matchesCapturedScores": true,
+      "pageSha256": "e60f9dc9d0d045c581f3fafcd515fb17c62094120c14540452238ee405f4ae16"
+    },
+    {
+      "apiUrl": "https://api.www.bmstu.ru/majors/komputernaa-bezopasnost-100501",
+      "publicUrl": "https://bmstu.ru/bachelor/majors/komputernaa-bezopasnost-100501",
+      "directionCode": "10.05.01",
+      "status": 200,
+      "matchesCapturedScores": true,
+      "pageSha256": "a70b200232fff7cfb0f74a952a2646a32ee09a56dfca97a4ad173e2326410d86"
+    },
+    {
+      "apiUrl": "https://api.www.bmstu.ru/majors/informacionnaa-bezopasnost-avtomatizirovannyh-sistem-100503",
+      "publicUrl": "https://bmstu.ru/bachelor/majors/informacionnaa-bezopasnost-avtomatizirovannyh-sistem-100503",
+      "directionCode": "10.05.03",
+      "status": 200,
+      "matchesCapturedScores": true,
+      "pageSha256": "a8027d0e663d538c33a11daba9c1a1974771c40027362f03a72e8dd775e3066e"
+    },
+    {
+      "apiUrl": "https://api.www.bmstu.ru/majors/bezopasnost-informacionnykh-tekhnologii-v-pravookhranitelnoi-sfere",
+      "publicUrl": "https://bmstu.ru/bachelor/majors/bezopasnost-informacionnykh-tekhnologii-v-pravookhranitelnoi-sfere",
+      "directionCode": "10.05.05",
+      "status": 200,
+      "matchesCapturedScores": true,
+      "pageSha256": "52382389a6a765f6f1afbd43c2d33c3b5a82ee0883373c2b61829f4b28097f9e"
+    },
+    {
+      "apiUrl": "https://api.www.bmstu.ru/majors/konstruirovanie-i-tehnologia-elektronnyh-sredstv-110303",
+      "publicUrl": "https://bmstu.ru/bachelor/majors/konstruirovanie-i-tehnologia-elektronnyh-sredstv-110303",
+      "directionCode": "11.03.03",
+      "status": 200,
+      "matchesCapturedScores": true,
+      "pageSha256": "d3916ebcf6945d9b95bd1c13b4b00910060585d4ddeaec54b27d51f40c29fa95"
+    },
+    {
+      "apiUrl": "https://api.www.bmstu.ru/majors/elektronika-i-nanoelektronika-110304",
+      "publicUrl": "https://bmstu.ru/bachelor/majors/elektronika-i-nanoelektronika-110304",
+      "directionCode": "11.03.04",
+      "status": 200,
+      "matchesCapturedScores": true,
+      "pageSha256": "185f7c9872267cbc5b4c7bfce2f442e3b17878815168ca98108b14d416edc94c"
+    },
+    {
+      "apiUrl": "https://api.www.bmstu.ru/majors/radioelektronnye-sistemy-i-kompleksy-110501",
+      "publicUrl": "https://bmstu.ru/bachelor/majors/radioelektronnye-sistemy-i-kompleksy-110501",
+      "directionCode": "11.05.01",
+      "status": 200,
+      "matchesCapturedScores": true,
+      "pageSha256": "dfeeaa0ddb896e0d0ee53f4c72e6cc097385f293048b9076121ea2633c4e5869"
+    },
+    {
+      "apiUrl": "https://api.www.bmstu.ru/majors/biotehniceskie-sistemy-i-tehnologii-120304",
+      "publicUrl": "https://bmstu.ru/bachelor/majors/biotehniceskie-sistemy-i-tehnologii-120304",
+      "directionCode": "12.03.04",
+      "status": 200,
+      "matchesCapturedScores": true,
+      "pageSha256": "6ad5660ec9594ce18684b37f4f8c3ef15a0f67efccd3c8cc434fa9738d778332"
+    },
+    {
+      "apiUrl": "https://api.www.bmstu.ru/majors/lazernaa-tehnika-i-lazernye-tehnologii-120305",
+      "publicUrl": "https://bmstu.ru/bachelor/majors/lazernaa-tehnika-i-lazernye-tehnologii-120305",
+      "directionCode": "12.03.05",
+      "status": 200,
+      "matchesCapturedScores": true,
+      "pageSha256": "d6acdf29bdb746fdb24e69599cd041ee3096a39423f30745a5963100e6b4c312"
+    },
+    {
+      "apiUrl": "https://api.www.bmstu.ru/majors/elektronnye-i-optiko-elektronnye-pribory-i-sistemy-specialnogo-naznacenia-120501",
+      "publicUrl": "https://bmstu.ru/bachelor/majors/elektronnye-i-optiko-elektronnye-pribory-i-sistemy-specialnogo-naznacenia-120501",
+      "directionCode": "12.05.01",
+      "status": 200,
+      "matchesCapturedScores": true,
+      "pageSha256": "a89fe76f8edda7dc2de48443a40a60266aee979f317258bf462adafd37836c8a"
+    },
+    {
+      "apiUrl": "https://api.www.bmstu.ru/majors/elektroenergetika-i-elektrotehnika-130302",
+      "publicUrl": "https://bmstu.ru/bachelor/majors/elektroenergetika-i-elektrotehnika-130302",
+      "directionCode": "13.03.02",
+      "status": 200,
+      "matchesCapturedScores": true,
+      "pageSha256": "c354f08461085ce86b96cee3379fa9936617157de51a3ee226cdda0d1de17b9d"
+    },
+    {
+      "apiUrl": "https://api.www.bmstu.ru/majors/energeticeskoe-masinostroenie-130303",
+      "publicUrl": "https://bmstu.ru/bachelor/majors/energeticeskoe-masinostroenie-130303",
+      "directionCode": "13.03.03",
+      "status": 200,
+      "matchesCapturedScores": true,
+      "pageSha256": "d3a371482df27006d39108f9790372e3d7b8a6a596bdc26c0a876d527af1cb7f"
+    },
+    {
+      "apiUrl": "https://api.www.bmstu.ru/majors/adernye-reaktory-i-materialy-140501",
+      "publicUrl": "https://bmstu.ru/bachelor/majors/adernye-reaktory-i-materialy-140501",
+      "directionCode": "14.05.01",
+      "status": 200,
+      "matchesCapturedScores": true,
+      "pageSha256": "71232223ce5673e98f5089612e3f9a133448e5df5c0a8b9b54919ec9a7ba4dfa"
+    },
+    {
+      "apiUrl": "https://api.www.bmstu.ru/majors/masinostroenie-150301",
+      "publicUrl": "https://bmstu.ru/bachelor/majors/masinostroenie-150301",
+      "directionCode": "15.03.01",
+      "status": 200,
+      "matchesCapturedScores": true,
+      "pageSha256": "1501935509e7857ed605e44efa162b7d8688f2567dc9c8499bb0e542dab17aa3"
+    },
+    {
+      "apiUrl": "https://api.www.bmstu.ru/majors/tehnologiceskie-masiny-i-oborudovanie-150302",
+      "publicUrl": "https://bmstu.ru/bachelor/majors/tehnologiceskie-masiny-i-oborudovanie-150302",
+      "directionCode": "15.03.02",
+      "status": 200,
+      "matchesCapturedScores": true,
+      "pageSha256": "6a4cc400d3d9d3b3c5e602b4a15e3b16614a054b39293cb5da7cf2bf72524696"
+    },
+    {
+      "apiUrl": "https://api.www.bmstu.ru/majors/prikladnaa-mehanika-150303",
+      "publicUrl": "https://bmstu.ru/bachelor/majors/prikladnaa-mehanika-150303",
+      "directionCode": "15.03.03",
+      "status": 200,
+      "matchesCapturedScores": true,
+      "pageSha256": "7fc18f9ca4df726059842f3267aa394efe1d0b47fc259121eea691023e3a66c5"
+    },
+    {
+      "apiUrl": "https://api.www.bmstu.ru/majors/avtomatizacia-tehnologiceskih-processovi-proizodstv-150304",
+      "publicUrl": "https://bmstu.ru/bachelor/majors/avtomatizacia-tehnologiceskih-processovi-proizodstv-150304",
+      "directionCode": "15.03.04",
+      "status": 200,
+      "matchesCapturedScores": true,
+      "pageSha256": "188217a36ac2b3f10adead0d0fc6b92993bd81b5672eb6ffd036c38decc1e672"
+    },
+    {
+      "apiUrl": "https://api.www.bmstu.ru/majors/mehatronika-i-robototehnika-150306",
+      "publicUrl": "https://bmstu.ru/bachelor/majors/mehatronika-i-robototehnika-150306",
+      "directionCode": "15.03.06",
+      "status": 200,
+      "matchesCapturedScores": true,
+      "pageSha256": "bc4255cbef5bece152878c0fb6c70a374877d848eeadacc46ab93e7e470d06ca"
+    },
+    {
+      "apiUrl": "https://api.www.bmstu.ru/majors/proektirovanie-tehnologiceskih-masin-i-kompleksov-150501",
+      "publicUrl": "https://bmstu.ru/bachelor/majors/proektirovanie-tehnologiceskih-masin-i-kompleksov-150501",
+      "directionCode": "15.05.01",
+      "status": 200,
+      "matchesCapturedScores": true,
+      "pageSha256": "b886fe1bad193ec705982f17aa2cca832e1363ffb2483ed9c65f07d80f9ed8e4"
+    },
+    {
+      "apiUrl": "https://api.www.bmstu.ru/majors/robototekhnika-voennogo-i-specialnogo-naznacheniya",
+      "publicUrl": "https://bmstu.ru/bachelor/majors/robototekhnika-voennogo-i-specialnogo-naznacheniya",
+      "directionCode": "15.05.02",
+      "status": 200,
+      "matchesCapturedScores": true,
+      "pageSha256": "5d27138d602a3410264ca40a291e22272feec7a2f01681f4ccd6465bbd693218"
+    },
+    {
+      "apiUrl": "https://api.www.bmstu.ru/majors/tehniceskaa-fizika-160301",
+      "publicUrl": "https://bmstu.ru/bachelor/majors/tehniceskaa-fizika-160301",
+      "directionCode": "16.03.01",
+      "status": 200,
+      "matchesCapturedScores": true,
+      "pageSha256": "184f94d6953a7396dd6fd3e028e6f74ec429c7c5313fe183650061b8a5c6444c"
+    },
+    {
+      "apiUrl": "https://api.www.bmstu.ru/majors/vysokotehnologicnye-plazmennye-i-energeticeskie-ustanovki-160302",
+      "publicUrl": "https://bmstu.ru/bachelor/majors/vysokotehnologicnye-plazmennye-i-energeticeskie-ustanovki-160302",
+      "directionCode": "16.03.02",
+      "status": 200,
+      "matchesCapturedScores": true,
+      "pageSha256": "08a8910e0916ce3a050eeb78af6f98d7bacd9b5a048eecf46036567c5b2c7360"
+    },
+    {
+      "apiUrl": "https://api.www.bmstu.ru/majors/holodilnaa-kriogennaa-tehnika-i-sistemy-zizneobespecenia-160303",
+      "publicUrl": "https://bmstu.ru/bachelor/majors/holodilnaa-kriogennaa-tehnika-i-sistemy-zizneobespecenia-160303",
+      "directionCode": "16.03.03",
+      "status": 200,
+      "matchesCapturedScores": true,
+      "pageSha256": "f119ceec1ac3c90fa00635cd0539902522bb6bbfb280002c55504b4fbbba6242"
+    },
+    {
+      "apiUrl": "https://api.www.bmstu.ru/majors/specialnye-sistemy-zizneobespecenia-160501",
+      "publicUrl": "https://bmstu.ru/bachelor/majors/specialnye-sistemy-zizneobespecenia-160501",
+      "directionCode": "16.05.01",
+      "status": 200,
+      "matchesCapturedScores": true,
+      "pageSha256": "1b9f04dc1bb80be6a1701926372562dcaf162cfdd118cb116044f14e47071667"
+    },
+    {
+      "apiUrl": "https://api.www.bmstu.ru/majors/boepripasy-i-vzryvateli-170501",
+      "publicUrl": "https://bmstu.ru/bachelor/majors/boepripasy-i-vzryvateli-170501",
+      "directionCode": "17.05.01",
+      "status": 200,
+      "matchesCapturedScores": true,
+      "pageSha256": "26094cdb74205e9f6d1d63cd23e5769cb4b77b56cdc0ee8117a5817c1d51d3d1"
+    },
+    {
+      "apiUrl": "https://api.www.bmstu.ru/majors/strelkovo-pusecnoe-artillerijskoe-i-raketnoe-oruzie-170502",
+      "publicUrl": "https://bmstu.ru/bachelor/majors/strelkovo-pusecnoe-artillerijskoe-i-raketnoe-oruzie-170502",
+      "directionCode": "17.05.02",
+      "status": 200,
+      "matchesCapturedScores": true,
+      "pageSha256": "e8a398101eb92a49fa5ca84db755d0a22396582a4fb7de9261ad9beda554dcfc"
+    },
+    {
+      "apiUrl": "https://api.www.bmstu.ru/majors/tehnosfernaa-bezopasnost-200301",
+      "publicUrl": "https://bmstu.ru/bachelor/majors/tehnosfernaa-bezopasnost-200301",
+      "directionCode": "20.03.01",
+      "status": 200,
+      "matchesCapturedScores": true,
+      "pageSha256": "ec7edd5584a5f8315e37222191287f076ff63545472432626fea1c46867b3388"
+    },
+    {
+      "apiUrl": "https://api.www.bmstu.ru/majors/materialovedenie-i-tehnologia-materialov-220301",
+      "publicUrl": "https://bmstu.ru/bachelor/majors/materialovedenie-i-tehnologia-materialov-220301",
+      "directionCode": "22.03.01",
+      "status": 200,
+      "matchesCapturedScores": true,
+      "pageSha256": "e1fbabe6b2732d1f7cc276a829587a864386db6ce6ce446616fc9be85fe8e3de"
+    },
+    {
+      "apiUrl": "https://api.www.bmstu.ru/majors/nazemnye-transportno-tehnologiceskie-sredstva-230501",
+      "publicUrl": "https://bmstu.ru/bachelor/majors/nazemnye-transportno-tehnologiceskie-sredstva-230501",
+      "directionCode": "23.05.01",
+      "status": 200,
+      "matchesCapturedScores": true,
+      "pageSha256": "d1672d2357515783ab0077774202f6e1952b805114e1be999d82d2734fc8f709"
+    },
+    {
+      "apiUrl": "https://api.www.bmstu.ru/majors/transportnye-sredstva-specialnogo-naznacenia-230502",
+      "publicUrl": "https://bmstu.ru/bachelor/majors/transportnye-sredstva-specialnogo-naznacenia-230502",
+      "directionCode": "23.05.02",
+      "status": 200,
+      "matchesCapturedScores": true,
+      "pageSha256": "49e4c1c4dfaa9d108081c13263db1a80842f6548ba9730d080f3a3fcaec05afc"
+    },
+    {
+      "apiUrl": "https://api.www.bmstu.ru/majors/raketnye-kompleksy-i-kosmonavtika-240301",
+      "publicUrl": "https://bmstu.ru/bachelor/majors/raketnye-kompleksy-i-kosmonavtika-240301",
+      "directionCode": "24.03.01",
+      "status": 200,
+      "matchesCapturedScores": true,
+      "pageSha256": "731c387ea803fa95c4893d9aadbe899f025cad5b98046fe0392721e86742d756"
+    },
+    {
+      "apiUrl": "https://api.www.bmstu.ru/majors/proektirovanie-proizvodstvo-i-ekspluatacia-raket-i-raketno-kosmiceskih-kompleksov-240501",
+      "publicUrl": "https://bmstu.ru/bachelor/majors/proektirovanie-proizvodstvo-i-ekspluatacia-raket-i-raketno-kosmiceskih-kompleksov-240501",
+      "directionCode": "24.05.01",
+      "status": 200,
+      "matchesCapturedScores": true,
+      "pageSha256": "d1ec2d557d46d4f3ececd102c1a858fc772ce18cfd182264510a90ac6a7bbd9a"
+    },
+    {
+      "apiUrl": "https://api.www.bmstu.ru/majors/proektirovanie-aviacionnyh-i-raketnyh-dvigatelej-240502",
+      "publicUrl": "https://bmstu.ru/bachelor/majors/proektirovanie-aviacionnyh-i-raketnyh-dvigatelej-240502",
+      "directionCode": "24.05.02",
+      "status": 200,
+      "matchesCapturedScores": true,
+      "pageSha256": "5fa03aec34da881af0029b8531baddc49c6fc6fd46708e20e4a8b692ae516c79"
+    },
+    {
+      "apiUrl": "https://api.www.bmstu.ru/majors/navigacionno-ballisticeskoe-obespecenie-primenenia-kosmiceskoj-tehniki-240504",
+      "publicUrl": "https://bmstu.ru/bachelor/majors/navigacionno-ballisticeskoe-obespecenie-primenenia-kosmiceskoj-tehniki-240504",
+      "directionCode": "24.05.04",
+      "status": 200,
+      "matchesCapturedScores": true,
+      "pageSha256": "5004c7a5b72081e3c272ad1d51d6532644429ebc36cabffd8f598aa282b76d55"
+    },
+    {
+      "apiUrl": "https://api.www.bmstu.ru/majors/sistemy-upravlenia-letatelnymi-apparatami-240506",
+      "publicUrl": "https://bmstu.ru/bachelor/majors/sistemy-upravlenia-letatelnymi-apparatami-240506",
+      "directionCode": "24.05.06",
+      "status": 200,
+      "matchesCapturedScores": true,
+      "pageSha256": "b9e13c4ed9176690fb59aac5fafa211987a2e1db5c498a1d984b0f2007af38dd"
+    },
+    {
+      "apiUrl": "https://api.www.bmstu.ru/majors/standartizacia-i-metrologia-270301",
+      "publicUrl": "https://bmstu.ru/bachelor/majors/standartizacia-i-metrologia-270301",
+      "directionCode": "27.03.01",
+      "status": 200,
+      "matchesCapturedScores": true,
+      "pageSha256": "be1ccd99845b1bf092744657c860d7c943a6e50fd5c3055d56ff3cb98adfc750"
+    },
+    {
+      "apiUrl": "https://api.www.bmstu.ru/majors/upravlenie-v-tehniceskih-sistemah-270304",
+      "publicUrl": "https://bmstu.ru/bachelor/majors/upravlenie-v-tehniceskih-sistemah-270304",
+      "directionCode": "27.03.04",
+      "status": 200,
+      "matchesCapturedScores": true,
+      "pageSha256": "3f015d4334612a769fae24dba356e9f9f42becc47400de4c8d47bf68e2c3a669"
+    },
+    {
+      "apiUrl": "https://api.www.bmstu.ru/majors/innovatika-270305",
+      "publicUrl": "https://bmstu.ru/bachelor/majors/innovatika-270305",
+      "directionCode": "27.03.05",
+      "status": 200,
+      "matchesCapturedScores": true,
+      "pageSha256": "40affa7e8cd0140727a5d180a28c99c44dd1f31d5e6e8a965ac00fd2756a7f2a"
+    },
+    {
+      "apiUrl": "https://api.www.bmstu.ru/majors/nanoinzeneria-280302",
+      "publicUrl": "https://bmstu.ru/bachelor/majors/nanoinzeneria-280302",
+      "directionCode": "28.03.02",
+      "status": 200,
+      "matchesCapturedScores": true,
+      "pageSha256": "0aab309d2fa0f97bad7f1b17546fa15acd20bb78e42edbd44db6019a3e75fbdc"
+    },
+    {
+      "apiUrl": "https://api.www.bmstu.ru/majors/ekonomika-380301",
+      "publicUrl": "https://bmstu.ru/bachelor/majors/ekonomika-380301",
+      "directionCode": "38.03.01",
+      "status": 200,
+      "matchesCapturedScores": true,
+      "pageSha256": "320f277be2956e996bf76bff687eb655ef45e4cc39127f3ced335b49a7b4ed9b"
+    },
+    {
+      "apiUrl": "https://api.www.bmstu.ru/majors/menedzment-380302",
+      "publicUrl": "https://bmstu.ru/bachelor/majors/menedzment-380302",
+      "directionCode": "38.03.02",
+      "status": 200,
+      "matchesCapturedScores": true,
+      "pageSha256": "7e08c7efa876f01a72e0c21e8226cd3465b700664edf2fff22a57c02aa0fcac2"
+    },
+    {
+      "apiUrl": "https://api.www.bmstu.ru/majors/biznes-informatika-380305",
+      "publicUrl": "https://bmstu.ru/bachelor/majors/biznes-informatika-380305",
+      "directionCode": "38.03.05",
+      "status": 200,
+      "matchesCapturedScores": true,
+      "pageSha256": "0dd17eeeae01072a56352175045cd11465dfb69e040186fad17f7795318eab62"
+    },
+    {
+      "apiUrl": "https://api.www.bmstu.ru/majors/sudebnaa-ekspertiza-400503",
+      "publicUrl": "https://bmstu.ru/bachelor/majors/sudebnaa-ekspertiza-400503",
+      "directionCode": "40.05.03 / 40.05.01",
+      "status": 200,
+      "matchesCapturedScores": true,
+      "pageSha256": "ecd68379d6b6a845f7f60d9ad5f8e0987df5303dd8f3847be5524e1b81a9f851"
+    },
+    {
+      "apiUrl": "https://api.www.bmstu.ru/majors/lingvistika-450302",
+      "publicUrl": "https://bmstu.ru/bachelor/majors/lingvistika-450302",
+      "directionCode": "45.03.02",
+      "status": 200,
+      "matchesCapturedScores": true,
+      "pageSha256": "66fb64441a987ee57331c46b487b2ae7d3a9a241e031954a7687fc4f80222cbe"
+    },
+    {
+      "apiUrl": "https://api.www.bmstu.ru/majors/fundamentalnaya-i-kompyuternaya-lingvistika",
+      "publicUrl": "https://bmstu.ru/bachelor/majors/fundamentalnaya-i-kompyuternaya-lingvistika",
+      "directionCode": "45.03.03",
+      "status": 200,
+      "matchesCapturedScores": true,
+      "pageSha256": "7ae738fb2a64785293ac405954820c238beeb900b4a0738d5b9c152eb52742d6"
+    },
+    {
+      "apiUrl": "https://api.www.bmstu.ru/majors/dizajn-540301",
+      "publicUrl": "https://bmstu.ru/bachelor/majors/dizajn-540301",
+      "directionCode": "54.03.01",
+      "status": 200,
+      "matchesCapturedScores": true,
+      "pageSha256": "516805975cc587fcaddccfbfc298d846c4f7c64da6ddea566e929534f050965a"
+    }
+  ]
+}

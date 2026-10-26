@@ -4,6 +4,48 @@ test.beforeEach(async ({ page }) => {
   await clearPocStorage(page);
 });
 
+test("footer navigation retains the current page while loading and transitions without a top banner", async ({ page, diagnostics }) => {
+  await page.addInitScript(() => {
+    const original = document.startViewTransition?.bind(document);
+    if (!original) return;
+    document.startViewTransition = ((...args: Parameters<typeof document.startViewTransition>) => {
+      document.documentElement.dataset.transitionObserved = "true";
+      return original(...args);
+    }) as typeof document.startViewTransition;
+  });
+  await page.goto("/");
+  const footer = page.getByRole("contentinfo", { name: "Подвал сайта" });
+  await expect(footer.getByRole("navigation", { name: "Разделы сайта" })).toBeVisible();
+  await page.route("**/api/v1/programs?**", async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 700));
+    await route.continue();
+  });
+  await footer.getByRole("link", { name: "Каталог программ" }).click();
+  await expect(footer).toBeVisible();
+  await expect(page.getByText("Открываем страницу…", { exact: true })).toBeHidden();
+  await expect(page.getByRole("heading", { level: 1, name: "Каталог программ" })).toBeVisible();
+  const supported = await page.evaluate(() => typeof document.startViewTransition === "function");
+  if (supported) await expect(page.locator("html")).toHaveAttribute("data-transition-observed", "true");
+  await expect(page.locator("html")).toHaveAttribute("data-navigation-motion", "full");
+  await expect(page.locator("main")).toBeFocused();
+  expectNoPageErrors(diagnostics);
+});
+
+test("footer fits mobile and reduced motion disables page transition animations", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/");
+  const footer = page.getByRole("contentinfo", { name: "Подвал сайта" });
+  await footer.scrollIntoViewIfNeeded();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+  const animation = await page.evaluate(() => getComputedStyle(document.documentElement, "::view-transition-new(root)").animationName);
+  expect(animation).toBe("none");
+  await footer.getByRole("link", { name: "Профориентационный тест" }).focus();
+  await page.keyboard.press("Enter");
+  await expect(page).toHaveURL(/\/discover$/);
+  await expect(page.locator("html")).toHaveAttribute("data-navigation-motion", "none");
+});
+
 test("home navigation opens the catalog from the original menu", async ({ page, diagnostics }) => {
   await page.goto("/");
 

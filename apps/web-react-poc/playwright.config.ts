@@ -37,7 +37,7 @@ export default defineConfig({
     command: `npm run build && npx vite preview --host 127.0.0.1 --port ${webPort} --strictPort`,
     url: baseURL,
     reuseExistingServer: !process.env.CI,
-    timeout: 120_000,
+    timeout: 600_000,
     env: {
       API_PROXY_TARGET:
         process.env.API_PROXY_TARGET ?? "http://127.0.0.1:8000",

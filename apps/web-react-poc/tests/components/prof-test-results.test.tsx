@@ -45,11 +45,11 @@ describe("complete career-test results", () => {
     expect(within(list).getAllByRole("listitem")).toHaveLength(12);
   });
 
-  it("offers catalog access without inventing a score for unavailable plans", () => {
+  it("opens the exact program page without inventing a score for unavailable plans", () => {
     show();
     fireEvent.change(screen.getByRole("searchbox"), { target: { value: "новая инженерная" } });
     expect(screen.getByText("Найдено: 1. С учебным планом: 0; без оценки: 1.")).toBeVisible();
-    expect(screen.getByRole("link", { name: unranked.name! })).toHaveAttribute("href", "/programs?code=09.03.01-26");
+    expect(screen.getByRole("link", { name: unranked.name! })).toHaveAttribute("href", "/programs/09.03.01-26-1xed5gv");
     expect(screen.getByText("Без оценки")).toBeVisible();
     expect(screen.queryByRole("button", { name: /В сравнение/ })).not.toBeInTheDocument();
   });

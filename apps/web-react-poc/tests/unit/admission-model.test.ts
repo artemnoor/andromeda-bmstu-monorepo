@@ -76,6 +76,49 @@ function data(overrides: Partial<ProgramAdmissionData> = {}): ProgramAdmissionDa
 }
 
 describe("buildAdmissionSummary", () => {
+  it("explains a missing budget score using independently sourced nonquota BVI enrollment", () => {
+    const sourceUrl = "https://api.www.bmstu.ru/majors/programmnaa-inzeneria-090304";
+    const selected = { ...program, directionCode: "09.03.04", sourceUrl };
+    const card: ApiSchemas["OfficialAdmissionStatisticRecord"] = {
+      external_key: "card:budget", year: 2026, direction_code: "09.03.04",
+      ingested_at: "2026-10-20T00:00:00Z", statistic_kind: "official_program_card_passing_score",
+      scope_type: "direction", scope_label: "09.03.04", funding_type: "budget", minimum_score: null,
+      sources: [{ source_artifact_key: "card", source_url: sourceUrl }],
+    };
+    const bvi: ApiSchemas["OfficialAdmissionStatisticRecord"] = {
+      ...card, external_key: "order:bvi", statistic_kind: null, scope_type: null, scope_label: null,
+      competition_type: "bvi", admission_stage: "first", status: "bvi", admitted_count: 25,
+      sources: [{ source_artifact_key: "order", source_url: null,
+        sha256: "388e7934248dd87aaef5b8c8247ae6802e8dc0a28a97695f7f9a356f9bcaf648", locator: { page: 25 } }],
+    };
+    const build = (records = [bvi], overrides: Partial<CatalogProgram> = {}) =>
+      buildAdmissionSummary({ ...selected, ...overrides }, data({ history: [card], campaignStatistics: records }));
+    const summary = build();
+    expect(scoreCell(summary, 2026, SCORE_ROWS[0])).toMatchObject({
+      value: "БВИ вне квот", kind: "bvi", sourceUrl,
+      bviSourceUrl: "https://priem.bmstu.ru/lists/upload/orders/first_msk_zero.pdf#page=25",
+    });
+    expect(scoreCell(summary, 2026, SCORE_ROWS[0]).note).toContain("25");
+    expect(enrollmentCell(summary, 2026).value).toBe("25");
+    // BVI inside a quota, a missing score, or an unverified source cannot
+    // establish nonquota BVI. A main-competition observation blocks the label.
+    for (const records of [
+      [], [{ ...bvi, competition_type: "targeted" }], [{ ...bvi, funding_type: "paid" }],
+      [{ ...bvi, year: 2025 }], [{ ...bvi, direction_code: "09.03.01" }],
+      [{ ...bvi, admitted_count: null }], [{ ...bvi, admitted_count: 0 }],
+      [{ ...bvi, scope_type: "department" }], [{ ...bvi, sources: [] }],
+      [{ ...bvi, sources: [{ source_artifact_key: "unknown", sha256: "unknown" }] }],
+      [bvi, { ...bvi, admitted_count: 24 }],
+      [bvi, { ...bvi, competition_type: "general", status: "numeric", score: "300", admission_stage: "main" }],
+      [bvi, { ...bvi, competition_type: "general", status: "numeric", score: "300", scope_type: "department", admission_stage: "main" }],
+      [bvi, { ...bvi, competition_type: "other", status: "count_only", admission_stage: "main" }],
+    ]) expect(scoreCell(build(records), 2026, SCORE_ROWS[0]).kind).toBe("unavailable");
+    expect(scoreCell(build([bvi], { campus_scope: "unknown" }), 2026, SCORE_ROWS[0]).kind).toBe("unavailable");
+    const numeric = buildAdmissionSummary(selected, data({ history: [{ ...card, minimum_score: "302" }], campaignStatistics: [bvi] }));
+    expect(scoreCell(numeric, 2026, SCORE_ROWS[0]).value).toBe("302 баллов");
+    expect(scoreCell(summary, 2026, SCORE_ROWS[1]).kind).toBe("unavailable");
+  });
+
   it("uses the exact-year official card score instead of the lower order minimum, preserving enrollment", () => {
     const sourceUrl = "https://api.www.bmstu.ru/majors/programmnaa-inzeneria-090304";
     const selected = { ...program, directionCode: "09.03.04", sourceUrl };

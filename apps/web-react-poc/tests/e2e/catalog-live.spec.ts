@@ -26,7 +26,7 @@ test("catalog loads one consistent release snapshot and searches a discovered pr
     [path, diagnostics.apiResponses.filter((response) => response.path === path).length] as const
   )));
 
-  const search = page.getByRole("searchbox", { name: /Поиск по каталогу/ });
+  const search = page.getByRole("combobox", { name: /Поиск по каталогу/ });
   await search.fill(program.code);
   await expect(page).toHaveURL(new RegExp(`[?&]q=${encodeURIComponent(program.code)}(?:&|$)`));
   for (const path of catalogEndpoints) {
@@ -53,6 +53,7 @@ test("catalog loads one consistent release snapshot and searches a discovered pr
 test("catalog direction filter narrows live results and can be reset", async ({ page, diagnostics }) => {
   await page.goto("/programs");
   await expect(page.getByRole("heading", { level: 1, name: "Каталог программ" })).toBeVisible();
+  await page.getByRole("button", { name: /^Фильтры/ }).click();
 
   const direction = page.getByLabel("Направление");
   const options = await direction.locator("option").evaluateAll((elements) => (

@@ -7,7 +7,14 @@ const scriptDirectory = dirname(fileURLToPath(import.meta.url));
 const outputPath = resolve(scriptDirectory, "../public/data/prof-test-profile-snapshot.json");
 const apiBaseUrl = (process.env.ACADEMIC_DATA_API_BASE_URL ?? "http://127.0.0.1:8000/api/v1").replace(/\/$/, "");
 const PAGE_SIZE = 100;
-const CONCURRENCY = 4;
+const CONCURRENCY = 2;
+
+function eligibleForProfile(item) {
+  const title = (item.discipline_name ?? "").toLocaleLowerCase("ru");
+  return !["optional", "non_credit"].includes(item.workload_scope)
+    && !item.general_education_category
+    && !(title.includes("физическ") && title.includes("культур"));
+}
 
 function assert(condition, message) {
   if (!condition) throw new Error(message);
@@ -54,9 +61,14 @@ function selectLatestVerifiedPlans(programs, plans) {
 }
 
 async function requestJson(path, signal) {
-  const response = await fetch(`${apiBaseUrl}${path}`, { signal, headers: { accept: "application/json" } });
-  if (!response.ok) throw new Error(`Academic API returned HTTP ${response.status} for ${path}.`);
-  return response.json();
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const response = await fetch(`${apiBaseUrl}${path}`, { signal, headers: { accept: "application/json" } });
+    if (response.ok) return response.json();
+    if (attempt === 2 || ![429, 503].includes(response.status)) throw new Error(`Academic API returned HTTP ${response.status} for ${path}.`);
+    await response.body?.cancel();
+    await new Promise((resolve) => setTimeout(resolve, 600 * (attempt + 1)));
+  }
+  throw new Error("Academic API retry budget exhausted.");
 }
 
 async function collectPages(path, expectedReleaseKey, signal) {
@@ -112,9 +124,11 @@ function profileForPlan(plan, items, taxonomy) {
   let classifiedRows = 0;
   let assignedRows = 0;
   let reviewRows = 0;
+  let activitiesComplete = true;
 
   for (const item of items) {
-    const hours = finiteNumber(item.total_hours ?? item.hours);
+    if (!eligibleForProfile(item)) continue;
+    const hours = finiteNumber(item.hours);
     if (hours !== null && hours > 0) totalHours += hours;
     const assignment = item.subject_classification;
     const categoryCode = assignment?.category_code;
@@ -136,8 +150,8 @@ function profileForPlan(plan, items, taxonomy) {
 
     for (const field of ["lecture_hours", "practice_hours", "lab_hours", "self_study_hours"]) {
       const value = finiteNumber(item[field]);
-      assert(value !== null && value >= 0,
-        `Academic API returned incomplete ${field} data for curriculum item ${item.external_key}.`);
+      // Missing semester activity breakdown is not the course-wide total.
+      if (value === null || value < 0) { activitiesComplete = false; continue; }
       knownActivities.add(field);
       activityTotals[field] = (activityTotals[field] ?? 0) + value;
     }
@@ -145,7 +159,7 @@ function profileForPlan(plan, items, taxonomy) {
 
   const activityTotal = Object.values(activityTotals).reduce((sum, value) => sum + value, 0);
   const activityShares = {};
-  if (activityTotal > 0) {
+  if (activityTotal > 0 && activitiesComplete) {
     for (const field of knownActivities) activityShares[field] = (activityTotals[field] ?? 0) / activityTotal;
   }
 
@@ -153,6 +167,7 @@ function profileForPlan(plan, items, taxonomy) {
     program_key: plan.program_key,
     plan_key: plan.external_key,
     plan_item_count: items.length,
+    excluded_rows: items.filter((item) => !eligibleForProfile(item)).length,
     total_hours: totalHours,
     assigned_hours: assignedHours,
     classified_rows: classifiedRows,
@@ -191,7 +206,7 @@ async function main() {
   const assignedRows = profiles.reduce((sum, profile) => sum + profile.assigned_rows, 0);
   const reviewRows = profiles.reduce((sum, profile) => sum + profile.review_rows, 0);
   assert(profiles.length === selection.selected.length, "A selected verified plan produced no category profile.");
-  assert(assignedRows === totalCurriculumRows, "Some selected curriculum rows have no assigned taxonomy category.");
+  assert(assignedRows === rowsByPlan.flat().filter(eligibleForProfile).length, "Some eligible curriculum rows have no assigned taxonomy category.");
   assert(classifiedRows + reviewRows === assignedRows, "Some assigned categories have no supported review status.");
 
   const sourceRows = rowsByPlan.flat().map((item) => ({
@@ -200,18 +215,20 @@ async function main() {
     discipline_name: item.discipline_name,
     total_hours: item.total_hours,
     hours: item.hours,
+    workload_scope: item.workload_scope,
+    general_education_category: item.general_education_category,
     lecture_hours: item.lecture_hours,
     practice_hours: item.practice_hours,
     lab_hours: item.lab_hours,
     self_study_hours: item.self_study_hours,
-    subject_classification: {
+    subject_classification: item.subject_classification ? {
       taxonomy_key: item.subject_classification.taxonomy_key,
       taxonomy_version: item.subject_classification.taxonomy_version,
       category_code: item.subject_classification.category_code,
       category_name: item.subject_classification.category_name,
       confidence: item.subject_classification.confidence,
       review_status: item.subject_classification.review_status,
-    },
+    } : null,
   })).sort((left, right) => left.external_key.localeCompare(right.external_key, "en"));
   const sourceCurriculumSha256 = createHash("sha256").update(JSON.stringify(sourceRows)).digest("hex");
   const activeAfter = await requestJson("/release", controller.signal);

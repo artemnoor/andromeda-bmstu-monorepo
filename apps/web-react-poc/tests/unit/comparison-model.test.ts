@@ -25,6 +25,7 @@ function item(overrides: Partial<CurriculumItemDto> = {}): CurriculumItemDto {
     external_key: "item:one",
     study_plan_key: "plan:a:2025",
     ordinal: 1,
+    workload_scope: "unknown",
     ...overrides,
   };
 }
@@ -67,6 +68,21 @@ function classifiedItem(
 }
 
 describe("comparison domain model", () => {
+  it("sums semester hours once, separates optional courses, and never labels PE as physics", () => {
+    const rows = [
+      item({ external_key: "language:1", semester: 1, hours: 72, total_hours: 432, credits: "2" }),
+      item({ external_key: "language:2", semester: 2, hours: 72, total_hours: 432, credits: "2" }),
+      item({ external_key: "vk:3", workload_scope: "optional", semester: 3, hours: 360, total_hours: 1512, credits: "10" }),
+      item({ external_key: "sport", discipline_name: "Элективный курс по физической культуре и спорту", hours: 340 }),
+      item({ external_key: "pe", discipline_name: "Физическая культура и спорт", hours: 72, credits: "2" }),
+    ];
+    const result = buildCurriculumComparison({ programKeys: ["program:a"], plans: [plan()], itemsByPlanKey: new Map([["plan:a:2025", rows]]), taxonomy: taxonomy() });
+    expect(result.programs[0]?.total.hours.value).toBe(216);
+    expect(result.programs[0]?.total.credits.value).toBe(6);
+    expect(result.programs[0]?.additionalItems).toHaveLength(2);
+    expect(result.programs[0]?.categories.some((category) => category.name === "Физическая культура и спорт")).toBe(true);
+    expect(result.programs[0]?.semesters[0]?.hours.value).toBe(72);
+  });
   it("uses only the exact program key and refuses ties or a newer plan that needs review", () => {
     const plans = [
       plan({ external_key: "plan:a:old", program_key: "program:a", academic_year: "2024-2025" }),
@@ -163,9 +179,9 @@ describe("comparison domain model", () => {
         plan({ external_key: "plan:c", program_key: "program:c" }),
       ],
       itemsByPlanKey: new Map([
-        ["plan:a", [classifiedItem("item:a", "plan:a", {}, { semester: 1, total_hours: 10, credits: "1" }), item({ external_key: "item:a2", study_plan_key: "plan:a", discipline_name: "Algorithms", semester: 2, total_hours: 15, credits: "1" })]],
-        ["plan:b", [classifiedItem("item:b", "plan:b", { category_code: "04" }, { semester: 1, total_hours: 20, credits: "2" }), item({ external_key: "item:b2", study_plan_key: "plan:b", discipline_name: "Databases", semester: 4, total_hours: 45, credits: "3" })]],
-        ["plan:c", [classifiedItem("item:c", "plan:c", {}, { semester: 1, total_hours: 30, credits: "3" }), item({ external_key: "item:c2", study_plan_key: "plan:c", discipline_name: "Networks", semester: 6, total_hours: 75, credits: "5" })]],
+        ["plan:a", [classifiedItem("item:a", "plan:a", {}, { semester: 1, hours: 10, credits: "1" }), item({ external_key: "item:a2", study_plan_key: "plan:a", discipline_name: "Algorithms", semester: 2, hours: 15, credits: "1" })]],
+        ["plan:b", [classifiedItem("item:b", "plan:b", { category_code: "04" }, { semester: 1, hours: 20, credits: "2" }), item({ external_key: "item:b2", study_plan_key: "plan:b", discipline_name: "Databases", semester: 4, hours: 45, credits: "3" })]],
+        ["plan:c", [classifiedItem("item:c", "plan:c", {}, { semester: 1, hours: 30, credits: "3" }), item({ external_key: "item:c2", study_plan_key: "plan:c", discipline_name: "Networks", semester: 6, hours: 75, credits: "5" })]],
       ]),
       taxonomy: taxonomy({ categories: [
         { category_code: "03", name: "Mathematics", definition: "", ordinal: 3 },
@@ -190,16 +206,16 @@ describe("comparison domain model", () => {
     ]);
   });
 
-  it("preserves explicit zero, applies total_hours nullish fallback, and keeps unknown metrics nullable", () => {
+  it("preserves semester zero and never substitutes course totals for missing semester hours", () => {
     const result = buildCurriculumComparison({
       programKeys: ["program:a"],
       plans: [plan()],
       itemsByPlanKey: new Map([[
         "plan:a:2025",
         [
-          item({ external_key: "item:zero", semester: 1, total_hours: 0, hours: 45, credits: "0" }),
+          item({ external_key: "item:zero", semester: 1, total_hours: 45, hours: 0, credits: "0" }),
           item({ external_key: "item:fallback", ordinal: 2, semester: 1, total_hours: null, hours: 30, credits: "3.5" }),
-          item({ external_key: "item:unknown", ordinal: 3, semester: null, total_hours: null, hours: null, credits: "  " }),
+          item({ external_key: "item:unknown", ordinal: 3, semester: null, total_hours: 432, hours: null, credits: "  " }),
         ],
       ]]),
       taxonomy: null,

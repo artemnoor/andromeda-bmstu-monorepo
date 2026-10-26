@@ -857,6 +857,21 @@
             ],
             "title": "Faculty Name"
           },
+          "general_education_category": {
+            "anyOf": [
+              {
+                "enum": [
+                  "physical_education",
+                  "choice_unresolved"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "General Education Category"
+          },
           "hours": {
             "anyOf": [
               {
@@ -934,6 +949,17 @@
             ],
             "title": "Semester"
           },
+          "source_page": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Page"
+          },
           "sources": {
             "items": {
               "$ref": "#/components/schemas/SourceReference"
@@ -968,6 +994,17 @@
               }
             ],
             "title": "Total Hours"
+          },
+          "workload_scope": {
+            "default": "unknown",
+            "enum": [
+              "core",
+              "optional",
+              "non_credit",
+              "unknown"
+            ],
+            "title": "Workload Scope",
+            "type": "string"
           }
         },
         "required": [

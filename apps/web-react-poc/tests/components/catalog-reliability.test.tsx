@@ -1,11 +1,12 @@
 import "@testing-library/jest-dom/vitest";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { CatalogProgram } from "@/features/catalog/model";
 import type { AdmissionSummary } from "@/features/catalog/admission-model";
 import { AdmissionDetails } from "@/features/catalog/admission-details";
 import { ProgramCard } from "@/features/catalog/program-card";
+import { AdmissionPlacesTable } from "@/features/catalog/admission-facts";
 
 const mocks = vi.hoisted(() => ({ load: vi.fn(), summary: vi.fn() }));
 vi.mock("@/features/catalog/admission-api", () => ({ getProgramAdmission: mocks.load }));
@@ -72,13 +73,32 @@ describe("catalog admission reliability", () => {
     expect(screen.queryByText("Иное название в приёмном плане")).not.toBeInTheDocument();
     expect(screen.queryByRole("columnheader", { name: "Средний" })).not.toBeInTheDocument();
     expect(screen.getAllByRole("link", { name: "Источник ↗" }).map((link) => link.getAttribute("href"))).toEqual([
-      "https://api.www.bmstu.ru/majors/card",
+      "https://bmstu.ru/bachelor/majors/card",
     ]);
   });
 
   it("does not invent a Moscow campus for an unverified program", () => {
     render(<MemoryRouter><ProgramCard program={program} expectedReleaseKey="release:one" onSelectionLimit={() => undefined} /></MemoryRouter>);
-    expect(screen.getByText("МГТУ · кампус не подтверждён")).toBeVisible();
-    expect(screen.queryByText("МГТУ · Москва")).not.toBeInTheDocument();
+    expect(screen.getByText("МГТУ им. Н. Э. Баумана · кампус не подтверждён")).toBeVisible();
+    expect(screen.queryByText("МГТУ им. Н. Э. Баумана · Москва")).not.toBeInTheDocument();
+  });
+
+  it("opens a separate program page instead of fetching an inline admission panel", () => {
+    render(<MemoryRouter initialEntries={["/programs?department=ИУ7"]}><ProgramCard program={program} expectedReleaseKey="release:one" onSelectionLimit={() => undefined} /></MemoryRouter>);
+    expect(screen.getByRole("link", { name: "Подробнее ↗" })).toHaveAttribute("href", expect.stringMatching(/^\/programs\/01\.03\.02-01-[a-z0-9]+$/));
+    expect(screen.queryByRole("button", { name: "Подробнее" })).not.toBeInTheDocument();
+    expect(mocks.load).not.toHaveBeenCalled();
+  });
+
+  it("shows verified zero separately from unknown seats and unrelated source rows", () => {
+    render(<AdmissionPlacesTable columns={[{ key: program.external_key, label: program.code, program, summary }]} year={2026} />);
+    const table = screen.getByRole("table");
+    expect(within(table).getByText("0 мест")).toBeVisible();
+    expect(within(table).getByText("Не подтверждено")).toBeVisible();
+    expect(within(table).queryByText("37 мест")).not.toBeInTheDocument();
+    const related = screen.getByRole("complementary", { name: "Связанные строки плана приёма" });
+    expect(within(related).getByText(/37 мест/)).toBeVisible();
+    expect(within(related).getByText(/Связь с выбранным профилем не подтверждена/)).toBeVisible();
+    expect(within(related).getByRole("link", { name: "Источник ↗" })).toHaveAttribute("href", "https://bmstu.example/source");
   });
 });

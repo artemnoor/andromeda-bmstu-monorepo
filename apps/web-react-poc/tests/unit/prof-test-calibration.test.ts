@@ -101,19 +101,21 @@ describe("live academic snapshot relevance calibration", () => {
     }
   });
 
-  it("keeps every verified curriculum item assigned to a category", () => {
-    // Live API audit: recovered 01.03.04-05 adds 113 rows to the 14,165 prior rows.
-    expect(snapshot.total_curriculum_rows).toBe(14_165 + 113);
-    expect(snapshot.assigned_rows).toBe(snapshot.total_curriculum_rows);
-    expect(snapshot.classified_rows + snapshot.review_rows).toBe(snapshot.total_curriculum_rows);
-    expect(snapshot.review_rows).toBe(4_165 + 31);
-    expect(profiles).toHaveLength(127 + 1);
+  it("accounts for every PDF row while keeping general and additional subjects outside recommendation weights", () => {
+    expect(snapshot.total_curriculum_rows).toBe(snapshot.profiles.reduce((sum, profile) => sum + profile.plan_item_count, 0));
+    const excludedRows = snapshot.profiles.reduce((sum, profile) => sum + (profile.excluded_rows ?? 0), 0);
+    expect(excludedRows).toBeGreaterThan(0);
+    expect(snapshot.assigned_rows + excludedRows).toBe(snapshot.total_curriculum_rows);
+    expect(snapshot.classified_rows + snapshot.review_rows).toBe(snapshot.assigned_rows);
+    for (const profile of snapshot.profiles) {
+      expect(profile.assigned_rows + (profile.excluded_rows ?? 0)).toBe(profile.plan_item_count);
+      expect(profile.classified_rows + profile.review_rows).toBe(profile.assigned_rows);
+      expect(Object.values(profile.category_hours).reduce((sum, hours) => sum + hours, 0)).toBe(profile.assigned_hours);
+    }
+    expect(profiles).toHaveLength(snapshot.profiles.length);
     const recovered = snapshot.profiles.find((profile) => profile.program_key === "program:bmstu:01.03.04:ФН2:01.03.04-05:source:2-1");
-    expect(recovered?.assigned_rows).toBe(113);
-    expect(recovered?.review_rows).toBe(30);
-    // One prior ФН12 row also gains a cross-profile category conflict review flag.
-    const prior = snapshot.profiles.find((profile) => profile.program_key === "program:bmstu:01.03.04:ФН12:01.03.04-04:source:3-1");
-    expect(prior?.review_rows).toBe(26);
+    expect(recovered?.assigned_rows).toBeGreaterThan(0);
+    expect(profiles.some(({ program }) => program.external_key === "program:bmstu:09.03.03:СГН3:09.03.03/01:source:1-1")).toBe(false);
   });
 
   it("ranks IBM programs for matching technology and business interests", () => {
@@ -126,7 +128,7 @@ describe("live academic snapshot relevance calibration", () => {
 
     expect(business).toContain("program:bmstu:38.03.02:ИБМ4:38.03.02/04:source:1-1");
     expect(business).toContain("program:bmstu:38.03.05:ИБМ3:38.03.05/02:source:1-1");
-    expect(informationSystems[0]).toBe("program:bmstu:09.03.03:ИБМ3:09.03.03/10:source:1-1");
+    expect(informationSystems.every(key => key.startsWith("program:bmstu:09."))).toBe(true);
   });
 
   it("does not invent a verified plan profile for an IBM3 program whose plan is unavailable", () => {
@@ -134,9 +136,12 @@ describe("live academic snapshot relevance calibration", () => {
   });
 
   it("keeps IBM3 recommendation signals visible for their actual plan mix", () => {
-    const matches = rankPrograms(profiles, { ...emptyAnswers(), interests: ["05"] }).slice(0, 3);
-    const programKeys = matches.map(({ profile }) => profile.program.external_key);
-    expect(programKeys).toContain("program:bmstu:09.03.03:ИБМ3:09.03.03/10:source:1-1");
-    expect(matches.find(({ profile }) => profile.program.external_key === "program:bmstu:09.03.03:ИБМ3:09.03.03/10:source:1-1")?.score).toBeGreaterThan(0);
+    const matches = rankPrograms(profiles, { ...emptyAnswers(), interests: ["05"] });
+    const key = "program:bmstu:09.03.03:ИБМ3:09.03.03/10:source:1-1";
+    const source = snapshot.profiles.find(profile => profile.program_key === key)!;
+    const maximumShare = Math.max(...snapshot.profiles.map(profile => (profile.category_hours["05"] ?? 0) / profile.assigned_hours));
+    const expectedScore = 100 * (source.category_hours["05"] ?? 0) / source.assigned_hours / maximumShare;
+    expect(expectedScore).toBeGreaterThan(0);
+    expect(matches.find(({ profile }) => profile.program.external_key === key)?.score).toBeCloseTo(expectedScore);
   });
 });

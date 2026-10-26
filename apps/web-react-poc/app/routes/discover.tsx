@@ -1,10 +1,8 @@
 import { ProfTestPage } from "../../src/features/prof-test/prof-test-page";
+import { pageMeta } from "@/shared/seo";
 
 export function meta() {
-  return [
-    { title: "Проф-тест — Andromeda × BMSTU" },
-    { name: "description", content: "Подбери образовательные программы МГТУ по своим интересам и проверенным учебным планам." },
-  ];
+  return pageMeta("/discover");
 }
 
 export default function DiscoverRoute() {

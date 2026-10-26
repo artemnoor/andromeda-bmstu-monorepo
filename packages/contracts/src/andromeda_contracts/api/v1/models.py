@@ -251,6 +251,9 @@ class CurriculumItemRecord(SourcedRecord):
     lab_hours: int | None = Field(default=None, ge=0)
     self_study_hours: int | None = Field(default=None, ge=0)
     total_hours: int | None = Field(default=None, ge=0)
+    workload_scope: Literal["core", "optional", "non_credit", "unknown"] = "unknown"
+    general_education_category: Literal["physical_education", "choice_unresolved"] | None = None
+    source_page: int | None = None
     control_form: str | None = None
     department_name: str | None = None
     faculty_name: str | None = None

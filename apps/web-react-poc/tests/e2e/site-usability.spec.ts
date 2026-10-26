@@ -81,7 +81,7 @@ test("keyboard skip link and route focus work without taking focus away from cat
   await page.getByRole("link", { name: "Открыть каталог программ" }).first().click();
   await expect(page.getByRole("heading", { name: "Каталог программ", exact: true })).toBeVisible();
   await expect(page.locator("main")).toBeFocused();
-  const search = page.getByRole("searchbox", { name: /Поиск по каталогу/ });
+  const search = page.getByRole("combobox", { name: /Поиск по каталогу/ });
   await search.fill("Информатика");
   await expect(page).toHaveURL(/q=/);
   await expect(search).toBeFocused();

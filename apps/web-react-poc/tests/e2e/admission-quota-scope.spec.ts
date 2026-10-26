@@ -1,4 +1,5 @@
 import type { Page } from "@playwright/test";
+import bviReview from "../../docs/data/bvi-orders-20261020.json" with { type: "json" };
 import { clearPocStorage, expect, expectHealthyBrowser, test } from "./fixtures";
 
 type PageEnvelope = {
@@ -143,18 +144,22 @@ test("catalog does not attribute a branch target quota through a broad link to a
   }
   const card = page.getByRole("article").filter({ hasText: program.code }).first();
   await expect(card.getByRole("heading", { level: 2, name: program.name, exact: true })).toBeVisible();
-  await card.getByRole("button", { name: "Подробнее" }).click();
+  await card.getByRole("link", { name: "Подробнее ↗" }).click();
+  await expect(page).toHaveURL(/\/programs\/[\w.-]+$/);
 
-  const quotaList = card.getByRole("list", { name: "Места по квотам" });
-  await expect(quotaList).not.toContainText(targetPool.target_organization);
-  await expect(card).toContainText("Целевые места указаны по направлению и заказчику, без распределения между профилями.");
-  await card.getByText(/Целевые заказчики по направлению/).click();
-  await expect(card).toContainText("Распределение по профилям не задано.");
-  await expect(card).not.toContainText(targetPool.campus_label_in_document as string);
+  await expect(page.locator("#admission summary")).toContainText("Зачислено на всё направление");
+  await expect(page.getByRole("heading", { name: /Проходные баллы/ })).toBeVisible();
+  // The direction/organization pool remains API evidence, never a profile's
+  // enrollment count or an official-card passing score.
+  await expect(page.locator("main")).not.toContainText(targetPool.target_organization);
+  await expect(page.locator("main")).not.toContainText(targetPool.campus_label_in_document as string);
   expectHealthyBrowser(diagnostics);
 });
 
-test("comparison shows source-backed BVI, shared intake seats and zero seats distinctly", async ({ page, diagnostics }) => {
+test("comparison keeps shared plans independent from official scores and direction enrollment", async ({ page, diagnostics }, testInfo) => {
+  // This scenario independently reads paginated offerings/pools and three
+  // score sources, then captures two widths. Keep a finite integration budget.
+  test.setTimeout(60_000);
   const programs = await getPages(page, "/api/v1/programs");
   const selected = ["01.03.02-01", "09.03.04/01", "45.03.02"].map((prefix) => {
     const program = programs.items.find((item) => typeof item.code === "string" && item.code.startsWith(prefix));
@@ -181,24 +186,77 @@ test("comparison shows source-backed BVI, shared intake seats and zero seats dis
 
   await page.addInitScript((keys) => localStorage.setItem("andromeda.compare.v1", JSON.stringify(keys)), selected.map((program) => program.key));
   await page.goto("/compare");
-  const table = page.getByRole("table", { name: "Сравнение мест и условий приёма в выбранные программы." });
-  await expect(table).toBeVisible();
-  const row = (label: string) => table.getByRole("row").filter({ has: page.getByRole("rowheader", { name: label, exact: true }) });
-  const cell = (label: string, index: number) => row(label).locator(`td[data-program-label="${selected[index]!.code}"]`);
-  await expect(cell("Проходной балл · бюджет · основной конкурс", 0)).toContainText("Есть зачисление БВИ");
-  await expect(cell("БВИ · без вступительных испытаний", 0)).toContainText("БВИ — без вступительных испытаний");
-  await expect(cell("Бюджетные места · по плану", 1)).toContainText("84 места");
-  await expect(cell("Бюджетные места · по плану", 1)).toContainText("единый приёмный план для нескольких программ");
-  await expect(cell("Проходной балл · бюджет · основной конкурс", 2)).toContainText("Бюджетные места не предусмотрены");
-  await expect(cell("Бюджетные места · по плану", 2)).toContainText("0 мест");
-  for (const label of ["Отдельная квота", "Особая квота", "Целевая квота"]) await expect(row(label)).toHaveCount(1);
+  const admission = page.locator('[data-qa="admission-summary"]');
+  await expect(admission).toHaveAttribute("data-unavailable-count", "0");
+  const enrollment = admission.getByRole("table", { name: /Зачислено на всё направление подготовки/ });
+  const scores = admission.getByRole("table", { name: /Проходные баллы по официальной карточке/ });
+  const departments = await getPages(page, "/api/v1/departments");
+  expect(departments.releaseKey).toBe(programs.releaseKey);
+  for (const item of selected) {
+    const program = programs.items.find((row) => row.external_key === item.key)!;
+    const relations = program.department_relations as { department_key: string; verification_status: string }[];
+    const relation = relations.find((row) => row.verification_status === "verified");
+    const department = departments.items.find((row) => row.external_key === relation?.department_key);
+    expect(department).toBeDefined();
+    for (const table of [enrollment, scores]) {
+      const heading = table.getByRole("columnheader").filter({ hasText: item.code });
+      await expect(heading).toContainText(String(program.name));
+      await expect(heading).toContainText(String(department!.official_code));
+      await expect(heading).toContainText(String(department!.name));
+    }
+  }
+  await expect(enrollment.locator("tbody tr")).toHaveCount(5);
+  await expect(scores.locator("tbody tr")).toHaveCount(2);
+  const directions = await getPages(page, "/api/v1/directions");
+  expect(directions.releaseKey).toBe(programs.releaseKey);
+  for (const [index, selectedProgram] of selected.entries()) {
+    const raw = programs.items.find((item) => item.external_key === selectedProgram.key)!;
+    const direction = directions.items.find((item) => item.external_key === raw.direction_key);
+    if (!direction || typeof direction.code !== "string") throw new Error("Missing exact direction code");
+    const statistics = await getPages(page, "/api/v1/statistics", new URLSearchParams({ kind: "historical", year: "2026", direction_code: direction.code }));
+    expect(statistics.releaseKey).toBe(programs.releaseKey);
+    const official = statistics.items.filter((item) => item.statistic_kind === "official_program_card_passing_score");
+    expect(official).toHaveLength(2);
+    for (const [funding, label] of [["budget", "Бюджет"], ["paid", "Платное обучение"]] as const) {
+      const fact = official.find((item) => item.funding_type === funding)!;
+      expect(fact.scope_type).toBe("direction");
+      expect(fact.scope_label).toBe(direction.code);
+      const row = scores.getByRole("row").filter({ has: page.getByRole("rowheader", { name: label, exact: true }) });
+      const cell = row.locator(`td[data-program-label="${selectedProgram.code}"]`);
+      const bvi = funding === "budget" && fact.minimum_score == null
+        ? bviReview.directions.find((item) => item.directionCode === direction.code && item.verdict === "bvi_outside_quotas") : undefined;
+      const expected = fact.minimum_score == null ? bvi ? "БВИ вне квот" : "Не опубликован" : `${new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 1 }).format(Number(fact.minimum_score))} баллов`;
+      await expect(cell.locator("strong")).toHaveText(expected);
+      const sources = fact.sources as { source_url: string }[];
+      const source = sources.find((item) => item.source_url.startsWith("https://api.www.bmstu.ru/majors/"));
+      expect(source).toBeDefined();
+      await expect(cell.getByRole("link", { name: "Источник" })).toHaveAttribute("href",
+        `https://bmstu.ru/bachelor/majors/${new URL(source!.source_url).pathname.split("/").at(-1)}`);
+      if (bvi) {
+        await expect(cell).toContainText(`${bvi.bviAdmitted} зачисленных`);
+        await expect(cell.getByRole("link", { name: "Приказ о зачислении БВИ" })).toHaveAttribute("href", bvi.bviSource!);
+      } else await expect(cell).not.toContainText("БВИ");
+    }
+    const budget = enrollment.getByRole("row").filter({ has: page.getByRole("rowheader", { name: "Бюджет · всего", exact: true }) }).getByRole("cell").nth(index);
+    // Planned84/0 seats are checked independently above, never reinterpreted
+    // as enrolled people or as permission to invent a zero passing score.
+    await expect(budget).not.toContainText("мест");
+    if (await budget.locator("strong").innerText() !== "Не опубликовано") await expect(budget).toContainText(`Всё направление подготовки ${direction.code} · все профили`);
+  }
+  await expect(scores.getByRole("rowheader", { name: /квота|БВИ/ })).toHaveCount(0);
+  for (const label of ["В том числе · отдельная квота", "В том числе · особая квота", "В том числе · целевая квота"]) {
+    await expect(enrollment.getByRole("rowheader", { name: label, exact: true })).toBeVisible();
+  }
   await page.setViewportSize({ width: 1440, height: 1000 });
   const showAdmissionHeading = () => page.locator("#admission").evaluate((element) => window.scrollTo(0, element.getBoundingClientRect().top + window.scrollY - 110));
   await showAdmissionHeading();
-  await page.screenshot({ path: "docs/screenshots/admission-repaired-desktop.png" });
+  await page.screenshot({ path: testInfo.outputPath("admission-official-card-desktop.png") });
   await page.setViewportSize({ width: 390, height: 844 });
+  const mobileIdentity = scores.locator(`td[data-program-label="${selected[1]!.code}"]`).first();
+  expect(await mobileIdentity.getAttribute("data-program-details")).toContain("ИУ7");
+  expect(await mobileIdentity.evaluate((element) => getComputedStyle(element, "::before").content)).toContain("ИУ7");
   await showAdmissionHeading();
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
-  await page.screenshot({ path: "docs/screenshots/admission-repaired-mobile.png" });
+  await page.screenshot({ path: testInfo.outputPath("admission-official-card-mobile.png") });
   expectHealthyBrowser(diagnostics);
 });
